@@ -3,12 +3,11 @@
 
 import { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
-import type { TeamSeasonStat, Team } from "@/lib/types";
+import type { TeamSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 
 interface TeamScatterPlotProps {
   data: TeamSeasonStat[];
-  teams: Team[];
 }
 
 // Quadrant config
@@ -19,7 +18,7 @@ const QUADRANTS = [
   { key: "bottom", label: "Bottom Feeders", desc: "Struggling on both sides", color: "rgba(239,68,68,0.06)" },
 ];
 
-export default function TeamScatterPlot({ data, teams }: TeamScatterPlotProps) {
+export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -225,7 +224,7 @@ export default function TeamScatterPlot({ data, teams }: TeamScatterPlotProps) {
     return () => {
       svg.selectAll("*").remove();
     };
-  }, [data, teams, dimensions]);
+  }, [data, dimensions]);
 
   return (
     <div ref={containerRef} className="relative w-full bg-white border border-gray-200 rounded-md">

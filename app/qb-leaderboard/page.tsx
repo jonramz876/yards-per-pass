@@ -29,7 +29,7 @@ export default async function QBLeaderboardPage({
   const currentSeason = season ? parseInt(season) : (seasons[0] || 2025);
   const [qbStats, freshness] = await Promise.all([
     getQBStats(currentSeason),
-    getDataFreshness(),
+    getDataFreshness(currentSeason),
   ]);
 
   return (

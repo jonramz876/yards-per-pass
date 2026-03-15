@@ -96,9 +96,10 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
         off_rush_epa=('epa', 'mean'),
     ).reset_index().rename(columns={'posteam': 'team_id'})
 
-    # Pass rate
+    # Pass rate: pass attempts / (pass attempts + rush attempts)
     pass_rate = plays.groupby('posteam').apply(
-        lambda x: x['pass_attempt'].sum() / len(x), include_groups=False
+        lambda x: x['pass_attempt'].sum() / max(x['pass_attempt'].sum() + x['rush_attempt'].sum(), 1),
+        include_groups=False
     ).reset_index().rename(columns={'posteam': 'team_id', 0: 'pass_rate'})
 
     # Defensive stats
@@ -283,6 +284,9 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     ]
     result = qb_stats[cols].copy()
 
+    # Filter to only roster QBs (removes trick-play passers like WRs/punters)
+    result = result[result['player_id'].isin(qb_ids)].copy()
+
     print(f"  Aggregated stats for {len(result)} QBs")
     return result
 
@@ -404,16 +408,15 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
 
 
 def update_freshness(conn, season: int, through_week: int):
-    """Update the data_freshness single-row table."""
+    """Update the data_freshness table (one row per season)."""
     with conn.cursor() as cur:
         cur.execute(
-            """INSERT INTO data_freshness (id, last_updated, season, through_week)
-               VALUES (1, %s, %s, %s)
-               ON CONFLICT (id) DO UPDATE SET
+            """INSERT INTO data_freshness (season, last_updated, through_week)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (season) DO UPDATE SET
                  last_updated = EXCLUDED.last_updated,
-                 season = EXCLUDED.season,
                  through_week = EXCLUDED.through_week""",
-            (datetime.now(timezone.utc), season, through_week),
+            (season, datetime.now(timezone.utc), through_week),
         )
     conn.commit()
     print(f"  Updated freshness: season={season}, through_week={through_week}")

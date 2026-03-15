@@ -14,7 +14,7 @@ export default function Footer() {
         </a>{" "}
         — open-source, peer-reviewed NFL analytics data.
         <span className="block mt-1">
-          &copy; 2026 Yards Per Pass
+          &copy; {new Date().getFullYear()} Yards Per Pass
         </span>
       </div>
     </footer>

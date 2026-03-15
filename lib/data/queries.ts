@@ -63,12 +63,15 @@ export async function getQBStats(
   );
 }
 
-export async function getDataFreshness(): Promise<DataFreshness | null> {
+export async function getDataFreshness(season?: number): Promise<DataFreshness | null> {
   const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("data_freshness")
-    .select("*")
-    .single();
+  let query = supabase.from("data_freshness").select("*");
+  if (season) {
+    query = query.eq("season", season);
+  } else {
+    query = query.order("season", { ascending: false }).limit(1);
+  }
+  const { data, error } = await query.single();
 
   if (error) return null;
   return data as DataFreshness;

@@ -15,7 +15,7 @@ export function parseNumericFields(
     if (typeof parsed[field] === "string") {
       parsed[field] = parseFloat(parsed[field] as string);
     } else if (parsed[field] === null || parsed[field] === undefined) {
-      parsed[field] = 0;
+      parsed[field] = NaN;
     }
   }
   return parsed;

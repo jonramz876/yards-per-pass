@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import DashboardShell from "@/components/layout/DashboardShell";
 import MobileTeamList from "@/components/charts/MobileTeamList";
 import { getTeamStats, getDataFreshness, getAvailableSeasons } from "@/lib/data/queries";
-import { NFL_TEAMS } from "@/lib/data/teams";
 
 // CRITICAL: D3 accesses window/document — must disable SSR
 const TeamScatterPlot = dynamic(
@@ -37,7 +36,7 @@ export default async function TeamsPage({
   const currentSeason = season ? parseInt(season) : (seasons[0] || 2025);
   const [teamStats, freshness] = await Promise.all([
     getTeamStats(currentSeason),
-    getDataFreshness(),
+    getDataFreshness(currentSeason),
   ]);
 
   return (
@@ -55,7 +54,7 @@ export default async function TeamsPage({
         <>
           {/* Desktop: D3 scatter plot */}
           <div className="hidden md:block">
-            <TeamScatterPlot data={teamStats} teams={NFL_TEAMS} />
+            <TeamScatterPlot data={teamStats} />
           </div>
           {/* Mobile: sorted list */}
           <div className="md:hidden">

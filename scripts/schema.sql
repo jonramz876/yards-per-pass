@@ -68,17 +68,12 @@ CREATE TABLE IF NOT EXISTS qb_season_stats (
 CREATE INDEX IF NOT EXISTS idx_qb_season ON qb_season_stats(season);
 CREATE INDEX IF NOT EXISTS idx_qb_player ON qb_season_stats(player_id);
 
--- 4. Data freshness (single row)
+-- 4. Data freshness (one row per season)
 CREATE TABLE IF NOT EXISTS data_freshness (
-  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  season INTEGER PRIMARY KEY,
   last_updated TIMESTAMPTZ DEFAULT NOW(),
-  season INTEGER,
   through_week INTEGER
 );
-
-INSERT INTO data_freshness (season, through_week)
-VALUES (2025, 0)
-ON CONFLICT (id) DO NOTHING;
 
 -- 5. Row Level Security — anonymous read access
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
