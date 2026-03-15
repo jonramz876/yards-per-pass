@@ -1,33 +1,32 @@
+// app/layout.tsx
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Yards Per Pass",
-  description: "NFL analytics powered by nflverse data",
+  title: {
+    default: "Yards Per Pass — NFL Analytics, Simplified",
+    template: "%s — Yards Per Pass",
+  },
+  description:
+    "Free NFL analytics dashboard with EPA, CPOE, success rate, and more. Clean, fast, no paywall.",
+  openGraph: {
+    type: "website",
+    siteName: "Yards Per Pass",
+    locale: "en_US",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+    <html lang="en" className={inter.variable}>
+      <body className="min-h-screen bg-white">
         {children}
       </body>
     </html>

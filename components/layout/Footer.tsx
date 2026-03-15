@@ -1,0 +1,22 @@
+// components/layout/Footer.tsx
+export default function Footer() {
+  return (
+    <footer className="border-t border-gray-200 bg-white py-8">
+      <div className="max-w-6xl mx-auto px-6 md:px-12 text-center text-sm text-gray-500">
+        Built on{" "}
+        <a
+          href="https://github.com/nflverse"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-navy"
+        >
+          nflverse
+        </a>{" "}
+        — open-source, peer-reviewed NFL analytics data.
+        <span className="block mt-1">
+          &copy; 2026 Yards Per Pass
+        </span>
+      </div>
+    </footer>
+  );
+}

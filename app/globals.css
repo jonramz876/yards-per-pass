@@ -1,12 +1,15 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@config "../tailwind.config.ts";
 
 @layer base {
   body {
-    @apply font-sans text-navy antialiased;
+    font-family: var(--font-inter), sans-serif;
+    color: #013369;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   :root {
@@ -76,19 +79,12 @@
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
   }
-  .theme {
-    --font-sans: var(--font-sans);
-  }
   * {
-    @apply border-border outline-ring/50;
-  }
-  html {
-    @apply font-sans;
+    border-color: var(--border);
+    outline-color: var(--ring);
   }
 }
 
-@layer utilities {
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
+@utility tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
