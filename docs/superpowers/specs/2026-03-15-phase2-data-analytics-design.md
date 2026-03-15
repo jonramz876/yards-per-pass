@@ -19,11 +19,21 @@ Phase 2 Data & Analytics adds new stats (fumbles, TD:INT, per-game stats, total 
 **Changes:**
 
 ### Pipeline (`scripts/ingest.py`)
-- Add `fumble` and `fumble_lost` to `REQUIRED_PBP_COLS`
-- In `aggregate_qb_stats`, aggregate fumbles across ALL plays where the QB is involved:
-  - On dropback plays: sum `fumble` and `fumble_lost` grouped by `passer_player_id`
-  - On designed rush plays: sum `fumble` and `fumble_lost` grouped by `rusher_player_id`
-  - Merge both, summing across play types per player
+- Add `fumble`, `fumble_lost`, `fumbled_1_player_id` to `REQUIRED_PBP_COLS`
+- In `aggregate_qb_stats`, aggregate fumbles using `fumbled_1_player_id` to attribute correctly:
+  - **Critical**: The `fumble` column marks ANY fumble on the play (including WR/RB fumbles after a catch). Using `passer_player_id` grouping would wrongly charge receiver fumbles to the QB.
+  - Instead, filter to plays where `fumbled_1_player_id` matches the QB's player_id, then sum `fumble` and `fumble_lost`:
+    ```python
+    # Fumbles: attribute only when the QB is the fumbler (not WR/RB fumbles)
+    all_plays_with_fumbles = pd.concat([dropbacks, designed_rushes])
+    qb_fumbles = all_plays_with_fumbles[
+        all_plays_with_fumbles['fumbled_1_player_id'].isin(qb_ids)
+    ].groupby('fumbled_1_player_id').agg(
+        fumbles=('fumble', 'sum'),
+        fumbles_lost=('fumble_lost', 'sum'),
+    ).reset_index().rename(columns={'fumbled_1_player_id': 'player_id'})
+    ```
+  - Merge into `qb_stats`, fill missing with 0
 - Add `fumbles` and `fumbles_lost` to the final `cols` list and `upsert_qb_stats` cols
 
 ### Schema (`scripts/schema.sql`)
@@ -91,7 +101,7 @@ fumbles_lost: number;
 - Compute aDOT separately on true pass attempts only:
   ```python
   # After the main qb_drop aggregation, compute aDOT on pass attempts only
-  adot_plays = dropbacks[(dropbacks['pass_attempt'] == 1) & (dropbacks['sack'] != 1)]
+  adot_plays = dropbacks[(dropbacks['pass_attempt'] == 1) & (dropbacks['sack'] != 1) & (dropbacks['qb_scramble'] != 1)]
   adot_stats = adot_plays.groupby('passer_player_id')['air_yards'].apply(
       lambda x: x.dropna().mean()
   ).reset_index().rename(columns={'passer_player_id': 'player_id', 'air_yards': 'adot'})
@@ -101,6 +111,7 @@ fumbles_lost: number;
 ### Verification
 - **Golden-value test**: Compare aDOT for 3 QBs (deep thrower like Stafford, short-game QB like Garoppolo, mobile QB like Lamar) against PFR/NFL Next Gen Stats
 - The fix should increase aDOT slightly for mobile QBs (scrambles with air_yards=0 were pulling the mean down)
+- **Critical**: Some scrambles in nflverse have `pass_attempt=1` — the `qb_scramble != 1` filter is essential to avoid contaminating aDOT with non-pass plays
 
 ---
 
@@ -130,14 +141,40 @@ fumbles_lost: number;
 - Since these aren't real fields on `QBSeasonStat`, the sort logic needs a computed-value accessor:
   ```typescript
   function getVal(qb: QBSeasonStat, key: string): number {
-    if (key === "yards_per_game") return qb.passing_yards / qb.games;
-    if (key === "tds_per_game") return qb.touchdowns / qb.games;
+    if (key === "yards_per_game") return qb.games ? qb.passing_yards / qb.games : NaN;
+    if (key === "tds_per_game") return qb.games ? qb.touchdowns / qb.games : NaN;
     if (key === "total_tds") return qb.touchdowns + qb.rush_tds;
     if (key === "td_int_ratio") return qb.interceptions > 0 ? qb.touchdowns / qb.interceptions : Infinity;
-    return qb[key as keyof QBSeasonStat] as number;
+    const val = qb[key as keyof QBSeasonStat] as number;
+    return val ?? NaN;
   }
   ```
-  Use `getVal` in the sort comparator and `formatVal` for display.
+  **Sort comparator refactoring**: Replace the current sort logic that uses `a[sortKey as keyof QBSeasonStat]` with `getVal`:
+  ```typescript
+  result.sort((a, b) => {
+    const aVal = getVal(a, sortKey);
+    const bVal = getVal(b, sortKey);
+    const aNull = aVal == null || Number.isNaN(aVal);
+    const bNull = bVal == null || Number.isNaN(bVal);
+    if (aNull && bNull) return 0;
+    if (aNull) return 1;
+    if (bNull) return -1;
+    // Infinity handling: Infinity sorts to top in desc (best TD:INT)
+    return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+  });
+  ```
+  **formatVal additions**: Add cases to the switch for all virtual keys:
+  ```typescript
+  case "yards_per_game":
+  case "tds_per_game":
+    return n.toFixed(1);
+  case "total_tds":
+    return n.toString();
+  case "td_int_ratio":
+    if (!Number.isFinite(n)) return `${/* use qb.touchdowns */}:0`;
+    return n.toFixed(1) + ":1";
+  ```
+  Note: `formatVal` needs access to the full `qb` object for the td_int_ratio Infinity case. Refactor signature to `formatVal(key: string, val: unknown, qb: QBSeasonStat)` or compute the display string inline.
 
 ---
 
@@ -277,11 +314,13 @@ Given prior accuracy issues, every pipeline change gets verified:
 
 **New tests to add:**
 
-1. **aDOT filter test**: Create a minimal DataFrame with a mix of pass attempts, sacks, and scrambles with known air_yards. Verify aDOT only uses `(pass_attempt==1) & (sack!=1)` plays.
+1. **aDOT filter test**: Create a minimal DataFrame with a mix of pass attempts, sacks, and scrambles with known air_yards. Verify aDOT only uses `(pass_attempt==1) & (sack!=1) & (qb_scramble!=1)` plays. Scrambles must be excluded even when `pass_attempt==1`.
 
-2. **Fumble aggregation test**: Create a minimal DataFrame with fumbles on pass plays and rush plays. Verify both are counted for the correct QB.
+2. **Fumble aggregation test**: Create a minimal DataFrame with QB fumbles on pass plays and rush plays. Use `fumbled_1_player_id` to verify only QB fumbles are counted.
 
-3. **Total fumble count test**: Verify fumbles from dropback + designed rush + scramble plays are all attributed correctly.
+3. **WR fumble exclusion test**: Create a play where `fumble=1` but `fumbled_1_player_id` is a WR (not the QB). Verify the QB is NOT charged with that fumble. This is the critical accuracy test — the naive approach of grouping by `passer_player_id` would fail this test.
+
+4. **Scramble fumble test**: Verify a QB fumble on a scramble play (where `fumbled_1_player_id` matches the QB via rusher backfill) is correctly attributed.
 
 ### PFR Cross-Reference (Manual, Post-Ingest)
 
