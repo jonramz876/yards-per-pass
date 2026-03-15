@@ -308,33 +308,85 @@ success_rate: number | null;
 
 ## Stat Verification Plan
 
-Given prior accuracy issues, every pipeline change gets verified:
+Given prior accuracy issues (pass_attempt=1 on sacks, scramble attribution, rush attempt counts), verification is the most important part of this phase. Every pipeline change gets multiple layers of testing.
 
-### Golden-Value Tests (`tests/test_formulas.py`)
+### Layer 1: Unit Tests (`tests/test_formulas.py`)
 
-**New tests to add:**
+Synthetic DataFrames with hand-computed expected values. These catch regression and document edge cases.
 
-1. **aDOT filter test**: Create a minimal DataFrame with a mix of pass attempts, sacks, and scrambles with known air_yards. Verify aDOT only uses `(pass_attempt==1) & (sack!=1) & (qb_scramble!=1)` plays. Scrambles must be excluded even when `pass_attempt==1`.
+**aDOT tests (3 tests):**
 
-2. **Fumble aggregation test**: Create a minimal DataFrame with QB fumbles on pass plays and rush plays. Use `fumbled_1_player_id` to verify only QB fumbles are counted.
+1. **aDOT excludes sacks**: DataFrame with 3 plays — a completion (air_yards=10), a sack (air_yards=NaN), a pass attempt (air_yards=5). Expected aDOT = 7.5 (only the two pass attempts).
 
-3. **WR fumble exclusion test**: Create a play where `fumble=1` but `fumbled_1_player_id` is a WR (not the QB). Verify the QB is NOT charged with that fumble. This is the critical accuracy test — the naive approach of grouping by `passer_player_id` would fail this test.
+2. **aDOT excludes scrambles**: DataFrame with 3 plays — two completions (air_yards=12, 8) and one scramble with `pass_attempt=1, qb_scramble=1, air_yards=0`. Expected aDOT = 10.0 (scramble excluded even though pass_attempt=1).
 
-4. **Scramble fumble test**: Verify a QB fumble on a scramble play (where `fumbled_1_player_id` matches the QB via rusher backfill) is correctly attributed.
+3. **aDOT all-NaN**: QB with only scrambles/sacks (no true pass attempts with air_yards). Expected aDOT = NaN (not 0, not crash).
 
-### PFR Cross-Reference (Manual, Post-Ingest)
+**Fumble tests (4 tests):**
 
-After re-running `ingest.py --all`, spot-check these QBs against PFR for 2025:
+4. **QB sack fumble**: QB gets sacked and fumbles (fumbled_1_player_id = QB). Expected: fumbles=1, fumbles_lost depends on recovery.
 
-| QB | Stats to verify |
-|----|----------------|
-| Josh Allen | Fumbles, fumbles lost, aDOT |
-| Lamar Jackson | Fumbles (rushing fumbles important), total TDs |
-| Patrick Mahomes | aDOT, TD:INT ratio |
+5. **QB rush fumble**: QB designed run, fumbles (fumbled_1_player_id = QB). Expected: fumbles=1.
 
-### Dry-Run Validation
+6. **WR fumble after catch**: Completion to WR, WR fumbles (fumble=1 on the play, but fumbled_1_player_id = WR, not QB). Expected: QB fumbles=0. This is the critical test — naive `passer_player_id` grouping would wrongly charge the QB.
 
-Before writing to DB, run `python scripts/ingest.py --season 2025 --dry-run` and manually inspect the log output for the new columns.
+7. **QB scramble fumble**: Scramble play, QB fumbles (fumbled_1_player_id = QB's rusher_player_id). Expected: fumbles=1 after player ID matching.
+
+**Computed stat tests (3 tests):**
+
+8. **TD:INT ratio**: QB with 20 TD, 8 INT → 2.5. QB with 5 TD, 0 INT → Infinity.
+
+9. **Per-game stats**: QB with 3400 yards, 16 games → 212.5 yds/game. QB with 0 games → NaN (not crash).
+
+10. **Total TDs**: QB with 25 pass TD, 5 rush TD → 30 total.
+
+### Layer 2: Integration Dry-Run
+
+Run `python scripts/ingest.py --season 2025 --dry-run` and add logging that prints a sample of 5 QBs with all new/changed columns:
+```
+QB Sample: J.Allen — fumbles=X, fumbles_lost=X, aDOT=X.XX
+```
+Visually inspect for obvious outliers (fumbles > 20, aDOT < 3 or > 15, etc.).
+
+### Layer 3: PFR Cross-Reference (Manual, Post-Ingest)
+
+After re-running `ingest.py --all`, spot-check **6 QBs** across different archetypes against Pro Football Reference for 2025:
+
+| QB | Type | Stats to verify | Why this QB |
+|----|------|-----------------|-------------|
+| Josh Allen | Dual-threat | Fumbles, fumbles lost, rush TDs, total TDs | High fumble count, many rush TDs |
+| Lamar Jackson | Mobile | Fumbles (rushing fumbles critical), aDOT, total TDs | Most rushing fumble exposure |
+| Patrick Mahomes | Pocket passer | aDOT, TD:INT ratio, fumbles | Clean comparison for aDOT fix |
+| Jared Goff | Game manager | aDOT (should be low), comp%, fumbles | Low aDOT validates filter works |
+| C.J. Stroud | Young QB | All new stats | Regression check (was accurate in Phase 1) |
+| A backup/low-volume QB | Edge case | Fumbles=0, aDOT with small sample | Verify no division-by-zero or NaN issues |
+
+**For each QB, verify:**
+- Fumbles and fumbles lost match PFR within ±1 (nflverse may count differently on rare edge plays)
+- aDOT is within ±0.3 of PFR/Next Gen Stats (slight methodology differences expected)
+- If any stat is off by more than the tolerance, investigate before proceeding
+
+### Layer 4: Existing Stats Regression Check
+
+Re-running `ingest.py --all` must NOT change any existing stats (attempts, yards, TDs, INTs, EPA, etc.). Verify by:
+
+1. Before re-ingesting, query current values for Josh Allen 2025 from Supabase:
+   ```sql
+   SELECT attempts, passing_yards, touchdowns, interceptions, sacks, passer_rating, epa_per_db, adot
+   FROM qb_season_stats WHERE player_name LIKE '%Allen%' AND season = 2025;
+   ```
+2. After re-ingesting, run the same query
+3. All values EXCEPT `adot` should be identical (aDOT will change due to D-M3 fix)
+4. If any other value changes, something broke — halt and investigate
+
+### Layer 5: Frontend Computed Values Spot-Check
+
+After deployment, open the live site and verify:
+- Yds/G = Yards / GP for any QB (calculator check)
+- TD/G = TD / GP for any QB
+- Total TD = Pass TD + Rush TD
+- TD:INT = TD / INT (or "X:0" when INT = 0)
+- FL column matches PFR for spot-checked QBs
 
 ---
 
