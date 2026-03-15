@@ -49,6 +49,7 @@ export interface QBSeasonStat {
   touchdowns: number;
   interceptions: number;
   sacks: number;
+  sack_yards_lost: number;
   adot: number;
   ypa: number;
   passer_rating: number;

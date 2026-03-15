@@ -24,20 +24,22 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
   { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
   { key: "success_rate", label: "Success%", tooltip: "Success%", group: "passing" },
+  { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
   { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
   { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "games", label: "GP", group: "core" },
+  { key: "completions", label: "Cmp", group: "passing" },
   { key: "attempts", label: "Att", group: "passing" },
   { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
   { key: "passing_yards", label: "Yards", group: "passing" },
   { key: "touchdowns", label: "TD", group: "passing" },
   { key: "interceptions", label: "INT", group: "passing" },
   { key: "sacks", label: "Sk", tooltip: "Sk", group: "passing" },
+  { key: "sack_yards_lost", label: "Sk Yds", tooltip: "Sk Yds", group: "passing" },
   { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
-  { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
   { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
   { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing" },
   { key: "rush_yards", label: "Rush Yds", group: "rushing" },
@@ -120,7 +122,7 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       case "completion_pct":
         return n.toFixed(1);
       case "success_rate":
-        return n.toFixed(1);
+        return n.toFixed(2);
       case "passer_rating":
         return n.toFixed(1);
       default:

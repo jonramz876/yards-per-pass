@@ -19,9 +19,11 @@ const METRIC_DEFINITIONS: Record<string, string> = {
     "Percentage of non-sack dropbacks that are successful (gained enough yards for the situation). Sacks excluded because they reflect OL failure, not QB decision-making.",
   Sk: "Sacks taken. Included in EPA/DB denominator \u2014 a QB who takes many sacks will have lower dropback EPA even if their completions are efficient.",
   "Rush Att":
-    "Designed rush attempts (not scrambles \u2014 those are counted in dropbacks). Shows how often a QB runs by design.",
+    "Rush attempts including designed runs and scrambles, but excluding kneels. PFR includes kneels in rush attempts.",
   "Rush EPA":
-    "EPA per designed rush attempt. Measures a QB's value as a runner (excludes scrambles). Positive = above-average rushing.",
+    "EPA per rush attempt (designed runs + scrambles, excluding kneels). Measures a QB's total value as a runner. Positive = above-average rushing.",
+  "Sk Yds":
+    "Total yards lost on sacks. Shown as a positive number for readability (e.g., 150 means 150 yards lost).",
   aDOT: "Average Depth of Target. How far downfield a QB throws on average. Higher = more aggressive.",
   YPA: "Yards Per Attempt. Total passing yards divided by pass attempts (sacks excluded from denominator).",
   "ANY/A":

@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS qb_season_stats (
   touchdowns INTEGER,
   interceptions INTEGER,
   sacks INTEGER,
+  sack_yards_lost INTEGER,
   adot NUMERIC,
   ypa NUMERIC,
   passer_rating NUMERIC,

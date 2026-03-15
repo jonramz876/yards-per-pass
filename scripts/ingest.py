@@ -363,12 +363,15 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     qb_stats['season'] = season
     qb_stats = qb_stats.rename(columns={'dropback_count': 'dropbacks'})
 
+    # Convert sack_yards_lost to positive int for display (e.g., -150 → 150)
+    qb_stats['sack_yards_lost'] = qb_stats['sack_yards_lost'].fillna(0).abs().astype(int)
+
     # Select final columns
     cols = [
         'player_id', 'player_name', 'team_id', 'season', 'games',
         'completions', 'attempts', 'dropbacks', 'epa_per_db', 'epa_per_play',
         'cpoe', 'completion_pct', 'success_rate', 'passing_yards',
-        'touchdowns', 'interceptions', 'sacks', 'adot', 'ypa', 'passer_rating',
+        'touchdowns', 'interceptions', 'sacks', 'sack_yards_lost', 'adot', 'ypa', 'passer_rating',
         'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
     ]
     result = qb_stats[cols].copy()
@@ -477,7 +480,7 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
         'player_id', 'player_name', 'team_id', 'season', 'games',
         'completions', 'attempts', 'dropbacks', 'epa_per_db', 'epa_per_play',
         'cpoe', 'completion_pct', 'success_rate', 'passing_yards',
-        'touchdowns', 'interceptions', 'sacks', 'adot', 'ypa', 'passer_rating',
+        'touchdowns', 'interceptions', 'sacks', 'sack_yards_lost', 'adot', 'ypa', 'passer_rating',
         'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
     ]
     # Replace NaN with None for SQL NULL
