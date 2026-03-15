@@ -250,6 +250,12 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       <p className="mt-2 text-xs text-gray-400">
         Showing {filtered.length} of {data.length} quarterbacks with &ge;{minDropbacks} dropbacks
       </p>
+
+      <div className="mt-4 text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-3">
+        <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
+        <p><span className="font-semibold text-gray-500">Rush Att</span> counts designed rushes and scrambles but excludes kneels. PFR includes kneels in rush attempts.</p>
+        <p><span className="font-semibold text-gray-500">Success%</span> excludes sacks from the denominator. Sacks reflect offensive line failure, not QB decision-making. PFR includes sacks, which lowers the number.</p>
+      </div>
     </div>
   );
 }
