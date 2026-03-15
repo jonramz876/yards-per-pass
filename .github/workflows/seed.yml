@@ -1,0 +1,51 @@
+# .github/workflows/seed.yml
+name: Seed Historical Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: 'Comma-separated seasons to load'
+        required: false
+        default: '2020,2021,2022,2023,2024,2025'
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('scripts/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Seed each season
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          IFS=',' read -ra SEASONS <<< "${{ github.event.inputs.seasons }}"
+          FAILED=()
+          for season in "${SEASONS[@]}"; do
+            echo "Processing season $season..."
+            if ! python scripts/ingest.py --season "$season"; then
+              echo "::warning::Season $season failed"
+              FAILED+=("$season")
+            fi
+          done
+          if [ ${#FAILED[@]} -gt 0 ]; then
+            echo "::error::Failed seasons: ${FAILED[*]}"
+            exit 1
+          fi

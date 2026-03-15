@@ -1,0 +1,44 @@
+# .github/workflows/data-refresh.yml
+name: Weekly Data Refresh
+
+on:
+  schedule:
+    - cron: '0 11 * * 3'  # Every Wednesday at 11:00 AM UTC (after MNF data is published)
+  workflow_dispatch:
+    inputs:
+      season:
+        description: 'Season to refresh (default: current)'
+        required: false
+        default: '2025'
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('scripts/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Resolve season
+        id: vars
+        run: echo "season=${{ github.event.inputs.season || '2025' }}" >> $GITHUB_OUTPUT
+
+      - name: Run ingest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python scripts/ingest.py --season "${{ steps.vars.outputs.season }}"
