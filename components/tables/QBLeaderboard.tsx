@@ -198,14 +198,14 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold w-10 sticky left-0 z-20">#</th>
-              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold min-w-[160px] sticky left-10 z-20">Player</th>
-              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold">Team</th>
+              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-8 sticky left-0 z-20">#</th>
+              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky left-8 z-20">Player</th>
+              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold">Team</th>
               {columns.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className={`${sortKey === col.key ? "bg-navy/60" : GROUP_COLORS[col.group]} text-white px-3 py-2.5 text-right text-xs font-semibold cursor-pointer hover:bg-navy/70 transition-colors whitespace-nowrap`}
+                  className={`${sortKey === col.key ? "bg-navy/60" : GROUP_COLORS[col.group]} text-white px-2 py-2.5 text-right text-xs font-semibold cursor-pointer hover:bg-navy/70 transition-colors whitespace-nowrap`}
                 >
                   <span className="inline-flex items-center gap-0.5">
                     {col.label}
@@ -228,20 +228,20 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
             ) : (
               filtered.map((qb, idx) => (
                 <tr key={qb.player_id} className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
-                  <td className="px-3 py-2 text-gray-400 font-bold tabular-nums w-10 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                  <td className="px-3 py-2 sticky left-10 z-10 bg-white group-hover:bg-gray-50/50">
+                  <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
+                  <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
                       <span className="font-semibold text-navy">{qb.player_name}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-2 text-gray-500 text-xs">{qb.team_id}</td>
+                  <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
                   {columns.map((col) => {
                     const val = qb[col.key as keyof typeof qb];
                     return (
                       <td
                         key={col.key}
-                        className={`px-3 py-2 text-right tabular-nums ${
+                        className={`px-2 py-2 text-right tabular-nums ${
                           isEpaCol(col.key) ? `font-bold ${epaColor(val as number)}` : "text-gray-700"
                         }`}
                       >
