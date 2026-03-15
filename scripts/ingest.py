@@ -163,11 +163,14 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # --- Dropback stats (qb_dropback == 1) ---
     dropbacks = plays[plays['qb_dropback'] == 1].copy()
 
-    # Fix scramble attribution: on scrambles, passer_player_id is often NULL
-    # but rusher_player_id has the QB. Fill it in before the groupby.
+    # Fix scramble attribution: on scrambles, passer_player_id and passer_player_name
+    # are often NULL but rusher_player_id/name have the QB. Fill both before groupby.
     scramble_mask = dropbacks['qb_scramble'] == 1
     dropbacks.loc[scramble_mask, 'passer_player_id'] = (
         dropbacks.loc[scramble_mask, 'rusher_player_id']
+    )
+    dropbacks.loc[scramble_mask, 'passer_player_name'] = (
+        dropbacks.loc[scramble_mask, 'rusher_player_name']
     )
 
     qb_drop = dropbacks.groupby('passer_player_id').agg(

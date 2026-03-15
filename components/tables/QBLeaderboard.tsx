@@ -69,6 +69,11 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
     result.sort((a, b) => {
       const aVal = a[sortKey] as number;
       const bVal = b[sortKey] as number;
+      const aNull = aVal == null || Number.isNaN(aVal);
+      const bNull = bVal == null || Number.isNaN(bVal);
+      if (aNull && bNull) return 0;
+      if (aNull) return 1; // nulls to bottom
+      if (bNull) return -1;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
@@ -84,7 +89,7 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
   }
 
   function formatVal(key: string, val: unknown): string {
-    if (val == null) return "\u2014";
+    if (val == null || (typeof val === "number" && Number.isNaN(val))) return "\u2014";
     const n = val as number;
     switch (key) {
       case "epa_per_play":

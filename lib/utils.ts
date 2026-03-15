@@ -14,6 +14,8 @@ export function parseNumericFields(
   for (const field of fields) {
     if (typeof parsed[field] === "string") {
       parsed[field] = parseFloat(parsed[field] as string);
+    } else if (parsed[field] === null || parsed[field] === undefined) {
+      parsed[field] = 0;
     }
   }
   return parsed;
