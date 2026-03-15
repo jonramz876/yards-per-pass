@@ -1,7 +1,7 @@
 // components/tables/QBLeaderboard.tsx
 "use client";
 
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
@@ -11,40 +11,41 @@ interface QBLeaderboardProps {
   throughWeek: number;
 }
 
-const COLUMNS = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "epa_per_play", label: "EPA/Play", tooltip: "EPA/Play", group: "core" },
-  { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
-  { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
-  { key: "attempts", label: "Att", group: "passing" },
-  { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
-  { key: "success_rate", label: "Success%", tooltip: "Success%", group: "passing" },
-  { key: "passing_yards", label: "Yards", group: "passing" },
-  { key: "touchdowns", label: "TD", group: "passing" },
-  { key: "interceptions", label: "INT", group: "passing" },
-  { key: "sacks", label: "Sk", tooltip: "Sk", group: "passing", hideMobile: true },
-  { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing", hideMobile: true },
-  { key: "rush_yards", label: "Rush Yds", group: "rushing", hideMobile: true },
-  { key: "rush_tds", label: "Rush TD", group: "rushing", hideMobile: true },
-  { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing", hideMobile: true },
-  { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency", hideMobile: true },
-  { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
-  { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
-  { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
-] as const;
-
-type SortKey = typeof COLUMNS[number]['key'];
-type SortDir = "asc" | "desc";
-
-// Widen column type so optional fields (tooltip, hideMobile) are always accessible
 type ColumnDef = {
-  key: SortKey;
+  key: string;
   label: string;
   group: string;
   tooltip?: string;
-  hideMobile?: boolean;
 };
-const typedColumns: readonly ColumnDef[] = COLUMNS;
+
+const ADVANCED_COLUMNS: ColumnDef[] = [
+  { key: "games", label: "GP", group: "core" },
+  { key: "epa_per_play", label: "EPA/Play", tooltip: "EPA/Play", group: "core" },
+  { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
+  { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
+  { key: "success_rate", label: "Success%", tooltip: "Success%", group: "passing" },
+  { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
+  { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
+];
+
+const STANDARD_COLUMNS: ColumnDef[] = [
+  { key: "games", label: "GP", group: "core" },
+  { key: "attempts", label: "Att", group: "passing" },
+  { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
+  { key: "passing_yards", label: "Yards", group: "passing" },
+  { key: "touchdowns", label: "TD", group: "passing" },
+  { key: "interceptions", label: "INT", group: "passing" },
+  { key: "sacks", label: "Sk", tooltip: "Sk", group: "passing" },
+  { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
+  { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
+  { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
+  { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing" },
+  { key: "rush_yards", label: "Rush Yds", group: "rushing" },
+  { key: "rush_tds", label: "Rush TD", group: "rushing" },
+];
+
+type Tab = "advanced" | "standard";
+type SortDir = "asc" | "desc";
 
 // Header background tints for column groups
 const GROUP_COLORS: Record<string, string> = {
@@ -55,18 +56,26 @@ const GROUP_COLORS: Record<string, string> = {
 };
 
 export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps) {
-  const [sortKey, setSortKey] = useState<SortKey>("epa_per_play");
+  const [tab, setTab] = useState<Tab>("advanced");
+  const [sortKey, setSortKey] = useState<string>("epa_per_play");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [search, setSearch] = useState("");
   const [minDropbacks, setMinDropbacks] = useState(() =>
     Math.max(50, Math.round(200 * (throughWeek / 18)))
   );
 
-  // Synced top scrollbar
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const tableScrollRef = useRef<HTMLDivElement>(null);
-  const [scrollWidth, setScrollWidth] = useState(0);
-  const syncing = useRef(false);
+  const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
+
+  // When switching tabs, reset sort to a sensible default for that tab
+  function switchTab(newTab: Tab) {
+    setTab(newTab);
+    if (newTab === "advanced") {
+      setSortKey("epa_per_play");
+    } else {
+      setSortKey("passing_yards");
+    }
+    setSortDir("desc");
+  }
 
   const filtered = useMemo(() => {
     let result = data.filter((qb) => qb.dropbacks >= minDropbacks);
@@ -75,38 +84,19 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       result = result.filter((qb) => qb.player_name.toLowerCase().includes(term));
     }
     result.sort((a, b) => {
-      const aVal = a[sortKey] as number;
-      const bVal = b[sortKey] as number;
+      const aVal = a[sortKey as keyof QBSeasonStat] as number;
+      const bVal = b[sortKey as keyof QBSeasonStat] as number;
       const aNull = aVal == null || Number.isNaN(aVal);
       const bNull = bVal == null || Number.isNaN(bVal);
       if (aNull && bNull) return 0;
-      if (aNull) return 1; // nulls to bottom
+      if (aNull) return 1;
       if (bNull) return -1;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
 
-  useEffect(() => {
-    const el = tableScrollRef.current;
-    if (!el) return;
-    const update = () => setScrollWidth(el.scrollWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [filtered]);
-
-  const syncScroll = useCallback((source: "top" | "table") => {
-    if (syncing.current) return;
-    syncing.current = true;
-    const from = source === "top" ? topScrollRef.current : tableScrollRef.current;
-    const to = source === "top" ? tableScrollRef.current : topScrollRef.current;
-    if (from && to) to.scrollLeft = from.scrollLeft;
-    syncing.current = false;
-  }, []);
-
-  function handleSort(key: SortKey) {
+  function handleSort(key: string) {
     if (sortKey === key) {
       setSortDir((d) => (d === "desc" ? "asc" : "desc"));
     } else {
@@ -130,7 +120,7 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       case "completion_pct":
         return n.toFixed(1);
       case "success_rate":
-        return n.toFixed(2);
+        return n.toFixed(1);
       case "passer_rating":
         return n.toFixed(1);
       default:
@@ -142,60 +132,78 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
     return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
   }
 
+  const isEpaCol = (key: string) =>
+    key === "epa_per_play" || key === "epa_per_db" || key === "rush_epa_per_play";
+
   return (
     <div>
-      {/* Controls bar */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
-        <input
-          type="text"
-          placeholder="Search players..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 w-full sm:w-64"
-        />
-        <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-500 whitespace-nowrap">
-            Min dropbacks: <span className="font-semibold text-navy">{minDropbacks}</span>
-          </label>
-          <input
-            type="range"
-            min={50}
-            max={500}
-            step={10}
-            value={minDropbacks}
-            onChange={(e) => setMinDropbacks(parseInt(e.target.value))}
-            className="w-32"
-          />
+      {/* Tab bar + Controls */}
+      <div className="flex flex-col gap-4 mb-4">
+        <div className="flex items-center gap-6">
+          {/* Tabs */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => switchTab("advanced")}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "advanced"
+                  ? "bg-navy text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Advanced
+            </button>
+            <button
+              onClick={() => switchTab("standard")}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "standard"
+                  ? "bg-navy text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Standard
+            </button>
+          </div>
+
+          {/* Search + Slider */}
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            <input
+              type="text"
+              placeholder="Search players..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 w-full sm:w-64"
+            />
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-500 whitespace-nowrap">
+                Min dropbacks: <span className="font-semibold text-navy">{minDropbacks}</span>
+              </label>
+              <input
+                type="range"
+                min={50}
+                max={500}
+                step={10}
+                value={minDropbacks}
+                onChange={(e) => setMinDropbacks(parseInt(e.target.value))}
+                className="w-32"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Top scrollbar */}
-      <div
-        ref={topScrollRef}
-        onScroll={() => syncScroll("top")}
-        className="overflow-x-auto border border-gray-200 border-b-0 rounded-t-md"
-        style={{ height: 12 }}
-      >
-        <div style={{ width: scrollWidth, height: 1 }} />
-      </div>
-
       {/* Table */}
-      <div
-        ref={tableScrollRef}
-        onScroll={() => syncScroll("table")}
-        className="overflow-x-auto border border-gray-200 border-t-0 rounded-b-md"
-      >
+      <div className="border border-gray-200 rounded-md overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
               <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold w-10 sticky left-0 z-20">#</th>
               <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold min-w-[160px] sticky left-10 z-20">Player</th>
               <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold">Team</th>
-              {typedColumns.map((col) => (
+              {columns.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => handleSort(col.key)}
-                  className={`${sortKey === col.key ? "bg-navy/60" : GROUP_COLORS[col.group]} text-white px-3 py-2.5 text-right text-xs font-semibold cursor-pointer hover:bg-navy/70 transition-colors whitespace-nowrap ${col.hideMobile ? "hidden sm:table-cell" : ""}`}
+                  className={`${sortKey === col.key ? "bg-navy/60" : GROUP_COLORS[col.group]} text-white px-3 py-2.5 text-right text-xs font-semibold cursor-pointer hover:bg-navy/70 transition-colors whitespace-nowrap`}
                 >
                   <span className="inline-flex items-center gap-0.5">
                     {col.label}
@@ -211,7 +219,7 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={COLUMNS.length + 3} className="text-center py-12 text-gray-500">
+                <td colSpan={columns.length + 3} className="text-center py-12 text-gray-500">
                   {search ? "No players match your search." : "No data available."}
                 </td>
               </tr>
@@ -226,15 +234,14 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
                     </div>
                   </td>
                   <td className="px-3 py-2 text-gray-500 text-xs">{qb.team_id}</td>
-                  {typedColumns.map((col) => {
+                  {columns.map((col) => {
                     const val = qb[col.key as keyof typeof qb];
-                    const isEpa = col.key === "epa_per_play" || col.key === "epa_per_db";
                     return (
                       <td
                         key={col.key}
                         className={`px-3 py-2 text-right tabular-nums ${
-                          isEpa ? `font-bold ${epaColor(val as number)}` : "text-gray-700"
-                        } ${col.hideMobile ? "hidden sm:table-cell" : ""}`}
+                          isEpaCol(col.key) ? `font-bold ${epaColor(val as number)}` : "text-gray-700"
+                        }`}
                       >
                         {formatVal(col.key, val)}
                       </td>
