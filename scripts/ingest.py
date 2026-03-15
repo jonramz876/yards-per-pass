@@ -241,24 +241,25 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         success_rate_raw=('success', lambda x: x.dropna().mean()),
     ).reset_index().rename(columns={'passer_player_id': 'player_id'})
 
-    # QB success rate: exclude sacks (OL failure, not QB decision)
+    # QB success rate: exclude sacks (OL failure, not QB decision), stored as percentage
     non_sack_dropbacks = dropbacks[dropbacks['sack'] != 1]
     sack_excl_success = non_sack_dropbacks.groupby('passer_player_id')['success'].apply(
-        lambda x: x.dropna().mean()
+        lambda x: x.dropna().mean() * 100
     ).reset_index().rename(columns={'passer_player_id': 'player_id', 'success': 'success_rate'})
     qb_drop = qb_drop.merge(sack_excl_success, on='player_id', how='left')
     qb_drop.drop(columns=['success_rate_raw'], inplace=True)
 
-    # Pass attempts: use nflverse pass_attempt flag directly (excludes sacks AND scrambles)
-    # pass_attempt == 1 only on true pass attempts (completions + incompletions + INTs)
-    pass_attempts = dropbacks.groupby('passer_player_id')['pass_attempt'].sum().reset_index()
-    pass_attempts.rename(columns={'passer_player_id': 'player_id', 'pass_attempt': 'attempts'}, inplace=True)
+    # Pass attempts: nflverse sets pass_attempt=1 on sacks too, so we must exclude them
+    # PFR-style attempts = completions + incompletions + INTs (no sacks, no scrambles)
+    true_passes = dropbacks[(dropbacks['pass_attempt'] == 1) & (dropbacks['sack'] != 1)]
+    pass_attempts = true_passes.groupby('passer_player_id').size().reset_index(name='attempts')
+    pass_attempts.rename(columns={'passer_player_id': 'player_id'}, inplace=True)
     qb_drop = qb_drop.merge(pass_attempts, on='player_id', how='left')
     qb_drop['attempts'] = qb_drop['attempts'].fillna(0).astype(int)
 
-    # Passing yards: use nflverse passing_yards column on actual pass attempts only
-    # pass_attempt == 1 excludes both sacks and scrambles
-    actual_passes = dropbacks[dropbacks['pass_attempt'] == 1]
+    # Passing yards: use nflverse passing_yards column on true pass attempts only
+    # Exclude sacks (pass_attempt==1 on sacks in nflverse) and scrambles
+    actual_passes = dropbacks[(dropbacks['pass_attempt'] == 1) & (dropbacks['sack'] != 1)]
     pass_yards = actual_passes.groupby('passer_player_id')['passing_yards'].apply(
         lambda s: s.fillna(0).sum()
     )
@@ -320,6 +321,7 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # These are NOT counted in designed rush stats above, so we must add them
     scramble_plays = dropbacks[dropbacks['qb_scramble'] == 1]
     scramble_agg = scramble_plays.groupby('passer_player_id').agg(
+        scramble_count=('epa', 'count'),
         scramble_td_count=('rush_touchdown', 'sum'),
         scramble_yard_count=('rushing_yards', lambda s: s.fillna(0).sum()),
     ).reset_index().rename(columns={'passer_player_id': 'player_id'})
@@ -331,7 +333,8 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     qb_stats['rush_yards'] = qb_stats['rush_yards'].fillna(0).astype(int)
     qb_stats['rush_tds'] = qb_stats['rush_tds'].fillna(0).astype(int)
     qb_stats['rush_epa_sum'] = qb_stats['rush_epa_sum'].fillna(0)
-    # Add scramble TDs and yards into rush totals (they are rushing stats from dropback scrambles)
+    # Add scramble count, TDs, and yards into rush totals (they are rushing stats from dropback scrambles)
+    qb_stats['rush_attempts'] = qb_stats['rush_attempts'] + qb_stats['scramble_count'].fillna(0).astype(int)
     qb_stats['rush_tds'] = qb_stats['rush_tds'] + qb_stats['scramble_td_count'].fillna(0).astype(int)
     qb_stats['rush_yards'] = qb_stats['rush_yards'] + qb_stats['scramble_yard_count'].fillna(0).astype(int)
 
