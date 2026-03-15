@@ -322,6 +322,7 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     scramble_plays = dropbacks[dropbacks['qb_scramble'] == 1]
     scramble_agg = scramble_plays.groupby('passer_player_id').agg(
         scramble_count=('epa', 'count'),
+        scramble_epa_sum=('epa', 'sum'),
         scramble_td_count=('rush_touchdown', 'sum'),
         scramble_yard_count=('rushing_yards', lambda s: s.fillna(0).sum()),
     ).reset_index().rename(columns={'passer_player_id': 'player_id'})
@@ -329,21 +330,25 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # Merge dropback + rush + scramble stats
     qb_stats = qb_drop.merge(rush_stats, on='player_id', how='left')
     qb_stats = qb_stats.merge(scramble_agg, on='player_id', how='left')
-    qb_stats['rush_attempts'] = qb_stats['rush_attempts'].fillna(0).astype(int)
+    qb_stats['designed_rush_count'] = qb_stats['rush_attempts'].fillna(0).astype(int)
+    qb_stats['designed_rush_epa'] = qb_stats['rush_epa_sum'].fillna(0)
     qb_stats['rush_yards'] = qb_stats['rush_yards'].fillna(0).astype(int)
     qb_stats['rush_tds'] = qb_stats['rush_tds'].fillna(0).astype(int)
-    qb_stats['rush_epa_sum'] = qb_stats['rush_epa_sum'].fillna(0)
-    # Add scramble count, TDs, and yards into rush totals (they are rushing stats from dropback scrambles)
-    qb_stats['rush_attempts'] = qb_stats['rush_attempts'] + qb_stats['scramble_count'].fillna(0).astype(int)
+
+    # Add scramble count, EPA, TDs, and yards into rush totals
+    scr_count = qb_stats['scramble_count'].fillna(0).astype(int)
+    scr_epa = qb_stats['scramble_epa_sum'].fillna(0)
+    qb_stats['rush_attempts'] = qb_stats['designed_rush_count'] + scr_count
+    qb_stats['rush_epa_sum'] = qb_stats['designed_rush_epa'] + scr_epa
     qb_stats['rush_tds'] = qb_stats['rush_tds'] + qb_stats['scramble_td_count'].fillna(0).astype(int)
     qb_stats['rush_yards'] = qb_stats['rush_yards'] + qb_stats['scramble_yard_count'].fillna(0).astype(int)
 
-    # EPA per play (total: passing + rushing)
-    total_plays = qb_stats['dropback_count'] + qb_stats['rush_attempts']
-    total_epa = qb_stats['dropback_epa_sum'] + qb_stats['rush_epa_sum']
+    # EPA per play (total: passing + designed rushing — scrambles already in dropback EPA)
+    total_plays = qb_stats['dropback_count'] + qb_stats['designed_rush_count']
+    total_epa = qb_stats['dropback_epa_sum'] + qb_stats['designed_rush_epa']
     qb_stats['epa_per_play'] = total_epa / total_plays.replace(0, float('nan'))
 
-    # Rush EPA per play
+    # Rush EPA per play (designed rushes + scrambles)
     qb_stats['rush_epa_per_play'] = qb_stats.apply(
         lambda r: r['rush_epa_sum'] / r['rush_attempts'] if r['rush_attempts'] > 0 else None,
         axis=1
