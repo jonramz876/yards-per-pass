@@ -1,7 +1,7 @@
 // components/tables/QBLeaderboard.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
@@ -62,6 +62,12 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
     Math.max(50, Math.round(200 * (throughWeek / 18)))
   );
 
+  // Synced top scrollbar
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = useState(0);
+  const syncing = useRef(false);
+
   const filtered = useMemo(() => {
     let result = data.filter((qb) => qb.dropbacks >= minDropbacks);
     if (search) {
@@ -80,6 +86,25 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
     });
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
+
+  useEffect(() => {
+    const el = tableScrollRef.current;
+    if (!el) return;
+    const update = () => setScrollWidth(el.scrollWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [filtered]);
+
+  const syncScroll = useCallback((source: "top" | "table") => {
+    if (syncing.current) return;
+    syncing.current = true;
+    const from = source === "top" ? topScrollRef.current : tableScrollRef.current;
+    const to = source === "top" ? tableScrollRef.current : topScrollRef.current;
+    if (from && to) to.scrollLeft = from.scrollLeft;
+    syncing.current = false;
+  }, []);
 
   function handleSort(key: SortKey) {
     if (sortKey === key) {
@@ -103,8 +128,9 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       case "rush_epa_per_play":
         return n.toFixed(2);
       case "completion_pct":
-      case "success_rate":
         return n.toFixed(1);
+      case "success_rate":
+        return n.toFixed(2);
       case "passer_rating":
         return n.toFixed(1);
       default:
@@ -143,8 +169,22 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
         </div>
       </div>
 
+      {/* Top scrollbar */}
+      <div
+        ref={topScrollRef}
+        onScroll={() => syncScroll("top")}
+        className="overflow-x-auto border border-gray-200 border-b-0 rounded-t-md"
+        style={{ height: 12 }}
+      >
+        <div style={{ width: scrollWidth, height: 1 }} />
+      </div>
+
       {/* Table */}
-      <div className="overflow-x-auto border border-gray-200 rounded-md">
+      <div
+        ref={tableScrollRef}
+        onScroll={() => syncScroll("table")}
+        className="overflow-x-auto border border-gray-200 border-t-0 rounded-b-md"
+      >
         <table className="w-full text-sm">
           <thead>
             <tr>

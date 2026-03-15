@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Analytics } from "@vercel/analytics/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -43,9 +44,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-white flex flex-col">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <TooltipProvider>
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <Footer />
+        </TooltipProvider>
         <Analytics />
       </body>
     </html>

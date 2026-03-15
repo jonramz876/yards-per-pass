@@ -2,10 +2,10 @@
 "use client";
 
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const METRIC_DEFINITIONS: Record<string, string> = {
   "EPA/Play":
@@ -43,20 +43,20 @@ export default function MetricTooltip({ metric }: MetricTooltipProps) {
   if (!definition) return null;
 
   return (
-    <Popover>
-      <PopoverTrigger
+    <Tooltip>
+      <TooltipTrigger
         className="relative inline-flex items-center justify-center w-6 h-6 ml-1 text-gray-400 hover:text-navy rounded-full border border-gray-300 text-[10px] font-bold leading-none align-middle after:content-[''] after:absolute after:-inset-2.5"
         aria-label={`What is ${metric}?`}
       >
         i
-      </PopoverTrigger>
-      <PopoverContent
-        className="w-72 text-sm text-gray-600 leading-relaxed"
+      </TooltipTrigger>
+      <TooltipContent
         side="top"
+        className="max-w-xs bg-gray-900 text-white text-xs leading-relaxed px-3 py-2 rounded-md"
       >
-        <p className="font-semibold text-navy mb-1">{metric}</p>
+        <p className="font-semibold mb-1">{metric}</p>
         <p>{definition}</p>
-      </PopoverContent>
-    </Popover>
+      </TooltipContent>
+    </Tooltip>
   );
 }
