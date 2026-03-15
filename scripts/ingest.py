@@ -6,6 +6,7 @@ aggregates team and QB season stats, and upserts into Supabase PostgreSQL.
 """
 
 import argparse
+import logging
 import os
 import sys
 import time
@@ -16,6 +17,13 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger("ingest")
 
 
 def retry(max_retries=3, delay=5, backoff=2):
@@ -32,7 +40,7 @@ def retry(max_retries=3, delay=5, backoff=2):
                     retries += 1
                     if retries > max_retries:
                         raise
-                    print(f"  Retry {retries}/{max_retries} after error: {e}")
+                    log.warning("Retry %d/%d after error: %s", retries, max_retries, e)
                     time.sleep(current_delay)
                     current_delay *= backoff
         return wrapper
@@ -42,9 +50,17 @@ load_dotenv()
 
 # --- Constants ---
 FIRST_SEASON = 2020
-CURRENT_SEASON = 2025
+
+def _detect_current_season() -> int:
+    """Auto-detect NFL season from date. Season starts in September."""
+    now = datetime.now()
+    return now.year if now.month >= 9 else now.year - 1
+
+CURRENT_SEASON = _detect_current_season()
 PBP_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet"
 ROSTER_URL = "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_{season}.parquet"
+
+REQUIRED_ROSTER_COLS = ['gsis_id', 'position']
 
 REQUIRED_PBP_COLS = [
     'play_type', 'season_type', 'two_point_attempt', 'epa', 'success',
@@ -72,7 +88,7 @@ def passer_rating(comp: int, att: int, yds: int, td: int, ints: int) -> float:
 def download_pbp(season: int) -> pd.DataFrame:
     """Download play-by-play Parquet from nflverse."""
     url = PBP_URL.format(season=season)
-    print(f"  Downloading PBP for {season}...")
+    log.info("Downloading PBP for %d...", season)
     df = pd.read_parquet(url)
     missing = [c for c in REQUIRED_PBP_COLS if c not in df.columns]
     if missing:
@@ -84,8 +100,12 @@ def download_pbp(season: int) -> pd.DataFrame:
 def download_roster(season: int) -> pd.DataFrame:
     """Download roster Parquet from nflverse."""
     url = ROSTER_URL.format(season=season)
-    print(f"  Downloading roster for {season}...")
-    return pd.read_parquet(url)
+    log.info("Downloading roster for %d...", season)
+    df = pd.read_parquet(url)
+    missing = [c for c in REQUIRED_ROSTER_COLS if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in roster data: {missing}")
+    return df
 
 
 def filter_plays(pbp: pd.DataFrame) -> pd.DataFrame:
@@ -96,7 +116,7 @@ def filter_plays(pbp: pd.DataFrame) -> pd.DataFrame:
         (pbp['two_point_attempt'] != 1)
     )
     filtered = pbp[mask].copy()
-    print(f"  Filtered to {len(filtered):,} plays (from {len(pbp):,} raw)")
+    log.info("Filtered to %s plays (from %s raw)", f"{len(filtered):,}", f"{len(pbp):,}")
     return filtered
 
 
@@ -106,7 +126,7 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
     off = plays.groupby('posteam').agg(
         off_epa_play=('epa', 'mean'),
         off_success_rate=('success', 'mean'),
-        plays=('epa', 'count'),
+        plays=('game_id', 'count'),
     ).reset_index().rename(columns={'posteam': 'team_id'})
 
     # Pass/rush splits
@@ -177,7 +197,7 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
     )
     team_stats['season'] = season
 
-    print(f"  Aggregated stats for {len(team_stats)} teams")
+    log.info("Aggregated stats for %d teams", len(team_stats))
     return team_stats
 
 
@@ -190,19 +210,26 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     dropbacks = plays[plays['qb_dropback'] == 1].copy()
 
     # Fix scramble attribution: on scrambles, passer_player_id and passer_player_name
-    # are often NULL but rusher_player_id/name have the QB. Fill both before groupby.
+    # are often NULL but rusher_player_id/name have the QB. Use fillna() to preserve
+    # valid passer IDs while backfilling only where missing (avoids overwriting valid
+    # data if rusher_player_id is NaN on rare scrambles ~5-10/season).
     scramble_mask = dropbacks['qb_scramble'] == 1
     dropbacks.loc[scramble_mask, 'passer_player_id'] = (
-        dropbacks.loc[scramble_mask, 'rusher_player_id']
+        dropbacks.loc[scramble_mask, 'passer_player_id'].fillna(
+            dropbacks.loc[scramble_mask, 'rusher_player_id']
+        )
     )
     dropbacks.loc[scramble_mask, 'passer_player_name'] = (
-        dropbacks.loc[scramble_mask, 'rusher_player_name']
+        dropbacks.loc[scramble_mask, 'passer_player_name'].fillna(
+            dropbacks.loc[scramble_mask, 'rusher_player_name']
+        )
     )
 
     qb_drop = dropbacks.groupby('passer_player_id').agg(
         player_name=('passer_player_name', 'first'),
-        dropback_count=('game_id', 'count'),  # Use game_id (never NaN) not epa (can be NaN)
+        dropback_count=('game_id', 'count'),  # Total dropbacks (for display and epa_per_play calc)
         dropback_epa_sum=('epa', 'sum'),
+        dropback_epa_mean=('epa', 'mean'),  # EPA/DB: mean() correctly skips NaN in both num & denom
         completions=('complete_pass', 'sum'),
         sacks=('sack', 'sum'),
         scrambles=('qb_scramble', 'sum'),
@@ -241,6 +268,17 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     qb_drop = qb_drop.merge(pass_yards, on='player_id', how='left')
     qb_drop['passing_yards'] = qb_drop['passing_yards'].fillna(0).astype(int)
 
+    # Sack yards lost: on sack plays, yards_gained is negative (yards lost)
+    sack_plays = dropbacks[dropbacks['sack'] == 1]
+    sack_yards = sack_plays.groupby('passer_player_id')['yards_gained'].apply(
+        lambda s: s.fillna(0).sum()
+    ).reset_index().rename(
+        columns={'passer_player_id': 'player_id', 'yards_gained': 'sack_yards_lost'}
+    )
+    # sack_yards_lost is negative (e.g., -7 means 7 yards lost), so we use abs() in formula
+    qb_drop = qb_drop.merge(sack_yards, on='player_id', how='left')
+    qb_drop['sack_yards_lost'] = qb_drop['sack_yards_lost'].fillna(0)
+
     # Derived passing stats
     qb_drop['completion_pct'] = qb_drop.apply(
         lambda r: (r['completions'] / r['attempts'] * 100) if r['attempts'] > 0 else 0.0, axis=1
@@ -248,11 +286,12 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     qb_drop['ypa'] = qb_drop.apply(
         lambda r: r['passing_yards'] / r['attempts'] if r['attempts'] > 0 else 0.0, axis=1
     )
-    qb_drop['epa_per_db'] = qb_drop['dropback_epa_sum'] / qb_drop['dropback_count']
+    qb_drop['epa_per_db'] = qb_drop['dropback_epa_mean']  # mean() handles NaN correctly (skips in both num & denom)
 
-    # ANY/A: Adjusted Net Yards per Attempt = (yards + 20*TD - 45*INT - sack_yards) / (att + sacks)
+    # ANY/A: Adjusted Net Yards per Attempt = (yards + 20*TD - 45*INT + sack_yards_lost) / (att + sacks)
+    # sack_yards_lost is already negative, so adding it subtracts the yards lost
     qb_drop['any_a'] = qb_drop.apply(
-        lambda r: (r['passing_yards'] + 20 * r['touchdowns'] - 45 * r['interceptions']) / (r['attempts'] + r['sacks'])
+        lambda r: (r['passing_yards'] + 20 * r['touchdowns'] - 45 * r['interceptions'] + r['sack_yards_lost']) / (r['attempts'] + r['sacks'])
         if (r['attempts'] + r['sacks']) > 0 else 0.0, axis=1
     )
 
@@ -277,21 +316,24 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         rush_tds=('rush_touchdown', 'sum'),
     ).reset_index().rename(columns={'rusher_player_id': 'player_id'})
 
-    # Scramble TDs: these have qb_dropback==1, qb_scramble==1, rush_touchdown==1
-    # They are NOT counted in pass_touchdown or designed rush_tds, so we must add them
-    scramble_tds = dropbacks[dropbacks['qb_scramble'] == 1].groupby('passer_player_id').agg(
+    # Scramble stats: qb_dropback==1, qb_scramble==1
+    # These are NOT counted in designed rush stats above, so we must add them
+    scramble_plays = dropbacks[dropbacks['qb_scramble'] == 1]
+    scramble_agg = scramble_plays.groupby('passer_player_id').agg(
         scramble_td_count=('rush_touchdown', 'sum'),
+        scramble_yard_count=('rushing_yards', lambda s: s.fillna(0).sum()),
     ).reset_index().rename(columns={'passer_player_id': 'player_id'})
 
-    # Merge dropback + rush + scramble TDs
+    # Merge dropback + rush + scramble stats
     qb_stats = qb_drop.merge(rush_stats, on='player_id', how='left')
-    qb_stats = qb_stats.merge(scramble_tds, on='player_id', how='left')
+    qb_stats = qb_stats.merge(scramble_agg, on='player_id', how='left')
     qb_stats['rush_attempts'] = qb_stats['rush_attempts'].fillna(0).astype(int)
     qb_stats['rush_yards'] = qb_stats['rush_yards'].fillna(0).astype(int)
     qb_stats['rush_tds'] = qb_stats['rush_tds'].fillna(0).astype(int)
     qb_stats['rush_epa_sum'] = qb_stats['rush_epa_sum'].fillna(0)
-    # Add scramble TDs into rush_tds (they are rushing TDs, just from dropback scrambles)
+    # Add scramble TDs and yards into rush totals (they are rushing stats from dropback scrambles)
     qb_stats['rush_tds'] = qb_stats['rush_tds'] + qb_stats['scramble_td_count'].fillna(0).astype(int)
+    qb_stats['rush_yards'] = qb_stats['rush_yards'] + qb_stats['scramble_yard_count'].fillna(0).astype(int)
 
     # EPA per play (total: passing + rushing)
     total_plays = qb_stats['dropback_count'] + qb_stats['rush_attempts']
@@ -326,10 +368,11 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # Filter to only roster QBs (removes trick-play passers like WRs/punters)
     result = result[result['player_id'].isin(qb_ids)].copy()
 
-    print(f"  Aggregated stats for {len(result)} QBs")
+    log.info("Aggregated stats for %d QBs", len(result))
     return result
 
 
+@retry(max_retries=2, delay=3)
 def upsert_teams(conn, teams_df: pd.DataFrame):
     """Seed ALL known teams for FK integrity — includes historical abbreviations."""
     TEAM_NAMES = {
@@ -366,6 +409,7 @@ def upsert_teams(conn, teams_df: pd.DataFrame):
         'TEN': ('Tennessee Titans', 'AFC South', 'AFC', '#0C2340', '#4B92DB'),
         'WAS': ('Washington Commanders', 'NFC East', 'NFC', '#5A1414', '#FFB612'),
         # Historical abbreviations (nflverse uses these for pre-relocation seasons)
+        'LA': ('Los Angeles Rams', 'NFC West', 'NFC', '#003594', '#FFA300'),
         'OAK': ('Oakland Raiders', 'AFC West', 'AFC', '#000000', '#A5ACAF'),
         'SD': ('San Diego Chargers', 'AFC West', 'AFC', '#002A5E', '#FFC20E'),
         'STL': ('St. Louis Rams', 'NFC West', 'NFC', '#002244', '#B3995D'),
@@ -389,10 +433,10 @@ def upsert_teams(conn, teams_df: pd.DataFrame):
                      secondary_color = EXCLUDED.secondary_color""",
                 rows,
             )
-        conn.commit()
-        print(f"  Upserted {len(rows)} teams")
+        log.info("Upserted %d teams", len(rows))
 
 
+@retry(max_retries=2, delay=3)
 def upsert_team_stats(conn, df: pd.DataFrame):
     """Upsert team season stats."""
     cols = [
@@ -415,10 +459,10 @@ def upsert_team_stats(conn, df: pd.DataFrame):
                 ON CONFLICT (team_id, season) DO UPDATE SET {update_set}""",
             rows,
         )
-    conn.commit()
-    print(f"  Upserted {len(rows)} team season rows")
+    log.info("Upserted %d team season rows", len(rows))
 
 
+@retry(max_retries=2, delay=3)
 def upsert_qb_stats(conn, df: pd.DataFrame):
     """Upsert QB season stats."""
     cols = [
@@ -442,10 +486,10 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
                 ON CONFLICT (player_id, season) DO UPDATE SET {update_set}""",
             rows,
         )
-    conn.commit()
-    print(f"  Upserted {len(rows)} QB season rows")
+    log.info("Upserted %d QB season rows", len(rows))
 
 
+@retry(max_retries=2, delay=3)
 def update_freshness(conn, season: int, through_week: int):
     """Update the data_freshness table (one row per season)."""
     with conn.cursor() as cur:
@@ -457,15 +501,42 @@ def update_freshness(conn, season: int, through_week: int):
                  through_week = EXCLUDED.through_week""",
             (season, datetime.now(timezone.utc), through_week),
         )
-    conn.commit()
-    print(f"  Updated freshness: season={season}, through_week={through_week}")
+    log.info("Updated freshness: season=%d, through_week=%d", season, through_week)
+
+
+def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame):
+    """Sanity-check aggregated stats before writing to DB. Raises ValueError on failure."""
+    errors = []
+
+    # Team-level checks
+    if (team_stats['off_epa_play'].dropna().abs() > 1.0).any():
+        errors.append("Team off_epa_play outside [-1.0, 1.0]")
+    if (team_stats['def_epa_play'].dropna().abs() > 1.0).any():
+        errors.append("Team def_epa_play outside [-1.0, 1.0]")
+
+    # QB-level checks
+    comp_pct = qb_stats['completion_pct'].dropna()
+    if (comp_pct < 0).any() or (comp_pct > 100).any():
+        errors.append("QB completion_pct outside [0, 100]")
+
+    pr = qb_stats['passer_rating'].dropna()
+    if (pr < 0).any() or (pr > 158.4).any():
+        errors.append("QB passer_rating outside [0, 158.3]")
+
+    epa_db = qb_stats['epa_per_db'].dropna()
+    if (epa_db.abs() > 5.0).any():
+        errors.append("QB epa_per_db outside [-5.0, 5.0]")
+
+    if errors:
+        raise ValueError(f"Data validation failed:\n  " + "\n  ".join(errors))
+    log.info("Data validation passed")
 
 
 def process_season(season: int, conn, dry_run: bool = False):
     """Full pipeline for one season."""
-    print(f"\n{'='*50}")
-    print(f"Processing season {season}")
-    print(f"{'='*50}")
+    log.info("=" * 50)
+    log.info("Processing season %d", season)
+    log.info("=" * 50)
 
     pbp = download_pbp(season)
     roster = download_roster(season)
@@ -475,19 +546,24 @@ def process_season(season: int, conn, dry_run: bool = False):
     qb_stats = aggregate_qb_stats(plays, roster, season)
     through_week = int(plays['week'].max())
 
+    validate_data(team_stats, qb_stats)
+
     if dry_run:
-        print(f"\n  [DRY RUN] Would upsert:")
-        print(f"    {len(team_stats)} team rows")
-        print(f"    {len(qb_stats)} QB rows")
-        print(f"    through_week={through_week}")
+        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, through_week=%d",
+                 len(team_stats), len(qb_stats), through_week)
         return
 
-    upsert_teams(conn, team_stats)
-    upsert_team_stats(conn, team_stats)
-    upsert_qb_stats(conn, qb_stats)
-    update_freshness(conn, season, through_week)
-
-    print(f"\n  ✓ Season {season} complete (through week {through_week})")
+    try:
+        upsert_teams(conn, team_stats)
+        upsert_team_stats(conn, team_stats)
+        upsert_qb_stats(conn, qb_stats)
+        update_freshness(conn, season, through_week)
+        conn.commit()
+        log.info("Season %d complete (through week %d)", season, through_week)
+    except Exception:
+        conn.rollback()
+        log.error("Season %d FAILED — rolled back all changes", season)
+        raise
 
 
 def main():
@@ -506,9 +582,9 @@ def main():
     if not args.dry_run:
         db_url = os.environ.get('DATABASE_URL')
         if not db_url:
-            print("ERROR: DATABASE_URL not set. Add it to .env or environment.", file=sys.stderr)
+            log.error("DATABASE_URL not set. Add it to .env or environment.")
             sys.exit(1)
-        conn = psycopg2.connect(db_url)
+        conn = psycopg2.connect(db_url, connect_timeout=30)
 
     try:
         for season in seasons:
@@ -517,7 +593,7 @@ def main():
         if conn:
             conn.close()
 
-    print("\nDone!")
+    log.info("Done!")
 
 
 if __name__ == '__main__':

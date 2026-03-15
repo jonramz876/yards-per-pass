@@ -20,6 +20,8 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   Sk: "Sacks taken. Included in EPA/DB denominator \u2014 a QB who takes many sacks will have lower dropback EPA even if their completions are efficient.",
   "Rush Att":
     "Designed rush attempts (not scrambles \u2014 those are counted in dropbacks). Shows how often a QB runs by design.",
+  "Rush EPA":
+    "EPA per designed rush attempt. Measures a QB's value as a runner (excludes scrambles). Positive = above-average rushing.",
   aDOT: "Average Depth of Target. How far downfield a QB throws on average. Higher = more aggressive.",
   YPA: "Yards Per Attempt. Total passing yards divided by pass attempts (sacks excluded from denominator).",
   "ANY/A":
@@ -43,7 +45,7 @@ export default function MetricTooltip({ metric }: MetricTooltipProps) {
   return (
     <Popover>
       <PopoverTrigger
-        className="inline-flex items-center justify-center w-4 h-4 ml-1 text-gray-400 hover:text-navy rounded-full border border-gray-300 text-[10px] font-bold leading-none align-middle"
+        className="relative inline-flex items-center justify-center w-6 h-6 ml-1 text-gray-400 hover:text-navy rounded-full border border-gray-300 text-[10px] font-bold leading-none align-middle after:content-[''] after:absolute after:-inset-2.5"
         aria-label={`What is ${metric}?`}
       >
         i

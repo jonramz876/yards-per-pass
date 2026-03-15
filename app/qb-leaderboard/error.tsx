@@ -1,7 +1,12 @@
 // app/qb-leaderboard/error.tsx
 "use client";
 
-export default function QBError({ reset }: { reset: () => void }) {
+import { useEffect } from "react";
+
+export default function QBError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    console.error("QB Leaderboard page error:", error);
+  }, [error]);
   return (
     <div className="max-w-6xl mx-auto px-6 md:px-12 py-16 text-center">
       <h2 className="text-xl font-bold text-navy mb-2">Unable to load data</h2>

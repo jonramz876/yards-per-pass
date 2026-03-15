@@ -33,7 +33,8 @@ export default async function TeamsPage({
 }) {
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
-  const currentSeason = season ? parseInt(season) : (seasons[0] || 2025);
+  const parsed = season ? parseInt(season) : NaN;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
   const [teamStats, freshness] = await Promise.all([
     getTeamStats(currentSeason),
     getDataFreshness(currentSeason),

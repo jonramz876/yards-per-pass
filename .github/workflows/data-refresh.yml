@@ -9,7 +9,7 @@ on:
       season:
         description: 'Season to refresh (default: current)'
         required: false
-        default: '2025'
+        default: ''
 
 jobs:
   refresh:
@@ -36,7 +36,20 @@ jobs:
 
       - name: Resolve season
         id: vars
-        run: echo "season=${{ github.event.inputs.season || '2025' }}" >> $GITHUB_OUTPUT
+        run: |
+          INPUT="${{ github.event.inputs.season }}"
+          if [ -n "$INPUT" ]; then
+            echo "season=$INPUT" >> $GITHUB_OUTPUT
+          else
+            # Auto-detect: NFL season starts in September
+            MONTH=$(date +%m)
+            YEAR=$(date +%Y)
+            if [ "$MONTH" -ge 9 ]; then
+              echo "season=$YEAR" >> $GITHUB_OUTPUT
+            else
+              echo "season=$((YEAR - 1))" >> $GITHUB_OUTPUT
+            fi
+          fi
 
       - name: Run ingest
         env:
@@ -46,6 +59,14 @@ jobs:
       - name: Trigger ISR revalidation
         if: success()
         run: |
-          curl -s -X POST "${{ secrets.SITE_URL }}/api/revalidate" \
+          if [ -z "${{ secrets.SITE_URL }}" ]; then
+            echo "::notice::SITE_URL not configured — skipping revalidation (site may not be deployed yet)"
+            exit 0
+          fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.SITE_URL }}/api/revalidate" \
             -H "x-revalidate-secret: ${{ secrets.REVALIDATE_SECRET }}" \
-            -H "Content-Type: application/json" || echo "Revalidation skipped (site may not be deployed yet)"
+            -H "Content-Type: application/json")
+          echo "Revalidation response: HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::ISR revalidation failed with HTTP $STATUS — site may serve stale data"
+          fi

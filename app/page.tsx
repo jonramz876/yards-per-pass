@@ -42,8 +42,8 @@ export default function HomePage() {
             icon="🏈"
           />
           <FeatureCard
-            title="More Coming"
-            description="Player comparisons, game explorer, win probability charts, and AI-powered stat search. Built on trusted nflverse data."
+            title="Open Source"
+            description="Built on trusted nflverse data, updated weekly. More features in the works — follow along on GitHub."
             icon="🔮"
           />
         </div>

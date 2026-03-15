@@ -41,8 +41,7 @@ export async function getTeamStats(
   if (!data) return [];
 
   return data.map(
-    (row) =>
-      parseNumericFields(row, TEAM_NUMERIC_FIELDS) as unknown as TeamSeasonStat
+    (row) => parseNumericFields<TeamSeasonStat>(row as TeamSeasonStat, TEAM_NUMERIC_FIELDS)
   );
 }
 
@@ -59,8 +58,7 @@ export async function getQBStats(
   if (!data) return [];
 
   return data.map(
-    (row) =>
-      parseNumericFields(row, QB_NUMERIC_FIELDS) as unknown as QBSeasonStat
+    (row) => parseNumericFields<QBSeasonStat>(row as QBSeasonStat, QB_NUMERIC_FIELDS)
   );
 }
 

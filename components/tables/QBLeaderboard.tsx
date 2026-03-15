@@ -26,6 +26,7 @@ const COLUMNS = [
   { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing", hideMobile: true },
   { key: "rush_yards", label: "Rush Yds", group: "rushing", hideMobile: true },
   { key: "rush_tds", label: "Rush TD", group: "rushing", hideMobile: true },
+  { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing", hideMobile: true },
   { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency", hideMobile: true },
   { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
   { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
@@ -99,6 +100,7 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       case "adot":
       case "ypa":
       case "any_a":
+      case "rush_epa_per_play":
         return n.toFixed(2);
       case "completion_pct":
       case "success_rate":
