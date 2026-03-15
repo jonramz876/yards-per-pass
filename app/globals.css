@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans text-navy antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   :root {
