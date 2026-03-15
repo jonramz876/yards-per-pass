@@ -42,3 +42,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python scripts/ingest.py --season "${{ steps.vars.outputs.season }}"
+
+      - name: Trigger ISR revalidation
+        if: success()
+        run: |
+          curl -s -X POST "${{ secrets.SITE_URL }}/api/revalidate" \
+            -H "x-revalidate-secret: ${{ secrets.REVALIDATE_SECRET }}" \
+            -H "Content-Type: application/json" || echo "Revalidation skipped (site may not be deployed yet)"

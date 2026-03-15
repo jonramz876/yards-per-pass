@@ -24,6 +24,7 @@ const QB_NUMERIC_FIELDS = [
   "adot",
   "ypa",
   "passer_rating",
+  "any_a",
   "rush_epa_per_play",
 ];
 

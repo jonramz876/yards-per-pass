@@ -52,6 +52,7 @@ export interface QBSeasonStat {
   adot: number;
   ypa: number;
   passer_rating: number;
+  any_a: number;
   rush_attempts: number;
   rush_yards: number;
   rush_tds: number;

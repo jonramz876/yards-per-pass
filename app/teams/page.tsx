@@ -60,6 +60,9 @@ export default async function TeamsPage({
           <div className="md:hidden">
             <MobileTeamList data={teamStats} />
           </div>
+          <p className="mt-3 text-xs text-gray-400">
+            EPA values are not adjusted for strength of schedule. Teams that played easier schedules may appear stronger than their true level.
+          </p>
         </>
       )}
     </DashboardShell>

@@ -194,18 +194,25 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
         d3.select(this).raise().transition().duration(150)
           .attr("transform", `translate(${x(d.off_epa_play) - logoSize * 0.7},${y(d.def_epa_play) - logoSize * 0.7}) scale(1.4)`);
         const team = getTeam(d.team_id);
+        const tooltipEl = tooltipRef.current;
+        if (tooltipEl) {
+          tooltipEl.textContent = "";
+          const nameDiv = document.createElement("div");
+          nameDiv.className = "font-semibold text-navy";
+          nameDiv.textContent = team?.name ?? d.team_id;
+          const statsDiv = document.createElement("div");
+          statsDiv.className = "text-xs text-gray-500 mt-1";
+          statsDiv.textContent =
+            `Off EPA: ${d.off_epa_play.toFixed(3)} (${ordinal(offRanks.get(d.team_id) ?? 0)}) | ` +
+            `Def EPA: ${d.def_epa_play.toFixed(3)} (${ordinal(defRanks.get(d.team_id) ?? 0)}) | ` +
+            `Record: ${d.wins}-${d.losses}${d.ties > 0 ? `-${d.ties}` : ""}`;
+          tooltipEl.appendChild(nameDiv);
+          tooltipEl.appendChild(statsDiv);
+        }
         tooltip
           .style("opacity", "1")
           .style("left", `${event.clientX + 12}px`)
-          .style("top", `${event.clientY - 28}px`)
-          .html(`
-            <div class="font-semibold text-navy">${team?.name ?? d.team_id}</div>
-            <div class="text-xs text-gray-500 mt-1">
-              Off EPA: ${d.off_epa_play.toFixed(3)} (${ordinal(offRanks.get(d.team_id) ?? 0)})<br/>
-              Def EPA: ${d.def_epa_play.toFixed(3)} (${ordinal(defRanks.get(d.team_id) ?? 0)})<br/>
-              Record: ${d.wins}-${d.losses}${d.ties > 0 ? `-${d.ties}` : ""}
-            </div>
-          `);
+          .style("top", `${event.clientY - 28}px`);
       })
       .on("mouseleave", function (_, d) {
         d3.select(this).transition().duration(150)

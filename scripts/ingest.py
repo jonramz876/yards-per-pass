@@ -8,12 +8,35 @@ aggregates team and QB season stats, and upserts into Supabase PostgreSQL.
 import argparse
 import os
 import sys
+import time
 from datetime import datetime, timezone
+from functools import wraps
 
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
+
+
+def retry(max_retries=3, delay=5, backoff=2):
+    """Retry decorator with exponential backoff for network calls."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            retries = 0
+            current_delay = delay
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    retries += 1
+                    if retries > max_retries:
+                        raise
+                    print(f"  Retry {retries}/{max_retries} after error: {e}")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        return wrapper
+    return decorator
 
 load_dotenv()
 
@@ -26,7 +49,7 @@ ROSTER_URL = "https://github.com/nflverse/nflverse-data/releases/download/weekly
 REQUIRED_PBP_COLS = [
     'play_type', 'season_type', 'two_point_attempt', 'epa', 'success',
     'posteam', 'defteam', 'pass_attempt', 'rush_attempt', 'qb_dropback',
-    'passer_player_id', 'passer_player_name', 'rusher_player_id',
+    'passer_player_id', 'passer_player_name', 'rusher_player_id', 'rusher_player_name',
     'complete_pass', 'sack', 'qb_scramble', 'air_yards', 'yards_gained',
     'cpoe', 'passing_yards', 'pass_touchdown', 'interception',
     'rush_touchdown', 'rushing_yards', 'game_id', 'season', 'week',
@@ -45,6 +68,7 @@ def passer_rating(comp: int, att: int, yds: int, td: int, ints: int) -> float:
     return round(((a + b + c + d) / 6) * 100, 1)
 
 
+@retry(max_retries=3, delay=5)
 def download_pbp(season: int) -> pd.DataFrame:
     """Download play-by-play Parquet from nflverse."""
     url = PBP_URL.format(season=season)
@@ -56,6 +80,7 @@ def download_pbp(season: int) -> pd.DataFrame:
     return df
 
 
+@retry(max_retries=3, delay=5)
 def download_roster(season: int) -> pd.DataFrame:
     """Download roster Parquet from nflverse."""
     url = ROSTER_URL.format(season=season)
@@ -186,8 +211,16 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         touchdowns=('pass_touchdown', 'sum'),
         interceptions=('interception', 'sum'),
         games=('game_id', 'nunique'),
-        success_rate=('success', lambda x: x.dropna().mean()),
+        success_rate_raw=('success', lambda x: x.dropna().mean()),
     ).reset_index().rename(columns={'passer_player_id': 'player_id'})
+
+    # QB success rate: exclude sacks (OL failure, not QB decision)
+    non_sack_dropbacks = dropbacks[dropbacks['sack'] != 1]
+    sack_excl_success = non_sack_dropbacks.groupby('passer_player_id')['success'].apply(
+        lambda x: x.dropna().mean()
+    ).reset_index().rename(columns={'passer_player_id': 'player_id', 'success': 'success_rate'})
+    qb_drop = qb_drop.merge(sack_excl_success, on='player_id', how='left')
+    qb_drop.drop(columns=['success_rate_raw'], inplace=True)
 
     # Pass attempts: use nflverse pass_attempt flag directly (excludes sacks AND scrambles)
     # pass_attempt == 1 only on true pass attempts (completions + incompletions + INTs)
@@ -216,6 +249,12 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         lambda r: r['passing_yards'] / r['attempts'] if r['attempts'] > 0 else 0.0, axis=1
     )
     qb_drop['epa_per_db'] = qb_drop['dropback_epa_sum'] / qb_drop['dropback_count']
+
+    # ANY/A: Adjusted Net Yards per Attempt = (yards + 20*TD - 45*INT - sack_yards) / (att + sacks)
+    qb_drop['any_a'] = qb_drop.apply(
+        lambda r: (r['passing_yards'] + 20 * r['touchdowns'] - 45 * r['interceptions']) / (r['attempts'] + r['sacks'])
+        if (r['attempts'] + r['sacks']) > 0 else 0.0, axis=1
+    )
 
     # Passer rating from season totals
     qb_drop['passer_rating'] = qb_drop.apply(
@@ -280,7 +319,7 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         'completions', 'attempts', 'dropbacks', 'epa_per_db', 'epa_per_play',
         'cpoe', 'completion_pct', 'success_rate', 'passing_yards',
         'touchdowns', 'interceptions', 'sacks', 'adot', 'ypa', 'passer_rating',
-        'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
+        'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
     ]
     result = qb_stats[cols].copy()
 
@@ -387,7 +426,7 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
         'completions', 'attempts', 'dropbacks', 'epa_per_db', 'epa_per_play',
         'cpoe', 'completion_pct', 'success_rate', 'passing_yards',
         'touchdowns', 'interceptions', 'sacks', 'adot', 'ypa', 'passer_rating',
-        'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
+        'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
     ]
     # Replace NaN with None for SQL NULL
     clean_df = df[cols].where(df[cols].notna(), None)

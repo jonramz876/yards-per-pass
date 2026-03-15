@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS qb_season_stats (
   adot NUMERIC,
   ypa NUMERIC,
   passer_rating NUMERIC,
+  any_a NUMERIC,
   rush_attempts INTEGER,
   rush_yards INTEGER,
   rush_tds INTEGER,

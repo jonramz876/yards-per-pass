@@ -28,6 +28,7 @@ const COLUMNS = [
   { key: "rush_tds", label: "Rush TD", group: "rushing", hideMobile: true },
   { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency", hideMobile: true },
   { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
+  { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
   { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
 ] as const;
 
@@ -97,6 +98,7 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       case "cpoe":
       case "adot":
       case "ypa":
+      case "any_a":
         return n.toFixed(2);
       case "completion_pct":
       case "success_rate":
@@ -144,8 +146,8 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold sticky left-0 z-20">#</th>
-              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold min-w-[160px] sticky left-[40px] z-20">Player</th>
+              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold w-10 sticky left-0 z-20">#</th>
+              <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold min-w-[160px] sticky left-10 z-20">Player</th>
               <th className="bg-navy text-white px-3 py-2.5 text-left text-xs font-semibold">Team</th>
               {typedColumns.map((col) => (
                 <th
@@ -174,8 +176,8 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
             ) : (
               filtered.map((qb, idx) => (
                 <tr key={qb.player_id} className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
-                  <td className="px-3 py-2 text-gray-400 font-bold tabular-nums sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                  <td className="px-3 py-2 sticky left-[40px] z-10 bg-white group-hover:bg-gray-50/50">
+                  <td className="px-3 py-2 text-gray-400 font-bold tabular-nums w-10 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
+                  <td className="px-3 py-2 sticky left-10 z-10 bg-white group-hover:bg-gray-50/50">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
                       <span className="font-semibold text-navy">{qb.player_name}</span>

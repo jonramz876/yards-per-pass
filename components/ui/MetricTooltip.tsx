@@ -16,12 +16,14 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   "Comp%":
     "Completion percentage \u2014 completions divided by pass attempts. The baseline that makes CPOE meaningful.",
   "Success%":
-    "Percentage of dropbacks that generate positive EPA. A 'successful' play is one that improves the team's expected scoring position.",
+    "Percentage of non-sack dropbacks that are successful (gained enough yards for the situation). Sacks excluded because they reflect OL failure, not QB decision-making.",
   Sk: "Sacks taken. Included in EPA/DB denominator \u2014 a QB who takes many sacks will have lower dropback EPA even if their completions are efficient.",
   "Rush Att":
     "Designed rush attempts (not scrambles \u2014 those are counted in dropbacks). Shows how often a QB runs by design.",
   aDOT: "Average Depth of Target. How far downfield a QB throws on average. Higher = more aggressive.",
   YPA: "Yards Per Attempt. Total passing yards divided by pass attempts (sacks excluded from denominator).",
+  "ANY/A":
+    "Adjusted Net Yards per Attempt. (Yards + 20\u00d7TD \u2212 45\u00d7INT) \u00f7 (Attempts + Sacks). The best single traditional stat for predicting wins.",
   Rating:
     "Traditional NFL passer rating (scale 0\u2013158.3). Combines completion %, yards, TDs, and INTs. The most familiar QB stat for casual fans, though EPA-based metrics are more predictive.",
   "Off EPA/Play":
