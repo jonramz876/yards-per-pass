@@ -355,8 +355,9 @@ def upsert_team_stats(conn, df: pd.DataFrame):
         'off_success_rate', 'def_success_rate', 'pass_rate', 'plays',
         'wins', 'losses', 'ties',
     ]
-    rows = [tuple(r[c] for c in cols) for _, r in df.iterrows()]
-    placeholders = ', '.join(['%s'] * len(cols))
+    # Replace NaN with None for SQL NULL (avoid PostgreSQL NaN in NUMERIC columns)
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
     col_names = ', '.join(cols)
     update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('team_id', 'season'))
 
