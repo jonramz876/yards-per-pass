@@ -20,8 +20,13 @@ export default function DashboardShell({
   freshness,
   children,
 }: DashboardShellProps) {
+  const freshnessDate = freshness ? new Date(freshness.last_updated) : null;
+  const daysSinceUpdate = freshnessDate
+    ? Math.floor((Date.now() - freshnessDate.getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+  const isStale = daysSinceUpdate > 10;
   const freshnessText = freshness
-    ? `${freshness.season} Season \u00b7 Through Week ${freshness.through_week} \u00b7 Updated ${new Date(freshness.last_updated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+    ? `${freshness.season} Season \u00b7 Through Week ${freshness.through_week} \u00b7 Updated ${freshnessDate!.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
     : null;
 
   return (
@@ -33,7 +38,12 @@ export default function DashboardShell({
             {title}
           </h1>
           {freshnessText && (
-            <span className="inline-flex items-center px-3 py-1 text-xs font-medium text-navy bg-blue-50 rounded-full">
+            <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${
+              isStale
+                ? "text-amber-800 bg-amber-50 border border-amber-200"
+                : "text-navy bg-blue-50"
+            }`}>
+              {isStale && <span className="mr-1">&#9888;</span>}
               {freshnessText}
             </span>
           )}
