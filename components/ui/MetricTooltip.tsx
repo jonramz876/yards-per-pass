@@ -9,34 +9,34 @@ import {
 
 const METRIC_DEFINITIONS: Record<string, string> = {
   "EPA/Play":
-    "Expected Points Added per play across ALL plays (passing + rushing). The most complete measure of a QB's total value. Above 0 is good.",
+    "Points added per play \u2014 the best single measure of QB impact. Covers passing and rushing. Above 0 = above average.",
   "EPA/DB":
-    "EPA per dropback \u2014 passing plays only (attempts + sacks + scrambles). Isolates passing efficiency without rushing. Useful for comparing pure passers.",
-  CPOE: "Completion Percentage Over Expected. How often a QB completes passes compared to what's expected given the difficulty. Higher is better.",
+    "Points added per dropback (pass attempts + sacks + scrambles). Passing-only version of EPA \u2014 isolates arm talent from running ability.",
+  CPOE: "How often a QB completes passes vs. what\u2019s expected given throw difficulty. +3 means completing 3% more than expected. Higher is better.",
   "Comp%":
-    "Completion percentage \u2014 completions divided by pass attempts. The baseline that makes CPOE meaningful.",
+    "Completions \u00f7 attempts. The raw completion rate \u2014 doesn\u2019t account for throw difficulty like CPOE does.",
   "Success%":
-    "Percentage of non-sack dropbacks that are successful (gained enough yards for the situation). Sacks excluded because they reflect OL failure, not QB decision-making. Note: Team-level success rate on the scatter plot includes sacks in the denominator.",
-  Sk: "Sacks taken. Included in EPA/DB denominator \u2014 a QB who takes many sacks will have lower dropback EPA even if their completions are efficient.",
+    "How often a QB\u2019s plays gain enough yards to stay on schedule. Sacks excluded (OL failure, not QB). Team-level success rate on the scatter plot includes sacks.",
+  Sk: "Sacks taken. Counts against EPA/DB \u2014 a QB who holds the ball too long will see this drag down efficiency.",
   "Rush Att":
-    "Rush attempts including designed runs and scrambles, but excluding kneels. PFR includes kneels in rush attempts.",
+    "Rush attempts: designed runs + scrambles, excluding kneels. PFR includes kneels, so numbers may differ slightly.",
   "Rush EPA":
-    "EPA per rush attempt (designed runs + scrambles, excluding kneels). Measures a QB's total value as a runner. Positive = above-average rushing.",
+    "Points added per rush attempt. Measures a QB\u2019s value as a runner. Positive = above-average rushing.",
   "Sk Yds":
-    "Total yards lost on sacks. Shown as a positive number for readability (e.g., 150 means 150 yards lost).",
-  aDOT: "Average Depth of Target. How far downfield a QB throws on average. Higher = more aggressive.",
-  YPA: "Yards Per Attempt. Total passing yards divided by pass attempts (sacks excluded from denominator).",
+    "Total yards lost on sacks. Shown as a positive number (e.g., 150 = 150 yards lost).",
+  aDOT: "Average throw depth in yards. Higher = throws farther downfield. Think deep-ball QBs vs. check-down QBs.",
+  YPA: "Passing yards \u00f7 attempts. A simple per-throw efficiency measure (sacks excluded).",
   "ANY/A":
-    "Adjusted Net Yards per Attempt. (Yards + 20\u00d7TD \u2212 45\u00d7INT) \u00f7 (Attempts + Sacks). The best single traditional stat for predicting wins.",
+    "Adjusted Net Yards per Attempt \u2014 the best traditional stat for predicting wins. Rewards TDs and penalizes INTs and sacks in one number.",
   Rating:
-    "Traditional NFL passer rating (scale 0\u2013158.3). Combines completion %, yards, TDs, and INTs. The most familiar QB stat for casual fans, though EPA-based metrics are more predictive.",
+    "Traditional passer rating (0\u2013158.3). The most familiar QB stat, combining completion %, yards, TDs, and INTs. EPA-based metrics are more predictive.",
   "Off EPA/Play":
-    "Offensive EPA per play \u2014 how efficiently a team's offense generates expected points.",
+    "Points added per play by the offense. Positive = the offense is helping the team score.",
   "Def EPA/Play":
-    "Defensive EPA per play \u2014 how well a defense limits the opponent's expected points. Lower (more negative) is better.",
-  FL: "Fumbles lost. Only counts fumbles recovered by the defense \u2014 the turnovers that actually hurt.",
+    "Points allowed per play by the defense. More negative = better defense (giving up fewer points).",
+  FL: "Fumbles lost \u2014 only fumbles recovered by the defense. The turnovers that actually cost you.",
   "TD:INT":
-    "Touchdown to interception ratio. Higher is better. Shows passing TDs only (rushing TDs not included).",
+    "Passing touchdowns per interception. Higher is better. 2:1 is average, 3:1+ is elite.",
 };
 
 interface MetricTooltipProps {
