@@ -79,12 +79,10 @@ export async function getDataFreshness(season?: number): Promise<DataFreshness |
 export async function getAvailableSeasons(): Promise<number[]> {
   const supabase = createServerClient();
   const { data, error } = await supabase
-    .from("team_season_stats")
+    .from("data_freshness")
     .select("season")
     .order("season", { ascending: false });
 
   if (error) return [];
-  return Array.from(
-    new Set((data || []).map((r: { season: number }) => r.season))
-  );
+  return (data || []).map((r: { season: number }) => r.season);
 }

@@ -64,6 +64,8 @@ CREATE TABLE IF NOT EXISTS qb_season_stats (
   rush_yards INTEGER,
   rush_tds INTEGER,
   rush_epa_per_play NUMERIC,
+  fumbles INTEGER,
+  fumbles_lost INTEGER,
   UNIQUE(player_id, season)
 );
 

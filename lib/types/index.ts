@@ -40,24 +40,26 @@ export interface QBSeasonStat {
   completions: number;
   attempts: number;
   dropbacks: number;
-  epa_per_db: number;
-  epa_per_play: number;
-  cpoe: number;
+  epa_per_db: number | null;
+  epa_per_play: number | null;
+  cpoe: number | null;
   completion_pct: number;
-  success_rate: number;
+  success_rate: number | null;
   passing_yards: number;
   touchdowns: number;
   interceptions: number;
   sacks: number;
   sack_yards_lost: number;
-  adot: number;
+  adot: number | null;
   ypa: number;
   passer_rating: number;
   any_a: number;
   rush_attempts: number;
   rush_yards: number;
   rush_tds: number;
-  rush_epa_per_play: number;
+  rush_epa_per_play: number | null;
+  fumbles: number;
+  fumbles_lost: number;
 }
 
 export interface DataFreshness {
