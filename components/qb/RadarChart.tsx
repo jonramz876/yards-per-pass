@@ -32,7 +32,7 @@ function hexPoints(radius: number): string {
   return Array.from({ length: 6 }, (_, i) => hexPoint(radius, i).join(",")).join(" ");
 }
 
-const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: string }> = [
+const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: "start" | "middle" | "end" }> = [
   { x: 150, y: 16, anchor: "middle" },
   { x: 248, y: 72, anchor: "start" },
   { x: 248, y: 182, anchor: "start" },

@@ -185,11 +185,11 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
     const sorted: Record<string, number[]> = {};
-    for (const col of heatmapCols) {
+    Array.from(heatmapCols).forEach((col) => {
       const values = filtered.map((qb) => getVal(qb, col)).filter((v) => !isNaN(v));
       values.sort((a, b) => a - b);
       sorted[col] = values;
-    }
+    });
     return sorted;
   }, [filtered, heatmapCols, showHeatmap]);
 
