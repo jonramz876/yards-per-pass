@@ -594,6 +594,14 @@ def process_season(season: int, conn, dry_run: bool = False):
     if dry_run:
         log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, through_week=%d",
                  len(team_stats), len(qb_stats), through_week)
+        # Log sample QBs for verification
+        sample_cols = ['player_name', 'team', 'games', 'dropbacks', 'attempts', 'completions',
+                       'passing_yards', 'touchdowns', 'interceptions', 'adot', 'fumbles', 'fumbles_lost',
+                       'epa_per_play', 'cpoe', 'success_rate', 'rush_epa_per_play']
+        avail_cols = [c for c in sample_cols if c in qb_stats.columns]
+        top_qbs = qb_stats.nlargest(5, 'dropbacks')
+        for _, row in top_qbs.iterrows():
+            log.info("[SAMPLE] %s", {c: (round(row[c], 3) if isinstance(row[c], float) else row[c]) for c in avail_cols})
         return
 
     try:
