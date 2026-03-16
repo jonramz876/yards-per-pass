@@ -16,10 +16,10 @@ interface TeamScatterPlotProps {
 
 // Quadrant config
 const QUADRANTS = [
-  { key: "contenders", label: "Contenders", desc: "Elite on both sides of the ball", color: "rgba(34,197,94,0.06)" },
-  { key: "defense", label: "Defense Carries", desc: "Strong defense, offense needs work", color: "rgba(59,130,246,0.06)" },
-  { key: "offense_first", label: "Offense First", desc: "High-powered offense, defense needs work", color: "rgba(249,115,22,0.06)" },
-  { key: "bottom", label: "Bottom Feeders", desc: "Struggling on both sides", color: "rgba(239,68,68,0.06)" },
+  { key: "contenders", label: "Contenders", desc: "Elite on both sides of the ball", color: "rgba(34,197,94,0.06)", swatch: "rgba(34,197,94,0.4)" },
+  { key: "defense", label: "Defense Carries", desc: "Strong defense, offense needs work", color: "rgba(59,130,246,0.06)", swatch: "rgba(59,130,246,0.4)" },
+  { key: "offense_first", label: "Offense First", desc: "High-powered offense, defense needs work", color: "rgba(249,115,22,0.06)", swatch: "rgba(249,115,22,0.4)" },
+  { key: "bottom", label: "Bottom Feeders", desc: "Struggling on both sides", color: "rgba(239,68,68,0.06)", swatch: "rgba(239,68,68,0.4)" },
 ];
 
 export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
@@ -300,6 +300,14 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
   return (
     <div ref={containerRef} className="relative w-full bg-white border border-gray-200 rounded-md">
       <svg ref={svgRef} className="w-full" />
+      <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 px-4 py-2 border-t border-gray-100">
+        {QUADRANTS.map((q) => (
+          <div key={q.key} className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: q.swatch }} />
+            <span className="text-xs text-gray-500">{q.label}</span>
+          </div>
+        ))}
+      </div>
       <div
         ref={tooltipRef}
         className="fixed z-50 bg-white px-3 py-2 rounded-md shadow-lg border border-gray-200 pointer-events-none opacity-0 transition-opacity"
