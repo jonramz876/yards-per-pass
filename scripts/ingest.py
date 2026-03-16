@@ -26,6 +26,11 @@ logging.basicConfig(
 log = logging.getLogger("ingest")
 
 
+class DataQualityError(ValueError):
+    """Raised when downloaded data fails sanity checks. Do not retry."""
+    pass
+
+
 def retry(max_retries=3, delay=5, backoff=2):
     """Retry decorator with exponential backoff for network calls."""
     def decorator(func):
@@ -36,6 +41,8 @@ def retry(max_retries=3, delay=5, backoff=2):
             while True:
                 try:
                     return func(*args, **kwargs)
+                except DataQualityError:
+                    raise  # Fast-fail: bad data won't fix itself on retry
                 except Exception as e:
                     retries += 1
                     if retries > max_retries:
@@ -91,6 +98,8 @@ def download_pbp(season: int) -> pd.DataFrame:
     url = PBP_URL.format(season=season)
     log.info("Downloading PBP for %d...", season)
     df = pd.read_parquet(url)
+    if len(df) < 1000:
+        raise DataQualityError(f"PBP data for {season} suspiciously small ({len(df)} rows) — expected 40,000+. Aborting.")
     missing = [c for c in REQUIRED_PBP_COLS if c not in df.columns]
     if missing:
         raise ValueError(f"Missing columns in PBP data: {missing}")
@@ -103,6 +112,8 @@ def download_roster(season: int) -> pd.DataFrame:
     url = ROSTER_URL.format(season=season)
     log.info("Downloading roster for %d...", season)
     df = pd.read_parquet(url)
+    if len(df) < 100:
+        raise DataQualityError(f"Roster data for {season} suspiciously small ({len(df)} rows) — expected 1,500+. Aborting.")
     missing = [c for c in REQUIRED_ROSTER_COLS if c not in df.columns]
     if missing:
         raise ValueError(f"Missing columns in roster data: {missing}")
