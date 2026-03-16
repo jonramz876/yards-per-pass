@@ -232,7 +232,7 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
         const fmtEpa = (v: number) => isNaN(v) ? "\u2014" : v.toFixed(3);
         detailDiv.textContent =
           `Pass EPA: ${fmtEpa(d.off_pass_epa)} | Rush EPA: ${fmtEpa(d.off_rush_epa)} | ` +
-          `Pass Rate: ${fmtPct(d.pass_rate)} | Success: ${fmtPct(d.off_success_rate)}`;
+          `Pass Rate: ${fmtPct(d.pass_rate)} | Success: ${fmtPct(d.off_success_rate)} (incl. sacks)`;
         tooltipEl.appendChild(nameDiv);
         tooltipEl.appendChild(statsDiv);
         tooltipEl.appendChild(detailDiv);

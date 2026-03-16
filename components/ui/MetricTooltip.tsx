@@ -16,7 +16,7 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   "Comp%":
     "Completion percentage \u2014 completions divided by pass attempts. The baseline that makes CPOE meaningful.",
   "Success%":
-    "Percentage of non-sack dropbacks that are successful (gained enough yards for the situation). Sacks excluded because they reflect OL failure, not QB decision-making.",
+    "Percentage of non-sack dropbacks that are successful (gained enough yards for the situation). Sacks excluded because they reflect OL failure, not QB decision-making. Note: Team-level success rate on the scatter plot includes sacks in the denominator.",
   Sk: "Sacks taken. Included in EPA/DB denominator \u2014 a QB who takes many sacks will have lower dropback EPA even if their completions are efficient.",
   "Rush Att":
     "Rush attempts including designed runs and scrambles, but excluding kneels. PFR includes kneels in rush attempts.",
@@ -34,6 +34,9 @@ const METRIC_DEFINITIONS: Record<string, string> = {
     "Offensive EPA per play \u2014 how efficiently a team's offense generates expected points.",
   "Def EPA/Play":
     "Defensive EPA per play \u2014 how well a defense limits the opponent's expected points. Lower (more negative) is better.",
+  FL: "Fumbles lost. Only counts fumbles recovered by the defense \u2014 the turnovers that actually hurt.",
+  "TD:INT":
+    "Touchdown to interception ratio. Higher is better. Shows passing TDs only (rushing TDs not included).",
 };
 
 interface MetricTooltipProps {
