@@ -233,9 +233,15 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
         detailDiv.textContent =
           `Pass EPA: ${fmtEpa(d.off_pass_epa)} | Rush EPA: ${fmtEpa(d.off_rush_epa)} | ` +
           `Pass Rate: ${fmtPct(d.pass_rate)} | Success: ${fmtPct(d.off_success_rate)} (incl. sacks)`;
+        const defDiv = document.createElement("div");
+        defDiv.className = "text-xs text-gray-400 mt-0.5";
+        defDiv.textContent =
+          `Def Pass EPA: ${fmtEpa(d.def_pass_epa)} | Def Rush EPA: ${fmtEpa(d.def_rush_epa)} | ` +
+          `Def Success: ${fmtPct(d.def_success_rate)}`;
         tooltipEl.appendChild(nameDiv);
         tooltipEl.appendChild(statsDiv);
         tooltipEl.appendChild(detailDiv);
+        tooltipEl.appendChild(defDiv);
       }
       // Use clientX/Y for mouse, touches[0] for touch
       const clientX = "touches" in event ? event.touches[0]?.clientX ?? 0 : event.clientX;

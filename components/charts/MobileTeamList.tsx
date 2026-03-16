@@ -73,6 +73,9 @@ export default function MobileTeamList({ data }: MobileTeamListProps) {
                   <div className="text-[11px] text-gray-400 tabular-nums pl-[44px] mt-0.5">
                     Pass EPA: {fmtEpa(t.off_pass_epa)} | Rush EPA: {fmtEpa(t.off_rush_epa)} | Pass Rate: {fmtPct(t.pass_rate)} | Success: {fmtPct(t.off_success_rate)}
                   </div>
+                  <div className="text-[11px] text-gray-400 tabular-nums pl-[44px] mt-0.5">
+                    Def Pass: {fmtEpa(t.def_pass_epa)} | Def Rush: {fmtEpa(t.def_rush_epa)} | Def Success: {fmtPct(t.def_success_rate)}
+                  </div>
                 </div>
               );
             })}
