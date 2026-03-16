@@ -9,6 +9,7 @@ import MetricTooltip from "@/components/ui/MetricTooltip";
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
   throughWeek: number;
+  season: number;
 }
 
 type ColumnDef = {
@@ -25,6 +26,7 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
   { key: "success_rate", label: "Success%", tooltip: "Success%", group: "passing" },
   { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
+  { key: "td_int_ratio", label: "TD:INT", tooltip: "TD:INT", group: "efficiency" },
   { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
   { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
 ];
@@ -35,8 +37,11 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "attempts", label: "Att", group: "passing" },
   { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
   { key: "passing_yards", label: "Yards", group: "passing" },
+  { key: "yards_per_game", label: "Yds/G", group: "passing" },
   { key: "touchdowns", label: "TD", group: "passing" },
+  { key: "tds_per_game", label: "TD/G", group: "passing" },
   { key: "interceptions", label: "INT", group: "passing" },
+  { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "passing" },
   { key: "sacks", label: "Sk", tooltip: "Sk", group: "passing" },
   { key: "sack_yards_lost", label: "Sk Yds", tooltip: "Sk Yds", group: "passing" },
   { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
@@ -44,6 +49,7 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing" },
   { key: "rush_yards", label: "Rush Yds", group: "rushing" },
   { key: "rush_tds", label: "Rush TD", group: "rushing" },
+  { key: "total_tds", label: "Tot TD", group: "rushing" },
 ];
 
 type Tab = "advanced" | "standard";
@@ -57,7 +63,20 @@ const GROUP_COLORS: Record<string, string> = {
   efficiency: "bg-navy/[0.78]",
 };
 
-export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps) {
+function getVal(qb: QBSeasonStat, key: string): number {
+  switch (key) {
+    case "yards_per_game": return qb.games ? qb.passing_yards / qb.games : NaN;
+    case "tds_per_game": return qb.games ? qb.touchdowns / qb.games : NaN;
+    case "total_tds": return qb.touchdowns + qb.rush_tds;
+    case "td_int_ratio": return qb.interceptions > 0 ? qb.touchdowns / qb.interceptions : Infinity;
+    default: {
+      const val = qb[key as keyof QBSeasonStat] as number;
+      return val ?? NaN;
+    }
+  }
+}
+
+export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboardProps) {
   const [tab, setTab] = useState<Tab>("advanced");
   const [sortKey, setSortKey] = useState<string>("epa_per_play");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -86,8 +105,8 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
       result = result.filter((qb) => qb.player_name.toLowerCase().includes(term));
     }
     result.sort((a, b) => {
-      const aVal = a[sortKey as keyof QBSeasonStat] as number;
-      const bVal = b[sortKey as keyof QBSeasonStat] as number;
+      const aVal = getVal(a, sortKey);
+      const bVal = getVal(b, sortKey);
       const aNull = aVal == null || Number.isNaN(aVal);
       const bNull = bVal == null || Number.isNaN(bVal);
       if (aNull && bNull) return 0;
@@ -107,9 +126,10 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
     }
   }
 
-  function formatVal(key: string, val: unknown): string {
+  function formatVal(key: string, qb: QBSeasonStat): string {
+    const val = getVal(qb, key);
     if (val == null || (typeof val === "number" && Number.isNaN(val))) return "\u2014";
-    const n = val as number;
+    const n = val;
     switch (key) {
       case "epa_per_play":
       case "epa_per_db":
@@ -125,6 +145,14 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
         return n.toFixed(2);
       case "passer_rating":
         return n.toFixed(1);
+      case "yards_per_game":
+      case "tds_per_game":
+        return n.toFixed(1);
+      case "total_tds":
+        return n.toString();
+      case "td_int_ratio":
+        if (!Number.isFinite(n)) return `${qb.touchdowns}:0`;
+        return n.toFixed(1) + ":1";
       default:
         return Number.isInteger(n) ? n.toString() : n.toFixed(1);
     }
@@ -236,19 +264,16 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
                     </div>
                   </td>
                   <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
-                  {columns.map((col) => {
-                    const val = qb[col.key as keyof typeof qb];
-                    return (
-                      <td
-                        key={col.key}
-                        className={`px-2 py-2 text-right tabular-nums ${
-                          isEpaCol(col.key) ? `font-bold ${epaColor(val as number)}` : "text-gray-700"
-                        }`}
-                      >
-                        {formatVal(col.key, val)}
-                      </td>
-                    );
-                  })}
+                  {columns.map((col) => (
+                    <td
+                      key={col.key}
+                      className={`px-2 py-2 text-right tabular-nums ${
+                        isEpaCol(col.key) ? `font-bold ${epaColor(getVal(qb, col.key))}` : "text-gray-700"
+                      }`}
+                    >
+                      {formatVal(col.key, qb)}
+                    </td>
+                  ))}
                 </tr>
               ))
             )}
@@ -264,6 +289,9 @@ export default function QBLeaderboard({ data, throughWeek }: QBLeaderboardProps)
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
         <p><span className="font-semibold text-gray-500">Rush Att</span> counts designed rushes and scrambles but excludes kneels. PFR includes kneels in rush attempts.</p>
         <p><span className="font-semibold text-gray-500">Success%</span> excludes sacks from the denominator. Sacks reflect offensive line failure, not QB decision-making. PFR includes sacks, which lowers the number.</p>
+        {season === 2020 && (
+          <p className="text-amber-600"><span className="font-semibold text-amber-700">Note:</span> 2020 CPOE values may be less reliable due to COVID-impacted season conditions (no preseason, limited practice, opt-outs).</p>
+        )}
       </div>
     </div>
   );

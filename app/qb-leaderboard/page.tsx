@@ -48,6 +48,7 @@ export default async function QBLeaderboardPage({
         <QBLeaderboard
           data={qbStats}
           throughWeek={freshness?.through_week ?? 18}
+          season={currentSeason}
         />
       )}
     </DashboardShell>
