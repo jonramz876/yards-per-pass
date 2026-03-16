@@ -76,6 +76,62 @@ function getVal(qb: QBSeasonStat, key: string): number {
   }
 }
 
+// Columns that receive percentile-based conditional formatting
+const HEATMAP_COLS_ADVANCED = new Set([
+  "epa_per_play", "epa_per_db", "cpoe", "success_rate",
+  "any_a", "td_int_ratio", "adot", "rush_epa_per_play",
+]);
+const HEATMAP_COLS_STANDARD = new Set([
+  "completion_pct", "ypa", "passer_rating", "td_int_ratio",
+]);
+
+function getPercentile(sortedValues: number[], value: number): number {
+  if (isNaN(value) || sortedValues.length === 0) return -1;
+  const rank = sortedValues.filter((v) => v < value).length;
+  return (rank / sortedValues.length) * 100;
+}
+
+function getHeatmapStyle(percentile: number): React.CSSProperties {
+  if (percentile < 0) return {};
+  if (percentile >= 90)
+    return { background: "rgba(34,197,94,0.25)", color: "#15803d", fontWeight: 600 };
+  if (percentile >= 75)
+    return { background: "rgba(34,197,94,0.12)", color: "#16a34a" };
+  if (percentile <= 10)
+    return { background: "rgba(239,68,68,0.25)", color: "#dc2626", fontWeight: 600 };
+  if (percentile <= 25)
+    return { background: "rgba(239,68,68,0.12)", color: "#dc2626" };
+  return {};
+}
+
+// Format a raw numeric value (used for NFL AVG row where there's no QB object)
+// Note: This duplicates formatting logic from formatVal(). If formatVal's
+// formatting rules change, update this function too.
+function formatAvg(key: string, val: number): string {
+  if (val == null || isNaN(val)) return "\u2014";
+  switch (key) {
+    case "epa_per_play":
+    case "epa_per_db":
+    case "cpoe":
+    case "adot":
+    case "ypa":
+    case "any_a":
+    case "rush_epa_per_play":
+    case "success_rate":
+      return val.toFixed(2);
+    case "completion_pct":
+    case "passer_rating":
+      return val.toFixed(1);
+    case "td_int_ratio":
+      return val === Infinity ? "\u221E" : val.toFixed(1) + ":1";
+    case "yards_per_game":
+    case "tds_per_game":
+      return val.toFixed(1);
+    default:
+      return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+  }
+}
+
 export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboardProps) {
   const [tab, setTab] = useState<Tab>("advanced");
   const [sortKey, setSortKey] = useState<string>("epa_per_play");
@@ -86,6 +142,9 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
   );
 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
+  const [showHeatmap, setShowHeatmap] = useState(true);
+
+  const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
   // When switching tabs, reset sort to a sensible default for that tab
   function switchTab(newTab: Tab) {
@@ -116,6 +175,29 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
     });
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
+
+  const sortedByCol = useMemo(() => {
+    if (!showHeatmap) return {};
+    const sorted: Record<string, number[]> = {};
+    for (const col of heatmapCols) {
+      const values = filtered.map((qb) => getVal(qb, col)).filter((v) => !isNaN(v));
+      values.sort((a, b) => a - b);
+      sorted[col] = values;
+    }
+    return sorted;
+  }, [filtered, heatmapCols, showHeatmap]);
+
+  const averages = useMemo(() => {
+    if (!showHeatmap) return {};
+    const avgs: Record<string, number> = {};
+    for (const col of columns) {
+      const values = filtered.map((qb) => getVal(qb, col.key)).filter((v) => !isNaN(v));
+      avgs[col.key] = values.length
+        ? values.reduce((a, b) => a + b, 0) / values.length
+        : NaN;
+    }
+    return avgs;
+  }, [filtered, columns, showHeatmap]);
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -217,6 +299,15 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                 className="w-32"
               />
             </div>
+            <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showHeatmap}
+                onChange={(e) => setShowHeatmap(e.target.checked)}
+                className="rounded border-gray-300 text-navy focus:ring-navy/20"
+              />
+              Heat map
+            </label>
           </div>
         </div>
       </div>
@@ -254,28 +345,56 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                 </td>
               </tr>
             ) : (
-              filtered.map((qb, idx) => (
-                <tr key={qb.player_id} className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
-                  <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                  <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
-                      <span className="font-semibold text-navy">{qb.player_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
-                  {columns.map((col) => (
-                    <td
-                      key={col.key}
-                      className={`px-2 py-2 text-right tabular-nums ${
-                        isEpaCol(col.key) ? `font-bold ${epaColor(getVal(qb, col.key))}` : "text-gray-700"
-                      }`}
-                    >
-                      {formatVal(col.key, qb)}
+              <>
+                {showHeatmap && (
+                  <tr className="border-t border-amber-400">
+                    <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
+                    <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      NFL AVG
                     </td>
-                  ))}
-                </tr>
-              ))
+                    <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className="px-2 py-2 text-right tabular-nums"
+                        style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
+                      >
+                        {formatAvg(col.key, averages[col.key])}
+                      </td>
+                    ))}
+                  </tr>
+                )}
+                {filtered.map((qb, idx) => (
+                  <tr key={qb.player_id} className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
+                    <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
+                    <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
+                        <span className="font-semibold text-navy">{qb.player_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
+                    {columns.map((col) => {
+                      const val = getVal(qb, col.key);
+                      const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
+                      const pct = isHeatmapCol ? getPercentile(sortedByCol[col.key] || [], val) : -1;
+                      const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
+
+                      const cellClass = isHeatmapCol
+                        ? "px-2 py-2 text-right tabular-nums"
+                        : `px-2 py-2 text-right tabular-nums ${
+                            isEpaCol(col.key) ? `font-bold ${epaColor(val)}` : "text-gray-700"
+                          }`;
+
+                      return (
+                        <td key={col.key} className={cellClass} style={heatStyle}>
+                          {formatVal(col.key, qb)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </>
             )}
           </tbody>
         </table>
