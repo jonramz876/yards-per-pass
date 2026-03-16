@@ -70,6 +70,7 @@ REQUIRED_PBP_COLS = [
     'cpoe', 'passing_yards', 'pass_touchdown', 'interception',
     'rush_touchdown', 'rushing_yards', 'game_id', 'season', 'week',
     'home_team', 'away_team', 'result',
+    'fumble', 'fumble_lost', 'fumbled_1_player_id',
 ]
 
 
@@ -234,12 +235,23 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         sacks=('sack', 'sum'),
         scrambles=('qb_scramble', 'sum'),
         cpoe=('cpoe', lambda x: x.dropna().mean()),
-        adot=('air_yards', lambda x: x.dropna().mean()),
         touchdowns=('pass_touchdown', 'sum'),
         interceptions=('interception', 'sum'),
         games=('game_id', 'nunique'),
         success_rate_raw=('success', lambda x: x.dropna().mean()),
     ).reset_index().rename(columns={'passer_player_id': 'player_id'})
+
+    # aDOT: compute on true pass attempts only (exclude sacks and scrambles)
+    # Scrambles can have pass_attempt=1 in nflverse but air_yards is meaningless
+    adot_plays = dropbacks[
+        (dropbacks['pass_attempt'] == 1) &
+        (dropbacks['sack'] != 1) &
+        (dropbacks['qb_scramble'] != 1)
+    ]
+    adot_stats = adot_plays.groupby('passer_player_id')['air_yards'].apply(
+        lambda x: x.dropna().mean()
+    ).reset_index().rename(columns={'passer_player_id': 'player_id', 'air_yards': 'adot'})
+    qb_drop = qb_drop.merge(adot_stats, on='player_id', how='left')
 
     # QB success rate: exclude sacks (OL failure, not QB decision), stored as percentage
     non_sack_dropbacks = dropbacks[dropbacks['sack'] != 1]
@@ -343,6 +355,24 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     qb_stats['rush_tds'] = qb_stats['rush_tds'] + qb_stats['scramble_td_count'].fillna(0).astype(int)
     qb_stats['rush_yards'] = qb_stats['rush_yards'] + qb_stats['scramble_yard_count'].fillna(0).astype(int)
 
+    # --- Fumble stats: attribute via fumbled_1_player_id (not passer/rusher grouping) ---
+    # Critical: the `fumble` column marks ANY fumble on the play (including WR/RB).
+    # Using passer_player_id grouping would wrongly charge receiver fumbles to the QB.
+    all_qb_plays = pd.concat([dropbacks, designed_rushes])
+    qb_fumble_plays = all_qb_plays[
+        all_qb_plays['fumbled_1_player_id'].isin(qb_ids)
+    ]
+    if len(qb_fumble_plays) > 0:
+        fumble_stats = qb_fumble_plays.groupby('fumbled_1_player_id').agg(
+            fumbles=('fumble', 'sum'),
+            fumbles_lost=('fumble_lost', 'sum'),
+        ).reset_index().rename(columns={'fumbled_1_player_id': 'player_id'})
+    else:
+        fumble_stats = pd.DataFrame(columns=['player_id', 'fumbles', 'fumbles_lost'])
+    qb_stats = qb_stats.merge(fumble_stats, on='player_id', how='left')
+    qb_stats['fumbles'] = qb_stats['fumbles'].fillna(0).astype(int)
+    qb_stats['fumbles_lost'] = qb_stats['fumbles_lost'].fillna(0).astype(int)
+
     # EPA per play (total: passing + designed rushing — scrambles already in dropback EPA)
     total_plays = qb_stats['dropback_count'] + qb_stats['designed_rush_count']
     total_epa = qb_stats['dropback_epa_sum'] + qb_stats['designed_rush_epa']
@@ -373,6 +403,7 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         'cpoe', 'completion_pct', 'success_rate', 'passing_yards',
         'touchdowns', 'interceptions', 'sacks', 'sack_yards_lost', 'adot', 'ypa', 'passer_rating',
         'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
+        'fumbles', 'fumbles_lost',
     ]
     result = qb_stats[cols].copy()
 
@@ -482,6 +513,7 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
         'cpoe', 'completion_pct', 'success_rate', 'passing_yards',
         'touchdowns', 'interceptions', 'sacks', 'sack_yards_lost', 'adot', 'ypa', 'passer_rating',
         'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
+        'fumbles', 'fumbles_lost',
     ]
     # Replace NaN with None for SQL NULL
     clean_df = df[cols].where(df[cols].notna(), None)
