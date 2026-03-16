@@ -1,10 +1,11 @@
 // components/tables/QBLeaderboard.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
+import QBStatCard from "@/components/qb/QBStatCard";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -143,6 +144,7 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [selectedQB, setSelectedQB] = useState<QBSeasonStat | null>(null);
 
   const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
@@ -175,6 +177,10 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
     });
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
+
+  useEffect(() => {
+    setSelectedQB(null);
+  }, [filtered]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -365,7 +371,11 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                   </tr>
                 )}
                 {filtered.map((qb, idx) => (
-                  <tr key={qb.player_id} className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
+                  <tr
+                  key={qb.player_id}
+                  className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                  onClick={() => setSelectedQB(qb)}
+                >
                     <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
                     <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
                       <div className="flex items-center gap-2">
@@ -412,6 +422,15 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
           <p className="text-amber-600"><span className="font-semibold text-amber-700">Note:</span> 2020 CPOE values may be less reliable due to COVID-impacted season conditions (no preseason, limited practice, opt-outs).</p>
         )}
       </div>
+
+      {selectedQB && (
+        <QBStatCard
+          qb={selectedQB}
+          allQBs={filtered}
+          getVal={getVal}
+          onClose={() => setSelectedQB(null)}
+        />
+      )}
     </div>
   );
 }
