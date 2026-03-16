@@ -240,10 +240,17 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
       // Use clientX/Y for mouse, touches[0] for touch
       const clientX = "touches" in event ? event.touches[0]?.clientX ?? 0 : event.clientX;
       const clientY = "touches" in event ? event.touches[0]?.clientY ?? 0 : event.clientY;
+      // Position tooltip, flipping if it would overflow viewport
+      const tipEl = tooltipRef.current;
+      const tw = tipEl?.offsetWidth ?? 300;
+      const th = tipEl?.offsetHeight ?? 80;
+      const pad = 12;
+      const left = Math.max(pad, clientX + pad + tw > window.innerWidth ? clientX - tw - pad : clientX + pad);
+      const top = clientY + pad + th > window.innerHeight ? clientY - th - pad : clientY + pad;
       tooltip
         .style("opacity", "1")
-        .style("left", `${clientX + 12}px`)
-        .style("top", `${clientY - 28}px`);
+        .style("left", `${left}px`)
+        .style("top", `${top}px`);
       activeTeam = d.team_id;
     }
 
