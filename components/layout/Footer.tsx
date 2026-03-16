@@ -1,4 +1,6 @@
 // components/layout/Footer.tsx
+import Link from "next/link";
+
 export default function Footer() {
   return (
     <footer className="border-t border-gray-200 bg-white py-8">
@@ -24,6 +26,10 @@ export default function Footer() {
           >
             GitHub
           </a>
+          {" "}&middot;{" "}
+          <Link href="/privacy" className="underline hover:text-navy">
+            Privacy
+          </Link>
         </span>
       </div>
     </footer>
