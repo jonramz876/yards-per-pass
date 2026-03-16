@@ -60,7 +60,7 @@ export default function RadarChart({ values, color }: RadarChartProps) {
   const dataPolygon = dataPoints.map((p) => p.join(",")).join(" ");
 
   return (
-    <svg viewBox="0 0 300 260" width={300} height={260} className="mx-auto">
+    <svg viewBox="-20 0 340 260" className="mx-auto w-full" style={{ maxWidth: 340 }}>
       {/* Outer ring */}
       <polygon
         points={hexPoints(R_OUTER)}

@@ -1,7 +1,7 @@
 // components/tables/QBLeaderboard.tsx
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
@@ -352,58 +352,113 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
               </tr>
             ) : (
               <>
-                {showHeatmap && (
-                  <tr className="border-t border-amber-400">
-                    <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                    <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
-                      NFL AVG
-                    </td>
-                    <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
-                    {columns.map((col) => (
-                      <td
-                        key={col.key}
-                        className="px-2 py-2 text-right tabular-nums"
-                        style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
-                      >
-                        {formatAvg(col.key, averages[col.key])}
+                {filtered.map((qb, idx) => {
+                  // Determine if NFL AVG row should appear before this QB
+                  let showAvgBefore = false;
+                  if (showHeatmap && idx === 0) {
+                    // Check if avg belongs before the first row
+                    const avgVal = averages[sortKey];
+                    if (!isNaN(avgVal)) {
+                      const qbVal = getVal(qb, sortKey);
+                      if (sortDir === "desc" ? avgVal >= qbVal : avgVal <= qbVal) {
+                        showAvgBefore = true;
+                      }
+                    }
+                  } else if (showHeatmap && idx > 0) {
+                    const avgVal = averages[sortKey];
+                    if (!isNaN(avgVal)) {
+                      const prevVal = getVal(filtered[idx - 1], sortKey);
+                      const currVal = getVal(qb, sortKey);
+                      if (sortDir === "desc") {
+                        showAvgBefore = avgVal < prevVal && avgVal >= currVal;
+                      } else {
+                        showAvgBefore = avgVal > prevVal && avgVal <= currVal;
+                      }
+                    }
+                  }
+
+                  const avgRow = showAvgBefore ? (
+                    <tr key="nfl-avg" className="border-t border-amber-400">
+                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
+                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                        NFL AVG
                       </td>
-                    ))}
-                  </tr>
-                )}
-                {filtered.map((qb, idx) => (
-                  <tr
-                  key={qb.player_id}
-                  className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedQB(qb)}
-                >
-                    <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                    <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
-                        <span className="font-semibold text-navy">{qb.player_name}</span>
-                      </div>
-                    </td>
-                    <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
-                    {columns.map((col) => {
-                      const val = getVal(qb, col.key);
-                      const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
-                      const pct = isHeatmapCol ? getPercentile(sortedByCol[col.key] || [], val) : -1;
-                      const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
-
-                      const cellClass = isHeatmapCol
-                        ? "px-2 py-2 text-right tabular-nums"
-                        : `px-2 py-2 text-right tabular-nums ${
-                            isEpaCol(col.key) ? `font-bold ${epaColor(val)}` : "text-gray-700"
-                          }`;
-
-                      return (
-                        <td key={col.key} className={cellClass} style={heatStyle}>
-                          {formatVal(col.key, qb)}
+                      <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className="px-2 py-2 text-right tabular-nums"
+                          style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
+                        >
+                          {formatAvg(col.key, averages[col.key])}
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      ))}
+                    </tr>
+                  ) : null;
+
+                  return (
+                    <React.Fragment key={qb.player_id}>
+                      {avgRow}
+                      <tr
+                        className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedQB(qb)}
+                      >
+                        <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
+                        <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
+                            <span className="font-semibold text-navy">{qb.player_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
+                        {columns.map((col) => {
+                          const val = getVal(qb, col.key);
+                          const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
+                          const pct = isHeatmapCol ? getPercentile(sortedByCol[col.key] || [], val) : -1;
+                          const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
+
+                          const cellClass = isHeatmapCol
+                            ? "px-2 py-2 text-right tabular-nums"
+                            : `px-2 py-2 text-right tabular-nums ${
+                                isEpaCol(col.key) ? `font-bold ${epaColor(val)}` : "text-gray-700"
+                              }`;
+
+                          return (
+                            <td key={col.key} className={cellClass} style={heatStyle}>
+                              {formatVal(col.key, qb)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    </React.Fragment>
+                  );
+                })}
+                {/* If avg belongs after the last QB (below all rows) */}
+                {showHeatmap && filtered.length > 0 && (() => {
+                  const avgVal = averages[sortKey];
+                  if (isNaN(avgVal)) return null;
+                  const lastVal = getVal(filtered[filtered.length - 1], sortKey);
+                  const belongsAfterLast = sortDir === "desc" ? avgVal < lastVal : avgVal > lastVal;
+                  if (!belongsAfterLast) return null;
+                  return (
+                    <tr key="nfl-avg" className="border-t border-amber-400">
+                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
+                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                        NFL AVG
+                      </td>
+                      <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className="px-2 py-2 text-right tabular-nums"
+                          style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
+                        >
+                          {formatAvg(col.key, averages[col.key])}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })()}
               </>
             )}
           </tbody>
