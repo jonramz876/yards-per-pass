@@ -28,6 +28,30 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Metric explainer */}
+      <section className="max-w-3xl mx-auto px-6 md:px-12 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+          <div>
+            <p className="text-sm font-bold text-navy mb-1">EPA</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Expected Points Added — how much each play changes a team&apos;s scoring chances. Above 0 is good.
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-navy mb-1">CPOE</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Completion Percentage Over Expected — whether a QB completes more passes than difficulty suggests he should.
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-navy mb-1">Success Rate</p>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              How often a play gains enough yards to keep the drive on schedule. The consistency metric.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Feature cards */}
       <section className="bg-gray-50 py-16">
         <div className="max-w-6xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-8">
