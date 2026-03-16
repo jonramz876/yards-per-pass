@@ -72,7 +72,10 @@ export async function getDataFreshness(season?: number): Promise<DataFreshness |
   }
   const { data, error } = await query.single();
 
-  if (error) return null;
+  if (error) {
+    console.warn(`getDataFreshness failed (season=${season}):`, error.message);
+    return null;
+  }
   return data as DataFreshness;
 }
 

@@ -8,7 +8,17 @@ import { getTeamStats, getDataFreshness, getAvailableSeasons } from "@/lib/data/
 // CRITICAL: D3 accesses window/document — must disable SSR
 const TeamScatterPlot = dynamic(
   () => import("@/components/charts/TeamScatterPlot"),
-  { ssr: false }
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center bg-gray-50 rounded-md border border-gray-200" style={{ height: 560 }}>
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-sm text-gray-400">Loading chart...</p>
+        </div>
+      </div>
+    ),
+  }
 );
 
 export const revalidate = 3600; // Revalidate hourly

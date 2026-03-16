@@ -49,3 +49,18 @@ jobs:
             echo "::error::Failed seasons: ${FAILED[*]}"
             exit 1
           fi
+
+      - name: Trigger ISR revalidation
+        if: success()
+        run: |
+          if [ -z "${{ secrets.SITE_URL }}" ]; then
+            echo "::notice::SITE_URL not configured — skipping revalidation"
+            exit 0
+          fi
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.SITE_URL }}/api/revalidate" \
+            -H "x-revalidate-secret: ${{ secrets.REVALIDATE_SECRET }}" \
+            -H "Content-Type: application/json")
+          echo "Revalidation response: HTTP $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::ISR revalidation failed with HTTP $STATUS — site may serve stale data"
+          fi

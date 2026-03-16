@@ -35,16 +35,19 @@ export default function HomePage() {
             title="Team Tiers"
             description="See where every NFL team ranks by offensive and defensive EPA — the gold standard of football analytics. One chart, total clarity."
             icon="📊"
+            href="/teams"
           />
           <FeatureCard
             title="QB Rankings"
             description="Sort quarterbacks by EPA, CPOE, success rate, and 10+ other metrics. Filter by minimum dropbacks and season."
             icon="🏈"
+            href="/qb-leaderboard"
           />
           <FeatureCard
             title="Open Source"
             description="Built on trusted nflverse data, updated weekly. More features in the works — follow along on GitHub."
             icon="🔮"
+            href="https://github.com/jonramz876/yards-per-pass"
           />
         </div>
       </section>
@@ -56,16 +59,35 @@ function FeatureCard({
   title,
   description,
   icon,
+  href,
 }: {
   title: string;
   description: string;
   icon: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-white p-6 rounded-md border border-gray-200">
+  const content = (
+    <>
       <div className="text-3xl mb-4">{icon}</div>
       <h3 className="text-lg font-bold text-navy mb-2">{title}</h3>
       <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="bg-white p-6 rounded-md border border-gray-200 hover:border-navy/30 hover:shadow-md transition-all"
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="bg-white p-6 rounded-md border border-gray-200">
+      {content}
     </div>
   );
 }

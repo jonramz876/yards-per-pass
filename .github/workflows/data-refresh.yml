@@ -34,7 +34,21 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
 
+      - name: Check for offseason
+        id: offseason
+        if: github.event_name == 'schedule'
+        run: |
+          MONTH=$(date +%m)
+          # NFL offseason: February through early September (no new data)
+          if [ "$MONTH" -ge 3 ] && [ "$MONTH" -le 8 ]; then
+            echo "::notice::NFL offseason (month $MONTH) — skipping refresh"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Resolve season
+        if: steps.offseason.outputs.skip != 'true'
         id: vars
         run: |
           INPUT="${{ github.event.inputs.season }}"
@@ -52,12 +66,13 @@ jobs:
           fi
 
       - name: Run ingest
+        if: steps.offseason.outputs.skip != 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python scripts/ingest.py --season "${{ steps.vars.outputs.season }}"
 
       - name: Trigger ISR revalidation
-        if: success()
+        if: success() && steps.offseason.outputs.skip != 'true'
         run: |
           if [ -z "${{ secrets.SITE_URL }}" ]; then
             echo "::notice::SITE_URL not configured — skipping revalidation (site may not be deployed yet)"
