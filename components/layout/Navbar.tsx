@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
@@ -13,7 +13,14 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+
+  // Carry the current season param across page navigation
+  function linkHref(base: string) {
+    const season = searchParams.get("season");
+    return season ? `${base}?season=${season}` : base;
+  }
 
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -28,7 +35,7 @@ export default function Navbar() {
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
-              href={link.href}
+              href={linkHref(link.href)}
               className={`text-sm font-medium transition-colors ${
                 pathname === link.href
                   ? "text-navy font-semibold"
@@ -57,7 +64,7 @@ export default function Navbar() {
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
-                  href={link.href}
+                  href={linkHref(link.href)}
                   onClick={() => setOpen(false)}
                   className={`text-lg font-medium ${
                     pathname === link.href ? "text-navy" : "text-gray-500"

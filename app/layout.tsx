@@ -1,4 +1,5 @@
 // app/layout.tsx
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
@@ -45,7 +46,9 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-white flex flex-col">
         <TooltipProvider>
-          <Navbar />
+          <Suspense>
+            <Navbar />
+          </Suspense>
           <main className="flex-1">{children}</main>
           <Footer />
         </TooltipProvider>
