@@ -397,6 +397,23 @@ export default function RunGapDiagram({
       .attr("fill", "#f8fafc")
       .attr("rx", 8);
 
+    // Title bar for screenshot shareability
+    g.append("text")
+      .attr("x", 16)
+      .attr("y", 22)
+      .style("font-size", "14px")
+      .style("font-weight", "700")
+      .style("fill", "#1e3a5f")
+      .text(`${team?.name || selectedTeam} — Rush EPA by Gap`);
+
+    g.append("text")
+      .attr("x", viewBoxW - 16)
+      .attr("y", 22)
+      .attr("text-anchor", "end")
+      .style("font-size", "11px")
+      .style("fill", "#94a3b8")
+      .text(`${season} Season`);
+
     // Field-like subtle lines
     g.append("line")
       .attr("x1", 0).attr("x2", viewBoxW)
@@ -617,9 +634,9 @@ export default function RunGapDiagram({
       .attr("x", viewBoxW - 8)
       .attr("y", viewBoxH - 8)
       .attr("text-anchor", "end")
-      .style("font-size", "10px")
-      .style("fill", "#d1d5db")
-      .style("font-weight", "500")
+      .style("font-size", "11px")
+      .style("fill", "#94a3b8")
+      .style("font-weight", "600")
       .text("yardsperpass.com");
 
     // Hover/focus interaction: dim non-hovered arrows
@@ -649,7 +666,7 @@ export default function RunGapDiagram({
       svg.selectAll("*").remove();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks, oppDefGaps, leagueAvgByGap]);
+  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks, oppDefGaps, leagueAvgByGap, team, season]);
 
   // No team selected — show prompt
   if (!selectedTeam) {
@@ -698,9 +715,23 @@ export default function RunGapDiagram({
       {/* Team selector */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-4">
         <div>
-          <label htmlFor="team-select" className="block text-sm font-medium text-gray-700 mb-1">
-            Team
-          </label>
+          <div className="flex items-center gap-3 mb-1">
+            <label htmlFor="team-select" className="text-sm font-medium text-gray-700">
+              Team
+            </label>
+            <button
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete("team");
+                params.delete("gap");
+                params.delete("opp");
+                router.push(`${pathname}?${params.toString()}`);
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+            >
+              ← All Teams
+            </button>
+          </div>
           <select
             id="team-select"
             value={selectedTeam}
