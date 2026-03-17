@@ -85,40 +85,40 @@ function aggregateWeeklyToPlayerGap(rows: RBGapStatWeekly[]): RBGapStat[] {
 // Gap ordering left-to-right from offense perspective
 const GAPS = ["LE", "LT", "LG", "M", "RG", "RT", "RE"] as const;
 
-// OL positions: LT, LG, C, RG, RT
+// OL positions: LT, LG, C, RG, RT — spread across 700-wide viewBox
 const OL_POSITIONS = [
-  { label: "LT", cx: 100, cy: 130 },
-  { label: "LG", cx: 200, cy: 130 },
-  { label: "C",  cx: 300, cy: 130 },
-  { label: "RG", cx: 400, cy: 130 },
-  { label: "RT", cx: 500, cy: 130 },
+  { label: "LT", cx: 140, cy: 150 },
+  { label: "LG", cx: 250, cy: 150 },
+  { label: "C",  cx: 350, cy: 150 },
+  { label: "RG", cx: 450, cy: 150 },
+  { label: "RT", cx: 560, cy: 150 },
 ];
 
-// Gap label positions above the OL (y=50)
+// Gap label positions above the OL — spaced to avoid text overlap
 const GAP_TARGETS: Record<string, { x: number; y: number }> = {
-  LE: { x: 40,  y: 50 },
-  LT: { x: 150, y: 50 },
-  LG: { x: 250, y: 50 },
-  M:  { x: 300, y: 50 },
-  RG: { x: 350, y: 50 },
-  RT: { x: 450, y: 50 },
-  RE: { x: 560, y: 50 },
+  LE: { x: 55,  y: 55 },
+  LT: { x: 195, y: 55 },
+  LG: { x: 300, y: 55 },
+  M:  { x: 350, y: 55 },
+  RG: { x: 400, y: 55 },
+  RT: { x: 505, y: 55 },
+  RE: { x: 645, y: 55 },
 };
 
-// Arrow endpoint y-values (slightly below gap labels to connect nicely)
+// Arrow endpoint y-values
 const ARROW_END_Y: Record<string, number> = {
-  LE: 95,
-  LT: 95,
-  LG: 95,
-  M:  95,
-  RG: 95,
-  RT: 95,
-  RE: 95,
+  LE: 115,
+  LT: 115,
+  LG: 115,
+  M:  115,
+  RG: 115,
+  RT: 115,
+  RE: 115,
 };
 
 // RB position
-const RB_CX = 300;
-const RB_CY = 310;
+const RB_CX = 350;
+const RB_CY = 330;
 
 interface AggregatedGap {
   gap: string;
@@ -382,8 +382,8 @@ export default function RunGapDiagram({
     const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const viewBoxW = 600;
-    const viewBoxH = 440;
+    const viewBoxW = 700;
+    const viewBoxH = 460;
     svg.attr("viewBox", `0 0 ${viewBoxW} ${viewBoxH}`)
        .attr("preserveAspectRatio", "xMidYMid meet");
 
@@ -399,7 +399,7 @@ export default function RunGapDiagram({
     // Field-like subtle lines
     g.append("line")
       .attr("x1", 0).attr("x2", viewBoxW)
-      .attr("y1", 130).attr("y2", 130)
+      .attr("y1", 150).attr("y2", 150)
       .attr("stroke", "#e2e8f0").attr("stroke-width", 1).attr("stroke-dasharray", "4 4");
 
     // Max carries for arrow thickness scaling
@@ -459,119 +459,75 @@ export default function RunGapDiagram({
         arrowPath.append("title").text(`Low sample (${gs.carries} carries)`);
       }
 
-      // EPA label near arrow endpoint (skip for low-sample)
+    }
+
+    // Gap labels at the top — clean 2-line layout: gap name + EPA value
+    // Carries, rank, league avg, DEF EPA shown in tooltip on hover
+    for (const gs of gapStats) {
+      const target = GAP_TARGETS[gs.gap];
+      if (!target) continue;
+      const lowSample = gs.carries < 5;
+      const color = lowSample ? "#9ca3af" : epaColor(gs.epa_per_carry);
+      const rank = gapRanks[gs.gap];
+      const lgAvg = leagueAvgByGap[gs.gap];
+      const defGap = oppDefGaps[gs.gap];
+
+      // Clickable group for the gap label
+      const labelGroup = g.append("g")
+        .style("cursor", "pointer")
+        .on("click", () => handleGapClick(gs.gap));
+
+      // Invisible hit area for easier clicking/hovering
+      labelGroup.append("rect")
+        .attr("x", target.x - 30)
+        .attr("y", target.y - 18)
+        .attr("width", 60)
+        .attr("height", 42)
+        .attr("fill", "transparent");
+
+      // Gap name
+      labelGroup.append("text")
+        .attr("x", target.x)
+        .attr("y", target.y - 4)
+        .attr("text-anchor", "middle")
+        .style("font-size", "13px")
+        .style("font-weight", "700")
+        .style("fill", "#475569")
+        .text(gs.gap);
+
+      // EPA value below gap name
       if (!lowSample) {
-        const labelOffsetY = endY - 14;
-        arrowGroup.append("text")
-          .attr("x", endX)
-          .attr("y", labelOffsetY)
+        labelGroup.append("text")
+          .attr("x", target.x)
+          .attr("y", target.y + 10)
           .attr("text-anchor", "middle")
           .attr("fill", color)
           .style("font-size", "11px")
           .style("font-weight", "600")
           .attr("data-gap", gs.gap)
           .text(gs.epa_per_carry >= 0 ? `+${gs.epa_per_carry.toFixed(2)}` : gs.epa_per_carry.toFixed(2));
-      }
-    }
-
-    // Gap labels at the top
-    for (const gs of gapStats) {
-      const target = GAP_TARGETS[gs.gap];
-      if (!target) continue;
-
-      g.append("text")
-        .attr("x", target.x)
-        .attr("y", target.y - 8)
-        .attr("text-anchor", "middle")
-        .style("font-size", "12px")
-        .style("font-weight", "700")
-        .style("fill", "#475569")
-        .style("cursor", "pointer")
-        .on("click", () => handleGapClick(gs.gap))
-        .text(gs.gap);
-
-      // Low sample warning icon next to gap label
-      if (gs.carries < 5) {
-        g.append("text")
-          .attr("x", target.x + 14)
-          .attr("y", target.y - 7)
-          .attr("text-anchor", "start")
-          .style("font-size", "10px")
-          .style("fill", "#f59e0b")
-          .append("tspan")
-          .text("\u26A0");
-      }
-
-      // Carries count below gap label
-      g.append("text")
-        .attr("x", target.x)
-        .attr("y", target.y + 4)
-        .attr("text-anchor", "middle")
-        .style("font-size", "9px")
-        .style("fill", "#94a3b8")
-        .style("cursor", "pointer")
-        .on("click", () => handleGapClick(gs.gap))
-        .text(`${gs.carries} att`);
-
-      // Rank indicator below carries
-      const rank = gapRanks[gs.gap];
-      if (rank != null) {
-        g.append("text")
+      } else {
+        labelGroup.append("text")
           .attr("x", target.x)
-          .attr("y", target.y + 15)
+          .attr("y", target.y + 10)
           .attr("text-anchor", "middle")
-          .style("font-size", "8px")
-          .style("font-weight", "600")
-          .style("fill", rank <= 10 ? "#16a34a" : rank >= 23 ? "#dc2626" : "#94a3b8")
-          .text(`#${rank}`);
+          .style("font-size", "9px")
+          .style("fill", "#9ca3af")
+          .text("Low sample");
       }
 
-      // League average EPA label (subtle, below rank)
-      const lgAvg = leagueAvgByGap[gs.gap];
-      if (lgAvg) {
-        const lgY = rank != null ? target.y + 24 : target.y + 15;
-        g.append("text")
-          .attr("x", target.x)
-          .attr("y", lgY)
-          .attr("text-anchor", "middle")
-          .style("font-size", "7px")
-          .style("font-weight", "400")
-          .style("fill", "#94a3b8")
-          .text(`Lg ${lgAvg.avg_epa >= 0 ? "+" : ""}${lgAvg.avg_epa.toFixed(2)}`);
-      }
-
-      // Defensive matchup indicator (only in matchup mode)
-      const defGap = oppDefGaps[gs.gap];
+      // Build tooltip text
+      const tipLines: string[] = [];
+      tipLines.push(`${gs.carries} carries`);
+      if (!isNaN(gs.epa_per_carry)) tipLines.push(`EPA/carry: ${gs.epa_per_carry >= 0 ? "+" : ""}${gs.epa_per_carry.toFixed(3)}`);
+      if (!isNaN(gs.yards_per_carry)) tipLines.push(`YPC: ${gs.yards_per_carry.toFixed(1)}`);
+      if (!isNaN(gs.success_rate)) tipLines.push(`Success: ${(gs.success_rate * 100).toFixed(0)}%`);
+      if (rank != null) tipLines.push(`Rank: #${rank} of 32`);
+      if (lgAvg) tipLines.push(`Lg Avg EPA: ${lgAvg.avg_epa >= 0 ? "+" : ""}${lgAvg.avg_epa.toFixed(3)}`);
       if (defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry)) {
-        const defEpa = defGap.def_epa_per_carry;
-        const defColor = defEpaColor(defEpa); // orange = exploitable, purple = tough
-        const offEpa = gs.epa_per_carry;
-        const isMismatch = offEpa > 0 && defEpa > 0;
-        const baseY = (rank != null ? target.y + 26 : target.y + 15) + (lgAvg ? 10 : 0);
-
-        // Small defensive EPA label
-        g.append("text")
-          .attr("x", target.x)
-          .attr("y", baseY)
-          .attr("text-anchor", "middle")
-          .style("font-size", "8px")
-          .style("font-weight", "500")
-          .style("fill", defColor)
-          .style("opacity", 0.85)
-          .text(`DEF ${defEpa >= 0 ? "+" : ""}${defEpa.toFixed(2)}`);
-
-        // Exploitable mismatch highlight
-        if (isMismatch) {
-          g.append("rect")
-            .attr("x", target.x - 16)
-            .attr("y", baseY - 8)
-            .attr("width", 32)
-            .attr("height", 11)
-            .attr("rx", 3)
-            .attr("fill", "#16a34a")
-            .attr("opacity", 0.12);
-        }
+        tipLines.push(`DEF allows: ${defGap.def_epa_per_carry >= 0 ? "+" : ""}${defGap.def_epa_per_carry.toFixed(3)} EPA`);
       }
+      labelGroup.append("title").text(tipLines.join("\n"));
     }
 
     // Draw OL circles
@@ -613,7 +569,7 @@ export default function RunGapDiagram({
       .text("RB");
 
     // Legend
-    const legendY = 380;
+    const legendY = 400;
     const legendItems = [
       { color: "#16a34a", label: "> +0.05" },
       { color: "#4ade80", label: "+0.02–0.05" },
@@ -621,7 +577,7 @@ export default function RunGapDiagram({
       { color: "#f87171", label: "−0.02–0.05" },
       { color: "#dc2626", label: "< −0.05" },
     ];
-    const legendStartX = viewBoxW / 2 - 200;
+    const legendStartX = viewBoxW / 2 - 220;
     legendItems.forEach((item, i) => {
       const lx = legendStartX + i * 84;
       g.append("rect")
