@@ -583,6 +583,12 @@ export default function RunGapDiagram({
           />
         </div>
       )}
+
+      {/* Data disclaimer */}
+      <p className="mt-8 text-xs text-gray-400 border-t border-gray-100 pt-4">
+        Gap data reflects ball carrier destination, not designed play direction.
+        Source: <a href="https://github.com/nflverse" target="_blank" rel="noopener noreferrer" className="underline hover:text-navy">nflverse</a> play-by-play (~85-90% of rush plays have gap data). Stats may differ from PFF/TruMedia due to methodology differences.
+      </p>
     </div>
   );
 }
