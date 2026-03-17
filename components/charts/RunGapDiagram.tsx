@@ -341,6 +341,18 @@ export default function RunGapDiagram({
     return map;
   }, [leagueAvgs]);
 
+  // Overall league average EPA across all gaps (for "All Runs" mode)
+  const overallLeagueAvgEpa = useMemo(() => {
+    if (teamGapEpas.length === 0) return null;
+    let totalEpa = 0;
+    let count = 0;
+    for (const t of teamGapEpas) {
+      totalEpa += t.epa_per_carry;
+      count++;
+    }
+    return count > 0 ? totalEpa / count : null;
+  }, [teamGapEpas]);
+
   const oppTeam = selectedOpp ? getTeam(selectedOpp) : null;
   const isMatchupMode = !!selectedOpp && Object.keys(oppDefGaps).length > 0;
 
@@ -1021,7 +1033,7 @@ export default function RunGapDiagram({
             stats={activeData}
             teamAvgEpa={selectedGap ? (gapAggregates[selectedGap]?.epa_per_carry ?? 0) : overallAvgEpa}
             leagueRank={selectedGap ? (gapRanks[selectedGap] ?? null) : null}
-            leagueAvgEpa={selectedGap ? (leagueAvgByGap[selectedGap]?.avg_epa ?? null) : null}
+            leagueAvgEpa={selectedGap ? (leagueAvgByGap[selectedGap]?.avg_epa ?? null) : overallLeagueAvgEpa}
           />
         </div>
       )}

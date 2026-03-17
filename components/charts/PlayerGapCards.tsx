@@ -225,51 +225,64 @@ export default function PlayerGapCards({
                   <span className="text-xs text-gray-400">{r.carries} carries</span>
                 </div>
 
-                {/* EPA + league avg */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="text-gray-500">
-                      EPA: {epa !== null ? (
-                        <span className={epa >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
-                          {epa >= 0 ? "+" : ""}{epa.toFixed(3)}
-                        </span>
-                      ) : "\u2014"}
+                {/* EPA value */}
+                <div className="text-xs text-gray-500 mb-2">
+                  EPA/carry: {epa !== null ? (
+                    <span className={epa >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                      {epa >= 0 ? "+" : ""}{epa.toFixed(3)}
                     </span>
-                    {leagueAvgEpa !== null && epa !== null && (
-                      <span className="text-gray-400">
-                        vs Lg {(() => {
-                          const diff = epa - leagueAvgEpa;
-                          return (
-                            <span className={diff >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-                              {diff >= 0 ? "+" : ""}{diff.toFixed(3)}
+                  ) : "\u2014"}
+                </div>
+
+                {/* Two divergence bars */}
+                <div className="space-y-1.5 mb-3">
+                  {/* Bar 1: vs team avg */}
+                  <div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                      <span>vs team</span>
+                      {divergence !== null && (
+                        <span className={isPositive ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                          {isPositive ? "+" : ""}{divergence.toFixed(3)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="relative h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300" />
+                      {divergence !== null && barPct > 0 && (
+                        <div
+                          className={`absolute top-0.5 bottom-0.5 rounded-full ${isPositive ? "bg-green-500" : "bg-red-500"}`}
+                          style={{ left: isPositive ? "50%" : `${50 - barPct}%`, width: `${barPct}%` }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  {/* Bar 2: vs league avg */}
+                  {leagueAvgEpa !== null && (() => {
+                    const lgDiv = epa !== null ? epa - leagueAvgEpa : null;
+                    const lgPos = lgDiv !== null && lgDiv >= 0;
+                    const lgBarPct = lgDiv !== null ? Math.min(Math.abs(lgDiv) / maxDivergence, 1) * 50 : 0;
+                    return (
+                      <div>
+                        <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                          <span>vs league</span>
+                          {lgDiv !== null && (
+                            <span className={lgPos ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                              {lgPos ? "+" : ""}{lgDiv.toFixed(3)}
                             </span>
-                          );
-                        })()}
-                      </span>
-                    )}
-                  </div>
-                  {/* Divergence bar vs team avg */}
-                  <div className="text-[10px] text-gray-400 mb-0.5">
-                    vs team avg: {divergence !== null ? (
-                      <span className={isPositive ? "text-green-600" : "text-red-600"}>
-                        {isPositive ? "+" : ""}{divergence.toFixed(3)}
-                      </span>
-                    ) : "\u2014"}
-                  </div>
-                  <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
-                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300" />
-                    {divergence !== null && barPct > 0 && (
-                      <div
-                        className={`absolute top-0.5 bottom-0.5 rounded-full ${
-                          isPositive ? "bg-green-500" : "bg-red-500"
-                        }`}
-                        style={{
-                          left: isPositive ? "50%" : `${50 - barPct}%`,
-                          width: `${barPct}%`,
-                        }}
-                      />
-                    )}
-                  </div>
+                          )}
+                        </div>
+                        <div className="relative h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300" />
+                          {lgDiv !== null && lgBarPct > 0 && (
+                            <div
+                              className={`absolute top-0.5 bottom-0.5 rounded-full ${lgPos ? "bg-blue-500" : "bg-orange-500"}`}
+                              style={{ left: lgPos ? "50%" : `${50 - lgBarPct}%`, width: `${lgBarPct}%` }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* 2x2 stat grid */}
