@@ -9,6 +9,7 @@ import type { RBGapStat } from "@/lib/types";
 import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
 import PlayerGapCards from "./PlayerGapCards";
+import GapBarChart from "./GapBarChart";
 
 interface RunGapDiagramProps {
   data: RBGapStat[];
@@ -176,6 +177,19 @@ export default function RunGapDiagram({
       midPct: totalCarries > 0 ? (midCarries / totalCarries) * 100 : 0,
     };
   }, [gapStats]);
+
+  // Max carries across all gaps (for mobile bar chart scaling)
+  const maxGapCarries = useMemo(
+    () => Math.max(...gapStats.map((g) => g.carries), 1),
+    [gapStats]
+  );
+
+  // Gap click handler shared by SVG arrows and mobile bar chart
+  function handleGapClick(gap: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("gap", gap);
+    router.push(`${pathname}?${params.toString()}#player-drilldown`);
+  }
 
   const team = selectedTeam ? getTeam(selectedTeam) : null;
   const teamColor = team?.primaryColor || "#1e3a5f";
@@ -437,17 +451,14 @@ export default function RunGapDiagram({
       })
       .on("click", function () {
         const clickedGap = select(this).attr("data-gap");
-        if (clickedGap) {
-          const params = new URLSearchParams(searchParams.toString());
-          params.set("gap", clickedGap);
-          router.push(`${pathname}?${params.toString()}#player-drilldown`);
-        }
+        if (clickedGap) handleGapClick(clickedGap);
       });
 
     // Cleanup for React strict mode
     return () => {
       svg.selectAll("*").remove();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks]);
 
   // No team selected — show prompt
@@ -561,14 +572,30 @@ export default function RunGapDiagram({
         </div>
       )}
 
-      {/* SVG diagram */}
-      <div ref={containerRef} className="relative w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
+      {/* SVG diagram (desktop) */}
+      <div ref={containerRef} className="hidden md:block relative w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
         {gapStats.length === 0 ? (
           <div className="text-center py-16 text-gray-400 text-sm">
             No gap data available for this team in {season}.
           </div>
         ) : (
           <svg ref={svgRef} className="w-full" style={{ maxHeight: 480 }} />
+        )}
+      </div>
+
+      {/* Bar chart (mobile) */}
+      <div className="md:hidden bg-white border border-gray-200 rounded-lg p-4">
+        {gapStats.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-sm">
+            No gap data available for this team in {season}.
+          </div>
+        ) : (
+          <GapBarChart
+            gaps={gapStats}
+            maxCarries={maxGapCarries}
+            onGapClick={handleGapClick}
+            selectedGap={selectedGap}
+          />
         )}
       </div>
 
