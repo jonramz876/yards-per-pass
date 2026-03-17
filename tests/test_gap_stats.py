@@ -152,3 +152,58 @@ class TestAggregateRBGapStats:
                          'carries', 'epa_per_carry', 'yards_per_carry',
                          'success_rate', 'stuff_rate', 'explosive_rate'}
         assert set(result.columns) == expected_cols
+
+
+class TestAggregateRBGapStatsWeekly:
+    """Test weekly gap stats aggregation with situation/field_zone splits."""
+
+    def _make_plays(self):
+        return pd.DataFrame({
+            'rush_attempt': [1, 1, 1, 1],
+            'qb_scramble': [0, 0, 0, 0],
+            'play_type': ['run', 'run', 'run', 'run'],
+            'run_location': ['left', 'left', 'left', 'right'],
+            'run_gap': ['guard', 'guard', 'guard', 'end'],
+            'rusher_player_id': ['RB1', 'RB1', 'RB1', 'RB1'],
+            'rusher_player_name': ['J.Smith', 'J.Smith', 'J.Smith', 'J.Smith'],
+            'posteam': ['BAL', 'BAL', 'BAL', 'BAL'],
+            'epa': [0.5, -0.2, 0.3, 0.1],
+            'success': [1, 0, 1, 1],
+            'yards_gained': [5, -1, 8, 3],
+            'season': [2024, 2024, 2024, 2024],
+            'week': [1, 1, 2, 2],
+            'down': [1, 2, 1, 3],
+            'ydstogo': [10, 7, 10, 1],
+            'yardline_100': [45, 38, 15, 3],
+        })
+
+    def test_weekly_rows(self):
+        from ingest import aggregate_rb_gap_stats_weekly
+        plays = self._make_plays()
+        result = aggregate_rb_gap_stats_weekly(plays, 2024)
+        all_rows = result[(result['situation'] == 'all') & (result['field_zone'] == 'all')]
+        # RB1 has LG in week 1 (2 carries) and week 2 (1 carry), RE in week 2 (1 carry)
+        assert len(all_rows) == 3
+
+    def test_situation_early_downs(self):
+        from ingest import aggregate_rb_gap_stats_weekly
+        plays = self._make_plays()
+        result = aggregate_rb_gap_stats_weekly(plays, 2024)
+        early = result[result['situation'] == 'early']
+        assert len(early) > 0
+
+    def test_field_zone_redzone(self):
+        from ingest import aggregate_rb_gap_stats_weekly
+        plays = self._make_plays()
+        result = aggregate_rb_gap_stats_weekly(plays, 2024)
+        rz = result[result['field_zone'] == 'redzone']
+        # yardline_100 <= 20: rows with yardline 15 and 3
+        assert len(rz) > 0
+
+    def test_output_has_week_column(self):
+        from ingest import aggregate_rb_gap_stats_weekly
+        plays = self._make_plays()
+        result = aggregate_rb_gap_stats_weekly(plays, 2024)
+        assert 'week' in result.columns
+        assert 'situation' in result.columns
+        assert 'field_zone' in result.columns

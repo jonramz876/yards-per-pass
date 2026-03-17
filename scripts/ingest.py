@@ -498,6 +498,81 @@ def aggregate_rb_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
                      'success_rate', 'stuff_rate', 'explosive_rate']]
 
 
+SITUATIONS = {
+    'all': lambda df: df,
+    'early': lambda df: df[df['down'].isin([1, 2])],
+    'short_yardage': lambda df: df[(df['down'].isin([3, 4])) & (df['ydstogo'] <= 2)],
+    'passing': lambda df: df[
+        ((df['down'] == 2) & (df['ydstogo'] >= 7)) |
+        ((df['down'] == 3) & (df['ydstogo'] >= 5))
+    ],
+}
+
+FIELD_ZONES = {
+    'all': lambda df: df,
+    'redzone': lambda df: df[df['yardline_100'] <= 20],
+    'goalline': lambda df: df[df['yardline_100'] <= 5],
+}
+
+
+def aggregate_rb_gap_stats_weekly(plays: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate rushing stats by player x team x gap x week x situation x field_zone."""
+    for col in ('run_location', 'run_gap', 'week', 'down', 'ydstogo', 'yardline_100'):
+        if col not in plays.columns:
+            log.warning("Column '%s' not found — skipping weekly gap stats", col)
+            return pd.DataFrame()
+
+    rushes = plays[
+        (plays['rush_attempt'] == 1) &
+        (plays['qb_scramble'] != 1)
+    ].copy()
+
+    rushes['gap'] = rushes.apply(
+        lambda r: map_run_gap(
+            r['run_location'] if pd.notna(r['run_location']) else None,
+            r['run_gap'] if pd.notna(r['run_gap']) else None,
+        ),
+        axis=1,
+    )
+    rushes = rushes[rushes['gap'].notna()]
+
+    if rushes.empty:
+        return pd.DataFrame()
+
+    all_results = []
+    for sit_name, sit_filter in SITUATIONS.items():
+        for fz_name, fz_filter in FIELD_ZONES.items():
+            subset = fz_filter(sit_filter(rushes))
+            if subset.empty:
+                continue
+
+            grouped = subset.groupby(
+                ['rusher_player_id', 'rusher_player_name', 'posteam', 'week', 'gap']
+            ).agg(
+                carries=('epa', 'count'),
+                epa_per_carry=('epa', 'mean'),
+                yards_per_carry=('yards_gained', 'mean'),
+                success_rate=('success', 'mean'),
+                stuff_rate=('yards_gained', lambda x: (x <= 0).mean()),
+                explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
+            ).reset_index()
+
+            grouped['situation'] = sit_name
+            grouped['field_zone'] = fz_name
+            grouped['season'] = season
+            grouped = grouped.rename(columns={
+                'rusher_player_id': 'player_id',
+                'rusher_player_name': 'player_name',
+                'posteam': 'team_id',
+            })
+            all_results.append(grouped)
+
+    if not all_results:
+        return pd.DataFrame()
+
+    return pd.concat(all_results, ignore_index=True)
+
+
 @retry(max_retries=2, delay=3)
 def upsert_teams(conn, teams_df: pd.DataFrame):
     """Seed ALL known teams for FK integrity — includes historical abbreviations."""
@@ -680,7 +755,75 @@ def upsert_rb_gap_stats(conn, df: pd.DataFrame):
     log.info("Upserted %d RB gap stat rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None):
+def ensure_rb_gap_weekly_tables(conn):
+    """Create rb_gap_stats_weekly table if it doesn't exist. NOT inside @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS rb_gap_stats_weekly (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                team_id TEXT NOT NULL REFERENCES teams(id),
+                season INT NOT NULL,
+                week INT NOT NULL,
+                gap TEXT NOT NULL,
+                situation TEXT NOT NULL DEFAULT 'all',
+                field_zone TEXT NOT NULL DEFAULT 'all',
+                carries INT NOT NULL,
+                epa_per_carry NUMERIC,
+                yards_per_carry NUMERIC,
+                success_rate NUMERIC,
+                stuff_rate NUMERIC,
+                explosive_rate NUMERIC,
+                UNIQUE (player_id, team_id, season, week, gap, situation, field_zone)
+            )
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE rb_gap_stats_weekly ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON rb_gap_stats_weekly FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$
+        """)
+    conn.commit()
+    log.info("Ensured rb_gap_stats_weekly table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_rb_gap_stats_weekly(conn, df: pd.DataFrame):
+    """Upsert weekly RB gap stats."""
+    if df.empty:
+        log.info("No weekly RB gap stats to upsert")
+        return
+
+    cols = ['player_id', 'player_name', 'team_id', 'season', 'week', 'gap',
+            'situation', 'field_zone', 'carries', 'epa_per_carry', 'yards_per_carry',
+            'success_rate', 'stuff_rate', 'explosive_rate']
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    conflict_cols = 'player_id, team_id, season, week, gap, situation, field_zone'
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}" for c in cols
+        if c not in ('player_id', 'team_id', 'season', 'week', 'gap', 'situation', 'field_zone')
+    )
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"INSERT INTO rb_gap_stats_weekly ({col_names}) VALUES %s "
+            f"ON CONFLICT ({conflict_cols}) DO UPDATE SET {update_set}",
+            rows,
+        )
+    log.info("Upserted %d weekly RB gap stat rows", len(rows))
+
+
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -708,6 +851,14 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             )
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale rb_gap_stats rows", cur.rowcount)
+
+        if rb_gap_weekly_player_ids is not None:
+            cur.execute(
+                "DELETE FROM rb_gap_stats_weekly WHERE season = %s AND player_id != ALL(%s)",
+                (season, rb_gap_weekly_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale rb_gap_stats_weekly rows", cur.rowcount)
 
 
 @retry(max_retries=2, delay=3)
@@ -766,14 +917,16 @@ def process_season(season: int, conn, dry_run: bool = False):
     team_stats = aggregate_team_stats(plays, pbp, season)
     qb_stats = aggregate_qb_stats(plays, roster, season)
     rb_gap_stats = aggregate_rb_gap_stats(plays, season)
+    rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     through_week = int(plays['week'].max())
 
     validate_data(team_stats, qb_stats)
 
     if dry_run:
-        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, through_week=%d",
-                 len(team_stats), len(qb_stats), len(rb_gap_stats), through_week)
+        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, %d RB gap weekly rows, through_week=%d",
+                 len(team_stats), len(qb_stats), len(rb_gap_stats), len(rb_gap_stats_weekly), through_week)
         log.info("[DRY RUN] Aggregated %d RB gap stat rows", len(rb_gap_stats))
+        log.info("[DRY RUN] Aggregated %d RB gap weekly stat rows", len(rb_gap_stats_weekly))
         # Log sample QBs for verification
         sample_cols = ['player_name', 'team', 'games', 'dropbacks', 'attempts', 'completions',
                        'passing_yards', 'touchdowns', 'interceptions', 'adot', 'fumbles', 'fumbles_lost',
@@ -785,17 +938,20 @@ def process_season(season: int, conn, dry_run: bool = False):
         return
 
     ensure_rb_gap_tables(conn)
+    ensure_rb_gap_weekly_tables(conn)
 
     try:
         upsert_teams(conn, team_stats)
         upsert_team_stats(conn, team_stats)
         upsert_qb_stats(conn, qb_stats)
         upsert_rb_gap_stats(conn, rb_gap_stats)
+        upsert_rb_gap_stats_weekly(conn, rb_gap_stats_weekly)
         cleanup_stale_rows(
             conn, season,
             team_ids=team_stats['team_id'].unique().tolist(),
             player_ids=qb_stats['player_id'].unique().tolist(),
             rb_gap_player_ids=rb_gap_stats['player_id'].unique().tolist() if not rb_gap_stats.empty else [],
+            rb_gap_weekly_player_ids=rb_gap_stats_weekly['player_id'].unique().tolist() if not rb_gap_stats_weekly.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()
