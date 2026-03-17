@@ -476,8 +476,13 @@ def aggregate_rb_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
             'success_rate', 'stuff_rate', 'explosive_rate',
         ])
 
+    # Get most common player name per player_id (handles name spelling variations)
+    name_map = rushes.groupby('rusher_player_id')['rusher_player_name'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
+    ).to_dict()
+
     grouped = rushes.groupby(
-        ['rusher_player_id', 'rusher_player_name', 'posteam', 'gap']
+        ['rusher_player_id', 'posteam', 'gap']
     ).agg(
         carries=('epa', 'count'),
         epa_per_carry=('epa', 'mean'),
@@ -487,9 +492,9 @@ def aggregate_rb_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
         explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
     ).reset_index()
 
+    grouped['player_name'] = grouped['rusher_player_id'].map(name_map)
     grouped = grouped.rename(columns={
         'rusher_player_id': 'player_id',
-        'rusher_player_name': 'player_name',
         'posteam': 'team_id',
     })
     grouped['season'] = season
@@ -591,6 +596,11 @@ def aggregate_rb_gap_stats_weekly(plays: pd.DataFrame, season: int) -> pd.DataFr
     if rushes.empty:
         return pd.DataFrame()
 
+    # Get most common player name per player_id
+    name_map = rushes.groupby('rusher_player_id')['rusher_player_name'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
+    ).to_dict()
+
     all_results = []
     for sit_name, sit_filter in SITUATIONS.items():
         for fz_name, fz_filter in FIELD_ZONES.items():
@@ -599,7 +609,7 @@ def aggregate_rb_gap_stats_weekly(plays: pd.DataFrame, season: int) -> pd.DataFr
                 continue
 
             grouped = subset.groupby(
-                ['rusher_player_id', 'rusher_player_name', 'posteam', 'week', 'gap']
+                ['rusher_player_id', 'posteam', 'week', 'gap']
             ).agg(
                 carries=('epa', 'count'),
                 epa_per_carry=('epa', 'mean'),
@@ -609,12 +619,12 @@ def aggregate_rb_gap_stats_weekly(plays: pd.DataFrame, season: int) -> pd.DataFr
                 explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
             ).reset_index()
 
+            grouped['player_name'] = grouped['rusher_player_id'].map(name_map)
             grouped['situation'] = sit_name
             grouped['field_zone'] = fz_name
             grouped['season'] = season
             grouped = grouped.rename(columns={
                 'rusher_player_id': 'player_id',
-                'rusher_player_name': 'player_name',
                 'posteam': 'team_id',
             })
             all_results.append(grouped)
