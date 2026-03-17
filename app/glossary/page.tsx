@@ -69,6 +69,21 @@ const TERMS: { term: string; definition: string }[] = [
       "EPA per rush attempt for a QB. Includes designed runs and scrambles, excludes kneels. Positive = above-average rushing.",
   },
   {
+    term: "Run Gap",
+    definition:
+      "The space between offensive linemen where a running back targets their rush. Gaps are labeled left to right: LE (left end), LT (left tackle), LG (left guard), M (middle/center), RG (right guard), RT (right tackle), RE (right end).",
+  },
+  {
+    term: "Stuff Rate",
+    definition:
+      "Percentage of rushing attempts stopped at or behind the line of scrimmage (0 or negative yards). Higher stuff rate = worse for the offense. A key indicator of how well a defense plugs run gaps.",
+  },
+  {
+    term: "Explosive Run Rate",
+    definition:
+      "Percentage of rushing attempts that gain 10+ yards. Higher is better for the offense. Measures big-play ability in the run game.",
+  },
+  {
     term: "Fumbles Lost (FL)",
     definition:
       "Fumbles recovered by the opposing defense. Only the turnovers that actually cost you possession.",
