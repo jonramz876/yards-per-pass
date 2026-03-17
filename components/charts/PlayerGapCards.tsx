@@ -225,19 +225,39 @@ export default function PlayerGapCards({
                   <span className="text-xs text-gray-400">{r.carries} carries</span>
                 </div>
 
-                {/* EPA divergence bar */}
+                {/* EPA + league avg */}
                 <div className="mb-3">
-                  <div className="text-xs text-gray-500 mb-1">
-                    EPA vs team avg: {divergence !== null ? (
-                      <span className={isPositive ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-gray-500">
+                      EPA: {epa !== null ? (
+                        <span className={epa >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                          {epa >= 0 ? "+" : ""}{epa.toFixed(3)}
+                        </span>
+                      ) : "\u2014"}
+                    </span>
+                    {leagueAvgEpa !== null && epa !== null && (
+                      <span className="text-gray-400">
+                        vs Lg {(() => {
+                          const diff = epa - leagueAvgEpa;
+                          return (
+                            <span className={diff >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                              {diff >= 0 ? "+" : ""}{diff.toFixed(3)}
+                            </span>
+                          );
+                        })()}
+                      </span>
+                    )}
+                  </div>
+                  {/* Divergence bar vs team avg */}
+                  <div className="text-[10px] text-gray-400 mb-0.5">
+                    vs team avg: {divergence !== null ? (
+                      <span className={isPositive ? "text-green-600" : "text-red-600"}>
                         {isPositive ? "+" : ""}{divergence.toFixed(3)}
                       </span>
                     ) : "\u2014"}
                   </div>
-                  <div className="relative h-4 bg-gray-100 rounded-full overflow-hidden">
-                    {/* Center line */}
+                  <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden">
                     <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300" />
-                    {/* Bar */}
                     {divergence !== null && barPct > 0 && (
                       <div
                         className={`absolute top-0.5 bottom-0.5 rounded-full ${
