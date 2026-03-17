@@ -443,6 +443,61 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     return result
 
 
+def aggregate_rb_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate rushing stats by player x team x gap for designed runs."""
+    for col in ('run_location', 'run_gap'):
+        if col not in plays.columns:
+            log.warning("Column '%s' not found in PBP data — skipping gap stats", col)
+            return pd.DataFrame(columns=[
+                'player_id', 'player_name', 'team_id', 'season', 'gap',
+                'carries', 'epa_per_carry', 'yards_per_carry',
+                'success_rate', 'stuff_rate', 'explosive_rate',
+            ])
+
+    rushes = plays[
+        (plays['rush_attempt'] == 1) &
+        (plays['qb_scramble'] != 1)
+    ].copy()
+
+    rushes['gap'] = rushes.apply(
+        lambda r: map_run_gap(
+            r['run_location'] if pd.notna(r['run_location']) else None,
+            r['run_gap'] if pd.notna(r['run_gap']) else None,
+        ),
+        axis=1,
+    )
+    rushes = rushes[rushes['gap'].notna()]
+
+    if rushes.empty:
+        return pd.DataFrame(columns=[
+            'player_id', 'player_name', 'team_id', 'season', 'gap',
+            'carries', 'epa_per_carry', 'yards_per_carry',
+            'success_rate', 'stuff_rate', 'explosive_rate',
+        ])
+
+    grouped = rushes.groupby(
+        ['rusher_player_id', 'rusher_player_name', 'posteam', 'gap']
+    ).agg(
+        carries=('epa', 'count'),
+        epa_per_carry=('epa', 'mean'),
+        yards_per_carry=('yards_gained', 'mean'),
+        success_rate=('success', 'mean'),
+        stuff_rate=('yards_gained', lambda x: (x <= 0).mean()),
+        explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
+    ).reset_index()
+
+    grouped = grouped.rename(columns={
+        'rusher_player_id': 'player_id',
+        'rusher_player_name': 'player_name',
+        'posteam': 'team_id',
+    })
+    grouped['season'] = season
+
+    return grouped[['player_id', 'player_name', 'team_id', 'season', 'gap',
+                     'carries', 'epa_per_carry', 'yards_per_carry',
+                     'success_rate', 'stuff_rate', 'explosive_rate']]
+
+
 @retry(max_retries=2, delay=3)
 def upsert_teams(conn, teams_df: pd.DataFrame):
     """Seed ALL known teams for FK integrity — includes historical abbreviations."""
