@@ -332,26 +332,35 @@ export default function RunGapDiagram({
     return map;
   }, [selectedOpp, defStats]);
 
-  // Build gap-keyed lookup for league averages
+  // Build gap-keyed lookup for league averages (all stats)
   const leagueAvgByGap = useMemo(() => {
-    const map: Record<string, { avg_epa: number; avg_yards: number }> = {};
+    const map: Record<string, typeof leagueAvgs[0]> = {};
     for (const la of leagueAvgs) {
-      map[la.gap] = { avg_epa: la.avg_epa, avg_yards: la.avg_yards };
+      map[la.gap] = la;
     }
     return map;
   }, [leagueAvgs]);
 
-  // Overall league average EPA across all gaps (for "All Runs" mode)
-  const overallLeagueAvgEpa = useMemo(() => {
-    if (teamGapEpas.length === 0) return null;
-    let totalEpa = 0;
-    let count = 0;
-    for (const t of teamGapEpas) {
-      totalEpa += t.epa_per_carry;
-      count++;
+  // Overall league averages across all gaps (for "All Runs" mode)
+  const overallLeagueAvg = useMemo(() => {
+    if (leagueAvgs.length === 0) return { epa: null as number | null, yards: null as number | null, success: null as number | null, stuff: null as number | null, explosive: null as number | null };
+    let count = leagueAvgs.length;
+    const sums = { epa: 0, yards: 0, success: 0, stuff: 0, explosive: 0 };
+    for (const la of leagueAvgs) {
+      sums.epa += la.avg_epa;
+      sums.yards += la.avg_yards;
+      sums.success += la.avg_success;
+      sums.stuff += la.avg_stuff;
+      sums.explosive += la.avg_explosive;
     }
-    return count > 0 ? totalEpa / count : null;
-  }, [teamGapEpas]);
+    return {
+      epa: sums.epa / count,
+      yards: sums.yards / count,
+      success: sums.success / count,
+      stuff: sums.stuff / count,
+      explosive: sums.explosive / count,
+    };
+  }, [leagueAvgs]);
 
   const oppTeam = selectedOpp ? getTeam(selectedOpp) : null;
   const isMatchupMode = !!selectedOpp && Object.keys(oppDefGaps).length > 0;
@@ -1033,7 +1042,13 @@ export default function RunGapDiagram({
             stats={activeData}
             teamAvgEpa={selectedGap ? (gapAggregates[selectedGap]?.epa_per_carry ?? 0) : overallAvgEpa}
             leagueRank={selectedGap ? (gapRanks[selectedGap] ?? null) : null}
-            leagueAvgEpa={selectedGap ? (leagueAvgByGap[selectedGap]?.avg_epa ?? null) : overallLeagueAvgEpa}
+            leagueAvg={selectedGap && leagueAvgByGap[selectedGap] ? {
+              epa: leagueAvgByGap[selectedGap].avg_epa,
+              yards: leagueAvgByGap[selectedGap].avg_yards,
+              success: leagueAvgByGap[selectedGap].avg_success,
+              stuff: leagueAvgByGap[selectedGap].avg_stuff,
+              explosive: leagueAvgByGap[selectedGap].avg_explosive,
+            } : overallLeagueAvg}
           />
         </div>
       )}

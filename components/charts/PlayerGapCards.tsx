@@ -3,12 +3,20 @@
 import { useState, useMemo } from "react";
 import type { RBGapStat } from "@/lib/types";
 
+interface LeagueAvgStats {
+  epa: number | null;
+  yards: number | null;
+  success: number | null;
+  stuff: number | null;
+  explosive: number | null;
+}
+
 interface PlayerGapCardsProps {
   gap: string;
   stats: RBGapStat[];
   teamAvgEpa: number;
   leagueRank: number | null;
-  leagueAvgEpa: number | null;
+  leagueAvg: LeagueAvgStats;
 }
 
 const GAP_LABELS: Record<string, string> = {
@@ -44,7 +52,7 @@ export default function PlayerGapCards({
   stats,
   teamAvgEpa,
   leagueRank,
-  leagueAvgEpa,
+  leagueAvg,
 }: PlayerGapCardsProps) {
   const [minCarries, setMinCarries] = useState(10);
 
@@ -158,9 +166,9 @@ export default function PlayerGapCards({
           </h3>
           <p className="text-sm text-gray-500">
             {totals.carries} carries &middot; {fmt(totals.epa, 3)} EPA/carry
-            {leagueAvgEpa !== null && (
+            {leagueAvg.epa !== null && (
               <span className="text-gray-400 ml-1">
-                (Lg avg: {leagueAvgEpa >= 0 ? "+" : ""}{leagueAvgEpa.toFixed(3)})
+                (Lg avg: {leagueAvg.epa >= 0 ? "+" : ""}{leagueAvg.epa.toFixed(3)})
               </span>
             )}
           </p>
@@ -257,8 +265,8 @@ export default function PlayerGapCards({
                     </div>
                   </div>
                   {/* Bar 2: vs league avg */}
-                  {leagueAvgEpa !== null && (() => {
-                    const lgDiv = epa !== null ? epa - leagueAvgEpa : null;
+                  {leagueAvg.epa !== null && (() => {
+                    const lgDiv = epa !== null ? epa - leagueAvg.epa : null;
                     const lgPos = lgDiv !== null && lgDiv >= 0;
                     const lgBarPct = lgDiv !== null ? Math.min(Math.abs(lgDiv) / maxDivergence, 1) * 50 : 0;
                     return (
@@ -285,23 +293,35 @@ export default function PlayerGapCards({
                   })()}
                 </div>
 
-                {/* 2x2 stat grid */}
+                {/* 2x2 stat grid with league avg */}
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div className="bg-gray-50 rounded px-2 py-1.5">
                     <div className="text-gray-400">Yards/carry</div>
                     <div className="font-semibold text-navy">{fmt(r.yards_per_carry, 1)}</div>
+                    {leagueAvg.yards !== null && (
+                      <div className="text-[9px] text-gray-400">Lg: {leagueAvg.yards.toFixed(1)}</div>
+                    )}
                   </div>
                   <div className="bg-gray-50 rounded px-2 py-1.5">
                     <div className="text-gray-400">Success%</div>
                     <div className="font-semibold text-navy">{fmtPct(r.success_rate)}</div>
+                    {leagueAvg.success !== null && (
+                      <div className="text-[9px] text-gray-400">Lg: {(leagueAvg.success * 100).toFixed(1)}%</div>
+                    )}
                   </div>
                   <div className="bg-gray-50 rounded px-2 py-1.5">
                     <div className="text-gray-400">Stuff%</div>
                     <div className="font-semibold text-navy">{fmtPct(r.stuff_rate)}</div>
+                    {leagueAvg.stuff !== null && (
+                      <div className="text-[9px] text-gray-400">Lg: {(leagueAvg.stuff * 100).toFixed(1)}%</div>
+                    )}
                   </div>
                   <div className="bg-gray-50 rounded px-2 py-1.5">
                     <div className="text-gray-400">Explosive%</div>
                     <div className="font-semibold text-navy">{fmtPct(r.explosive_rate)}</div>
+                    {leagueAvg.explosive !== null && (
+                      <div className="text-[9px] text-gray-400">Lg: {(leagueAvg.explosive * 100).toFixed(1)}%</div>
+                    )}
                   </div>
                 </div>
               </div>
