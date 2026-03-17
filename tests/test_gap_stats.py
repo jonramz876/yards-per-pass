@@ -207,3 +207,48 @@ class TestAggregateRBGapStatsWeekly:
         assert 'week' in result.columns
         assert 'situation' in result.columns
         assert 'field_zone' in result.columns
+
+
+class TestAggregateDefGapStats:
+    def _make_plays(self):
+        return pd.DataFrame({
+            'rush_attempt': [1, 1, 1],
+            'qb_scramble': [0, 0, 0],
+            'play_type': ['run', 'run', 'run'],
+            'run_location': ['left', 'left', 'right'],
+            'run_gap': ['guard', 'guard', 'end'],
+            'defteam': ['KC', 'KC', 'KC'],
+            'epa': [0.5, -0.2, 0.3],
+            'success': [1, 0, 1],
+            'yards_gained': [5, -1, 8],
+            'season': [2024, 2024, 2024],
+        })
+
+    def test_groups_by_defteam(self):
+        from ingest import aggregate_def_gap_stats
+        plays = self._make_plays()
+        result = aggregate_def_gap_stats(plays, 2024)
+        assert all(result['team_id'] == 'KC')
+
+    def test_correct_gap_assignment(self):
+        from ingest import aggregate_def_gap_stats
+        plays = self._make_plays()
+        result = aggregate_def_gap_stats(plays, 2024)
+        lg = result[result['gap'] == 'LG']
+        assert lg.iloc[0]['carries_faced'] == 2
+
+    def test_def_epa_per_carry(self):
+        from ingest import aggregate_def_gap_stats
+        plays = self._make_plays()
+        result = aggregate_def_gap_stats(plays, 2024)
+        lg = result[result['gap'] == 'LG']
+        assert lg.iloc[0]['def_epa_per_carry'] == pytest.approx(0.15, abs=0.01)
+
+    def test_output_columns(self):
+        from ingest import aggregate_def_gap_stats
+        plays = self._make_plays()
+        result = aggregate_def_gap_stats(plays, 2024)
+        expected_cols = {'team_id', 'season', 'gap', 'carries_faced',
+                         'def_epa_per_carry', 'def_yards_per_carry',
+                         'def_success_rate', 'def_stuff_rate', 'def_explosive_rate'}
+        assert set(result.columns) == expected_cols
