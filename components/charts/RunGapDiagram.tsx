@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { select } from "d3-selection";
 import "d3-transition";
-import type { RBGapStat } from "@/lib/types";
+import type { RBGapStat, RBGapStatWeekly } from "@/lib/types";
 import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
 import PlayerGapCards from "./PlayerGapCards";
@@ -13,12 +13,71 @@ import GapBarChart from "./GapBarChart";
 
 interface RunGapDiagramProps {
   data: RBGapStat[];
+  weeklyData: RBGapStatWeekly[];
   teams: string[];
   selectedTeam: string | null;
   selectedGap: string | null;
   season: number;
   leagueAvgs: GapLeagueAvg[];
   teamGapEpas: TeamGapEpa[];
+}
+
+const SITUATION_OPTIONS = [
+  { value: "all", label: "All Downs" },
+  { value: "early", label: "Early Downs (1st-2nd)" },
+  { value: "short_yardage", label: "Short Yardage (3rd/4th, \u22642 yds)" },
+  { value: "passing", label: "Passing Downs (2nd/3rd long)" },
+] as const;
+
+const FIELD_ZONE_OPTIONS = [
+  { value: "all", label: "All Field" },
+  { value: "redzone", label: "Red Zone (inside 20)" },
+  { value: "goalline", label: "Goal Line (inside 5)" },
+] as const;
+
+/** Re-aggregate weekly rows (player-level) into RBGapStat-shaped data */
+function aggregateWeeklyToPlayerGap(rows: RBGapStatWeekly[]): RBGapStat[] {
+  const key = (r: RBGapStatWeekly) => `${r.player_id}|${r.gap}`;
+  const map = new Map<string, {
+    player_id: string; player_name: string; team_id: string;
+    season: number; gap: string; carries: number;
+    epaSum: number; ypcSum: number; srSum: number; stuffSum: number; explSum: number;
+  }>();
+
+  for (const r of rows) {
+    const k = key(r);
+    const c = r.carries || 0;
+    const prev = map.get(k) || {
+      player_id: r.player_id, player_name: r.player_name,
+      team_id: r.team_id, season: r.season, gap: r.gap,
+      carries: 0, epaSum: 0, ypcSum: 0, srSum: 0, stuffSum: 0, explSum: 0,
+    };
+    prev.carries += c;
+    if (r.epa_per_carry !== null && !isNaN(r.epa_per_carry)) prev.epaSum += r.epa_per_carry * c;
+    if (r.yards_per_carry !== null && !isNaN(r.yards_per_carry)) prev.ypcSum += r.yards_per_carry * c;
+    if (r.success_rate !== null && !isNaN(r.success_rate)) prev.srSum += r.success_rate * c;
+    if (r.stuff_rate !== null && !isNaN(r.stuff_rate)) prev.stuffSum += r.stuff_rate * c;
+    if (r.explosive_rate !== null && !isNaN(r.explosive_rate)) prev.explSum += r.explosive_rate * c;
+    map.set(k, prev);
+  }
+
+  return Array.from(map.values()).map((d) => {
+    const c = d.carries || 1;
+    return {
+      id: `${d.player_id}-${d.gap}`,
+      player_id: d.player_id,
+      player_name: d.player_name,
+      team_id: d.team_id,
+      season: d.season,
+      gap: d.gap,
+      carries: d.carries,
+      epa_per_carry: d.epaSum / c,
+      yards_per_carry: d.ypcSum / c,
+      success_rate: d.srSum / c,
+      stuff_rate: d.stuffSum / c,
+      explosive_rate: d.explSum / c,
+    };
+  });
 }
 
 // Gap ordering left-to-right from offense perspective
@@ -107,6 +166,7 @@ function epaColor(epa: number): string {
 
 export default function RunGapDiagram({
   data,
+  weeklyData,
   teams,
   selectedTeam,
   selectedGap,
@@ -123,6 +183,23 @@ export default function RunGapDiagram({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Filter state from URL params
+  const formParam = searchParams.get("form") || "full";
+  const situationParam = searchParams.get("situation") || "all";
+  const zoneParam = searchParams.get("zone") || "all";
+  const isFiltered = formParam === "recent" || situationParam !== "all" || zoneParam !== "all";
+
+  // Update a single URL param, preserving others
+  function setFilterParam(key: string, value: string, defaultVal: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === defaultVal) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
   // Team selector navigation
   function handleTeamChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -133,11 +210,40 @@ export default function RunGapDiagram({
       params.delete("team");
     }
     params.delete("gap");
+    // Reset filters on team change
+    params.delete("form");
+    params.delete("situation");
+    params.delete("zone");
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  // Filter weekly data by situation/zone, and optionally limit to last 4 weeks
+  const filteredWeeklyData = useMemo(() => {
+    if (!weeklyData || weeklyData.length === 0) return [];
+
+    let filtered = weeklyData.filter(
+      (r) => r.situation === situationParam && r.field_zone === zoneParam
+    );
+
+    if (formParam === "recent" && filtered.length > 0) {
+      const maxWeek = Math.max(...filtered.map((r) => r.week));
+      filtered = filtered.filter((r) => r.week >= maxWeek - 3);
+    }
+
+    return filtered;
+  }, [weeklyData, formParam, situationParam, zoneParam]);
+
+  // Re-aggregate weekly data to player-gap level for filtered views
+  const filteredData = useMemo(() => {
+    if (!isFiltered) return data;
+    return aggregateWeeklyToPlayerGap(filteredWeeklyData);
+  }, [isFiltered, data, filteredWeeklyData]);
+
+  // Use filtered or full-season data for aggregation
+  const activeData = isFiltered ? filteredData : data;
+
   // Aggregate player-level data to team-level gap stats
-  const gapStats = useMemo(() => aggregateByGap(data), [data]);
+  const gapStats = useMemo(() => aggregateByGap(activeData), [activeData]);
 
   // Build gap-keyed lookup for quick access
   const gapAggregates = useMemo(() => {
@@ -321,6 +427,18 @@ export default function RunGapDiagram({
         .style("font-weight", "700")
         .style("fill", "#475569")
         .text(gs.gap);
+
+      // Low sample warning icon next to gap label
+      if (gs.carries < 5) {
+        g.append("text")
+          .attr("x", target.x + 14)
+          .attr("y", target.y - 7)
+          .attr("text-anchor", "start")
+          .style("font-size", "10px")
+          .style("fill", "#f59e0b")
+          .append("tspan")
+          .text("\u26A0");
+      }
 
       // Carries count below gap label
       g.append("text")
@@ -572,6 +690,69 @@ export default function RunGapDiagram({
         </div>
       )}
 
+      {/* Filter controls */}
+      {selectedTeam && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {/* Full Season / Last 4 Weeks toggle */}
+          <div className="inline-flex rounded-md border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setFilterParam("form", "full", "full")}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                formParam === "full"
+                  ? "bg-navy text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Full Season
+            </button>
+            <button
+              onClick={() => setFilterParam("form", "recent", "full")}
+              className={`px-3 py-1.5 text-xs font-medium border-l border-gray-200 transition-colors ${
+                formParam === "recent"
+                  ? "bg-navy text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              Last 4 Weeks
+            </button>
+          </div>
+
+          {/* Down/Distance dropdown */}
+          <select
+            value={situationParam}
+            onChange={(e) => setFilterParam("situation", e.target.value, "all")}
+            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20"
+          >
+            {SITUATION_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Field Zone dropdown */}
+          <select
+            value={zoneParam}
+            onChange={(e) => setFilterParam("zone", e.target.value, "all")}
+            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20"
+          >
+            {FIELD_ZONE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Active filter indicator */}
+          {isFiltered && (
+            <span className="text-xs text-amber-600 font-medium">
+              Filtered view
+              {filteredData.length === 0 && " — no data for this combination"}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* SVG diagram (desktop) */}
       <div ref={containerRef} className="hidden md:block relative w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
         {gapStats.length === 0 ? (
@@ -604,7 +785,7 @@ export default function RunGapDiagram({
         <div id="player-drilldown" className="mt-6">
           <PlayerGapCards
             gap={selectedGap}
-            stats={data}
+            stats={activeData}
             teamAvgEpa={gapAggregates[selectedGap]?.epa_per_carry ?? 0}
             leagueRank={gapRanks[selectedGap] ?? null}
           />

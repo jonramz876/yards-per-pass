@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
-import { getRBGapStats, getTeamsWithGapData, getLeagueGapAverages } from "@/lib/data/run-gaps";
+import { getRBGapStats, getTeamsWithGapData, getLeagueGapAverages, getRBGapStatsWeekly } from "@/lib/data/run-gaps";
 import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
 import { getTeam } from "@/lib/data/teams";
 import DashboardShell from "@/components/layout/DashboardShell";
@@ -43,11 +43,12 @@ export default async function RunGapsPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
 
-  const [gapStats, teams, freshness, leagueGapData] = await Promise.all([
+  const [gapStats, teams, freshness, leagueGapData, weeklyStats] = await Promise.all([
     team ? getRBGapStats(currentSeason, team) : Promise.resolve([]),
     getTeamsWithGapData(currentSeason),
     getDataFreshness(currentSeason),
     getLeagueGapAverages(currentSeason),
+    team ? getRBGapStatsWeekly(currentSeason, team) : Promise.resolve([]),
   ]);
 
   return (
@@ -59,6 +60,7 @@ export default async function RunGapsPage({
     >
       <RunGapDiagram
         data={gapStats}
+        weeklyData={weeklyStats}
         teams={teams}
         selectedTeam={team || null}
         selectedGap={gap || null}

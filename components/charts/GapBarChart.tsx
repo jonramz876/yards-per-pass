@@ -33,7 +33,12 @@ export default function GapBarChart({ gaps, maxCarries, onGapClick, selectedGap 
               isSelected ? 'bg-blue-50 ring-1 ring-navy' : 'hover:bg-gray-50'
             }`}
           >
-            <span className="w-8 text-xs font-bold text-navy">{g.gap}</span>
+            <span className="w-8 text-xs font-bold text-navy flex items-center gap-0.5">
+              {g.gap}
+              {g.carries < 5 && (
+                <span className="text-amber-500 text-[10px]" title={`Low sample (${g.carries} carries)`}>&#9888;</span>
+              )}
+            </span>
             <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
               <div
                 className="h-full rounded"

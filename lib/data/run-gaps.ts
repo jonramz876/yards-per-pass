@@ -1,7 +1,7 @@
 // lib/data/run-gaps.ts
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
-import type { RBGapStat } from "@/lib/types";
+import type { RBGapStat, RBGapStatWeekly } from "@/lib/types";
 
 const RB_GAP_NUMERIC_FIELDS = [
   "epa_per_carry",
@@ -111,6 +111,29 @@ export async function getLeagueGapAverages(
   });
 
   return { averages, teamGapEpas };
+}
+
+export async function getRBGapStatsWeekly(
+  season: number,
+  teamId: string,
+  situation: string = "all",
+  fieldZone: string = "all"
+): Promise<RBGapStatWeekly[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("rb_gap_stats_weekly")
+    .select("*")
+    .eq("season", season)
+    .eq("team_id", teamId)
+    .eq("situation", situation)
+    .eq("field_zone", fieldZone);
+
+  if (error) throw new Error(`Failed to fetch weekly gap stats: ${error.message}`);
+  if (!data) return [];
+
+  return data.map((row) =>
+    parseNumericFields<RBGapStatWeekly>(row as RBGapStatWeekly, RB_GAP_NUMERIC_FIELDS)
+  );
 }
 
 export async function getTeamsWithGapData(

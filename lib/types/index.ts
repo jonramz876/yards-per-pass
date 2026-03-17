@@ -83,3 +83,9 @@ export interface RBGapStat {
   stuff_rate: number | null;
   explosive_rate: number | null;
 }
+
+export interface RBGapStatWeekly extends RBGapStat {
+  week: number;
+  situation: string;
+  field_zone: string;
+}
