@@ -313,6 +313,9 @@ export default function RunGapDiagram({
     };
   }, [gapStats]);
 
+  // Overall team average EPA (for "All Runs" player card view)
+  const overallAvgEpa = teamTotals.epa;
+
   // Max carries across all gaps (for mobile bar chart scaling)
   const maxGapCarries = useMemo(
     () => Math.max(...gapStats.map((g) => g.carries), 1),
@@ -344,7 +347,11 @@ export default function RunGapDiagram({
   // Gap click handler shared by SVG arrows and mobile bar chart
   function handleGapClick(gap: string) {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("gap", gap);
+    if (selectedGap === gap) {
+      params.delete("gap"); // toggle off
+    } else {
+      params.set("gap", gap);
+    }
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -1006,15 +1013,15 @@ export default function RunGapDiagram({
         </div>
       )}
 
-      {/* Player drilldown anchor */}
-      {selectedGap && gapStats.length > 0 && (
+      {/* Player cards — always visible: "All Runs" default, filtered when gap selected */}
+      {gapStats.length > 0 && (
         <div id="player-drilldown" className="mt-6">
           <PlayerGapCards
-            gap={selectedGap}
+            gap={selectedGap || "ALL"}
             stats={activeData}
-            teamAvgEpa={gapAggregates[selectedGap]?.epa_per_carry ?? 0}
-            leagueRank={gapRanks[selectedGap] ?? null}
-            leagueAvgEpa={leagueAvgByGap[selectedGap]?.avg_epa ?? null}
+            teamAvgEpa={selectedGap ? (gapAggregates[selectedGap]?.epa_per_carry ?? 0) : overallAvgEpa}
+            leagueRank={selectedGap ? (gapRanks[selectedGap] ?? null) : null}
+            leagueAvgEpa={selectedGap ? (leagueAvgByGap[selectedGap]?.avg_epa ?? null) : null}
           />
         </div>
       )}

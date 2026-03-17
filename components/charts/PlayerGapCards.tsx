@@ -48,20 +48,56 @@ export default function PlayerGapCards({
 }: PlayerGapCardsProps) {
   const [minCarries, setMinCarries] = useState(10);
 
-  // Filter to selected gap, apply min carry threshold, sort by carries desc
+  const isAllGaps = gap === "ALL";
+
+  // For "ALL" mode, aggregate each player across all gaps
+  const playerStats = useMemo(() => {
+    if (!isAllGaps) {
+      return stats.filter((r) => r.gap === gap);
+    }
+    // Aggregate per player across all gaps
+    const playerMap = new Map<string, { player_id: string; player_name: string; carries: number; epaSum: number; ypcSum: number; srSum: number; stuffSum: number; explSum: number }>();
+    for (const r of stats) {
+      const prev = playerMap.get(r.player_id) || { player_id: r.player_id, player_name: r.player_name, carries: 0, epaSum: 0, ypcSum: 0, srSum: 0, stuffSum: 0, explSum: 0 };
+      const c = r.carries || 0;
+      prev.carries += c;
+      if (r.epa_per_carry != null && !isNaN(r.epa_per_carry)) prev.epaSum += r.epa_per_carry * c;
+      if (r.yards_per_carry != null && !isNaN(r.yards_per_carry)) prev.ypcSum += r.yards_per_carry * c;
+      if (r.success_rate != null && !isNaN(r.success_rate)) prev.srSum += r.success_rate * c;
+      if (r.stuff_rate != null && !isNaN(r.stuff_rate)) prev.stuffSum += r.stuff_rate * c;
+      if (r.explosive_rate != null && !isNaN(r.explosive_rate)) prev.explSum += r.explosive_rate * c;
+      prev.player_name = r.player_name; // use latest name
+      playerMap.set(r.player_id, prev);
+    }
+    return Array.from(playerMap.values()).map((p) => ({
+      id: p.player_id,
+      player_id: p.player_id,
+      player_name: p.player_name,
+      team_id: "",
+      season: 0,
+      gap: "ALL",
+      carries: p.carries,
+      epa_per_carry: p.carries > 0 ? p.epaSum / p.carries : NaN,
+      yards_per_carry: p.carries > 0 ? p.ypcSum / p.carries : NaN,
+      success_rate: p.carries > 0 ? p.srSum / p.carries : NaN,
+      stuff_rate: p.carries > 0 ? p.stuffSum / p.carries : NaN,
+      explosive_rate: p.carries > 0 ? p.explSum / p.carries : NaN,
+    } as RBGapStat));
+  }, [stats, gap, isAllGaps]);
+
+  // Apply min carry threshold, sort by carries desc
   const filtered = useMemo(() => {
-    return stats
-      .filter((r) => r.gap === gap && r.carries >= minCarries)
+    return playerStats
+      .filter((r) => r.carries >= minCarries)
       .sort((a, b) => b.carries - a.carries);
-  }, [stats, gap, minCarries]);
+  }, [playerStats, minCarries]);
 
   // Aggregate totals for header
   const totals = useMemo(() => {
-    const gapPlayers = stats.filter((r) => r.gap === gap);
-    const totalCarries = gapPlayers.reduce((s, r) => s + r.carries, 0);
+    const totalCarries = playerStats.reduce((s, r) => s + r.carries, 0);
     let epaSum = 0;
     let epaCarries = 0;
-    for (const r of gapPlayers) {
+    for (const r of playerStats) {
       if (r.epa_per_carry != null && !isNaN(r.epa_per_carry)) {
         epaSum += r.epa_per_carry * r.carries;
         epaCarries += r.carries;
@@ -69,7 +105,7 @@ export default function PlayerGapCards({
     }
     const epa = epaCarries > 0 ? epaSum / epaCarries : NaN;
     return { carries: totalCarries, epa };
-  }, [stats, gap]);
+  }, [playerStats]);
 
   // Max divergence for bar scaling (capped at 0.15 EPA)
   const maxDivergence = useMemo(() => {
@@ -105,7 +141,7 @@ export default function PlayerGapCards({
     URL.revokeObjectURL(url);
   }
 
-  const gapLabel = GAP_LABELS[gap] || gap;
+  const gapLabel = isAllGaps ? "All Runs" : `${GAP_LABELS[gap] || gap} Gap`;
 
   return (
     <div>
@@ -113,7 +149,7 @@ export default function PlayerGapCards({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
           <h3 className="text-lg font-bold text-navy">
-            {gapLabel} Gap
+            {gapLabel}
             {leagueRank != null && (
               <span className="ml-2 text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                 #{leagueRank} of 32
