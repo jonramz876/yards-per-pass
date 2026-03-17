@@ -67,3 +67,19 @@ export interface DataFreshness {
   season: number;
   through_week: number;
 }
+
+// Run Gap Tool types
+export interface RBGapStat {
+  id: string;
+  player_id: string;
+  player_name: string;
+  team_id: string;
+  season: number;
+  gap: string; // LE, LT, LG, M, RG, RT, RE
+  carries: number;
+  epa_per_carry: number | null;
+  yards_per_carry: number | null;
+  success_rate: number | null;
+  stuff_rate: number | null;
+  explosive_rate: number | null;
+}
