@@ -194,6 +194,7 @@ export default function RunGapDiagram({
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(600);
+  const [hoveredGap, setHoveredGap] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -624,14 +625,16 @@ export default function RunGapDiagram({
     // Hover/focus interaction: dim non-hovered arrows
     arrowGroup.selectAll<SVGElement, unknown>("path[data-gap], text[data-gap]")
       .on("mouseenter", function () {
-        const hoveredGap = select(this).attr("data-gap");
+        const gap = select(this).attr("data-gap");
+        setHoveredGap(gap);
         arrowGroup.selectAll<SVGElement, unknown>("[data-gap]")
           .transition().duration(150)
           .attr("opacity", function () {
-            return select(this).attr("data-gap") === hoveredGap ? 1 : 0.15;
+            return select(this).attr("data-gap") === gap ? 1 : 0.15;
           });
       })
       .on("mouseleave", function () {
+        setHoveredGap(null);
         arrowGroup.selectAll<SVGElement, unknown>("[data-gap]")
           .transition().duration(150)
           .attr("opacity", 0.75);
@@ -858,9 +861,12 @@ export default function RunGapDiagram({
               <button
                 key={gap}
                 onClick={() => handleGapClick(gap)}
-                className={`text-center rounded-md px-1 py-1.5 transition-colors ${
+                className={`text-center rounded-md px-1 py-1.5 transition-all duration-150 ${
                   selectedGap === gap ? "bg-blue-50 ring-1 ring-blue-300" : "bg-gray-50 hover:bg-gray-100"
                 }`}
+                style={{
+                  opacity: hoveredGap === null ? 1 : hoveredGap === gap ? 1 : 0.2,
+                }}
               >
                 <div className="text-[10px] text-gray-500 font-medium">{agg.carries} carries</div>
                 {rank != null && (
