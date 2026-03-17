@@ -19,6 +19,18 @@ const RunGapDiagram = dynamic(
   }
 );
 
+const GapHeatmap = dynamic(
+  () => import("@/components/charts/GapHeatmap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center" style={{ height: 400 }}>
+        <div className="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -43,8 +55,9 @@ export default async function RunGapsPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
 
-  const [gapStats, teams, freshness, leagueGapData, weeklyStats, defStats] = await Promise.all([
+  const [gapStats, allGapStats, teams, freshness, leagueGapData, weeklyStats, defStats] = await Promise.all([
     team ? getRBGapStats(currentSeason, team) : Promise.resolve([]),
+    team ? Promise.resolve([]) : getRBGapStats(currentSeason),
     getTeamsWithGapData(currentSeason),
     getDataFreshness(currentSeason),
     getLeagueGapAverages(currentSeason),
@@ -59,18 +72,25 @@ export default async function RunGapsPage({
       currentSeason={currentSeason}
       freshness={freshness}
     >
-      <RunGapDiagram
-        data={gapStats}
-        weeklyData={weeklyStats}
-        teams={teams}
-        selectedTeam={team || null}
-        selectedGap={gap || null}
-        selectedOpp={opp || null}
-        season={currentSeason}
-        leagueAvgs={leagueGapData.averages}
-        teamGapEpas={leagueGapData.teamGapEpas}
-        defStats={defStats}
-      />
+      {team ? (
+        <RunGapDiagram
+          data={gapStats}
+          weeklyData={weeklyStats}
+          teams={teams}
+          selectedTeam={team}
+          selectedGap={gap || null}
+          selectedOpp={opp || null}
+          season={currentSeason}
+          leagueAvgs={leagueGapData.averages}
+          teamGapEpas={leagueGapData.teamGapEpas}
+          defStats={defStats}
+        />
+      ) : (
+        <GapHeatmap
+          allGapStats={allGapStats}
+          teams={teams}
+        />
+      )}
     </DashboardShell>
   );
 }
