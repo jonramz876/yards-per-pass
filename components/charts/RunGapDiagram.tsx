@@ -6,6 +6,7 @@ import Image from "next/image";
 import { select } from "d3-selection";
 import "d3-transition";
 import type { RBGapStat } from "@/lib/types";
+import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
 import PlayerGapCards from "./PlayerGapCards";
 
@@ -15,6 +16,8 @@ interface RunGapDiagramProps {
   selectedTeam: string | null;
   selectedGap: string | null;
   season: number;
+  leagueAvgs: GapLeagueAvg[];
+  teamGapEpas: TeamGapEpa[];
 }
 
 // Gap ordering left-to-right from offense perspective
@@ -107,7 +110,11 @@ export default function RunGapDiagram({
   selectedTeam,
   selectedGap,
   season,
+  leagueAvgs: _leagueAvgs,
+  teamGapEpas,
 }: RunGapDiagramProps) {
+  // leagueAvgs available for future use (e.g., vs-league comparison bars)
+  void _leagueAvgs;
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(600);
@@ -137,6 +144,20 @@ export default function RunGapDiagram({
     for (const g of gapStats) map[g.gap] = g;
     return map;
   }, [gapStats]);
+
+  // Compute per-gap league rank for selected team (1 = best EPA)
+  const gapRanks = useMemo(() => {
+    if (!selectedTeam || teamGapEpas.length === 0) return {} as Record<string, number>;
+    const ranks: Record<string, number> = {};
+    for (const gap of GAPS) {
+      const allTeamsForGap = teamGapEpas
+        .filter((t) => t.gap === gap)
+        .sort((a, b) => b.epa_per_carry - a.epa_per_carry); // descending = rank 1 is best
+      const idx = allTeamsForGap.findIndex((t) => t.team_id === selectedTeam);
+      if (idx >= 0) ranks[gap] = idx + 1;
+    }
+    return ranks;
+  }, [selectedTeam, teamGapEpas]);
 
   // Compute team-level rushing totals for the header
   const teamTotals = useMemo(() => {
@@ -295,6 +316,19 @@ export default function RunGapDiagram({
         .style("font-size", "9px")
         .style("fill", "#94a3b8")
         .text(`${gs.carries} att`);
+
+      // Rank indicator below carries
+      const rank = gapRanks[gs.gap];
+      if (rank != null) {
+        g.append("text")
+          .attr("x", target.x)
+          .attr("y", target.y + 15)
+          .attr("text-anchor", "middle")
+          .style("font-size", "8px")
+          .style("font-weight", "600")
+          .style("fill", rank <= 10 ? "#16a34a" : rank >= 23 ? "#dc2626" : "#94a3b8")
+          .text(`#${rank}`);
+      }
     }
 
     // Draw OL circles
@@ -414,7 +448,7 @@ export default function RunGapDiagram({
     return () => {
       svg.selectAll("*").remove();
     };
-  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router]);
+  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks]);
 
   // No team selected — show prompt
   if (!selectedTeam) {
@@ -545,7 +579,7 @@ export default function RunGapDiagram({
             gap={selectedGap}
             stats={data}
             teamAvgEpa={gapAggregates[selectedGap]?.epa_per_carry ?? 0}
-            leagueRank={null}
+            leagueRank={gapRanks[selectedGap] ?? null}
           />
         </div>
       )}
