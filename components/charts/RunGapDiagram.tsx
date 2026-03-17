@@ -895,7 +895,7 @@ export default function RunGapDiagram({
         ) : (
           <svg ref={svgRef} className="w-full" style={{ maxHeight: 480 }} />
         )}
-      )}
+      </div>
 
       {/* Bar chart (mobile) */}
       <div className="md:hidden bg-white border border-gray-200 rounded-lg p-4">
