@@ -8,6 +8,7 @@ interface PlayerGapCardsProps {
   stats: RBGapStat[];
   teamAvgEpa: number;
   leagueRank: number | null;
+  leagueAvgEpa: number | null;
 }
 
 const GAP_LABELS: Record<string, string> = {
@@ -43,6 +44,7 @@ export default function PlayerGapCards({
   stats,
   teamAvgEpa,
   leagueRank,
+  leagueAvgEpa,
 }: PlayerGapCardsProps) {
   const [minCarries, setMinCarries] = useState(10);
 
@@ -120,6 +122,11 @@ export default function PlayerGapCards({
           </h3>
           <p className="text-sm text-gray-500">
             {totals.carries} carries &middot; {fmt(totals.epa, 3)} EPA/carry
+            {leagueAvgEpa !== null && (
+              <span className="text-gray-400 ml-1">
+                (Lg avg: {leagueAvgEpa >= 0 ? "+" : ""}{leagueAvgEpa.toFixed(3)})
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">

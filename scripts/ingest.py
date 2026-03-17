@@ -467,6 +467,7 @@ def aggregate_rb_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
         axis=1,
     )
     rushes = rushes[rushes['gap'].notna()]
+    rushes = rushes[rushes['rusher_player_id'].notna()]
 
     if rushes.empty:
         return pd.DataFrame(columns=[
@@ -522,6 +523,7 @@ def aggregate_def_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
         axis=1,
     )
     rushes = rushes[rushes['gap'].notna()]
+    rushes = rushes[rushes['defteam'].notna()]
 
     if rushes.empty:
         return pd.DataFrame(columns=[
@@ -584,6 +586,7 @@ def aggregate_rb_gap_stats_weekly(plays: pd.DataFrame, season: int) -> pd.DataFr
         axis=1,
     )
     rushes = rushes[rushes['gap'].notna()]
+    rushes = rushes[rushes['rusher_player_id'].notna()]
 
     if rushes.empty:
         return pd.DataFrame()

@@ -174,12 +174,10 @@ export default function RunGapDiagram({
   selectedGap,
   selectedOpp,
   season,
-  leagueAvgs: _leagueAvgs,
+  leagueAvgs,
   teamGapEpas,
   defStats,
 }: RunGapDiagramProps) {
-  // leagueAvgs available for future use (e.g., vs-league comparison bars)
-  void _leagueAvgs;
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(600);
@@ -316,6 +314,15 @@ export default function RunGapDiagram({
     }
     return map;
   }, [selectedOpp, defStats]);
+
+  // Build gap-keyed lookup for league averages
+  const leagueAvgByGap = useMemo(() => {
+    const map: Record<string, { avg_epa: number; avg_yards: number }> = {};
+    for (const la of leagueAvgs) {
+      map[la.gap] = { avg_epa: la.avg_epa, avg_yards: la.avg_yards };
+    }
+    return map;
+  }, [leagueAvgs]);
 
   const oppTeam = selectedOpp ? getTeam(selectedOpp) : null;
   const isMatchupMode = !!selectedOpp && Object.keys(oppDefGaps).length > 0;
@@ -456,6 +463,8 @@ export default function RunGapDiagram({
         .style("font-size", "12px")
         .style("font-weight", "700")
         .style("fill", "#475569")
+        .style("cursor", "pointer")
+        .on("click", () => handleGapClick(gs.gap))
         .text(gs.gap);
 
       // Low sample warning icon next to gap label
@@ -477,6 +486,8 @@ export default function RunGapDiagram({
         .attr("text-anchor", "middle")
         .style("font-size", "9px")
         .style("fill", "#94a3b8")
+        .style("cursor", "pointer")
+        .on("click", () => handleGapClick(gs.gap))
         .text(`${gs.carries} att`);
 
       // Rank indicator below carries
@@ -492,6 +503,20 @@ export default function RunGapDiagram({
           .text(`#${rank}`);
       }
 
+      // League average EPA label (subtle, below rank)
+      const lgAvg = leagueAvgByGap[gs.gap];
+      if (lgAvg) {
+        const lgY = rank != null ? target.y + 24 : target.y + 15;
+        g.append("text")
+          .attr("x", target.x)
+          .attr("y", lgY)
+          .attr("text-anchor", "middle")
+          .style("font-size", "7px")
+          .style("font-weight", "400")
+          .style("fill", "#94a3b8")
+          .text(`Lg ${lgAvg.avg_epa >= 0 ? "+" : ""}${lgAvg.avg_epa.toFixed(2)}`);
+      }
+
       // Defensive matchup indicator (only in matchup mode)
       const defGap = oppDefGaps[gs.gap];
       if (defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry)) {
@@ -499,7 +524,7 @@ export default function RunGapDiagram({
         const defColor = epaColor(defEpa); // green = offense-friendly (def allows high EPA)
         const offEpa = gs.epa_per_carry;
         const isMismatch = offEpa > 0 && defEpa > 0;
-        const baseY = rank != null ? target.y + 26 : target.y + 15;
+        const baseY = (rank != null ? target.y + 26 : target.y + 15) + (lgAvg ? 10 : 0);
 
         // Small defensive EPA label
         g.append("text")
@@ -640,7 +665,7 @@ export default function RunGapDiagram({
       svg.selectAll("*").remove();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks, oppDefGaps]);
+  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks, oppDefGaps, leagueAvgByGap]);
 
   // No team selected — show prompt
   if (!selectedTeam) {
@@ -878,9 +903,10 @@ export default function RunGapDiagram({
             {GAPS.map((gap) => {
               const off = gapAggregates[gap];
               const def = oppDefGaps[gap];
-              const offEpa = off?.epa_per_carry ?? 0;
+              const hasOffData = off !== undefined && off.carries > 0;
+              const offEpa = hasOffData ? off.epa_per_carry : null;
               const defEpa = def?.def_epa_per_carry ?? null;
-              const isMismatch = offEpa > 0 && defEpa !== null && !isNaN(defEpa) && defEpa > 0;
+              const isMismatch = offEpa !== null && offEpa > 0 && defEpa !== null && !isNaN(defEpa) && defEpa > 0;
               return (
                 <button
                   key={gap}
@@ -892,9 +918,13 @@ export default function RunGapDiagram({
                   }`}
                 >
                   <div className="text-xs font-bold text-gray-500 mb-1">{gap}</div>
-                  <div className={`text-xs font-semibold ${offEpa >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    OFF {offEpa >= 0 ? "+" : ""}{offEpa.toFixed(2)}
-                  </div>
+                  {hasOffData ? (
+                    <div className={`text-xs font-semibold ${offEpa! >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      OFF {offEpa! >= 0 ? "+" : ""}{offEpa!.toFixed(2)}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-300">{"\u2014"}</div>
+                  )}
                   {defEpa !== null && !isNaN(defEpa) ? (
                     <div className={`text-xs font-medium mt-0.5 ${defEpa >= 0 ? "text-green-500" : "text-red-500"}`}>
                       DEF {defEpa >= 0 ? "+" : ""}{defEpa.toFixed(2)}
@@ -923,6 +953,7 @@ export default function RunGapDiagram({
             stats={activeData}
             teamAvgEpa={gapAggregates[selectedGap]?.epa_per_carry ?? 0}
             leagueRank={gapRanks[selectedGap] ?? null}
+            leagueAvgEpa={leagueAvgByGap[selectedGap]?.avg_epa ?? null}
           />
         </div>
       )}
