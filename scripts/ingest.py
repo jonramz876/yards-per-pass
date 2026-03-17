@@ -616,7 +616,71 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
     log.info("Upserted %d QB season rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list):
+def ensure_rb_gap_tables(conn):
+    """Create rb_gap_stats table if it doesn't exist. Called once, NOT inside @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS rb_gap_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                team_id TEXT NOT NULL REFERENCES teams(id),
+                season INT NOT NULL,
+                gap TEXT NOT NULL,
+                carries INT NOT NULL,
+                epa_per_carry NUMERIC,
+                yards_per_carry NUMERIC,
+                success_rate NUMERIC,
+                stuff_rate NUMERIC,
+                explosive_rate NUMERIC,
+                UNIQUE (player_id, team_id, season, gap)
+            )
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE rb_gap_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON rb_gap_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$
+        """)
+    conn.commit()
+    log.info("Ensured rb_gap_stats table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_rb_gap_stats(conn, df: pd.DataFrame):
+    """Upsert RB gap stats into rb_gap_stats table."""
+    if df.empty:
+        log.info("No RB gap stats to upsert")
+        return
+
+    cols = ['player_id', 'player_name', 'team_id', 'season', 'gap',
+            'carries', 'epa_per_carry', 'yards_per_carry',
+            'success_rate', 'stuff_rate', 'explosive_rate']
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}" for c in cols
+        if c not in ('player_id', 'team_id', 'season', 'gap')
+    )
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"INSERT INTO rb_gap_stats ({col_names}) VALUES %s "
+            f"ON CONFLICT (player_id, team_id, season, gap) DO UPDATE SET {update_set}",
+            rows,
+        )
+    log.info("Upserted %d RB gap stat rows", len(rows))
+
+
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -636,6 +700,14 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list):
         )
         if cur.rowcount > 0:
             log.info("Cleaned up %d stale qb_season_stats rows", cur.rowcount)
+
+        if rb_gap_player_ids is not None:
+            cur.execute(
+                "DELETE FROM rb_gap_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, rb_gap_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale rb_gap_stats rows", cur.rowcount)
 
 
 @retry(max_retries=2, delay=3)
@@ -693,13 +765,15 @@ def process_season(season: int, conn, dry_run: bool = False):
 
     team_stats = aggregate_team_stats(plays, pbp, season)
     qb_stats = aggregate_qb_stats(plays, roster, season)
+    rb_gap_stats = aggregate_rb_gap_stats(plays, season)
     through_week = int(plays['week'].max())
 
     validate_data(team_stats, qb_stats)
 
     if dry_run:
-        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, through_week=%d",
-                 len(team_stats), len(qb_stats), through_week)
+        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, through_week=%d",
+                 len(team_stats), len(qb_stats), len(rb_gap_stats), through_week)
+        log.info("[DRY RUN] Aggregated %d RB gap stat rows", len(rb_gap_stats))
         # Log sample QBs for verification
         sample_cols = ['player_name', 'team', 'games', 'dropbacks', 'attempts', 'completions',
                        'passing_yards', 'touchdowns', 'interceptions', 'adot', 'fumbles', 'fumbles_lost',
@@ -710,14 +784,18 @@ def process_season(season: int, conn, dry_run: bool = False):
             log.info("[SAMPLE] %s", {c: (round(row[c], 3) if isinstance(row[c], float) else row[c]) for c in avail_cols})
         return
 
+    ensure_rb_gap_tables(conn)
+
     try:
         upsert_teams(conn, team_stats)
         upsert_team_stats(conn, team_stats)
         upsert_qb_stats(conn, qb_stats)
+        upsert_rb_gap_stats(conn, rb_gap_stats)
         cleanup_stale_rows(
             conn, season,
             team_ids=team_stats['team_id'].unique().tolist(),
             player_ids=qb_stats['player_id'].unique().tolist(),
+            rb_gap_player_ids=rb_gap_stats['player_id'].unique().tolist() if not rb_gap_stats.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()
