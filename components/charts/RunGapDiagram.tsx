@@ -856,6 +856,47 @@ export default function RunGapDiagram({
         )}
       </div>
 
+      {/* Gap stat strip below diagram (desktop) — shows carries, rank, league avg */}
+      {gapStats.length > 0 && (
+        <div className="hidden md:grid grid-cols-7 gap-1 mt-2">
+          {GAPS.map((gap) => {
+            const agg = gapAggregates[gap];
+            const rank = gapRanks[gap];
+            const lgAvg = leagueAvgByGap[gap];
+            const defGap = oppDefGaps[gap];
+            if (!agg) return <div key={gap} />;
+            return (
+              <button
+                key={gap}
+                onClick={() => handleGapClick(gap)}
+                className={`text-center rounded-md px-1 py-1.5 transition-colors ${
+                  selectedGap === gap ? "bg-blue-50 ring-1 ring-blue-300" : "bg-gray-50 hover:bg-gray-100"
+                }`}
+              >
+                <div className="text-[10px] text-gray-500 font-medium">{agg.carries} carries</div>
+                {rank != null && (
+                  <div className={`text-[10px] font-semibold ${
+                    rank <= 10 ? "text-green-600" : rank >= 23 ? "text-red-500" : "text-gray-400"
+                  }`}>
+                    #{rank} of 32
+                  </div>
+                )}
+                {lgAvg && (
+                  <div className="text-[9px] text-gray-400">
+                    Lg: {lgAvg.avg_epa >= 0 ? "+" : ""}{lgAvg.avg_epa.toFixed(2)}
+                  </div>
+                )}
+                {defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry) && (
+                  <div className="text-[9px] font-medium" style={{ color: defEpaColor(defGap.def_epa_per_carry) }}>
+                    DEF {defGap.def_epa_per_carry >= 0 ? "+" : ""}{defGap.def_epa_per_carry.toFixed(2)}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Bar chart (mobile) */}
       <div className="md:hidden bg-white border border-gray-200 rounded-lg p-4">
         {gapStats.length === 0 ? (
