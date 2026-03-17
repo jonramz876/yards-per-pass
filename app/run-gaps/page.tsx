@@ -1,0 +1,68 @@
+import type { Metadata } from "next";
+import dynamic from "next/dynamic";
+import { getRBGapStats, getTeamsWithGapData } from "@/lib/data/run-gaps";
+import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getTeam } from "@/lib/data/teams";
+import DashboardShell from "@/components/layout/DashboardShell";
+
+export const revalidate = 3600;
+
+const RunGapDiagram = dynamic(
+  () => import("@/components/charts/RunGapDiagram"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center" style={{ height: 400 }}>
+        <div className="w-8 h-8 border-2 border-navy border-t-transparent rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ season?: string; team?: string }>;
+}): Promise<Metadata> {
+  const { season, team } = await searchParams;
+  const s = season || "2025";
+  const teamName = team ? getTeam(team)?.name || team : "NFL";
+  return {
+    title: `${teamName} Run Gap Analysis ${s} | Yards Per Pass`,
+    description: `Rushing EPA broken down by offensive line gap for ${teamName}.`,
+  };
+}
+
+export default async function RunGapsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ season?: string; team?: string; gap?: string }>;
+}) {
+  const { season, team, gap } = await searchParams;
+  const seasons = await getAvailableSeasons();
+  const parsed = season ? parseInt(season) : NaN;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+
+  const [gapStats, teams, freshness] = await Promise.all([
+    team ? getRBGapStats(currentSeason, team) : Promise.resolve([]),
+    getTeamsWithGapData(currentSeason),
+    getDataFreshness(currentSeason),
+  ]);
+
+  return (
+    <DashboardShell
+      title="Run Gaps"
+      seasons={seasons}
+      currentSeason={currentSeason}
+      freshness={freshness}
+    >
+      <RunGapDiagram
+        data={gapStats}
+        teams={teams}
+        selectedTeam={team || null}
+        selectedGap={gap || null}
+        season={currentSeason}
+      />
+    </DashboardShell>
+  );
+}
