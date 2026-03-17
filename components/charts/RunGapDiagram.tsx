@@ -87,11 +87,11 @@ const GAPS = ["LE", "LT", "LG", "M", "RG", "RT", "RE"] as const;
 
 // OL positions: LT, LG, C, RG, RT
 const OL_POSITIONS = [
-  { label: "LT", cx: 100, cy: 100 },
-  { label: "LG", cx: 200, cy: 100 },
-  { label: "C",  cx: 300, cy: 100 },
-  { label: "RG", cx: 400, cy: 100 },
-  { label: "RT", cx: 500, cy: 100 },
+  { label: "LT", cx: 100, cy: 130 },
+  { label: "LG", cx: 200, cy: 130 },
+  { label: "C",  cx: 300, cy: 130 },
+  { label: "RG", cx: 400, cy: 130 },
+  { label: "RT", cx: 500, cy: 130 },
 ];
 
 // Gap label positions above the OL (y=50)
@@ -107,18 +107,18 @@ const GAP_TARGETS: Record<string, { x: number; y: number }> = {
 
 // Arrow endpoint y-values (slightly below gap labels to connect nicely)
 const ARROW_END_Y: Record<string, number> = {
-  LE: 70,
-  LT: 70,
-  LG: 70,
-  M:  70,
-  RG: 70,
-  RT: 70,
-  RE: 70,
+  LE: 95,
+  LT: 95,
+  LG: 95,
+  M:  95,
+  RG: 95,
+  RT: 95,
+  RE: 95,
 };
 
 // RB position
 const RB_CX = 300;
-const RB_CY = 280;
+const RB_CY = 310;
 
 interface AggregatedGap {
   gap: string;
@@ -161,9 +161,22 @@ function aggregateByGap(data: RBGapStat[]): AggregatedGap[] {
 }
 
 function epaColor(epa: number): string {
-  if (epa > 0.02) return "#16a34a";
-  if (epa < -0.02) return "#dc2626";
-  return "#f59e0b";
+  if (isNaN(epa)) return "#f3f4f6";
+  if (epa > 0.05) return "#16a34a";  // dark green
+  if (epa > 0.02) return "#4ade80";  // light green
+  if (epa > -0.02) return "#fbbf24"; // amber
+  if (epa > -0.05) return "#f87171"; // light red
+  return "#dc2626";                   // dark red
+}
+
+function defEpaColor(epa: number): string {
+  if (isNaN(epa)) return "#9ca3af";
+  // Inverted: high EPA allowed = bad defense = orange/red tones
+  if (epa > 0.05) return "#ea580c";  // dark orange (very exploitable)
+  if (epa > 0.02) return "#fb923c";  // light orange (somewhat exploitable)
+  if (epa > -0.02) return "#9ca3af"; // gray (neutral)
+  if (epa > -0.05) return "#7c3aed"; // light purple (tough)
+  return "#581c87";                   // dark purple (very tough)
 }
 
 export default function RunGapDiagram({
@@ -331,7 +344,7 @@ export default function RunGapDiagram({
   function handleGapClick(gap: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("gap", gap);
-    router.push(`${pathname}?${params.toString()}#player-drilldown`);
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   const team = selectedTeam ? getTeam(selectedTeam) : null;
@@ -352,6 +365,16 @@ export default function RunGapDiagram({
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, []);
 
+  // Scroll to drilldown when a gap is selected
+  useEffect(() => {
+    if (selectedGap) {
+      const timer = setTimeout(() => {
+        document.getElementById("player-drilldown")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedGap]);
+
   // D3 SVG rendering
   useEffect(() => {
     if (!svgRef.current || !selectedTeam || gapStats.length === 0) return;
@@ -360,7 +383,7 @@ export default function RunGapDiagram({
     svg.selectAll("*").remove();
 
     const viewBoxW = 600;
-    const viewBoxH = 400;
+    const viewBoxH = 440;
     svg.attr("viewBox", `0 0 ${viewBoxW} ${viewBoxH}`)
        .attr("preserveAspectRatio", "xMidYMid meet");
 
@@ -376,7 +399,7 @@ export default function RunGapDiagram({
     // Field-like subtle lines
     g.append("line")
       .attr("x1", 0).attr("x2", viewBoxW)
-      .attr("y1", 100).attr("y2", 100)
+      .attr("y1", 130).attr("y2", 130)
       .attr("stroke", "#e2e8f0").attr("stroke-width", 1).attr("stroke-dasharray", "4 4");
 
     // Max carries for arrow thickness scaling
@@ -521,7 +544,7 @@ export default function RunGapDiagram({
       const defGap = oppDefGaps[gs.gap];
       if (defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry)) {
         const defEpa = defGap.def_epa_per_carry;
-        const defColor = epaColor(defEpa); // green = offense-friendly (def allows high EPA)
+        const defColor = defEpaColor(defEpa); // orange = exploitable, purple = tough
         const offEpa = gs.epa_per_carry;
         const isMismatch = offEpa > 0 && defEpa > 0;
         const baseY = (rank != null ? target.y + 26 : target.y + 15) + (lgAvg ? 10 : 0);
@@ -590,15 +613,17 @@ export default function RunGapDiagram({
       .text("RB");
 
     // Legend
-    const legendY = 340;
+    const legendY = 380;
     const legendItems = [
-      { color: "#16a34a", label: "EPA > +0.02" },
-      { color: "#f59e0b", label: "Neutral" },
-      { color: "#dc2626", label: "EPA < -0.02" },
+      { color: "#16a34a", label: "> +0.05" },
+      { color: "#4ade80", label: "+0.02–0.05" },
+      { color: "#fbbf24", label: "Neutral" },
+      { color: "#f87171", label: "−0.02–0.05" },
+      { color: "#dc2626", label: "< −0.05" },
     ];
-    const legendStartX = viewBoxW / 2 - 120;
+    const legendStartX = viewBoxW / 2 - 200;
     legendItems.forEach((item, i) => {
-      const lx = legendStartX + i * 90;
+      const lx = legendStartX + i * 84;
       g.append("rect")
         .attr("x", lx)
         .attr("y", legendY)
@@ -641,13 +666,13 @@ export default function RunGapDiagram({
       .text("yardsperpass.com");
 
     // Hover/focus interaction: dim non-hovered arrows
-    arrowGroup.selectAll<SVGPathElement, unknown>("path[data-gap]")
+    arrowGroup.selectAll<SVGElement, unknown>("path[data-gap], text[data-gap]")
       .on("mouseenter", function () {
         const hoveredGap = select(this).attr("data-gap");
         arrowGroup.selectAll<SVGElement, unknown>("[data-gap]")
           .transition().duration(150)
           .attr("opacity", function () {
-            return select(this).attr("data-gap") === hoveredGap ? 0.75 : 0.15;
+            return select(this).attr("data-gap") === hoveredGap ? 1 : 0.15;
           });
       })
       .on("mouseleave", function () {
@@ -793,7 +818,7 @@ export default function RunGapDiagram({
             </div>
             <div className="text-center">
               <div className="text-xs text-gray-400">L / M / R</div>
-              <div className="font-bold text-navy text-xs">
+              <div className="font-bold text-navy">
                 {teamTotals.leftPct.toFixed(0)}% / {teamTotals.midPct.toFixed(0)}% / {teamTotals.rightPct.toFixed(0)}%
               </div>
             </div>
@@ -805,7 +830,7 @@ export default function RunGapDiagram({
       {selectedTeam && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           {/* Full Season / Last 4 Weeks toggle */}
-          <div className="inline-flex rounded-md border border-gray-200 overflow-hidden">
+          <div className="inline-flex rounded-md border border-gray-200 overflow-hidden h-[34px]">
             <button
               onClick={() => setFilterParam("form", "full", "full")}
               className={`px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -832,7 +857,7 @@ export default function RunGapDiagram({
           <select
             value={situationParam}
             onChange={(e) => setFilterParam("situation", e.target.value, "all")}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20"
+            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20 h-[34px]"
           >
             {SITUATION_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -845,7 +870,7 @@ export default function RunGapDiagram({
           <select
             value={zoneParam}
             onChange={(e) => setFilterParam("zone", e.target.value, "all")}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20"
+            className="px-3 py-1.5 text-xs border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20 h-[34px]"
           >
             {FIELD_ZONE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -899,7 +924,8 @@ export default function RunGapDiagram({
               Matchup: {team?.name} Offense vs. {oppTeam?.name} Defense
             </h3>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center">
+          <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 gap-1 text-center min-w-[500px]">
             {GAPS.map((gap) => {
               const off = gapAggregates[gap];
               const def = oppDefGaps[gap];
@@ -926,7 +952,7 @@ export default function RunGapDiagram({
                     <div className="text-xs text-gray-300">{"\u2014"}</div>
                   )}
                   {defEpa !== null && !isNaN(defEpa) ? (
-                    <div className={`text-xs font-medium mt-0.5 ${defEpa >= 0 ? "text-green-500" : "text-red-500"}`}>
+                    <div className="text-xs font-medium mt-0.5" style={{ color: defEpaColor(defEpa) }}>
                       DEF {defEpa >= 0 ? "+" : ""}{defEpa.toFixed(2)}
                     </div>
                   ) : (
@@ -938,6 +964,7 @@ export default function RunGapDiagram({
                 </button>
               );
             })}
+          </div>
           </div>
           <p className="mt-2 text-[10px] text-gray-400">
             Green highlight = offense runs well here AND defense allows positive EPA (exploitable mismatch)
