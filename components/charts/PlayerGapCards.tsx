@@ -115,8 +115,8 @@ export default function PlayerGapCards({
           <h3 className="text-lg font-bold text-navy">
             {gapLabel} Gap
             {leagueRank != null && (
-              <span className="ml-2 text-sm font-medium text-gray-500">
-                Rank {leagueRank}/32
+              <span className="ml-2 text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                #{leagueRank} of 32
               </span>
             )}
           </h3>
@@ -169,7 +169,7 @@ export default function PlayerGapCards({
         </div>
       ) : (
         /* Card grid */
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {filtered.map((r) => {
             const epa = r.epa_per_carry != null && !isNaN(r.epa_per_carry) ? r.epa_per_carry : null;
             const divergence = epa !== null ? epa - teamAvgEpa : null;
