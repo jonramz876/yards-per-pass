@@ -543,6 +543,28 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
     log.info("Upserted %d QB season rows", len(rows))
 
 
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list):
+    """Delete rows for this season that are no longer in the current dataset.
+
+    Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
+    the entire transaction rolls back via process_season's except block.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM team_season_stats WHERE season = %s AND team_id != ALL(%s)",
+            (season, team_ids),
+        )
+        if cur.rowcount > 0:
+            log.info("Cleaned up %d stale team_season_stats rows", cur.rowcount)
+
+        cur.execute(
+            "DELETE FROM qb_season_stats WHERE season = %s AND player_id != ALL(%s)",
+            (season, player_ids),
+        )
+        if cur.rowcount > 0:
+            log.info("Cleaned up %d stale qb_season_stats rows", cur.rowcount)
+
+
 @retry(max_retries=2, delay=3)
 def update_freshness(conn, season: int, through_week: int):
     """Update the data_freshness table (one row per season)."""
@@ -619,6 +641,11 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_teams(conn, team_stats)
         upsert_team_stats(conn, team_stats)
         upsert_qb_stats(conn, qb_stats)
+        cleanup_stale_rows(
+            conn, season,
+            team_ids=team_stats['team_id'].unique().tolist(),
+            player_ids=qb_stats['player_id'].unique().tolist(),
+        )
         update_freshness(conn, season, through_week)
         conn.commit()
         log.info("Season %d complete (through week %d)", season, through_week)
