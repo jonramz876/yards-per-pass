@@ -260,7 +260,7 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
                       className="text-center py-1.5 px-1"
                     >
                       <div
-                        className="rounded px-1 py-1 text-[11px] font-mono font-semibold leading-tight"
+                        className="rounded px-1 py-1 text-xs font-mono font-semibold leading-tight"
                         style={{ backgroundColor: bg, color: fg }}
                       >
                         {isNaN(epa) ? (
@@ -333,7 +333,7 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
                 unoptimized
               />
               <span className="font-medium text-navy text-sm">
-                {row.teamId}
+                {row.teamName}
               </span>
               {!isNaN(row.totalEpa) && (
                 <span
@@ -356,7 +356,7 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
                   <div key={gap} className="text-center">
                     <div className="text-[9px] text-gray-400 mb-0.5">{gap}</div>
                     <div
-                      className="rounded px-0.5 py-0.5 text-[10px] font-mono font-semibold"
+                      className="rounded px-0.5 py-0.5 text-[11px] font-mono font-semibold"
                       style={{ backgroundColor: bg, color: fg }}
                     >
                       {isNaN(epa) ? "\u2014" : epa.toFixed(2)}
