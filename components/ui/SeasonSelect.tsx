@@ -19,6 +19,7 @@ export default function SeasonSelect({
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("season", e.target.value);
+    params.delete("gap");
     router.push(`${pathname}?${params.toString()}`);
   }
 
