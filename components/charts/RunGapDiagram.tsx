@@ -845,20 +845,9 @@ export default function RunGapDiagram({
         </div>
       )}
 
-      {/* SVG diagram (desktop) */}
-      <div ref={containerRef} className="hidden md:block relative w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
-        {gapStats.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm">
-            No gap data available for this team in {season}.
-          </div>
-        ) : (
-          <svg ref={svgRef} className="w-full" style={{ maxHeight: 480 }} />
-        )}
-      </div>
-
-      {/* Gap stat strip below diagram (desktop) — shows carries, rank, league avg */}
+      {/* Gap stat strip above diagram (desktop) — shows carries, rank, league avg */}
       {gapStats.length > 0 && (
-        <div className="hidden md:grid grid-cols-7 gap-1 mt-2">
+        <div className="hidden md:grid grid-cols-7 gap-1 mb-2">
           {GAPS.map((gap) => {
             const agg = gapAggregates[gap];
             const rank = gapRanks[gap];
@@ -895,6 +884,17 @@ export default function RunGapDiagram({
             );
           })}
         </div>
+      )}
+
+      {/* SVG diagram (desktop) */}
+      <div ref={containerRef} className="hidden md:block relative w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
+        {gapStats.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 text-sm">
+            No gap data available for this team in {season}.
+          </div>
+        ) : (
+          <svg ref={svgRef} className="w-full" style={{ maxHeight: 480 }} />
+        )}
       )}
 
       {/* Bar chart (mobile) */}
