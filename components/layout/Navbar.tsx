@@ -9,7 +9,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 const NAV_LINKS = [
   { href: "/teams", label: "Team Tiers" },
   { href: "/qb-leaderboard", label: "QB Rankings" },
-];
+  { href: "/glossary", label: "Glossary", noSeason: true },
+] as const;
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -35,7 +36,7 @@ export default function Navbar() {
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
-              href={linkHref(link.href)}
+              href={"noSeason" in link ? link.href : linkHref(link.href)}
               className={`text-sm font-medium transition-colors ${
                 pathname === link.href
                   ? "text-navy font-semibold"
@@ -64,7 +65,7 @@ export default function Navbar() {
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
-                  href={linkHref(link.href)}
+                  href={"noSeason" in link ? link.href : linkHref(link.href)}
                   onClick={() => setOpen(false)}
                   className={`text-lg font-medium ${
                     pathname === link.href ? "text-navy" : "text-gray-500"

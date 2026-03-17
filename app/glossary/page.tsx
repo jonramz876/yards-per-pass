@@ -1,0 +1,129 @@
+// app/glossary/page.tsx
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "NFL Analytics Glossary | Yards Per Pass",
+  description:
+    "Plain-English definitions for EPA, CPOE, success rate, ANY/A, passer rating, and every stat on Yards Per Pass.",
+};
+
+const TERMS: { term: string; definition: string }[] = [
+  {
+    term: "EPA (Expected Points Added)",
+    definition:
+      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Above 0 = above average.",
+  },
+  {
+    term: "EPA/Play",
+    definition:
+      "EPA averaged across all plays (passing + rushing). The single best measure of a QB\u2019s total impact.",
+  },
+  {
+    term: "EPA/Dropback (EPA/DB)",
+    definition:
+      "EPA on passing plays only \u2014 pass attempts, sacks, and scrambles. Isolates arm talent from running ability.",
+  },
+  {
+    term: "CPOE (Completion % Over Expected)",
+    definition:
+      "How often a QB completes passes compared to what\u2019s expected given throw difficulty. A CPOE of +3 means completing 3% more than expected. Higher is better.",
+  },
+  {
+    term: "Success Rate",
+    definition:
+      "How often a play gains enough yards to stay \u201Con schedule\u201D \u2014 roughly 40% of needed yards on 1st down, 50% on 2nd, and 100% on 3rd/4th. QB success rate on this site excludes sacks; team success rate includes them.",
+  },
+  {
+    term: "aDOT (Average Depth of Target)",
+    definition:
+      "Average distance in yards a QB throws downfield. Higher = more aggressive. Computed on true pass attempts only (sacks and scrambles excluded).",
+  },
+  {
+    term: "YPA (Yards Per Attempt)",
+    definition:
+      "Passing yards divided by pass attempts. A simple efficiency measure. Sacks are excluded from the denominator.",
+  },
+  {
+    term: "ANY/A (Adjusted Net Yards per Attempt)",
+    definition:
+      "The best single traditional stat for predicting wins. Formula: (Yards + 20\u00d7TD \u2212 45\u00d7INT \u2212 Sack Yards) \u00f7 (Attempts + Sacks). Rewards touchdowns, penalizes turnovers and sacks.",
+  },
+  {
+    term: "Passer Rating",
+    definition:
+      "The traditional NFL quarterback rating on a 0\u2013158.3 scale. Combines completion %, yards, TDs, and INTs. The most familiar stat, though EPA-based metrics are more predictive.",
+  },
+  {
+    term: "TD:INT Ratio",
+    definition:
+      "Passing touchdowns per interception. 2:1 is roughly average, 3:1+ is elite. Only counts passing TDs.",
+  },
+  {
+    term: "Dropback",
+    definition:
+      "Any play where the QB drops back to pass. Includes pass attempts, sacks, and scrambles \u2014 basically everything that starts as a passing play.",
+  },
+  {
+    term: "Rush EPA",
+    definition:
+      "EPA per rush attempt for a QB. Includes designed runs and scrambles, excludes kneels. Positive = above-average rushing.",
+  },
+  {
+    term: "Fumbles Lost (FL)",
+    definition:
+      "Fumbles recovered by the opposing defense. Only the turnovers that actually cost you possession.",
+  },
+  {
+    term: "Off EPA/Play",
+    definition:
+      "Offensive EPA per play for a team. Measures how efficiently an offense generates expected points. Positive = above average.",
+  },
+  {
+    term: "Def EPA/Play",
+    definition:
+      "Defensive EPA per play. Measures how well a defense limits opponents. More negative = better defense.",
+  },
+  {
+    term: "Pass Rate",
+    definition:
+      "Percentage of plays where a team chooses to pass. Influenced by game script (teams trailing pass more).",
+  },
+];
+
+export default function GlossaryPage() {
+  return (
+    <div className="max-w-3xl mx-auto px-6 md:px-12 py-16">
+      <h1 className="text-2xl font-extrabold text-navy tracking-tight mb-2">
+        NFL Analytics Glossary
+      </h1>
+      <p className="text-sm text-gray-500 mb-8">
+        Plain-English definitions for every stat on Yards Per Pass.
+      </p>
+
+      <dl className="space-y-6">
+        {TERMS.map((t) => (
+          <div key={t.term}>
+            <dt className="text-sm font-bold text-navy">{t.term}</dt>
+            <dd className="mt-1 text-sm text-gray-600 leading-relaxed">
+              {t.definition}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="mt-12 text-xs text-gray-400 border-t border-gray-100 pt-4">
+        Data source:{" "}
+        <a
+          href="https://github.com/nflverse"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-navy"
+        >
+          nflverse
+        </a>{" "}
+        play-by-play. Stats may differ slightly from Pro Football Reference due to
+        methodology differences (sack handling, kneel exclusion, etc.).
+      </p>
+    </div>
+  );
+}
