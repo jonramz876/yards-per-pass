@@ -7,6 +7,7 @@ import { select } from "d3-selection";
 import "d3-transition";
 import type { RBGapStat } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
+import PlayerGapCards from "./PlayerGapCards";
 
 interface RunGapDiagramProps {
   data: RBGapStat[];
@@ -129,6 +130,13 @@ export default function RunGapDiagram({
 
   // Aggregate player-level data to team-level gap stats
   const gapStats = useMemo(() => aggregateByGap(data), [data]);
+
+  // Build gap-keyed lookup for quick access
+  const gapAggregates = useMemo(() => {
+    const map: Record<string, AggregatedGap> = {};
+    for (const g of gapStats) map[g.gap] = g;
+    return map;
+  }, [gapStats]);
 
   // Compute team-level rushing totals for the header
   const teamTotals = useMemo(() => {
@@ -531,63 +539,16 @@ export default function RunGapDiagram({
       </div>
 
       {/* Player drilldown anchor */}
-      <div id="player-drilldown" className="mt-8">
-        {selectedGap && gapStats.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <h3 className="text-sm font-bold text-navy mb-3">
-              {selectedGap} Gap — Player Breakdown
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500">Player</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500">Carries</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500">EPA/Carry</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500">YPC</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500">Success%</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500">Stuff%</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500">Explosive%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data
-                    .filter((r) => r.gap === selectedGap)
-                    .sort((a, b) => b.carries - a.carries)
-                    .map((r) => {
-                      const epa = r.epa_per_carry !== null && !isNaN(r.epa_per_carry) ? r.epa_per_carry : null;
-                      const ypc = r.yards_per_carry !== null && !isNaN(r.yards_per_carry) ? r.yards_per_carry : null;
-                      const sr = r.success_rate !== null && !isNaN(r.success_rate) ? r.success_rate : null;
-                      const stuff = r.stuff_rate !== null && !isNaN(r.stuff_rate) ? r.stuff_rate : null;
-                      const expl = r.explosive_rate !== null && !isNaN(r.explosive_rate) ? r.explosive_rate : null;
-                      return (
-                        <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50">
-                          <td className="py-2 px-2 font-medium text-navy">{r.player_name}</td>
-                          <td className="py-2 px-2 text-right text-gray-600">{r.carries}</td>
-                          <td className={`py-2 px-2 text-right font-medium ${epa !== null && epa >= 0 ? "text-green-600" : "text-red-600"}`}>
-                            {epa !== null ? (epa >= 0 ? "+" : "") + epa.toFixed(2) : "\u2014"}
-                          </td>
-                          <td className="py-2 px-2 text-right text-gray-600">
-                            {ypc !== null ? ypc.toFixed(1) : "\u2014"}
-                          </td>
-                          <td className="py-2 px-2 text-right text-gray-600">
-                            {sr !== null ? (sr * 100).toFixed(1) + "%" : "\u2014"}
-                          </td>
-                          <td className="py-2 px-2 text-right text-gray-600">
-                            {stuff !== null ? (stuff * 100).toFixed(1) + "%" : "\u2014"}
-                          </td>
-                          <td className="py-2 px-2 text-right text-gray-600">
-                            {expl !== null ? (expl * 100).toFixed(1) + "%" : "\u2014"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
+      {selectedGap && gapStats.length > 0 && (
+        <div id="player-drilldown" className="mt-6">
+          <PlayerGapCards
+            gap={selectedGap}
+            stats={data}
+            teamAvgEpa={gapAggregates[selectedGap]?.epa_per_carry ?? 0}
+            leagueRank={null}
+          />
+        </div>
+      )}
     </div>
   );
 }
