@@ -80,6 +80,24 @@ REQUIRED_PBP_COLS = [
     'fumble', 'fumble_lost', 'fumbled_1_player_id',
 ]
 
+# --- Run gap mapping ---
+GAP_MAP = {
+    ('left', 'end'): 'LE',
+    ('left', 'tackle'): 'LT',
+    ('left', 'guard'): 'LG',
+    ('middle', None): 'M',
+    ('middle', 'guard'): 'M',
+    ('middle', 'tackle'): 'M',
+    ('right', 'guard'): 'RG',
+    ('right', 'tackle'): 'RT',
+    ('right', 'end'): 'RE',
+}
+
+
+def map_run_gap(run_location, run_gap):
+    """Map nflverse run_location + run_gap to one of 7 gap labels."""
+    return GAP_MAP.get((run_location, run_gap))
+
 
 def passer_rating(comp: int, att: int, yds: int, td: int, ints: int) -> float:
     """NFL passer rating formula. Returns 0-158.3 scale."""
