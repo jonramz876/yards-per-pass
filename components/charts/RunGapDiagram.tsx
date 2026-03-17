@@ -5,7 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { select } from "d3-selection";
 import "d3-transition";
-import type { RBGapStat, RBGapStatWeekly } from "@/lib/types";
+import type { RBGapStat, RBGapStatWeekly, DefGapStat } from "@/lib/types";
 import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
 import PlayerGapCards from "./PlayerGapCards";
@@ -17,9 +17,11 @@ interface RunGapDiagramProps {
   teams: string[];
   selectedTeam: string | null;
   selectedGap: string | null;
+  selectedOpp: string | null;
   season: number;
   leagueAvgs: GapLeagueAvg[];
   teamGapEpas: TeamGapEpa[];
+  defStats: DefGapStat[];
 }
 
 const SITUATION_OPTIONS = [
@@ -170,9 +172,11 @@ export default function RunGapDiagram({
   teams,
   selectedTeam,
   selectedGap,
+  selectedOpp,
   season,
   leagueAvgs: _leagueAvgs,
   teamGapEpas,
+  defStats,
 }: RunGapDiagramProps) {
   // leagueAvgs available for future use (e.g., vs-league comparison bars)
   void _leagueAvgs;
@@ -210,10 +214,23 @@ export default function RunGapDiagram({
       params.delete("team");
     }
     params.delete("gap");
+    params.delete("opp");
     // Reset filters on team change
     params.delete("form");
     params.delete("situation");
     params.delete("zone");
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  // Opponent selector navigation
+  function handleOppChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const params = new URLSearchParams(searchParams.toString());
+    const val = e.target.value;
+    if (val) {
+      params.set("opp", val);
+    } else {
+      params.delete("opp");
+    }
     router.push(`${pathname}?${params.toString()}`);
   }
 
@@ -289,6 +306,19 @@ export default function RunGapDiagram({
     () => Math.max(...gapStats.map((g) => g.carries), 1),
     [gapStats]
   );
+
+  // Aggregate opponent's defensive gap stats (keyed by gap label)
+  const oppDefGaps = useMemo(() => {
+    if (!selectedOpp || !defStats || defStats.length === 0) return {} as Record<string, DefGapStat>;
+    const map: Record<string, DefGapStat> = {};
+    for (const row of defStats) {
+      if (row.team_id === selectedOpp) map[row.gap] = row;
+    }
+    return map;
+  }, [selectedOpp, defStats]);
+
+  const oppTeam = selectedOpp ? getTeam(selectedOpp) : null;
+  const isMatchupMode = !!selectedOpp && Object.keys(oppDefGaps).length > 0;
 
   // Gap click handler shared by SVG arrows and mobile bar chart
   function handleGapClick(gap: string) {
@@ -461,6 +491,39 @@ export default function RunGapDiagram({
           .style("fill", rank <= 10 ? "#16a34a" : rank >= 23 ? "#dc2626" : "#94a3b8")
           .text(`#${rank}`);
       }
+
+      // Defensive matchup indicator (only in matchup mode)
+      const defGap = oppDefGaps[gs.gap];
+      if (defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry)) {
+        const defEpa = defGap.def_epa_per_carry;
+        const defColor = epaColor(defEpa); // green = offense-friendly (def allows high EPA)
+        const offEpa = gs.epa_per_carry;
+        const isMismatch = offEpa > 0 && defEpa > 0;
+        const baseY = rank != null ? target.y + 26 : target.y + 15;
+
+        // Small defensive EPA label
+        g.append("text")
+          .attr("x", target.x)
+          .attr("y", baseY)
+          .attr("text-anchor", "middle")
+          .style("font-size", "8px")
+          .style("font-weight", "500")
+          .style("fill", defColor)
+          .style("opacity", 0.85)
+          .text(`DEF ${defEpa >= 0 ? "+" : ""}${defEpa.toFixed(2)}`);
+
+        // Exploitable mismatch highlight
+        if (isMismatch) {
+          g.append("rect")
+            .attr("x", target.x - 16)
+            .attr("y", baseY - 8)
+            .attr("width", 32)
+            .attr("height", 11)
+            .attr("rx", 3)
+            .attr("fill", "#16a34a")
+            .attr("opacity", 0.12);
+        }
+      }
     }
 
     // Draw OL circles
@@ -577,7 +640,7 @@ export default function RunGapDiagram({
       svg.selectAll("*").remove();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks]);
+  }, [gapStats, selectedTeam, teamColor, containerWidth, searchParams, pathname, router, gapRanks, oppDefGaps]);
 
   // No team selected — show prompt
   if (!selectedTeam) {
@@ -646,6 +709,29 @@ export default function RunGapDiagram({
             })}
           </select>
         </div>
+        {selectedTeam && (
+          <div>
+            <label htmlFor="opp-select" className="block text-sm font-medium text-gray-700 mb-1">
+              vs. Opponent Defense
+            </label>
+            <select
+              id="opp-select"
+              value={selectedOpp || ""}
+              onChange={handleOppChange}
+              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white text-navy font-medium focus:outline-none focus:ring-2 focus:ring-navy/20"
+            >
+              <option value="">No matchup</option>
+              {teams.filter((t) => t !== selectedTeam).map((t) => {
+                const tm = getTeam(t);
+                return (
+                  <option key={t} value={t}>
+                    {tm?.name || t}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Split header: team info left, rushing stats right */}
@@ -779,6 +865,55 @@ export default function RunGapDiagram({
           />
         )}
       </div>
+
+      {/* Matchup summary bar */}
+      {isMatchupMode && gapStats.length > 0 && (
+        <div className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="text-sm font-bold text-navy">
+              Matchup: {team?.name} Offense vs. {oppTeam?.name} Defense
+            </h3>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center">
+            {GAPS.map((gap) => {
+              const off = gapAggregates[gap];
+              const def = oppDefGaps[gap];
+              const offEpa = off?.epa_per_carry ?? 0;
+              const defEpa = def?.def_epa_per_carry ?? null;
+              const isMismatch = offEpa > 0 && defEpa !== null && !isNaN(defEpa) && defEpa > 0;
+              return (
+                <button
+                  key={gap}
+                  onClick={() => handleGapClick(gap)}
+                  className={`rounded-md p-2 transition-colors ${
+                    isMismatch
+                      ? "bg-green-50 border border-green-200 hover:bg-green-100"
+                      : "bg-gray-50 border border-gray-100 hover:bg-gray-100"
+                  }`}
+                >
+                  <div className="text-xs font-bold text-gray-500 mb-1">{gap}</div>
+                  <div className={`text-xs font-semibold ${offEpa >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    OFF {offEpa >= 0 ? "+" : ""}{offEpa.toFixed(2)}
+                  </div>
+                  {defEpa !== null && !isNaN(defEpa) ? (
+                    <div className={`text-xs font-medium mt-0.5 ${defEpa >= 0 ? "text-green-500" : "text-red-500"}`}>
+                      DEF {defEpa >= 0 ? "+" : ""}{defEpa.toFixed(2)}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-300 mt-0.5">--</div>
+                  )}
+                  {isMismatch && (
+                    <div className="text-[10px] text-green-600 font-bold mt-0.5">EXPLOIT</div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-gray-400">
+            Green highlight = offense runs well here AND defense allows positive EPA (exploitable mismatch)
+          </p>
+        </div>
+      )}
 
       {/* Player drilldown anchor */}
       {selectedGap && gapStats.length > 0 && (

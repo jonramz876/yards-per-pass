@@ -89,3 +89,16 @@ export interface RBGapStatWeekly extends RBGapStat {
   situation: string;
   field_zone: string;
 }
+
+export interface DefGapStat {
+  id: string;
+  team_id: string;
+  season: number;
+  gap: string;
+  carries_faced: number;
+  def_epa_per_carry: number | null;
+  def_yards_per_carry: number | null;
+  def_success_rate: number | null;
+  def_stuff_rate: number | null;
+  def_explosive_rate: number | null;
+}

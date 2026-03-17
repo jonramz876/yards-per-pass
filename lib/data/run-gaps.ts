@@ -1,7 +1,7 @@
 // lib/data/run-gaps.ts
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
-import type { RBGapStat, RBGapStatWeekly } from "@/lib/types";
+import type { RBGapStat, RBGapStatWeekly, DefGapStat } from "@/lib/types";
 
 const RB_GAP_NUMERIC_FIELDS = [
   "epa_per_carry",
@@ -133,6 +133,37 @@ export async function getRBGapStatsWeekly(
 
   return data.map((row) =>
     parseNumericFields<RBGapStatWeekly>(row as RBGapStatWeekly, RB_GAP_NUMERIC_FIELDS)
+  );
+}
+
+const DEF_GAP_NUMERIC_FIELDS = [
+  "def_epa_per_carry",
+  "def_yards_per_carry",
+  "def_success_rate",
+  "def_stuff_rate",
+  "def_explosive_rate",
+];
+
+export async function getDefGapStats(
+  season: number,
+  teamId?: string
+): Promise<DefGapStat[]> {
+  const supabase = createServerClient();
+  let query = supabase
+    .from("def_gap_stats")
+    .select("*")
+    .eq("season", season);
+
+  if (teamId) {
+    query = query.eq("team_id", teamId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(`Failed to fetch def gap stats: ${error.message}`);
+  if (!data) return [];
+
+  return data.map((row) =>
+    parseNumericFields<DefGapStat>(row as DefGapStat, DEF_GAP_NUMERIC_FIELDS)
   );
 }
 
