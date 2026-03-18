@@ -84,24 +84,24 @@ function aggregateWeeklyToPlayerGap(rows: RBGapStatWeekly[]): RBGapStat[] {
 // Gap ordering left-to-right from offense perspective
 const GAPS = ["LE", "LT", "LG", "M", "RG", "RT", "RE"] as const;
 
-// OL positions: LT, LG, C, RG, RT — spread across 700-wide viewBox
+// OL positions: LT, LG, C, RG, RT — spread across 900-wide viewBox
 const OL_POSITIONS = [
-  { label: "LT", cx: 140, cy: 150 },
-  { label: "LG", cx: 250, cy: 150 },
-  { label: "C",  cx: 350, cy: 150 },
-  { label: "RG", cx: 450, cy: 150 },
-  { label: "RT", cx: 560, cy: 150 },
+  { label: "LT", cx: 170, cy: 150 },
+  { label: "LG", cx: 310, cy: 150 },
+  { label: "C",  cx: 450, cy: 150 },
+  { label: "RG", cx: 590, cy: 150 },
+  { label: "RT", cx: 730, cy: 150 },
 ];
 
-// Gap label positions above the OL — spaced to avoid text overlap
+// Gap label positions above the OL — spaced for single-line "LG · +0.04" format
 const GAP_TARGETS: Record<string, { x: number; y: number }> = {
-  LE: { x: 55,  y: 60 },
-  LT: { x: 195, y: 60 },
-  LG: { x: 300, y: 60 },
-  M:  { x: 350, y: 60 },
-  RG: { x: 400, y: 60 },
-  RT: { x: 505, y: 60 },
-  RE: { x: 645, y: 60 },
+  LE: { x: 60,  y: 60 },
+  LT: { x: 240, y: 60 },
+  LG: { x: 380, y: 60 },
+  M:  { x: 450, y: 60 },
+  RG: { x: 520, y: 60 },
+  RT: { x: 660, y: 60 },
+  RE: { x: 840, y: 60 },
 };
 
 // Arrow endpoint y-values
@@ -115,8 +115,8 @@ const ARROW_END_Y: Record<string, number> = {
   RE: 115,
 };
 
-// RB position
-const RB_CX = 350;
+// RB position (centered in 900-wide viewBox)
+const RB_CX = 450;
 const RB_CY = 330;
 
 interface AggregatedGap {
@@ -407,7 +407,7 @@ export default function RunGapDiagram({
     const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
-    const viewBoxW = 700;
+    const viewBoxW = 900;
     const viewBoxH = 460;
     svg.attr("viewBox", `0 0 ${viewBoxW} ${viewBoxH}`)
        .attr("preserveAspectRatio", "xMidYMid meet");
@@ -544,7 +544,7 @@ export default function RunGapDiagram({
           .attr("y", target.y + 2)
           .attr("text-anchor", "middle")
           .attr("data-gap", gs.gap)
-          .style("font-size", "12px")
+          .style("font-size", "11px")
           .style("font-weight", "700");
 
         labelText.append("tspan").style("fill", "#475569").text(`${gs.gap} `);
