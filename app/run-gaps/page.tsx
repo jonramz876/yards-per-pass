@@ -48,9 +48,9 @@ export async function generateMetadata({
 export default async function RunGapsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ season?: string; team?: string; gap?: string; opp?: string }>;
+  searchParams: Promise<{ season?: string; team?: string; gap?: string; opp?: string; situation?: string; zone?: string }>;
 }) {
-  const { season, team, gap, opp } = await searchParams;
+  const { season, team, gap, opp, situation, zone } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
@@ -61,7 +61,7 @@ export default async function RunGapsPage({
     getTeamsWithGapData(currentSeason),
     getDataFreshness(currentSeason),
     getLeagueGapAverages(currentSeason),
-    team ? getRBGapStatsWeekly(currentSeason, team) : Promise.resolve([]),
+    team ? getRBGapStatsWeekly(currentSeason, team, situation || "all", zone || "all") : Promise.resolve([]),
     getDefGapStats(currentSeason),
   ]);
 

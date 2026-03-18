@@ -63,9 +63,9 @@ function aggregateWeeklyToPlayerGap(rows: RBGapStatWeekly[]): RBGapStat[] {
     map.set(k, prev);
   }
 
-  return Array.from(map.values()).map((d) => {
-    const c = d.carries || 1;
-    return {
+  return Array.from(map.values())
+    .filter((d) => d.carries > 0)
+    .map((d) => ({
       id: `${d.player_id}-${d.gap}`,
       player_id: d.player_id,
       player_name: d.player_name,
@@ -73,13 +73,12 @@ function aggregateWeeklyToPlayerGap(rows: RBGapStatWeekly[]): RBGapStat[] {
       season: d.season,
       gap: d.gap,
       carries: d.carries,
-      epa_per_carry: d.epaSum / c,
-      yards_per_carry: d.ypcSum / c,
-      success_rate: d.srSum / c,
-      stuff_rate: d.stuffSum / c,
-      explosive_rate: d.explSum / c,
-    };
-  });
+      epa_per_carry: d.epaSum / d.carries,
+      yards_per_carry: d.ypcSum / d.carries,
+      success_rate: d.srSum / d.carries,
+      stuff_rate: d.stuffSum / d.carries,
+      explosive_rate: d.explSum / d.carries,
+    }));
 }
 
 // Gap ordering left-to-right from offense perspective
@@ -246,21 +245,18 @@ export default function RunGapDiagram({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  // Filter weekly data by situation/zone, and optionally limit to last 4 weeks
+  // Weekly data arrives pre-filtered by situation/zone from the server.
+  // Client-side we only apply the "recent 4 weeks" window if requested.
   const filteredWeeklyData = useMemo(() => {
     if (!weeklyData || weeklyData.length === 0) return [];
 
-    let filtered = weeklyData.filter(
-      (r) => r.situation === situationParam && r.field_zone === zoneParam
-    );
-
-    if (formParam === "recent" && filtered.length > 0) {
-      const maxWeek = Math.max(...filtered.map((r) => r.week));
-      filtered = filtered.filter((r) => r.week >= maxWeek - 3);
+    if (formParam === "recent") {
+      const maxWeek = Math.max(...weeklyData.map((r) => r.week));
+      return weeklyData.filter((r) => r.week >= maxWeek - 3);
     }
 
-    return filtered;
-  }, [weeklyData, formParam, situationParam, zoneParam]);
+    return weeklyData;
+  }, [weeklyData, formParam]);
 
   // Re-aggregate weekly data to player-gap level for filtered views
   const filteredData = useMemo(() => {
@@ -298,8 +294,8 @@ export default function RunGapDiagram({
   // Compute team-level rushing totals for the header
   const teamTotals = useMemo(() => {
     const totalCarries = gapStats.reduce((s, g) => s + g.carries, 0);
-    const totalEpaSum = gapStats.reduce((s, g) => s + g.epa_per_carry * g.carries, 0);
-    const totalYpcSum = gapStats.reduce((s, g) => s + g.yards_per_carry * g.carries, 0);
+    const totalEpaSum = gapStats.reduce((s, g) => s + (isNaN(g.epa_per_carry) ? 0 : g.epa_per_carry * g.carries), 0);
+    const totalYpcSum = gapStats.reduce((s, g) => s + (isNaN(g.yards_per_carry) ? 0 : g.yards_per_carry * g.carries), 0);
     const leftCarries = gapStats.filter((g) => g.gap.startsWith("L")).reduce((s, g) => s + g.carries, 0);
     const rightCarries = gapStats.filter((g) => g.gap.startsWith("R")).reduce((s, g) => s + g.carries, 0);
     const midCarries = gapStats.filter((g) => g.gap === "M").reduce((s, g) => s + g.carries, 0);

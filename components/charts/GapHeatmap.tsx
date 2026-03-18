@@ -272,7 +272,7 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
               }
 
               const avgRow = showAvgBefore ? (
-                <tr key="nfl-avg" className="border-t border-amber-400">
+                <tr key="nfl-avg-before" className="border-t border-amber-400">
                   <td className="py-1.5 px-3 flex items-center gap-2" style={{ background: "#fef3c7" }}>
                     <span style={{ color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                       NFL AVG
@@ -322,7 +322,7 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
               }
 
               const avgRowAfter = showAvgAfter ? (
-                <tr key="nfl-avg" className="border-t border-amber-400">
+                <tr key="nfl-avg-after" className="border-t border-amber-400">
                   <td className="py-1.5 px-3 flex items-center gap-2" style={{ background: "#fef3c7" }}>
                     <span style={{ color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                       NFL AVG
