@@ -96,13 +96,13 @@ const OL_POSITIONS = [
 
 // Gap label positions above the OL — spaced to avoid text overlap
 const GAP_TARGETS: Record<string, { x: number; y: number }> = {
-  LE: { x: 55,  y: 55 },
-  LT: { x: 195, y: 55 },
-  LG: { x: 300, y: 55 },
-  M:  { x: 350, y: 55 },
-  RG: { x: 400, y: 55 },
-  RT: { x: 505, y: 55 },
-  RE: { x: 645, y: 55 },
+  LE: { x: 55,  y: 60 },
+  LT: { x: 195, y: 60 },
+  LG: { x: 300, y: 60 },
+  M:  { x: 350, y: 60 },
+  RG: { x: 400, y: 60 },
+  RT: { x: 505, y: 60 },
+  RE: { x: 645, y: 60 },
 };
 
 // Arrow endpoint y-values
@@ -344,7 +344,7 @@ export default function RunGapDiagram({
   // Overall league averages across all gaps (for "All Runs" mode)
   const overallLeagueAvg = useMemo(() => {
     if (leagueAvgs.length === 0) return { epa: null as number | null, yards: null as number | null, success: null as number | null, stuff: null as number | null, explosive: null as number | null };
-    let count = leagueAvgs.length;
+    const count = leagueAvgs.length;
     const sums = { epa: 0, yards: 0, success: 0, stuff: 0, explosive: 0 };
     for (const la of leagueAvgs) {
       sums.epa += la.avg_epa;
@@ -426,8 +426,17 @@ export default function RunGapDiagram({
       .attr("rx", 8);
 
     // Title bar for screenshot shareability
+    if (team?.logo) {
+      g.append("image")
+        .attr("href", team.logo)
+        .attr("x", 12)
+        .attr("y", 6)
+        .attr("width", 24)
+        .attr("height", 24);
+    }
+
     g.append("text")
-      .attr("x", 16)
+      .attr("x", team?.logo ? 42 : 16)
       .attr("y", 22)
       .style("font-size", "14px")
       .style("font-weight", "700")
@@ -525,41 +534,34 @@ export default function RunGapDiagram({
 
       // Invisible hit area for easier clicking/hovering
       labelGroup.append("rect")
-        .attr("x", target.x - 30)
-        .attr("y", target.y - 18)
-        .attr("width", 60)
-        .attr("height", 42)
+        .attr("x", target.x - 40)
+        .attr("y", target.y - 12)
+        .attr("width", 80)
+        .attr("height", 24)
         .attr("fill", "transparent");
 
-      // Gap name
-      labelGroup.append("text")
-        .attr("x", target.x)
-        .attr("y", target.y - 4)
-        .attr("text-anchor", "middle")
-        .style("font-size", "13px")
-        .style("font-weight", "700")
-        .style("fill", "#475569")
-        .text(gs.gap);
-
-      // EPA value below gap name
+      // Single-line compact label: "LG · +0.04" or "LG · low"
       if (!lowSample) {
-        labelGroup.append("text")
+        const epaStr = gs.epa_per_carry >= 0 ? `+${gs.epa_per_carry.toFixed(2)}` : gs.epa_per_carry.toFixed(2);
+        const labelText = labelGroup.append("text")
           .attr("x", target.x)
-          .attr("y", target.y + 10)
+          .attr("y", target.y + 2)
           .attr("text-anchor", "middle")
-          .attr("fill", color)
-          .style("font-size", "11px")
-          .style("font-weight", "600")
           .attr("data-gap", gs.gap)
-          .text(gs.epa_per_carry >= 0 ? `+${gs.epa_per_carry.toFixed(2)}` : gs.epa_per_carry.toFixed(2));
+          .style("font-size", "12px")
+          .style("font-weight", "700");
+
+        labelText.append("tspan").style("fill", "#475569").text(`${gs.gap} `);
+        labelText.append("tspan").style("fill", "#94a3b8").style("font-weight", "400").text("\u00B7 ");
+        labelText.append("tspan").style("fill", color).text(epaStr);
       } else {
         labelGroup.append("text")
           .attr("x", target.x)
-          .attr("y", target.y + 10)
+          .attr("y", target.y + 2)
           .attr("text-anchor", "middle")
-          .style("font-size", "9px")
+          .style("font-size", "11px")
           .style("fill", "#9ca3af")
-          .text("Low sample");
+          .text(`${gs.gap} \u00B7 low`);
       }
 
       // Build tooltip text
@@ -907,58 +909,57 @@ export default function RunGapDiagram({
         </div>
       )}
 
-      {/* Gap stat strip above diagram (desktop) — shows carries, rank, league avg */}
-      {gapStats.length > 0 && (
-        <div className="hidden md:grid grid-cols-7 gap-1 mb-2">
-          {GAPS.map((gap) => {
-            const agg = gapAggregates[gap];
-            const rank = gapRanks[gap];
-            const lgAvg = leagueAvgByGap[gap];
-            const defGap = oppDefGaps[gap];
-            if (!agg) return <div key={gap} />;
-            return (
-              <button
-                key={gap}
-                onClick={() => handleGapClick(gap)}
-                className={`text-center rounded-md px-1 py-1.5 transition-all duration-150 ${
-                  selectedGap === gap ? "bg-blue-50 ring-1 ring-blue-300" : "bg-gray-50 hover:bg-gray-100"
-                }`}
-                style={{
-                  opacity: hoveredGap === null ? 1 : hoveredGap === gap ? 1 : 0.2,
-                }}
-              >
-                <div className="text-[10px] text-gray-500 font-medium">{agg.carries} carries</div>
-                {rank != null && (
-                  <div className={`text-[10px] font-semibold ${
-                    rank <= 10 ? "text-green-600" : rank >= 23 ? "text-red-500" : "text-gray-400"
-                  }`}>
-                    #{rank} of 32
-                  </div>
-                )}
-                {lgAvg && (
-                  <div className="text-[9px] text-gray-400">
-                    Lg: {lgAvg.avg_epa >= 0 ? "+" : ""}{lgAvg.avg_epa.toFixed(2)}
-                  </div>
-                )}
-                {defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry) && (
-                  <div className="text-[9px] font-medium" style={{ color: defEpaColor(defGap.def_epa_per_carry) }}>
-                    DEF {defGap.def_epa_per_carry >= 0 ? "+" : ""}{defGap.def_epa_per_carry.toFixed(2)}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* SVG diagram (desktop) */}
+      {/* SVG diagram + stat strip (desktop) — cohesive card */}
       <div ref={containerRef} className="hidden md:block relative w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
         {gapStats.length === 0 ? (
           <div className="text-center py-16 text-gray-400 text-sm">
             No gap data available for this team in {season}.
           </div>
         ) : (
-          <svg ref={svgRef} className="w-full" style={{ maxHeight: 480 }} />
+          <>
+            {/* Gap stat strip header */}
+            <div className="grid grid-cols-7 gap-1 px-3 pt-3 pb-1 border-b border-gray-100 bg-gray-50/50">
+              {GAPS.map((gap) => {
+                const agg = gapAggregates[gap];
+                const rank = gapRanks[gap];
+                const lgAvg = leagueAvgByGap[gap];
+                const defGap = oppDefGaps[gap];
+                if (!agg) return <div key={gap} />;
+                return (
+                  <button
+                    key={gap}
+                    onClick={() => handleGapClick(gap)}
+                    className={`text-center rounded-md px-1 py-1.5 transition-all duration-150 ${
+                      selectedGap === gap ? "bg-blue-50 ring-1 ring-blue-300" : "hover:bg-gray-100"
+                    }`}
+                    style={{
+                      opacity: hoveredGap === null ? 1 : hoveredGap === gap ? 1 : 0.2,
+                    }}
+                  >
+                    <div className="text-[10px] text-gray-500 font-medium">{agg.carries} carries</div>
+                    {rank != null && (
+                      <div className={`text-[10px] font-semibold ${
+                        rank <= 10 ? "text-green-600" : rank >= 23 ? "text-red-500" : "text-gray-400"
+                      }`}>
+                        #{rank} of 32
+                      </div>
+                    )}
+                    {lgAvg && (
+                      <div className="text-[9px] text-gray-400">
+                        Lg: {lgAvg.avg_epa >= 0 ? "+" : ""}{lgAvg.avg_epa.toFixed(2)}
+                      </div>
+                    )}
+                    {defGap && defGap.def_epa_per_carry !== null && !isNaN(defGap.def_epa_per_carry) && (
+                      <div className="text-[9px] font-medium" style={{ color: defEpaColor(defGap.def_epa_per_carry) }}>
+                        DEF {defGap.def_epa_per_carry >= 0 ? "+" : ""}{defGap.def_epa_per_carry.toFixed(2)}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <svg ref={svgRef} className="w-full" style={{ maxHeight: 480 }} />
+          </>
         )}
       </div>
 
