@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "NFL Analytics Glossary | Yards Per Pass",
+  title: "NFL Analytics Glossary",
   description:
     "Plain-English definitions for EPA, CPOE, success rate, ANY/A, passer rating, and every stat on Yards Per Pass.",
 };

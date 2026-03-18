@@ -40,7 +40,7 @@ export async function generateMetadata({
   const s = season || "2025";
   const teamName = team ? getTeam(team)?.name || team : "NFL";
   return {
-    title: `${teamName} Run Gap Analysis ${s} | Yards Per Pass`,
+    title: `${teamName} Run Gap Analysis ${s}`,
     description: `Rushing EPA broken down by offensive line gap for ${teamName}.`,
   };
 }

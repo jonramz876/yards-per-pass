@@ -2,7 +2,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Yards Per Pass",
+  title: "Privacy Policy",
+  description: "Privacy policy for Yards Per Pass, an NFL analytics website.",
 };
 
 export default function PrivacyPage() {
