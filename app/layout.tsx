@@ -45,6 +45,28 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-white flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "WebSite",
+                  name: "Yards Per Pass",
+                  url: process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com",
+                  description:
+                    "NFL analytics dashboard with EPA, CPOE, success rate, and run gap analysis.",
+                },
+                {
+                  "@type": "Organization",
+                  name: "Yards Per Pass",
+                  url: process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com",
+                },
+              ],
+            }),
+          }}
+        />
         <TooltipProvider>
           <Suspense>
             <Navbar />
