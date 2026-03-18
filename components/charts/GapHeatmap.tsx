@@ -373,7 +373,6 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
                         width={20}
                         height={20}
                         className="rounded-full flex-shrink-0"
-                        unoptimized
                       />
                       <span className="font-medium text-navy text-xs truncate">
                         {row.teamName}
@@ -509,7 +508,6 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
                 width={20}
                 height={20}
                 className="rounded-full flex-shrink-0"
-                unoptimized
               />
               <span className="font-medium text-navy text-sm">
                 {row.teamName}

@@ -810,7 +810,6 @@ export default function RunGapDiagram({
               width={40}
               height={40}
               className="rounded-full"
-              unoptimized
             />
             <div>
               <h2 className="text-lg font-bold text-navy">{team.name}</h2>

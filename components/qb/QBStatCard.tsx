@@ -68,8 +68,9 @@ function formatChipValue(key: string, val: number): string {
   switch (key) {
     case "epa_per_play":
     case "rush_epa_per_play":
-    case "success_rate":
       return val.toFixed(2);
+    case "success_rate":
+      return (val * 100).toFixed(1) + "%";
     case "cpoe":
       return (val >= 0 ? "+" : "") + val.toFixed(1);
     case "adot":

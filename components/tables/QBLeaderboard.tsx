@@ -118,8 +118,9 @@ function formatAvg(key: string, val: number): string {
     case "ypa":
     case "any_a":
     case "rush_epa_per_play":
-    case "success_rate":
       return val.toFixed(2);
+    case "success_rate":
+      return (val * 100).toFixed(1) + "%";
     case "completion_pct":
     case "passer_rating":
       return val.toFixed(1);
@@ -230,7 +231,7 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
       case "completion_pct":
         return n.toFixed(1);
       case "success_rate":
-        return n.toFixed(2);
+        return (n * 100).toFixed(1) + "%";
       case "passer_rating":
         return n.toFixed(1);
       case "yards_per_game":
@@ -312,7 +313,7 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                 onChange={(e) => setShowHeatmap(e.target.checked)}
                 className="rounded border-gray-300 text-navy focus:ring-navy/20"
               />
-              Heat map
+              Heatmap
             </label>
           </div>
         </div>

@@ -68,10 +68,10 @@ export default function HomePage() {
             href="/qb-leaderboard"
           />
           <FeatureCard
-            title="Open Source"
-            description="Built on trusted nflverse data, updated weekly. More features in the works — follow along on GitHub."
-            icon="🔮"
-            href="https://github.com/jonramz876/yards-per-pass"
+            title="Run Gap Analysis"
+            description="Rushing EPA broken down by offensive line gap. See which gaps each team dominates and find exploitable matchups."
+            icon="🏟️"
+            href="/run-gaps"
           />
         </div>
       </section>
