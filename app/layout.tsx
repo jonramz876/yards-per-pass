@@ -22,18 +22,9 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "Yards Per Pass",
     locale: "en_US",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Yards Per Pass — NFL Analytics Dashboard",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/og-image.png"],
   },
 };
 
