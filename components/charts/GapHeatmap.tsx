@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import type { RBGapStat } from "@/lib/types";
@@ -57,7 +57,7 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [sortGap, setSortGap] = useState<string | "total" | null>(null);
+  const [sortGap, setSortGap] = useState<string | "total" | null>("total");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   // Aggregate player-level stats into team×gap rows
@@ -140,6 +140,33 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
     });
   }, [teamRows, sortGap, sortDir]);
 
+  // Compute NFL AVG row from team data
+  const nflAvg = useMemo(() => {
+    const gapAvgs: Record<string, number> = {};
+    for (const gap of GAP_ORDER) {
+      let sum = 0;
+      let count = 0;
+      for (const row of teamRows) {
+        const d = row.gaps[gap];
+        if (d && !isNaN(d.epa)) {
+          sum += d.epa;
+          count++;
+        }
+      }
+      gapAvgs[gap] = count > 0 ? sum / count : NaN;
+    }
+    // Total avg
+    let totalSum = 0;
+    let totalCount = 0;
+    for (const row of teamRows) {
+      if (!isNaN(row.totalEpa)) {
+        totalSum += row.totalEpa;
+        totalCount++;
+      }
+    }
+    return { gaps: gapAvgs, totalEpa: totalCount > 0 ? totalSum / totalCount : NaN };
+  }, [teamRows]);
+
   function handleSort(gap: string | "total") {
     if (sortGap === gap) {
       setSortDir((d) => (d === "desc" ? "asc" : "desc"));
@@ -218,70 +245,222 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((row, idx) => (
-              <tr
-                key={row.teamId}
-                onClick={() => handleTeamClick(row.teamId)}
-                className={`cursor-pointer transition-colors hover:bg-blue-50 ${
-                  idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
-                }`}
-              >
-                <td className="py-1.5 px-3 flex items-center gap-2">
-                  <Image
-                    src={row.teamLogo}
-                    alt={row.teamName}
-                    width={20}
-                    height={20}
-                    className="rounded-full flex-shrink-0"
-                    unoptimized
-                  />
-                  <span className="font-medium text-navy text-xs truncate">
-                    {row.teamName}
+            {sortedRows.map((row, idx) => {
+              // Determine if NFL AVG row should appear before this team
+              let showAvgBefore = false;
+              if (sortGap) {
+                const avgVal = sortGap === "total" ? nflAvg.totalEpa : (nflAvg.gaps[sortGap] ?? NaN);
+                if (!isNaN(avgVal)) {
+                  const getRowVal = (r: TeamGapRow) =>
+                    sortGap === "total" ? (isNaN(r.totalEpa) ? -999 : r.totalEpa) : (r.gaps[sortGap]?.epa ?? -999);
+
+                  if (idx === 0) {
+                    const currVal = getRowVal(row);
+                    if (sortDir === "desc" ? avgVal >= currVal : avgVal <= currVal) {
+                      showAvgBefore = true;
+                    }
+                  } else {
+                    const prevVal = getRowVal(sortedRows[idx - 1]);
+                    const currVal = getRowVal(row);
+                    if (sortDir === "desc") {
+                      showAvgBefore = avgVal < prevVal && avgVal >= currVal;
+                    } else {
+                      showAvgBefore = avgVal > prevVal && avgVal <= currVal;
+                    }
+                  }
+                }
+              }
+
+              const avgRow = showAvgBefore ? (
+                <tr key="nfl-avg" className="border-t border-amber-400">
+                  <td className="py-1.5 px-3 flex items-center gap-2" style={{ background: "#fef3c7" }}>
+                    <span style={{ color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      NFL AVG
+                    </span>
+                    {!isNaN(nflAvg.totalEpa) && (
+                      <span
+                        className="text-[10px] font-semibold ml-auto flex-shrink-0"
+                        style={{ color: "#92400e" }}
+                      >
+                        {nflAvg.totalEpa >= 0 ? "+" : ""}
+                        {nflAvg.totalEpa.toFixed(3)}
+                      </span>
+                    )}
+                  </td>
+                  {GAP_ORDER.map((gap) => {
+                    const epa = nflAvg.gaps[gap] ?? NaN;
+                    return (
+                      <td
+                        key={gap}
+                        className="text-center py-1.5 px-1"
+                        style={{ background: "#fef3c7", borderBottom: "2px solid #f59e0b" }}
+                      >
+                        <div
+                          className="rounded px-1 py-1 text-xs font-mono font-semibold leading-tight"
+                          style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
+                        >
+                          {isNaN(epa) ? "\u2014" : `${epa >= 0 ? "+" : ""}${epa.toFixed(2)}`}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ) : null;
+
+              // Also check if avg should appear after the last row
+              let showAvgAfter = false;
+              if (sortGap && idx === sortedRows.length - 1) {
+                const avgVal = sortGap === "total" ? nflAvg.totalEpa : (nflAvg.gaps[sortGap] ?? NaN);
+                if (!isNaN(avgVal)) {
+                  const getRowVal = (r: TeamGapRow) =>
+                    sortGap === "total" ? (isNaN(r.totalEpa) ? -999 : r.totalEpa) : (r.gaps[sortGap]?.epa ?? -999);
+                  const currVal = getRowVal(row);
+                  if (sortDir === "desc" ? avgVal < currVal : avgVal > currVal) {
+                    showAvgAfter = true;
+                  }
+                }
+              }
+
+              const avgRowAfter = showAvgAfter ? (
+                <tr key="nfl-avg" className="border-t border-amber-400">
+                  <td className="py-1.5 px-3 flex items-center gap-2" style={{ background: "#fef3c7" }}>
+                    <span style={{ color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      NFL AVG
+                    </span>
+                    {!isNaN(nflAvg.totalEpa) && (
+                      <span
+                        className="text-[10px] font-semibold ml-auto flex-shrink-0"
+                        style={{ color: "#92400e" }}
+                      >
+                        {nflAvg.totalEpa >= 0 ? "+" : ""}
+                        {nflAvg.totalEpa.toFixed(3)}
+                      </span>
+                    )}
+                  </td>
+                  {GAP_ORDER.map((gap) => {
+                    const epa = nflAvg.gaps[gap] ?? NaN;
+                    return (
+                      <td
+                        key={gap}
+                        className="text-center py-1.5 px-1"
+                        style={{ background: "#fef3c7", borderBottom: "2px solid #f59e0b" }}
+                      >
+                        <div
+                          className="rounded px-1 py-1 text-xs font-mono font-semibold leading-tight"
+                          style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
+                        >
+                          {isNaN(epa) ? "\u2014" : `${epa >= 0 ? "+" : ""}${epa.toFixed(2)}`}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ) : null;
+
+              return (
+                <React.Fragment key={row.teamId}>
+                  {avgRow}
+                  <tr
+                    onClick={() => handleTeamClick(row.teamId)}
+                    className={`cursor-pointer transition-colors hover:bg-blue-50 ${
+                      idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"
+                    }`}
+                  >
+                    <td className="py-1.5 px-3 flex items-center gap-2">
+                      <Image
+                        src={row.teamLogo}
+                        alt={row.teamName}
+                        width={20}
+                        height={20}
+                        className="rounded-full flex-shrink-0"
+                        unoptimized
+                      />
+                      <span className="font-medium text-navy text-xs truncate">
+                        {row.teamName}
+                      </span>
+                      {!isNaN(row.totalEpa) && (
+                        <span
+                          className={`text-[10px] font-semibold ml-auto flex-shrink-0 ${
+                            row.totalEpa >= 0 ? "text-green-600" : "text-red-600"
+                          }`}
+                        >
+                          {row.totalEpa >= 0 ? "+" : ""}
+                          {row.totalEpa.toFixed(3)}
+                        </span>
+                      )}
+                    </td>
+                    {GAP_ORDER.map((gap) => {
+                      const d = row.gaps[gap];
+                      const epa = d?.epa ?? NaN;
+                      const bg = epaColor(epa);
+                      const fg = epaTextColor(epa);
+                      return (
+                        <td
+                          key={gap}
+                          className="text-center py-1.5 px-1"
+                        >
+                          <div
+                            className="rounded px-1 py-1 text-xs font-mono font-semibold leading-tight"
+                            style={{ backgroundColor: bg, color: fg }}
+                          >
+                            {isNaN(epa) ? (
+                              <span className="text-gray-400">{"\u2014"}</span>
+                            ) : (
+                              <>
+                                {epa >= 0 ? "+" : ""}
+                                {epa.toFixed(2)}
+                              </>
+                            )}
+                          </div>
+                          {d && (
+                            <div className="text-[9px] text-gray-400 mt-0.5">
+                              {d.carries} att
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  {avgRowAfter}
+                </React.Fragment>
+              );
+            })}
+            {/* Show NFL AVG at bottom when unsorted */}
+            {!sortGap && (
+              <tr key="nfl-avg" className="border-t-2 border-amber-400">
+                <td className="py-1.5 px-3 flex items-center gap-2" style={{ background: "#fef3c7" }}>
+                  <span style={{ color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                    NFL AVG
                   </span>
-                  {!isNaN(row.totalEpa) && (
+                  {!isNaN(nflAvg.totalEpa) && (
                     <span
-                      className={`text-[10px] font-semibold ml-auto flex-shrink-0 ${
-                        row.totalEpa >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
+                      className="text-[10px] font-semibold ml-auto flex-shrink-0"
+                      style={{ color: "#92400e" }}
                     >
-                      {row.totalEpa >= 0 ? "+" : ""}
-                      {row.totalEpa.toFixed(3)}
+                      {nflAvg.totalEpa >= 0 ? "+" : ""}
+                      {nflAvg.totalEpa.toFixed(3)}
                     </span>
                   )}
                 </td>
                 {GAP_ORDER.map((gap) => {
-                  const d = row.gaps[gap];
-                  const epa = d?.epa ?? NaN;
-                  const bg = epaColor(epa);
-                  const fg = epaTextColor(epa);
+                  const epa = nflAvg.gaps[gap] ?? NaN;
                   return (
                     <td
                       key={gap}
                       className="text-center py-1.5 px-1"
+                      style={{ background: "#fef3c7", borderBottom: "2px solid #f59e0b" }}
                     >
                       <div
                         className="rounded px-1 py-1 text-xs font-mono font-semibold leading-tight"
-                        style={{ backgroundColor: bg, color: fg }}
+                        style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
                       >
-                        {isNaN(epa) ? (
-                          <span className="text-gray-400">{"\u2014"}</span>
-                        ) : (
-                          <>
-                            {epa >= 0 ? "+" : ""}
-                            {epa.toFixed(2)}
-                          </>
-                        )}
+                        {isNaN(epa) ? "\u2014" : `${epa >= 0 ? "+" : ""}${epa.toFixed(2)}`}
                       </div>
-                      {d && (
-                        <div className="text-[9px] text-gray-400 mt-0.5">
-                          {d.carries} att
-                        </div>
-                      )}
                     </td>
                   );
                 })}
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -367,6 +546,43 @@ export default function GapHeatmap({ allGapStats, teams }: GapHeatmapProps) {
             </div>
           </button>
         ))}
+
+        {/* NFL AVG card (mobile) */}
+        <div
+          className="w-full text-left rounded-lg p-3 border-2 border-amber-400"
+          style={{ background: "#fef3c7" }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span className="font-bold text-sm" style={{ color: "#92400e", fontStyle: "italic" }}>
+              NFL AVG
+            </span>
+            {!isNaN(nflAvg.totalEpa) && (
+              <span
+                className="text-xs font-semibold ml-auto"
+                style={{ color: "#92400e" }}
+              >
+                {nflAvg.totalEpa >= 0 ? "+" : ""}
+                {nflAvg.totalEpa.toFixed(3)} EPA
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {GAP_ORDER.map((gap) => {
+              const epa = nflAvg.gaps[gap] ?? NaN;
+              return (
+                <div key={gap} className="text-center">
+                  <div className="text-[9px] mb-0.5" style={{ color: "#92400e" }}>{gap}</div>
+                  <div
+                    className="rounded px-0.5 py-0.5 text-[11px] font-mono font-semibold"
+                    style={{ backgroundColor: "#fef3c7", color: "#92400e" }}
+                  >
+                    {isNaN(epa) ? "\u2014" : epa.toFixed(2)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Legend */}

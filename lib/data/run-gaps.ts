@@ -2,6 +2,34 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
 import type { RBGapStat, RBGapStatWeekly, DefGapStat } from "@/lib/types";
+/** Fetch all rows from a table, paginating past Supabase's 1000-row server limit */
+async function fetchAllRows(
+  table: string,
+  select: string,
+  filters: Record<string, unknown>
+): Promise<Record<string, unknown>[]> {
+  const supabase = createServerClient();
+  const PAGE_SIZE = 1000;
+  const allRows: Record<string, unknown>[] = [];
+  let offset = 0;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    let query = supabase.from(table).select(select).range(offset, offset + PAGE_SIZE - 1);
+    for (const [key, val] of Object.entries(filters)) {
+      query = query.eq(key, val);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    allRows.push(...(data as unknown as Record<string, unknown>[]));
+
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return allRows;
+}
 
 const RB_GAP_NUMERIC_FIELDS = [
   "epa_per_carry",
@@ -15,22 +43,25 @@ export async function getRBGapStats(
   season: number,
   teamId?: string
 ): Promise<RBGapStat[]> {
-  const supabase = createServerClient();
-  let query = supabase
-    .from("rb_gap_stats")
-    .select("*")
-    .eq("season", season);
-
   if (teamId) {
-    query = query.eq("team_id", teamId);
+    // Single team: always under 1000 rows, no pagination needed
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from("rb_gap_stats")
+      .select("*")
+      .eq("season", season)
+      .eq("team_id", teamId);
+    if (error) throw new Error(`Failed to fetch RB gap stats: ${error.message}`);
+    if (!data) return [];
+    return data.map((row) =>
+      parseNumericFields<RBGapStat>(row as unknown as RBGapStat, RB_GAP_NUMERIC_FIELDS)
+    );
   }
 
-  const { data, error } = await query;
-  if (error) throw new Error(`Failed to fetch RB gap stats: ${error.message}`);
-  if (!data) return [];
-
-  return data.map((row) =>
-    parseNumericFields<RBGapStat>(row as RBGapStat, RB_GAP_NUMERIC_FIELDS)
+  // All teams: paginate past 1000-row server limit
+  const rows = await fetchAllRows("rb_gap_stats", "*", { season });
+  return rows.map((row) =>
+    parseNumericFields<RBGapStat>(row as unknown as RBGapStat, RB_GAP_NUMERIC_FIELDS)
   );
 }
 
@@ -52,13 +83,17 @@ export interface TeamGapEpa {
 export async function getLeagueGapAverages(
   season: number
 ): Promise<{ averages: GapLeagueAvg[]; teamGapEpas: TeamGapEpa[] }> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("rb_gap_stats")
-    .select("team_id, gap, carries, epa_per_carry, yards_per_carry, success_rate, stuff_rate, explosive_rate")
-    .eq("season", season);
-
-  if (error || !data) return { averages: [], teamGapEpas: [] };
+  let data: Record<string, unknown>[];
+  try {
+    data = await fetchAllRows(
+      "rb_gap_stats",
+      "team_id, gap, carries, epa_per_carry, yards_per_carry, success_rate, stuff_rate, explosive_rate",
+      { season }
+    );
+  } catch {
+    return { averages: [], teamGapEpas: [] };
+  }
+  if (!data || data.length === 0) return { averages: [], teamGapEpas: [] };
 
   // Accumulate per-team per-gap totals (for ranking) and league-wide totals (for averages)
   const teamGapMap = new Map<string, { carries: number; epaSum: number }>();
@@ -132,7 +167,7 @@ export async function getRBGapStatsWeekly(
   if (!data) return [];
 
   return data.map((row) =>
-    parseNumericFields<RBGapStatWeekly>(row as RBGapStatWeekly, RB_GAP_NUMERIC_FIELDS)
+    parseNumericFields<RBGapStatWeekly>(row as unknown as RBGapStatWeekly, RB_GAP_NUMERIC_FIELDS)
   );
 }
 
@@ -170,13 +205,12 @@ export async function getDefGapStats(
 export async function getTeamsWithGapData(
   season: number
 ): Promise<string[]> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("rb_gap_stats")
-    .select("team_id")
-    .eq("season", season);
-
-  if (error) return [];
-  const unique = Array.from(new Set((data || []).map((r: { team_id: string }) => r.team_id)));
+  let data: Record<string, unknown>[];
+  try {
+    data = await fetchAllRows("rb_gap_stats", "team_id", { season });
+  } catch {
+    return [];
+  }
+  const unique = Array.from(new Set(data.map((r) => r.team_id as string)));
   return unique.sort();
 }
