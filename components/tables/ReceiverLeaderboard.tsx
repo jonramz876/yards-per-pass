@@ -1,11 +1,12 @@
 // components/tables/ReceiverLeaderboard.tsx
 "use client";
 
-import React, { useState, useMemo, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import ReceiverStatCard from "@/components/receivers/ReceiverStatCard";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -171,6 +172,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
   const [search, setSearch] = useState(urlSearch);
   const [minTargets, setMinTargets] = useState(initialMin);
   const [posFilter, setPosFilter] = useState(urlPos);
+  const [selectedReceiver, setSelectedReceiver] = useState<ReceiverSeasonStat | null>(null);
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
@@ -254,6 +256,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
     });
     return result;
   }, [data, sortKey, sortDir, search, minTargets, posFilter]);
+
+  useEffect(() => { setSelectedReceiver(null); }, [filtered]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -469,7 +473,10 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                         <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(rec.team_id) }} />
-                            <span className="font-semibold text-navy">{rec.player_name}</span>
+                            <span
+                              className="font-semibold text-navy hover:text-nflred cursor-pointer transition-colors"
+                              onClick={() => setSelectedReceiver(rec)}
+                            >{rec.player_name}</span>
                             <span className="text-[10px] text-gray-400 ml-1">{rec.position}</span>
                           </div>
                         </td>
@@ -538,6 +545,14 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
         <p><span className="font-semibold text-gray-500">Catch%</span> = receptions / targets. <span className="font-semibold text-gray-500">ADOT</span> = average depth of target. <span className="font-semibold text-gray-500">YAC/Rec</span> = yards after catch per reception.</p>
         <p><span className="font-semibold text-gray-500">Tgt Share</span> = player targets / team pass attempts. Values may exceed typical ranges for players who changed teams mid-season.</p>
       </div>
+
+      {selectedReceiver && (
+        <ReceiverStatCard
+          receiver={selectedReceiver}
+          allReceivers={filtered}
+          onClose={() => setSelectedReceiver(null)}
+        />
+      )}
     </div>
   );
 }
