@@ -37,6 +37,16 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   FL: "Fumbles lost \u2014 only fumbles recovered by the defense. The turnovers that actually cost you.",
   "TD:INT":
     "Passing touchdowns per interception. Higher is better. 2:1 is average, 3:1+ is elite.",
+  "EPA/Tgt":
+    "Points added per target. The best single efficiency measure for receivers. Above 0 = above average.",
+  "Catch%":
+    "Receptions \u00f7 targets. How often a receiver catches the ball when targeted.",
+  ADOT: "Average Depth of Target \u2014 how far downfield a receiver is targeted on average. Higher = more of a deep threat.",
+  "YAC/Rec":
+    "Yards after catch per reception. Measures a receiver\u2019s ability to gain yards with the ball in their hands.",
+  "Tgt Share":
+    "Percentage of team pass attempts directed at this receiver. Higher = more involved in the passing game.",
+  YPR: "Yards per reception. Total receiving yards \u00f7 receptions. A simple per-catch efficiency measure.",
 };
 
 interface MetricTooltipProps {
