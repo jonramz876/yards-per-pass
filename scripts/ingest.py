@@ -558,11 +558,12 @@ def aggregate_def_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
 
 def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
     """Aggregate receiver season stats from filtered plays."""
-    # Filter to target plays: receiver exists, pass attempt, not a sack
+    # Filter to target plays: receiver exists, pass attempt, not a sack or scramble
     target_plays = plays[
         (plays['receiver_player_id'].notna()) &
         (plays['pass_attempt'] == 1) &
-        (plays['sack'] != 1)
+        (plays['sack'] != 1) &
+        (plays['qb_scramble'] != 1)
     ].copy()
 
     if target_plays.empty:
@@ -573,8 +574,7 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         player_name=('receiver_player_name', 'first'),
         targets=('game_id', 'count'),
         receptions=('complete_pass', 'sum'),
-        receiving_yards=('receiving_yards', 'sum'),
-        epa_sum=('epa', 'sum'),
+        receiving_yards=('receiving_yards', lambda x: x.dropna().sum()),
         epa_per_target=('epa', 'mean'),
         yac=('yards_after_catch', lambda x: x.dropna().sum()),
         air_yards=('air_yards', lambda x: x.dropna().sum()),
@@ -607,17 +607,26 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     )
     rec = rec.merge(team_primary, on='player_id', how='left')
 
-    # Target share: player targets / team total targets
+    # Target share: player's primary-team targets / team total targets
+    # For traded players, only count targets on their primary team
     team_total_targets = target_plays.groupby('posteam').size().to_dict()
+    player_team_targets = target_plays.groupby(['receiver_player_id', 'posteam']).size().reset_index(name='team_tgt')
+    player_team_targets.columns = ['player_id', 'team_id', 'primary_team_targets']
+    rec = rec.merge(player_team_targets, on=['player_id', 'team_id'], how='left')
     rec['target_share'] = rec.apply(
-        lambda r: r['targets'] / team_total_targets.get(r['team_id'], 1), axis=1
+        lambda r: r['primary_team_targets'] / team_total_targets.get(r['team_id'], 1)
+        if pd.notna(r.get('primary_team_targets')) else 0, axis=1
     )
+    rec.drop(columns=['primary_team_targets'], inplace=True)
 
     # Position from roster (mode = most frequent)
     pos_lookup = roster.groupby('gsis_id')['position'].agg(
         lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else 'WR'
     ).to_dict()
     rec['position'] = rec['player_id'].map(pos_lookup).fillna('WR')
+
+    # Filter to skill positions only (exclude OL, DL trick-play catches)
+    rec = rec[rec['position'].isin(['WR', 'TE', 'RB', 'FB', 'QB'])]
 
     # Fumbles: search full plays DataFrame for receiver player IDs
     receiver_ids = set(rec['player_id'])
@@ -633,10 +642,7 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     # Add season, convert types
     rec['season'] = season
     rec['receptions'] = rec['receptions'].astype(int)
-    rec['receiving_yards'] = rec['receiving_yards'].astype(int)
-
-    # Drop intermediate columns
-    rec.drop(columns=['epa_sum'], inplace=True, errors='ignore')
+    rec['receiving_yards'] = rec['receiving_yards'].fillna(0).astype(int)
 
     # Select final columns
     cols = [
@@ -970,8 +976,13 @@ def ensure_receiver_stats_table(conn):
             CREATE INDEX IF NOT EXISTS idx_receiver_player ON receiver_season_stats(player_id);
             CREATE INDEX IF NOT EXISTS idx_receiver_team ON receiver_season_stats(team_id, season);
         """)
-        # RLS
-        cur.execute("ALTER TABLE receiver_season_stats ENABLE ROW LEVEL SECURITY;")
+        # RLS (wrapped in exception blocks for idempotent re-runs)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE receiver_season_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
         cur.execute("""
             DO $$ BEGIN
                 CREATE POLICY "public_read" ON receiver_season_stats FOR SELECT USING (true);
@@ -982,9 +993,12 @@ def ensure_receiver_stats_table(conn):
     log.info("Ensured receiver_season_stats table exists")
 
 
-@retry(max_retries=3, delay=5)
+@retry(max_retries=2, delay=3)
 def upsert_receiver_stats(conn, df: pd.DataFrame):
     """Upsert receiver season stats."""
+    if df.empty:
+        log.info("No receiver stats to upsert (empty DataFrame)")
+        return
     cols = [
         'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
         'targets', 'receptions', 'receiving_yards', 'receiving_tds',
@@ -1150,7 +1164,7 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale def_gap_stats rows", cur.rowcount)
 
-        if receiver_player_ids is not None:
+        if receiver_player_ids is not None and len(receiver_player_ids) > 0:
             cur.execute(
                 "DELETE FROM receiver_season_stats WHERE season = %s AND player_id != ALL(%s)",
                 (season, receiver_player_ids),

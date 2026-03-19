@@ -16,6 +16,7 @@ def make_plays(**overrides):
         'posteam': 'KC',
         'pass_attempt': 1,
         'sack': 0,
+        'qb_scramble': 0,
         'complete_pass': 1,
         'receiving_yards': 10.0,
         'pass_touchdown': 0,
@@ -306,7 +307,7 @@ class TestEmptyInput:
         from ingest import aggregate_receiver_stats
         plays = pd.DataFrame(columns=[
             'receiver_player_id', 'receiver_player_name', 'posteam',
-            'pass_attempt', 'sack', 'complete_pass', 'receiving_yards',
+            'pass_attempt', 'sack', 'qb_scramble', 'complete_pass', 'receiving_yards',
             'pass_touchdown', 'epa', 'yards_after_catch', 'air_yards',
             'success', 'game_id', 'season', 'week',
             'fumble', 'fumble_lost', 'fumbled_1_player_id',
