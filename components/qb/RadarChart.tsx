@@ -129,6 +129,11 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
           {axis.label}
         </text>
       ))}
+
+      {/* Legend */}
+      <text x={150} y={256} textAnchor="middle" fontSize={9} fill="#94a3b8">
+        outer ring = league best · dashed = 50th percentile
+      </text>
     </svg>
   );
 }

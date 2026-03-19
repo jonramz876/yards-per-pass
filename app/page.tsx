@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
 
+export const revalidate = 3600;
+
 export default async function HomePage() {
   const seasons = await getAvailableSeasons();
   const currentSeason = seasons[0] || 2025;

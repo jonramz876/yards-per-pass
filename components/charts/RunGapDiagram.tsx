@@ -1062,7 +1062,7 @@ export default function RunGapDiagram({
 
       {selectedRBId && (
         <RBStatCard
-          playerGapStats={data.filter((r) => r.player_id === selectedRBId)}
+          playerGapStats={activeData.filter((r) => r.player_id === selectedRBId)}
           allLeagueStats={allGapStats}
           onClose={() => setSelectedRBId(null)}
         />

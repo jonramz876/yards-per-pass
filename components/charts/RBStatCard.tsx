@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { RBGapStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
@@ -19,7 +19,7 @@ const RB_RADAR_AXES = [
   { label: "Yds/Carry" },
   { label: "Success%" },
   { label: "Explosive%" },
-  { label: "Elusiveness" },
+  { label: "Stuff Avoid%" },
   { label: "Volume" },
 ];
 
@@ -28,7 +28,7 @@ const RB_RADAR_KEYS = [
   "yards_per_carry",
   "success_rate",
   "explosive_rate",
-  "elusiveness", // computed: 1 - stuff_rate
+  "stuff_avoidance", // computed: 1 - stuff_rate
   "carries",
 ];
 
@@ -45,7 +45,7 @@ function aggregatePlayer(rows: RBGapStat[]): {
   success_rate: number;
   stuff_rate: number;
   explosive_rate: number;
-  elusiveness: number;
+  stuff_avoidance: number;
 } {
   let totalCarries = 0;
   let epaSum = 0, ypcSum = 0, srSum = 0, stuffSum = 0, explSum = 0;
@@ -76,7 +76,7 @@ function aggregatePlayer(rows: RBGapStat[]): {
     success_rate: sr,
     stuff_rate: stuff,
     explosive_rate: expl,
-    elusiveness: !isNaN(stuff) ? 1 - stuff : NaN,
+    stuff_avoidance: !isNaN(stuff) ? 1 - stuff : NaN,
   };
 }
 
@@ -91,7 +91,7 @@ function buildLeaguePool(allStats: RBGapStat[]): Map<string, ReturnType<typeof a
   const pool = new Map<string, ReturnType<typeof aggregatePlayer>>();
   byPlayer.forEach((rows, pid) => {
     const agg = aggregatePlayer(rows);
-    if (agg.carries >= 20) pool.set(pid, agg); // min 20 carries for percentile pool
+    if (agg.carries >= 50) pool.set(pid, agg); // min 50 carries for percentile pool
   });
   return pool;
 }
@@ -108,7 +108,7 @@ function getStatValue(player: ReturnType<typeof aggregatePlayer>, key: string): 
     case "yards_per_carry": return player.yards_per_carry;
     case "success_rate": return player.success_rate;
     case "explosive_rate": return player.explosive_rate;
-    case "elusiveness": return player.elusiveness;
+    case "stuff_avoidance": return player.stuff_avoidance;
     case "carries": return player.carries;
     default: return NaN;
   }
@@ -121,7 +121,7 @@ function formatChipValue(key: string, val: number): string {
     case "yards_per_carry": return val.toFixed(1);
     case "success_rate":
     case "explosive_rate":
-    case "elusiveness": return (val * 100).toFixed(1) + "%";
+    case "stuff_avoidance": return (val * 100).toFixed(1) + "%";
     case "carries": return val.toString();
     default: return val.toFixed(2);
   }
@@ -140,12 +140,13 @@ function ordinal(n: number): string {
 }
 
 export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: RBStatCardProps) {
-  const player = aggregatePlayer(playerGapStats);
-  const team = getTeam(player.team_id);
-  const teamColor = getTeamColor(player.team_id);
+  const isEmpty = playerGapStats.length === 0;
+  const player = isEmpty ? null : aggregatePlayer(playerGapStats);
+  const team = player ? getTeam(player.team_id) : null;
+  const teamColor = player ? getTeamColor(player.team_id) : "#94a3b8";
 
-  const leaguePool = buildLeaguePool(allLeagueStats);
-  const poolArray = Array.from(leaguePool.values());
+  const leaguePool = useMemo(() => buildLeaguePool(allLeagueStats), [allLeagueStats]);
+  const poolArray = useMemo(() => Array.from(leaguePool.values()), [leaguePool]);
   const total = poolArray.length;
 
   const handleKey = useCallback(
@@ -163,18 +164,24 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: 
   }, [handleKey]);
 
   // Compute radar percentiles
-  const radarValues = RB_RADAR_KEYS.map((key) => {
-    const allVals = poolArray.map((p) => getStatValue(p, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-    return computePercentile(allVals, getStatValue(player, key));
-  });
+  const radarValues = useMemo(() => {
+    if (!player) return [0, 0, 0, 0, 0, 0];
+    return RB_RADAR_KEYS.map((key) => {
+      const allVals = poolArray.map((p) => getStatValue(p, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
+      return computePercentile(allVals, getStatValue(player, key));
+    });
+  }, [poolArray, player]);
 
   // Compute chip data (rank among league pool)
-  const chipData = RB_RADAR_KEYS.map((key) => {
-    const val = getStatValue(player, key);
-    const allVals = poolArray.map((p) => getStatValue(p, key)).filter((v) => !isNaN(v));
-    const rank = allVals.filter((v) => v > val).length + 1;
-    return { key, val, rank, label: RB_RADAR_AXES[RB_RADAR_KEYS.indexOf(key)].label };
-  });
+  const chipData = useMemo(() => {
+    if (!player) return [];
+    return RB_RADAR_KEYS.map((key) => {
+      const val = getStatValue(player, key);
+      const allVals = poolArray.map((p) => getStatValue(p, key)).filter((v) => !isNaN(v));
+      const rank = allVals.filter((v) => v > val).length + 1;
+      return { key, val, rank, label: RB_RADAR_AXES[RB_RADAR_KEYS.indexOf(key)].label };
+    });
+  }, [poolArray, player]);
 
   // Per-gap breakdown
   const gapBreakdown = GAP_ORDER.map((g) => {
@@ -204,18 +211,25 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: 
           &times;
         </button>
 
+        {isEmpty && (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-4">No gap data available for this player.</p>
+          </div>
+        )}
+
+        {player && <>
         {/* Header */}
         <div className="flex items-center gap-3.5 mb-5">
           <div
             className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-xs"
             style={{ backgroundColor: teamColor }}
           >
-            {player.team_id}
+            {player!.team_id}
           </div>
           <div>
-            <div className="text-xl font-bold text-gray-900">{player.player_name}</div>
+            <div className="text-xl font-bold text-gray-900">{player!.player_name}</div>
             <div className="text-xs text-gray-400">
-              {team?.name ?? player.team_id} &middot; {player.carries} carries
+              {team?.name ?? player!.team_id} &middot; {player!.carries} carries
             </div>
           </div>
         </div>
@@ -243,9 +257,9 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: 
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
             EPA/Carry by Gap
           </div>
-          <div className="grid grid-cols-7 gap-1">
+          <div className="flex gap-1 overflow-x-auto pb-1">
             {gapBreakdown.map((g) => (
-              <div key={g.gap} className="text-center">
+              <div key={g.gap} className="text-center flex-1 min-w-[46px]">
                 <div className="text-[10px] font-semibold text-gray-500">{g.gap}</div>
                 <div
                   className="text-sm font-bold"
@@ -258,6 +272,8 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: 
             ))}
           </div>
         </div>
+
+        </>}
 
         <div className="text-center text-[11px] text-gray-300 font-medium mt-4">
           yardsperpass.com

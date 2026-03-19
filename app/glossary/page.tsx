@@ -84,6 +84,16 @@ const TERMS: { term: string; definition: string }[] = [
       "Percentage of rushing attempts that gain 10+ yards. Higher is better for the offense. Measures big-play ability in the run game.",
   },
   {
+    term: "Stuff Avoidance (Stuff Avoid%)",
+    definition:
+      "1 minus Stuff Rate \u2014 the percentage of carries NOT stopped at or behind the line of scrimmage. Higher is better. Used in the RB radar chart as a positive-direction metric (100% = never stuffed).",
+  },
+  {
+    term: "EPA/Carry",
+    definition:
+      "Expected Points Added per rushing attempt. Measures how much each carry changes a team\u2019s scoring chances. Positive = above-average efficiency on the ground.",
+  },
+  {
     term: "Fumbles Lost (FL)",
     definition:
       "Fumbles recovered by the opposing defense. Only the turnovers that actually cost you possession.",
