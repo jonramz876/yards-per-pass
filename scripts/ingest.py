@@ -66,6 +66,7 @@ def _detect_current_season() -> int:
 CURRENT_SEASON = _detect_current_season()
 PBP_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet"
 ROSTER_URL = "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_{season}.parquet"
+PARTICIPATION_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_{season}.parquet"
 
 REQUIRED_ROSTER_COLS = ['gsis_id', 'position']
 
@@ -138,6 +139,22 @@ def download_roster(season: int) -> pd.DataFrame:
     if missing:
         raise ValueError(f"Missing columns in roster data: {missing}")
     return df
+
+
+def download_participation(season: int) -> pd.DataFrame | None:
+    """Download participation data from nflverse. Returns None if unavailable."""
+    url = PARTICIPATION_URL.format(season=season)
+    log.info("Downloading participation data for %d...", season)
+    try:
+        df = pd.read_parquet(url)
+        if len(df) < 1000:
+            log.warning("Participation data for %d suspiciously small (%d rows)", season, len(df))
+            return None
+        log.info("Loaded %d participation rows for %d", len(df), season)
+        return df
+    except Exception as e:
+        log.warning("Could not download participation data for %d: %s", season, e)
+        return None
 
 
 def filter_plays(pbp: pd.DataFrame) -> pd.DataFrame:
@@ -556,7 +573,7 @@ def aggregate_def_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
                      'def_success_rate', 'def_stuff_rate', 'def_explosive_rate']]
 
 
-def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int, participation: pd.DataFrame = None) -> pd.DataFrame:
     """Aggregate receiver season stats from filtered plays."""
     # Filter to target plays: receiver exists, pass attempt, not a sack or scramble
     target_plays = plays[
@@ -644,6 +661,40 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     rec['receptions'] = rec['receptions'].astype(int)
     rec['receiving_yards'] = rec['receiving_yards'].fillna(0).astype(int)
 
+    # Routes run from participation data (if available)
+    if participation is not None and not participation.empty:
+        # Filter PBP to pass plays (same criteria as targets but without receiver check)
+        pass_plays = plays[
+            (plays['pass_attempt'] == 1) &
+            (plays['sack'] != 1) &
+            (plays['qb_scramble'] != 1)
+        ][['game_id', 'play_id']].drop_duplicates()
+
+        # Join participation to pass plays to find who was on field during pass plays
+        routes = participation.merge(
+            pass_plays,
+            left_on=['nflverse_game_id', 'play_id'],
+            right_on=['game_id', 'play_id'],
+            how='inner'
+        )
+
+        # Count routes per player
+        routes_per_player = routes.groupby('gsis_id').size().reset_index(name='routes_run')
+        routes_per_player.columns = ['player_id', 'routes_run']
+
+        rec = rec.merge(routes_per_player, on='player_id', how='left')
+        rec['routes_run'] = rec['routes_run'].fillna(0).astype(int)
+    else:
+        rec['routes_run'] = 0
+
+    # Derived route metrics
+    rec['yards_per_route_run'] = rec.apply(
+        lambda r: r['receiving_yards'] / r['routes_run'] if r['routes_run'] > 0 else float('nan'), axis=1
+    )
+    rec['targets_per_route_run'] = rec.apply(
+        lambda r: r['targets'] / r['routes_run'] if r['routes_run'] > 0 else float('nan'), axis=1
+    )
+
     # Select final columns
     cols = [
         'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
@@ -651,6 +702,7 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         'catch_rate', 'yards_per_target', 'yards_per_reception',
         'epa_per_target', 'yac', 'yac_per_reception',
         'air_yards', 'air_yards_per_target', 'target_share',
+        'routes_run', 'yards_per_route_run', 'targets_per_route_run',
         'fumbles', 'fumbles_lost',
     ]
     return rec[cols]
@@ -976,6 +1028,9 @@ def ensure_receiver_stats_table(conn):
             CREATE INDEX IF NOT EXISTS idx_receiver_player ON receiver_season_stats(player_id);
             CREATE INDEX IF NOT EXISTS idx_receiver_team ON receiver_season_stats(team_id, season);
         """)
+        # Add route columns (idempotent for existing tables)
+        for col, typ in [('routes_run', 'INTEGER'), ('yards_per_route_run', 'NUMERIC'), ('targets_per_route_run', 'NUMERIC')]:
+            cur.execute(f"ALTER TABLE receiver_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
         # RLS (wrapped in exception blocks for idempotent re-runs)
         cur.execute("""
             DO $$ BEGIN
@@ -1005,6 +1060,7 @@ def upsert_receiver_stats(conn, df: pd.DataFrame):
         'catch_rate', 'yards_per_target', 'yards_per_reception',
         'epa_per_target', 'yac', 'yac_per_reception',
         'air_yards', 'air_yards_per_target', 'target_share',
+        'routes_run', 'yards_per_route_run', 'targets_per_route_run',
         'fumbles', 'fumbles_lost',
     ]
     clean_df = df[cols].where(df[cols].notna(), None)
@@ -1235,6 +1291,7 @@ def process_season(season: int, conn, dry_run: bool = False):
 
     pbp = download_pbp(season)
     roster = download_roster(season)
+    participation = download_participation(season)
     plays = filter_plays(pbp)
 
     team_stats = aggregate_team_stats(plays, pbp, season)
@@ -1242,7 +1299,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     rb_gap_stats = aggregate_rb_gap_stats(plays, season)
     rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     def_gap_stats = aggregate_def_gap_stats(plays, season)
-    receiver_stats = aggregate_receiver_stats(plays, roster, season)
+    receiver_stats = aggregate_receiver_stats(plays, roster, season, participation)
     through_week = int(plays['week'].max())
 
     validate_data(team_stats, qb_stats, receiver_stats)

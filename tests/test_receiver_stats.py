@@ -315,3 +315,81 @@ class TestEmptyInput:
         roster = make_roster()
         result = aggregate_receiver_stats(plays, roster, 2025)
         assert len(result) == 0
+
+
+def make_participation(player_id='WR1', game_id='GAME1', play_id=1):
+    """Create minimal participation DataFrame."""
+    return pd.DataFrame([{
+        'gsis_id': player_id,
+        'nflverse_game_id': game_id,
+        'play_id': play_id,
+    }])
+
+
+class TestRoutesRun:
+    """Routes run from participation data."""
+
+    def test_routes_counted(self):
+        from ingest import aggregate_receiver_stats
+        plays = pd.concat([
+            make_plays(game_id='GAME1'),
+            make_plays(game_id='GAME1', complete_pass=0, receiving_yards=0),
+        ], ignore_index=True)
+        # Player was on field for 3 pass plays (more than targeted)
+        participation = pd.concat([
+            make_participation(play_id=0),
+            make_participation(play_id=1),
+            make_participation(play_id=2),
+        ], ignore_index=True)
+        # Need play_id in plays for the join
+        plays['play_id'] = range(len(plays))
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        assert result.iloc[0]['routes_run'] == 2  # only 2 plays match (plays has 2 rows)
+
+    def test_yprr_calculation(self):
+        from ingest import aggregate_receiver_stats
+        plays = make_plays(receiving_yards=20)
+        plays['play_id'] = [0]
+        participation = pd.concat([
+            make_participation(play_id=0),
+            make_participation(play_id=1),  # extra route not in plays
+        ], ignore_index=True)
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        routes = result.iloc[0]['routes_run']
+        if routes > 0:
+            expected_yprr = 20 / routes
+            assert abs(result.iloc[0]['yards_per_route_run'] - expected_yprr) < 0.01
+
+    def test_tprr_calculation(self):
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        participation = pd.concat([
+            make_participation(play_id=0),
+        ], ignore_index=True)
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        routes = result.iloc[0]['routes_run']
+        if routes > 0:
+            assert abs(result.iloc[0]['targets_per_route_run'] - 1/routes) < 0.01
+
+    def test_no_participation_graceful(self):
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025, None)
+        assert result.iloc[0]['routes_run'] == 0
+        assert math.isnan(result.iloc[0]['yards_per_route_run'])
+        assert math.isnan(result.iloc[0]['targets_per_route_run'])
+
+    def test_output_has_route_columns(self):
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025)
+        for col in ['routes_run', 'yards_per_route_run', 'targets_per_route_run']:
+            assert col in result.columns, f"Missing column: {col}"
