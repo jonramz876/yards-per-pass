@@ -129,6 +129,14 @@ const TERMS: { term: string; definition: string }[] = [
     term: "ADOT (Average Depth of Target)",
     definition: "Average distance downfield a receiver is targeted. Higher ADOT = deeper route tree. Includes incomplete passes.",
   },
+  {
+    term: "YPRR (Yards Per Route Run)",
+    definition: "Receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted. A top-tier efficiency metric that removes volume bias \u2014 a receiver running 50 routes who gains 75 yards is more efficient than one running 150 routes for 100 yards.",
+  },
+  {
+    term: "TPRR (Targets Per Route Run)",
+    definition: "Targets divided by routes run. Measures how often a quarterback looks at a receiver on each route they run. High TPRR indicates a receiver who commands attention from the offense regardless of overall target volume.",
+  },
 ];
 
 export default function GlossaryPage() {

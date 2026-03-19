@@ -126,4 +126,7 @@ export interface ReceiverSeasonStat {
   target_share: number;
   fumbles: number;
   fumbles_lost: number;
+  routes_run: number;
+  yards_per_route_run: number;
+  targets_per_route_run: number;
 }

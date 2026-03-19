@@ -20,7 +20,7 @@ const RADAR_AXES = [
   { label: "ADOT" },
   { label: "YAC/Rec" },
   { label: "Tgt Share" },
-  { label: "Volume" },
+  { label: "YPRR" },
 ];
 
 const RADAR_KEYS = [
@@ -29,7 +29,7 @@ const RADAR_KEYS = [
   "air_yards_per_target",
   "yac_per_reception",
   "target_share",
-  "targets",
+  "yards_per_route_run",
 ];
 
 const RADAR_LABELS: Record<string, string> = {
@@ -38,7 +38,7 @@ const RADAR_LABELS: Record<string, string> = {
   air_yards_per_target: "ADOT",
   yac_per_reception: "YAC/Rec",
   target_share: "Tgt Share",
-  targets: "Volume",
+  yards_per_route_run: "YPRR",
 };
 
 const BAR_STATS = [
@@ -55,7 +55,7 @@ function getStatValue(rec: ReceiverSeasonStat, key: string): number {
     case "air_yards_per_target": return rec.air_yards_per_target;
     case "yac_per_reception": return rec.yac_per_reception;
     case "target_share": return rec.target_share;
-    case "targets": return rec.targets;
+    case "yards_per_route_run": return rec.yards_per_route_run;
     default: return NaN;
   }
 }
@@ -68,7 +68,7 @@ function formatChipValue(key: string, val: number): string {
     case "target_share": return (val * 100).toFixed(1) + "%";
     case "air_yards_per_target":
     case "yac_per_reception": return val.toFixed(1);
-    case "targets": return val.toString();
+    case "yards_per_route_run": return val.toFixed(2);
     default: return val.toFixed(2);
   }
 }

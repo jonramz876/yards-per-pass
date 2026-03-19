@@ -47,6 +47,8 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   "Tgt Share":
     "Percentage of team pass attempts directed at this receiver. Higher = more involved in the passing game.",
   YPR: "Yards per reception. Total receiving yards \u00f7 receptions. A simple per-catch efficiency measure.",
+  YPRR: "Yards Per Route Run \u2014 receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted.",
+  TPRR: "Targets Per Route Run \u2014 targets divided by routes run. Measures how often a receiver gets targeted on each route they run.",
 };
 
 interface MetricTooltipProps {

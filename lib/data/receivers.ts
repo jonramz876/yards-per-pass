@@ -12,6 +12,8 @@ const RECEIVER_NUMERIC_FIELDS = [
   "air_yards",
   "air_yards_per_target",
   "target_share",
+  "yards_per_route_run",
+  "targets_per_route_run",
 ];
 
 export async function getReceiverStats(

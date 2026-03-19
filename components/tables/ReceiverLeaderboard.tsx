@@ -29,6 +29,8 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "air_yards_per_target", label: "ADOT", tooltip: "ADOT", group: "receiving" },
   { key: "yac_per_reception", label: "YAC/Rec", group: "receiving" },
   { key: "target_share", label: "Tgt Share", tooltip: "Tgt Share", group: "efficiency" },
+  { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
+  { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
@@ -71,6 +73,7 @@ function getVal(rec: ReceiverSeasonStat, key: string): number {
 const HEATMAP_COLS_ADVANCED = new Set([
   "epa_per_target", "catch_rate", "yards_per_target",
   "air_yards_per_target", "yac_per_reception", "target_share",
+  "yards_per_route_run", "targets_per_route_run",
 ]);
 const HEATMAP_COLS_STANDARD = new Set([
   "catch_rate", "yards_per_reception",
@@ -103,6 +106,8 @@ function formatVal(key: string, rec: ReceiverSeasonStat): string {
     case "yards_per_target":
     case "yac_per_reception":
     case "air_yards_per_target":
+    case "yards_per_route_run":
+    case "targets_per_route_run":
       return val.toFixed(2);
     case "catch_rate":
     case "target_share":
@@ -123,6 +128,8 @@ function formatAvg(key: string, val: number): string {
     case "yards_per_target":
     case "yac_per_reception":
     case "air_yards_per_target":
+    case "yards_per_route_run":
+    case "targets_per_route_run":
       return val.toFixed(2);
     case "catch_rate":
     case "target_share":
