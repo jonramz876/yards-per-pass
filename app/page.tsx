@@ -1,7 +1,11 @@
 // app/page.tsx
 import Link from "next/link";
+import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const seasons = await getAvailableSeasons();
+  const currentSeason = seasons[0] || 2025;
+  const freshness = await getDataFreshness(currentSeason);
   return (
     <>
       {/* Hero */}
@@ -12,6 +16,13 @@ export default function HomePage() {
         <p className="mt-4 text-lg text-gray-500 max-w-xl mx-auto">
           EPA, CPOE, success rate, and more — all in one clean dashboard. No paywalls. No clutter.
         </p>
+        {freshness && (
+          <p className="mt-2 text-sm text-gray-400">
+            Updated {new Date(freshness.last_updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            {" · "}Through Week {freshness.through_week}
+            {" · "}{freshness.season} Season
+          </p>
+        )}
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/teams"
