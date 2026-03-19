@@ -6,6 +6,8 @@ interface RadarChartProps {
   values: number[];
   /** Team primary color (hex) for the data polygon */
   color: string;
+  /** Custom axis labels (must be exactly 6). Defaults to QB axes if omitted. */
+  axes?: { label: string }[];
 }
 
 const AXES = [
@@ -41,7 +43,7 @@ const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: "start" | "middle" 
   { x: 52, y: 72, anchor: "end" },
 ];
 
-export default function RadarChart({ values, color }: RadarChartProps) {
+export default function RadarChart({ values, color, axes: customAxes }: RadarChartProps) {
   const nullCount = values.filter((v) => isNaN(v) || v < 0).length;
   if (nullCount >= 3) {
     return (
@@ -114,7 +116,7 @@ export default function RadarChart({ values, color }: RadarChartProps) {
       ))}
 
       {/* Axis labels */}
-      {AXES.map((axis, i) => (
+      {(customAxes || AXES).map((axis, i) => (
         <text
           key={axis.label}
           x={LABEL_POSITIONS[i].x}
