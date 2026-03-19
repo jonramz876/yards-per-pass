@@ -678,6 +678,8 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
             player_id=part_cols['offense_players'].str.split(';')
         ).explode('player_id')
         part_exploded['player_id'] = part_exploded['player_id'].str.strip()
+        part_exploded = part_exploded[part_exploded['player_id'] != '']  # filter empty strings from trailing semicolons
+        part_exploded = part_exploded.drop_duplicates(['nflverse_game_id', 'play_id', 'player_id'])  # guard against duplicate rows
 
         # Join to pass plays to find who was on field during pass plays
         routes = part_exploded.merge(
@@ -692,6 +694,11 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
 
         rec = rec.merge(routes_per_player, on='player_id', how='left')
         rec['routes_run'] = rec['routes_run'].fillna(0).astype(int)
+
+        # Sanity check: warn if participation join produced suspiciously few routes
+        total_routes = rec['routes_run'].sum()
+        if total_routes < 10000:
+            log.warning("Low route count (%d total) — participation data may not have matched PBP game IDs", total_routes)
     else:
         rec['routes_run'] = 0
 
