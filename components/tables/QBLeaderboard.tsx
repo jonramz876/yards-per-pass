@@ -173,6 +173,51 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
   const [search, setSearch] = useState(urlSearch);
   const [minDropbacks, setMinDropbacks] = useState(initialMin);
 
+  // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
+  const buildParams = useCallback(
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number }) => {
+      const params = new URLSearchParams(searchParams.toString());
+      // Remove our managed keys, then re-add non-defaults
+      ["tab", "sort", "dir", "q", "min"].forEach((k) => params.delete(k));
+
+      const newTab = overrides.tab ?? tab;
+      const defaultSort = newTab === "advanced" ? "epa_per_play" : "passing_yards";
+      const newSort = overrides.sort ?? sortKey;
+      const newDir = overrides.dir ?? sortDir;
+      const newQ = overrides.q ?? search;
+      const newMin = overrides.min ?? minDropbacks;
+
+      if (newTab !== "advanced") params.set("tab", newTab);
+      if (newSort !== defaultSort) params.set("sort", newSort);
+      if (newDir !== "desc") params.set("dir", newDir);
+      if (newQ) params.set("q", newQ);
+      if (newMin !== computedDefaultMin) params.set("min", String(newMin));
+
+      const qs = params.toString();
+      return pathname + (qs ? "?" + qs : "");
+    },
+    [searchParams, tab, sortKey, sortDir, search, minDropbacks, computedDefaultMin, pathname]
+  );
+
+  const pushURL = useCallback(
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number }) => {
+      router.push(buildParams(overrides), { scroll: false });
+    },
+    [buildParams, router]
+  );
+
+  // Debounced URL update for continuous inputs (search, slider) — uses replace to avoid flooding history
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const replaceURLDebounced = useCallback(
+    (overrides: { q?: string; min?: number }) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        router.replace(buildParams(overrides), { scroll: false });
+      }, 300);
+    },
+    [buildParams, router]
+  );
+
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [selectedQB, setSelectedQB] = useState<QBSeasonStat | null>(null);
@@ -182,12 +227,10 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
   // When switching tabs, reset sort to a sensible default for that tab
   function switchTab(newTab: Tab) {
     setTab(newTab);
-    if (newTab === "advanced") {
-      setSortKey("epa_per_play");
-    } else {
-      setSortKey("passing_yards");
-    }
+    const newSort = newTab === "advanced" ? "epa_per_play" : "passing_yards";
+    setSortKey(newSort);
     setSortDir("desc");
+    pushURL({ tab: newTab, sort: newSort, dir: "desc" });
   }
 
   const filtered = useMemo(() => {
@@ -238,10 +281,13 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
 
   function handleSort(key: string) {
     if (sortKey === key) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+      const newDir = sortDir === "desc" ? "asc" : "desc";
+      setSortDir(newDir);
+      pushURL({ dir: newDir });
     } else {
       setSortKey(key);
       setSortDir("desc");
+      pushURL({ sort: key, dir: "desc" });
     }
   }
 
@@ -319,7 +365,10 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
               type="text"
               placeholder="Search players..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                replaceURLDebounced({ q: e.target.value });
+              }}
               className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 w-full sm:w-64"
             />
             <div className="flex items-center gap-3">
@@ -332,7 +381,11 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                 max={500}
                 step={10}
                 value={minDropbacks}
-                onChange={(e) => setMinDropbacks(parseInt(e.target.value))}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setMinDropbacks(val);
+                  replaceURLDebounced({ min: val });
+                }}
                 className="w-32"
               />
             </div>
