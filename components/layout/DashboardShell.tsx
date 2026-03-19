@@ -33,7 +33,7 @@ export default function DashboardShell({
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-8">
       {/* Header row: title + controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <h1 className="text-2xl font-extrabold text-navy tracking-tight">
             {title}
           </h1>

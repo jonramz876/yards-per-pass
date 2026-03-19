@@ -315,7 +315,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
     <div>
       {/* Tab bar + Controls */}
       <div className="flex flex-col gap-4 mb-4">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           {/* Tabs */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
             <button
@@ -358,7 +358,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                 setPosFilter(e.target.value);
                 pushURL({ pos: e.target.value });
               }}
-              className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600"
+              className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600 w-full sm:w-auto"
             >
               <option value="">All Positions</option>
               <option value="WR">WR</option>
@@ -380,7 +380,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                   setMinRoutes(val);
                   replaceURLDebounced({ min: val });
                 }}
-                className="w-32"
+                className="w-full sm:w-32"
               />
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">

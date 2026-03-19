@@ -334,7 +334,7 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
     <div>
       {/* Tab bar + Controls */}
       <div className="flex flex-col gap-4 mb-4">
-        <div className="flex items-center gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           {/* Tabs */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
             <button
@@ -386,7 +386,7 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                   setMinDropbacks(val);
                   replaceURLDebounced({ min: val });
                 }}
-                className="w-32"
+                className="w-full sm:w-32"
               />
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
