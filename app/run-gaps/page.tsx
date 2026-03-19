@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
-import { getRBGapStats, getTeamsWithGapData, getLeagueGapAverages, getRBGapStatsWeekly, getDefGapStats } from "@/lib/data/run-gaps";
+import { getRBGapStats, getAllGapData, getRBGapStatsWeekly, getDefGapStats } from "@/lib/data/run-gaps";
 import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
 import { getTeam } from "@/lib/data/teams";
 import DashboardShell from "@/components/layout/DashboardShell";
@@ -55,15 +55,15 @@ export default async function RunGapsPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
 
-  const [gapStats, allGapStats, teams, freshness, leagueGapData, weeklyStats, defStats] = await Promise.all([
+  // Single consolidated fetch for rb_gap_stats (replaces 3 separate paginated fetches)
+  const [gapStats, allData, freshness, weeklyStats, defStats] = await Promise.all([
     team ? getRBGapStats(currentSeason, team) : Promise.resolve([]),
-    team ? Promise.resolve([]) : getRBGapStats(currentSeason),
-    getTeamsWithGapData(currentSeason),
+    getAllGapData(currentSeason),
     getDataFreshness(currentSeason),
-    getLeagueGapAverages(currentSeason),
     team ? getRBGapStatsWeekly(currentSeason, team, situation || "all", zone || "all") : Promise.resolve([]),
     getDefGapStats(currentSeason),
   ]);
+  const { allGapStats, teams, leagueAvgs: leagueGapData } = allData;
 
   return (
     <DashboardShell

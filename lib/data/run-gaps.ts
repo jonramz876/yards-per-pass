@@ -214,3 +214,80 @@ export async function getTeamsWithGapData(
   const unique = Array.from(new Set(data.map((r) => r.team_id as string)));
   return unique.sort();
 }
+
+/**
+ * Consolidated fetch: gets ALL rb_gap_stats once and derives three datasets.
+ * Replaces 2-3 separate paginated fetches of the same table.
+ */
+export async function getAllGapData(season: number): Promise<{
+  allGapStats: RBGapStat[];
+  teams: string[];
+  leagueAvgs: { averages: GapLeagueAvg[]; teamGapEpas: TeamGapEpa[] };
+}> {
+  let rawRows: Record<string, unknown>[];
+  try {
+    rawRows = await fetchAllRows("rb_gap_stats", "*", { season });
+  } catch {
+    return { allGapStats: [], teams: [], leagueAvgs: { averages: [], teamGapEpas: [] } };
+  }
+  if (!rawRows || rawRows.length === 0) {
+    return { allGapStats: [], teams: [], leagueAvgs: { averages: [], teamGapEpas: [] } };
+  }
+
+  // 1. Derive unique team list
+  const teams = Array.from(new Set(rawRows.map((r) => r.team_id as string))).sort();
+
+  // 2. Compute league averages (same logic as getLeagueGapAverages)
+  const teamGapMap = new Map<string, { carries: number; epaSum: number }>();
+  const gapMap = new Map<string, { totalCarries: number; weightedEpa: number; weightedYards: number; weightedSuccess: number; weightedStuff: number; weightedExplosive: number }>();
+
+  for (const row of rawRows) {
+    const carries = row.carries as number;
+    const g = row.gap as string;
+    const teamId = row.team_id as string;
+    const epa = parseFloat(row.epa_per_carry as string);
+    const yards = parseFloat(row.yards_per_carry as string);
+    const success = parseFloat(row.success_rate as string);
+    const stuff = parseFloat(row.stuff_rate as string);
+    const explosive = parseFloat(row.explosive_rate as string);
+
+    const tgKey = `${teamId}|${g}`;
+    const tgPrev = teamGapMap.get(tgKey) || { carries: 0, epaSum: 0 };
+    tgPrev.carries += carries;
+    if (!isNaN(epa)) tgPrev.epaSum += carries * epa;
+    teamGapMap.set(tgKey, tgPrev);
+
+    const prev = gapMap.get(g) || { totalCarries: 0, weightedEpa: 0, weightedYards: 0, weightedSuccess: 0, weightedStuff: 0, weightedExplosive: 0 };
+    prev.totalCarries += carries;
+    if (!isNaN(epa)) prev.weightedEpa += carries * epa;
+    if (!isNaN(yards)) prev.weightedYards += carries * yards;
+    if (!isNaN(success)) prev.weightedSuccess += carries * success;
+    if (!isNaN(stuff)) prev.weightedStuff += carries * stuff;
+    if (!isNaN(explosive)) prev.weightedExplosive += carries * explosive;
+    gapMap.set(g, prev);
+  }
+
+  const averages = Array.from(gapMap.entries()).map(([gap, v]) => ({
+    gap,
+    avg_epa: v.totalCarries > 0 ? v.weightedEpa / v.totalCarries : 0,
+    avg_yards: v.totalCarries > 0 ? v.weightedYards / v.totalCarries : 0,
+    avg_success: v.totalCarries > 0 ? v.weightedSuccess / v.totalCarries : 0,
+    avg_stuff: v.totalCarries > 0 ? v.weightedStuff / v.totalCarries : 0,
+    avg_explosive: v.totalCarries > 0 ? v.weightedExplosive / v.totalCarries : 0,
+  }));
+
+  const teamGapEpas: TeamGapEpa[] = [];
+  teamGapMap.forEach((val, key) => {
+    const [team_id, gap] = key.split("|");
+    if (val.carries > 0) {
+      teamGapEpas.push({ team_id, gap, epa_per_carry: val.epaSum / val.carries });
+    }
+  });
+
+  // 3. Parse numeric fields for the full RBGapStat[] result
+  const allGapStats = rawRows.map((row) =>
+    parseNumericFields<RBGapStat>(row as unknown as RBGapStat, RB_GAP_NUMERIC_FIELDS)
+  );
+
+  return { allGapStats, teams, leagueAvgs: { averages, teamGapEpas } };
+}
