@@ -84,6 +84,7 @@ export default async function RunGapsPage({
           leagueAvgs={leagueGapData.averages}
           teamGapEpas={leagueGapData.teamGapEpas}
           defStats={defStats}
+          allGapStats={allGapStats}
         />
       ) : (
         <GapHeatmap
