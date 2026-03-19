@@ -10,7 +10,7 @@ import RadarChart from "@/components/qb/RadarChart";
 interface ReceiverStatCardProps {
   receiver: ReceiverSeasonStat;
   allReceivers: ReceiverSeasonStat[];
-  minTargets: number;
+  minRoutes: number;
   onClose: () => void;
 }
 
@@ -105,7 +105,7 @@ function chipColor(rank: number, total: number): string {
   return "#1e293b";
 }
 
-export default function ReceiverStatCard({ receiver, allReceivers, minTargets, onClose }: ReceiverStatCardProps) {
+export default function ReceiverStatCard({ receiver, allReceivers, minRoutes, onClose }: ReceiverStatCardProps) {
   const team = getTeam(receiver.team_id);
   const teamColor = getTeamColor(receiver.team_id);
 
@@ -208,7 +208,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, minTargets, o
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-4">
-          Percentiles vs. {total} receivers with {minTargets}+ targets
+          Percentiles vs. {total} receivers with {minRoutes}+ routes
         </p>
 
         {/* Stat Chips */}
@@ -238,7 +238,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, minTargets, o
         {/* vs. League Average Bars */}
         <div className="border-t border-gray-100 pt-4">
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            vs. League Average ({minTargets}+ targets)
+            vs. League Average ({minRoutes}+ routes)
           </div>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-2.5">

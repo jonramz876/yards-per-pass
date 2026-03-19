@@ -41,6 +41,7 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "yards_per_game", label: "Yds/G", group: "receiving" },
   { key: "receiving_tds", label: "TD", group: "receiving" },
   { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
+  { key: "routes_run", label: "Routes", group: "receiving" },
   { key: "yards_per_reception", label: "YPR", tooltip: "YPR", group: "efficiency" },
   { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
 ];
@@ -163,7 +164,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
 
   const urlSearch = searchParams.get("q") || "";
 
-  const computedDefaultMin = Math.max(10, Math.round(100 * (throughWeek / 18)));
+  const computedDefaultMin = Math.max(50, Math.round(300 * (throughWeek / 18)));
   const urlMin = searchParams.get("min");
   const initialMin = (() => {
     if (!urlMin) return computedDefaultMin;
@@ -177,7 +178,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
   const [sortDir, setSortDir] = useState<SortDir>(initialSortDir);
   const [search, setSearch] = useState(urlSearch);
-  const [minTargets, setMinTargets] = useState(initialMin);
+  const [minRoutes, setMinRoutes] = useState(initialMin);
   const [posFilter, setPosFilter] = useState(urlPos);
   const [selectedReceiver, setSelectedReceiver] = useState<ReceiverSeasonStat | null>(null);
 
@@ -193,7 +194,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       const newSort = overrides.sort ?? sortKey;
       const newDir = overrides.dir ?? sortDir;
       const newQ = overrides.q ?? search;
-      const newMin = overrides.min ?? minTargets;
+      const newMin = overrides.min ?? minRoutes;
       const newPos = overrides.pos ?? posFilter;
 
       if (newTab !== "advanced") params.set("tab", newTab);
@@ -206,7 +207,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minTargets, posFilter, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minRoutes, posFilter, computedDefaultMin, pathname]
   );
 
   const pushURL = useCallback(
@@ -243,7 +244,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
   }
 
   const filtered = useMemo(() => {
-    let result = data.filter((rec) => rec.targets >= minTargets);
+    let result = data.filter((rec) => rec.routes_run >= minRoutes);
     if (posFilter) {
       result = result.filter((rec) => rec.position === posFilter);
     }
@@ -262,7 +263,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
-  }, [data, sortKey, sortDir, search, minTargets, posFilter]);
+  }, [data, sortKey, sortDir, search, minRoutes, posFilter]);
 
   useEffect(() => { setSelectedReceiver(null); }, [filtered]);
 
@@ -366,17 +367,17 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
             </select>
             <div className="flex items-center gap-3">
               <label className="text-sm text-gray-500 whitespace-nowrap">
-                Min targets: <span className="font-semibold text-navy">{minTargets}</span>
+                Min routes: <span className="font-semibold text-navy">{minRoutes}</span>
               </label>
               <input
                 type="range"
-                min={10}
-                max={300}
-                step={10}
-                value={minTargets}
+                min={50}
+                max={700}
+                step={25}
+                value={minRoutes}
                 onChange={(e) => {
                   const val = parseInt(e.target.value);
-                  setMinTargets(val);
+                  setMinRoutes(val);
                   replaceURLDebounced({ min: val });
                 }}
                 className="w-32"
@@ -543,7 +544,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       </div>
 
       <p className="mt-2 text-xs text-gray-400">
-        Showing {filtered.length} of {data.length} receivers with &ge;{minTargets} targets
+        Showing {filtered.length} of {data.length} receivers with &ge;{minRoutes} routes
         {posFilter ? ` (${posFilter} only)` : ""}
       </p>
 
@@ -557,7 +558,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
         <ReceiverStatCard
           receiver={selectedReceiver}
           allReceivers={filtered}
-          minTargets={minTargets}
+          minRoutes={minRoutes}
           onClose={() => setSelectedReceiver(null)}
         />
       )}
