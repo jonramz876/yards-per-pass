@@ -67,7 +67,7 @@ export default async function HomePage() {
 
       {/* Feature cards */}
       <section className="bg-gray-50 py-16">
-        <div className="max-w-6xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto px-6 md:px-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <FeatureCard
             title="Team Tiers"
             description="See where every NFL team ranks by offensive and defensive EPA — the gold standard of football analytics. One chart, total clarity."
@@ -85,6 +85,12 @@ export default async function HomePage() {
             description="Rushing EPA broken down by offensive line gap. See which gaps each team dominates and find exploitable matchups."
             icon="🏟️"
             href="/run-gaps"
+          />
+          <FeatureCard
+            title="Receiver Rankings"
+            description="Compare every NFL receiver by EPA/target, catch rate, YAC, and target share. Filter by position — WR, TE, or RB."
+            icon="🎯"
+            href="/receivers"
           />
         </div>
       </section>

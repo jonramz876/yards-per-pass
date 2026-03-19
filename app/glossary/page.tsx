@@ -113,6 +113,22 @@ const TERMS: { term: string; definition: string }[] = [
     definition:
       "Percentage of plays where a team chooses to pass. Influenced by game script (teams trailing pass more).",
   },
+  {
+    term: "Yards Per Target (Y/Tgt)",
+    definition: "Receiving yards divided by targets. Measures how productive each target to a receiver is, including incomplete passes in the denominator.",
+  },
+  {
+    term: "Target Share",
+    definition: "Percentage of a team\u2019s total pass targets directed at a specific receiver. Higher target share = more involved in the passing game. Season-long, primary team only for traded players.",
+  },
+  {
+    term: "YAC (Yards After Catch)",
+    definition: "Yards gained by a receiver after catching the ball. Measures ability to create yards in the open field beyond the catch point.",
+  },
+  {
+    term: "ADOT (Average Depth of Target)",
+    definition: "Average distance downfield a receiver is targeted. Higher ADOT = deeper route tree. Includes incomplete passes.",
+  },
 ];
 
 export default function GlossaryPage() {

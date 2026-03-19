@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 const NAV_LINKS = [
   { href: "/teams", label: "Team Tiers" },
   { href: "/qb-leaderboard", label: "QB Rankings" },
+  { href: "/receivers", label: "Receivers" },
   { href: "/run-gaps", label: "Run Gaps" },
   { href: "/glossary", label: "Glossary", noSeason: true },
 ] as const;
