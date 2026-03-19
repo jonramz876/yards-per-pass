@@ -182,9 +182,12 @@ export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season }: 
           </div>
         </div>
 
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-1">
           <RadarChart values={radarValues} color={teamColor} />
         </div>
+        <p className="text-[10px] text-gray-400 text-center mb-4">
+          Percentiles vs. {total} qualifying QBs
+        </p>
 
         <div className="grid grid-cols-3 gap-2 mb-5">
           {chipData.map((chip) => (
@@ -211,7 +214,7 @@ export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season }: 
 
         <div className="border-t border-gray-100 pt-4">
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            vs. League Average
+            vs. League Average (qualifying QBs)
           </div>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-2.5">

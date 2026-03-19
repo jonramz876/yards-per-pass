@@ -203,9 +203,12 @@ export default function ReceiverStatCard({ receiver, allReceivers, onClose }: Re
         </div>
 
         {/* Radar Chart */}
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-1">
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
+        <p className="text-[10px] text-gray-400 text-center mb-4">
+          Percentiles vs. {total} receivers with 30+ targets
+        </p>
 
         {/* Stat Chips */}
         <div className="grid grid-cols-3 gap-2 mb-5">
@@ -234,7 +237,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, onClose }: Re
         {/* vs. League Average Bars */}
         <div className="border-t border-gray-100 pt-4">
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            vs. League Average
+            vs. League Average (30+ targets)
           </div>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-2.5">

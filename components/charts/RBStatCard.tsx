@@ -261,9 +261,12 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, weeklyData,
         </div>
 
         {/* Radar */}
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-1">
           <RadarChart values={radarValues} color={teamColor} axes={RB_RADAR_AXES} />
         </div>
+        <p className="text-[10px] text-gray-400 text-center mb-4">
+          Percentiles vs. {total} rushers with 50+ carries
+        </p>
 
         {/* Weekly EPA sparkline */}
         {weeklyTrend.length >= 2 && (() => {
