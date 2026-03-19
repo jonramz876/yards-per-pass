@@ -284,10 +284,10 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     ).reset_index().rename(columns={'passer_player_id': 'player_id', 'air_yards': 'adot'})
     qb_drop = qb_drop.merge(adot_stats, on='player_id', how='left')
 
-    # QB success rate: exclude sacks (OL failure, not QB decision), stored as percentage
+    # QB success rate: exclude sacks (OL failure, not QB decision), stored as decimal 0-1
     non_sack_dropbacks = dropbacks[dropbacks['sack'] != 1]
     sack_excl_success = non_sack_dropbacks.groupby('passer_player_id')['success'].apply(
-        lambda x: x.dropna().mean() * 100
+        lambda x: x.dropna().mean()
     ).reset_index().rename(columns={'passer_player_id': 'player_id', 'success': 'success_rate'})
     qb_drop = qb_drop.merge(sack_excl_success, on='player_id', how='left')
     qb_drop.drop(columns=['success_rate_raw'], inplace=True)
