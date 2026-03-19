@@ -3,6 +3,7 @@
 
 import { useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import RadarChart from "./RadarChart";
@@ -12,6 +13,7 @@ interface QBStatCardProps {
   allQBs: QBSeasonStat[];
   getVal: (qb: QBSeasonStat, key: string) => number;
   onClose: () => void;
+  season: number;
 }
 
 const RADAR_KEYS = [
@@ -88,7 +90,7 @@ function chipColor(rank: number, total: number): string {
   return "#1e293b";
 }
 
-export default function QBStatCard({ qb, allQBs, getVal: gv, onClose }: QBStatCardProps) {
+export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season }: QBStatCardProps) {
   const team = getTeam(qb.team_id);
   const teamColor = getTeamColor(qb.team_id);
   const total = allQBs.length;
@@ -274,6 +276,14 @@ export default function QBStatCard({ qb, allQBs, getVal: gv, onClose }: QBStatCa
             </div>
           ))}
         </div>
+
+        <Link
+          href={`/run-gaps?team=${qb.team_id}&season=${season}`}
+          className="block text-center text-sm font-semibold text-navy hover:text-nflred transition-colors mt-4 py-2"
+          onClick={onClose}
+        >
+          View {team?.name ?? qb.team_id} Run Gaps →
+        </Link>
 
         <div className="text-center text-[11px] text-gray-300 font-medium mt-4">
           yardsperpass.com
