@@ -1,11 +1,12 @@
 // components/tables/QBLeaderboard.tsx
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import QBStatCard from "@/components/qb/QBStatCard";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -52,6 +53,9 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "rush_tds", label: "Rush TD", group: "rushing" },
   { key: "total_tds", label: "Tot TD", group: "rushing" },
 ];
+
+const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
+const VALID_STANDARD_KEYS = new Set(STANDARD_COLUMNS.map((c) => c.key));
 
 type Tab = "advanced" | "standard";
 type SortDir = "asc" | "desc";
@@ -135,13 +139,39 @@ function formatAvg(key: string, val: number): string {
 }
 
 export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboardProps) {
-  const [tab, setTab] = useState<Tab>("advanced");
-  const [sortKey, setSortKey] = useState<string>("epa_per_play");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [search, setSearch] = useState("");
-  const [minDropbacks, setMinDropbacks] = useState(() =>
-    Math.max(50, Math.round(200 * (throughWeek / 18)))
-  );
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // Read URL params with validation
+  const urlTab = searchParams.get("tab");
+  const initialTab: Tab = urlTab === "standard" ? "standard" : "advanced";
+
+  const urlSort = searchParams.get("sort");
+  const initialSortKey = (() => {
+    if (!urlSort) return initialTab === "advanced" ? "epa_per_play" : "passing_yards";
+    const validKeys = initialTab === "advanced" ? VALID_ADVANCED_KEYS : VALID_STANDARD_KEYS;
+    return validKeys.has(urlSort) ? urlSort : (initialTab === "advanced" ? "epa_per_play" : "passing_yards");
+  })();
+
+  const urlDir = searchParams.get("dir");
+  const initialSortDir: SortDir = urlDir === "asc" ? "asc" : "desc";
+
+  const urlSearch = searchParams.get("q") || "";
+
+  const urlMin = searchParams.get("min");
+  const computedDefaultMin = Math.max(50, Math.round(200 * (throughWeek / 18)));
+  const initialMin = (() => {
+    if (!urlMin) return computedDefaultMin;
+    const parsed = parseInt(urlMin, 10);
+    return isNaN(parsed) || parsed < 0 ? computedDefaultMin : parsed;
+  })();
+
+  const [tab, setTab] = useState<Tab>(initialTab);
+  const [sortKey, setSortKey] = useState<string>(initialSortKey);
+  const [sortDir, setSortDir] = useState<SortDir>(initialSortDir);
+  const [search, setSearch] = useState(urlSearch);
+  const [minDropbacks, setMinDropbacks] = useState(initialMin);
 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
