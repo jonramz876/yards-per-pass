@@ -937,6 +937,78 @@ def ensure_def_gap_tables(conn):
     log.info("Ensured def_gap_stats table exists with RLS")
 
 
+def ensure_receiver_stats_table(conn):
+    """Create receiver_season_stats table if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS receiver_season_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                position TEXT NOT NULL,
+                team_id TEXT REFERENCES teams(id),
+                season INTEGER NOT NULL,
+                games INTEGER,
+                targets INTEGER,
+                receptions INTEGER,
+                receiving_yards INTEGER,
+                receiving_tds INTEGER,
+                catch_rate NUMERIC,
+                yards_per_target NUMERIC,
+                yards_per_reception NUMERIC,
+                epa_per_target NUMERIC,
+                yac NUMERIC,
+                yac_per_reception NUMERIC,
+                air_yards NUMERIC,
+                air_yards_per_target NUMERIC,
+                target_share NUMERIC,
+                fumbles INTEGER,
+                fumbles_lost INTEGER,
+                UNIQUE(player_id, season)
+            );
+            CREATE INDEX IF NOT EXISTS idx_receiver_season ON receiver_season_stats(season);
+            CREATE INDEX IF NOT EXISTS idx_receiver_player ON receiver_season_stats(player_id);
+            CREATE INDEX IF NOT EXISTS idx_receiver_team ON receiver_season_stats(team_id, season);
+        """)
+        # RLS
+        cur.execute("ALTER TABLE receiver_season_stats ENABLE ROW LEVEL SECURITY;")
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON receiver_season_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured receiver_season_stats table exists")
+
+
+@retry(max_retries=3, delay=5)
+def upsert_receiver_stats(conn, df: pd.DataFrame):
+    """Upsert receiver season stats."""
+    cols = [
+        'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'catch_rate', 'yards_per_target', 'yards_per_reception',
+        'epa_per_target', 'yac', 'yac_per_reception',
+        'air_yards', 'air_yards_per_target', 'target_share',
+        'fumbles', 'fumbles_lost',
+    ]
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('player_id', 'season'))
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO receiver_season_stats ({col_names})
+                VALUES %s
+                ON CONFLICT (player_id, season) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d receiver season rows", len(rows))
+
+
 @retry(max_retries=2, delay=3)
 def upsert_def_gap_stats(conn, df: pd.DataFrame):
     """Upsert defensive gap stats into def_gap_stats table."""
@@ -1033,7 +1105,7 @@ def upsert_rb_gap_stats_weekly(conn, df: pd.DataFrame):
     log.info("Upserted %d weekly RB gap stat rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None):
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -1078,6 +1150,14 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale def_gap_stats rows", cur.rowcount)
 
+        if receiver_player_ids is not None:
+            cur.execute(
+                "DELETE FROM receiver_season_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, receiver_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale receiver_season_stats rows", cur.rowcount)
+
 
 @retry(max_retries=2, delay=3)
 def update_freshness(conn, season: int, through_week: int):
@@ -1094,7 +1174,7 @@ def update_freshness(conn, season: int, through_week: int):
     log.info("Updated freshness: season=%d, through_week=%d", season, through_week)
 
 
-def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame):
+def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame, receiver_stats: pd.DataFrame = None):
     """Sanity-check aggregated stats before writing to DB. Raises ValueError on failure."""
     errors = []
 
@@ -1117,6 +1197,17 @@ def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame):
     if (epa_db.abs() > 5.0).any():
         errors.append("QB epa_per_db outside [-5.0, 5.0]")
 
+    if receiver_stats is not None and not receiver_stats.empty:
+        bad_catch = receiver_stats[(receiver_stats['catch_rate'] < 0) | (receiver_stats['catch_rate'] > 1)]
+        if len(bad_catch) > 0:
+            log.warning("Found %d receivers with catch_rate outside [0,1]", len(bad_catch))
+        bad_ypr = receiver_stats[receiver_stats['yards_per_reception'].notna() & (receiver_stats['yards_per_reception'] > 50)]
+        if len(bad_ypr) > 0:
+            log.warning("Found %d receivers with yards_per_reception > 50", len(bad_ypr))
+        bad_ts = receiver_stats[(receiver_stats['target_share'] < 0) | (receiver_stats['target_share'] > 1)]
+        if len(bad_ts) > 0:
+            log.warning("Found %d receivers with target_share outside [0,1]", len(bad_ts))
+
     if errors:
         raise ValueError(f"Data validation failed:\n  " + "\n  ".join(errors))
     log.info("Data validation passed")
@@ -1137,13 +1228,14 @@ def process_season(season: int, conn, dry_run: bool = False):
     rb_gap_stats = aggregate_rb_gap_stats(plays, season)
     rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     def_gap_stats = aggregate_def_gap_stats(plays, season)
+    receiver_stats = aggregate_receiver_stats(plays, roster, season)
     through_week = int(plays['week'].max())
 
-    validate_data(team_stats, qb_stats)
+    validate_data(team_stats, qb_stats, receiver_stats)
 
     if dry_run:
-        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, %d RB gap weekly rows, %d def gap rows, through_week=%d",
-                 len(team_stats), len(qb_stats), len(rb_gap_stats), len(rb_gap_stats_weekly), len(def_gap_stats), through_week)
+        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, %d RB gap weekly rows, %d def gap rows, %d receiver rows, through_week=%d",
+                 len(team_stats), len(qb_stats), len(rb_gap_stats), len(rb_gap_stats_weekly), len(def_gap_stats), len(receiver_stats), through_week)
         log.info("[DRY RUN] Aggregated %d RB gap stat rows", len(rb_gap_stats))
         log.info("[DRY RUN] Aggregated %d RB gap weekly stat rows", len(rb_gap_stats_weekly))
         log.info("[DRY RUN] Def gap: %d rows", len(def_gap_stats))
@@ -1160,6 +1252,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_rb_gap_tables(conn)
     ensure_rb_gap_weekly_tables(conn)
     ensure_def_gap_tables(conn)
+    ensure_receiver_stats_table(conn)
 
     try:
         upsert_teams(conn, team_stats)
@@ -1168,6 +1261,7 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_rb_gap_stats(conn, rb_gap_stats)
         upsert_rb_gap_stats_weekly(conn, rb_gap_stats_weekly)
         upsert_def_gap_stats(conn, def_gap_stats)
+        upsert_receiver_stats(conn, receiver_stats)
         cleanup_stale_rows(
             conn, season,
             team_ids=team_stats['team_id'].unique().tolist(),
@@ -1175,6 +1269,7 @@ def process_season(season: int, conn, dry_run: bool = False):
             rb_gap_player_ids=rb_gap_stats['player_id'].unique().tolist() if not rb_gap_stats.empty else [],
             rb_gap_weekly_player_ids=rb_gap_stats_weekly['player_id'].unique().tolist() if not rb_gap_stats_weekly.empty else [],
             def_gap_team_ids=def_gap_stats['team_id'].unique().tolist() if not def_gap_stats.empty else [],
+            receiver_player_ids=receiver_stats['player_id'].unique().tolist() if not receiver_stats.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()
