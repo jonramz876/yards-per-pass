@@ -102,3 +102,28 @@ export interface DefGapStat {
   def_stuff_rate: number | null;
   def_explosive_rate: number | null;
 }
+
+export interface ReceiverSeasonStat {
+  id: string;
+  player_id: string;
+  player_name: string;
+  position: string;
+  team_id: string;
+  season: number;
+  games: number;
+  targets: number;
+  receptions: number;
+  receiving_yards: number;
+  receiving_tds: number;
+  catch_rate: number;
+  yards_per_target: number;
+  yards_per_reception: number;
+  epa_per_target: number;
+  yac: number;
+  yac_per_reception: number;
+  air_yards: number;
+  air_yards_per_target: number;
+  target_share: number;
+  fumbles: number;
+  fumbles_lost: number;
+}
