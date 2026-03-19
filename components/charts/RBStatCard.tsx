@@ -260,6 +260,13 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, weeklyData,
           </div>
         </div>
 
+        {player!.carries < 50 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500 mb-2">Not enough carries for reliable analytics.</p>
+            <p className="text-xs text-gray-400">{player!.player_name} has {player!.carries} carries this season. Minimum 50 required for radar chart and percentile rankings.</p>
+          </div>
+        ) : <>
+
         {/* Radar */}
         <div className="flex justify-center mb-1">
           <RadarChart values={radarValues} color={teamColor} axes={RB_RADAR_AXES} />
@@ -346,7 +353,7 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, weeklyData,
           </div>
         </div>
 
-        </>}
+        </>}</>}
 
         <div className="text-center text-[11px] text-gray-300 font-medium mt-4">
           yardsperpass.com
