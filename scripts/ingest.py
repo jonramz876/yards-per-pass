@@ -78,6 +78,8 @@ REQUIRED_PBP_COLS = [
     'rush_touchdown', 'rushing_yards', 'game_id', 'season', 'week',
     'home_team', 'away_team', 'result',
     'fumble', 'fumble_lost', 'fumbled_1_player_id',
+    'receiver_player_id', 'receiver_player_name',
+    'receiving_yards', 'yards_after_catch',
 ]
 
 # --- Run gap mapping ---
@@ -552,6 +554,100 @@ def aggregate_def_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
     return grouped[['team_id', 'season', 'gap', 'carries_faced',
                      'def_epa_per_carry', 'def_yards_per_carry',
                      'def_success_rate', 'def_stuff_rate', 'def_explosive_rate']]
+
+
+def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate receiver season stats from filtered plays."""
+    # Filter to target plays: receiver exists, pass attempt, not a sack
+    target_plays = plays[
+        (plays['receiver_player_id'].notna()) &
+        (plays['pass_attempt'] == 1) &
+        (plays['sack'] != 1)
+    ].copy()
+
+    if target_plays.empty:
+        return pd.DataFrame()
+
+    # Group by receiver
+    rec = target_plays.groupby('receiver_player_id').agg(
+        player_name=('receiver_player_name', 'first'),
+        targets=('game_id', 'count'),
+        receptions=('complete_pass', 'sum'),
+        receiving_yards=('receiving_yards', 'sum'),
+        epa_sum=('epa', 'sum'),
+        epa_per_target=('epa', 'mean'),
+        yac=('yards_after_catch', lambda x: x.dropna().sum()),
+        air_yards=('air_yards', lambda x: x.dropna().sum()),
+        games=('game_id', 'nunique'),
+    ).reset_index().rename(columns={'receiver_player_id': 'player_id'})
+
+    # Receiving TDs: only on completed passes
+    completed = target_plays[target_plays['complete_pass'] == 1]
+    td_counts = completed.groupby('receiver_player_id')['pass_touchdown'].sum().reset_index()
+    td_counts.columns = ['player_id', 'receiving_tds']
+    rec = rec.merge(td_counts, on='player_id', how='left')
+    rec['receiving_tds'] = rec['receiving_tds'].fillna(0).astype(int)
+
+    # Derived rate stats
+    rec['catch_rate'] = rec['receptions'] / rec['targets']
+    rec['yards_per_target'] = rec['receiving_yards'] / rec['targets']
+    rec['yards_per_reception'] = rec.apply(
+        lambda r: r['receiving_yards'] / r['receptions'] if r['receptions'] > 0 else float('nan'), axis=1
+    )
+    rec['yac_per_reception'] = rec.apply(
+        lambda r: r['yac'] / r['receptions'] if r['receptions'] > 0 else float('nan'), axis=1
+    )
+    rec['air_yards_per_target'] = rec['air_yards'] / rec['targets']
+
+    # Team assignment: team with most targets
+    team_counts = target_plays.groupby(['receiver_player_id', 'posteam']).size().reset_index(name='cnt')
+    team_primary = team_counts.sort_values('cnt', ascending=False).drop_duplicates('receiver_player_id')
+    team_primary = team_primary[['receiver_player_id', 'posteam']].rename(
+        columns={'receiver_player_id': 'player_id', 'posteam': 'team_id'}
+    )
+    rec = rec.merge(team_primary, on='player_id', how='left')
+
+    # Target share: player targets / team total targets
+    team_total_targets = target_plays.groupby('posteam').size().to_dict()
+    rec['target_share'] = rec.apply(
+        lambda r: r['targets'] / team_total_targets.get(r['team_id'], 1), axis=1
+    )
+
+    # Position from roster (mode = most frequent)
+    pos_lookup = roster.groupby('gsis_id')['position'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else 'WR'
+    ).to_dict()
+    rec['position'] = rec['player_id'].map(pos_lookup).fillna('WR')
+
+    # Fumbles: search full plays DataFrame for receiver player IDs
+    receiver_ids = set(rec['player_id'])
+    fumble_plays = plays[plays['fumbled_1_player_id'].isin(receiver_ids)]
+    fumble_counts = fumble_plays.groupby('fumbled_1_player_id').agg(
+        fumbles=('fumble', 'sum'),
+        fumbles_lost=('fumble_lost', 'sum'),
+    ).reset_index().rename(columns={'fumbled_1_player_id': 'player_id'})
+    rec = rec.merge(fumble_counts, on='player_id', how='left')
+    rec['fumbles'] = rec['fumbles'].fillna(0).astype(int)
+    rec['fumbles_lost'] = rec['fumbles_lost'].fillna(0).astype(int)
+
+    # Add season, convert types
+    rec['season'] = season
+    rec['receptions'] = rec['receptions'].astype(int)
+    rec['receiving_yards'] = rec['receiving_yards'].astype(int)
+
+    # Drop intermediate columns
+    rec.drop(columns=['epa_sum'], inplace=True, errors='ignore')
+
+    # Select final columns
+    cols = [
+        'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'catch_rate', 'yards_per_target', 'yards_per_reception',
+        'epa_per_target', 'yac', 'yac_per_reception',
+        'air_yards', 'air_yards_per_target', 'target_share',
+        'fumbles', 'fumbles_lost',
+    ]
+    return rec[cols]
 
 
 SITUATIONS = {
