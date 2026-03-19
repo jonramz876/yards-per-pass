@@ -670,8 +670,17 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
             (plays['qb_scramble'] != 1)
         ][['game_id', 'play_id']].drop_duplicates()
 
-        # Join participation to pass plays to find who was on field during pass plays
-        routes = participation.merge(
+        # Participation data is one row per play with semicolon-delimited offense_players.
+        # Explode to one row per player per play, then join to pass plays.
+        part_cols = participation[['nflverse_game_id', 'play_id', 'offense_players']].copy()
+        part_cols = part_cols.dropna(subset=['offense_players'])
+        part_exploded = part_cols.assign(
+            player_id=part_cols['offense_players'].str.split(';')
+        ).explode('player_id')
+        part_exploded['player_id'] = part_exploded['player_id'].str.strip()
+
+        # Join to pass plays to find who was on field during pass plays
+        routes = part_exploded.merge(
             pass_plays,
             left_on=['nflverse_game_id', 'play_id'],
             right_on=['game_id', 'play_id'],
@@ -679,8 +688,7 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         )
 
         # Count routes per player
-        routes_per_player = routes.groupby('gsis_id').size().reset_index(name='routes_run')
-        routes_per_player.columns = ['player_id', 'routes_run']
+        routes_per_player = routes.groupby('player_id').size().reset_index(name='routes_run')
 
         rec = rec.merge(routes_per_player, on='player_id', how='left')
         rec['routes_run'] = rec['routes_run'].fillna(0).astype(int)

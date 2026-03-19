@@ -317,12 +317,16 @@ class TestEmptyInput:
         assert len(result) == 0
 
 
-def make_participation(player_id='WR1', game_id='GAME1', play_id=1):
-    """Create minimal participation DataFrame."""
+def make_participation(player_ids='WR1', game_id='GAME1', play_id=1):
+    """Create minimal participation DataFrame (one row per play, semicolon-delimited offense_players)."""
+    if isinstance(player_ids, list):
+        offense_players = ';'.join(player_ids)
+    else:
+        offense_players = player_ids
     return pd.DataFrame([{
-        'gsis_id': player_id,
         'nflverse_game_id': game_id,
         'play_id': play_id,
+        'offense_players': offense_players,
     }])
 
 
