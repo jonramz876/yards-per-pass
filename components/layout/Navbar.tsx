@@ -62,7 +62,7 @@ export default function Navbar() {
               <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
           </SheetTrigger>
-          <SheetContent side="right" className="w-64">
+          <SheetContent side="right" className="w-64 bg-white">
             <div className="flex flex-col gap-4 mt-8">
               {NAV_LINKS.map((link) => (
                 <Link
