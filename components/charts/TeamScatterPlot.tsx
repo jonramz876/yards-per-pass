@@ -2,6 +2,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { select } from "d3-selection";
 import { scaleLinear } from "d3-scale";
 import { axisBottom, axisLeft } from "d3-axis";
@@ -27,6 +28,8 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 560 });
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ResizeObserver for responsive width (debounced to prevent thrashing)
   useEffect(() => {
@@ -242,6 +245,25 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
         tooltipEl.appendChild(statsDiv);
         tooltipEl.appendChild(detailDiv);
         tooltipEl.appendChild(defDiv);
+        const linkDiv = document.createElement("div");
+        linkDiv.style.marginTop = "8px";
+        linkDiv.style.paddingTop = "6px";
+        linkDiv.style.borderTop = "1px solid #e2e8f0";
+        linkDiv.style.textAlign = "center";
+        const linkSpan = document.createElement("span");
+        linkSpan.textContent = "View Run Gaps →";
+        linkSpan.style.color = "#1e3a5f";
+        linkSpan.style.fontSize = "12px";
+        linkSpan.style.fontWeight = "600";
+        linkSpan.style.cursor = "pointer";
+        linkSpan.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const season = searchParams.get("season") || "";
+          const url = `/run-gaps?team=${d.team_id}${season ? `&season=${season}` : ""}`;
+          router.push(url);
+        });
+        linkDiv.appendChild(linkSpan);
+        tooltipEl.appendChild(linkDiv);
       }
       // Use clientX/Y for mouse, touches[0] for touch
       const clientX = "touches" in event ? event.touches[0]?.clientX ?? 0 : event.clientX;
@@ -308,7 +330,7 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
     return () => {
       svg.selectAll("*").remove();
     };
-  }, [data, dimensions]);
+  }, [data, dimensions, router, searchParams]);
 
   return (
     <div ref={containerRef} className="relative w-full bg-white border border-gray-200 rounded-md">
@@ -323,7 +345,7 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
       </div>
       <div
         ref={tooltipRef}
-        className="fixed z-50 bg-white px-3 py-2 rounded-md shadow-lg border border-gray-200 pointer-events-none opacity-0 transition-opacity"
+        className="fixed z-50 bg-white px-3 py-2 rounded-md shadow-lg border border-gray-200 pointer-events-auto opacity-0 transition-opacity"
         style={{ maxWidth: 340 }}
       />
     </div>
