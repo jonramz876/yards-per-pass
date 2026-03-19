@@ -2,7 +2,7 @@
 
 import { useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
-import type { RBGapStat } from "@/lib/types";
+import type { RBGapStat, RBGapStatWeekly } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import RadarChart from "@/components/qb/RadarChart";
 
@@ -11,6 +11,8 @@ interface RBStatCardProps {
   playerGapStats: RBGapStat[];
   /** All RBs league-wide (for percentile computation) */
   allLeagueStats: RBGapStat[];
+  /** Weekly data for trend sparkline */
+  weeklyData?: RBGapStatWeekly[];
   onClose: () => void;
 }
 
@@ -139,7 +141,7 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
-export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: RBStatCardProps) {
+export default function RBStatCard({ playerGapStats, allLeagueStats, weeklyData, onClose }: RBStatCardProps) {
   const isEmpty = playerGapStats.length === 0;
   const player = isEmpty ? null : aggregatePlayer(playerGapStats);
   const team = player ? getTeam(player.team_id) : null;
@@ -148,6 +150,30 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: 
   const leaguePool = useMemo(() => buildLeaguePool(allLeagueStats), [allLeagueStats]);
   const poolArray = useMemo(() => Array.from(leaguePool.values()), [leaguePool]);
   const total = poolArray.length;
+
+  // Weekly trend: aggregate player's weekly data across all gaps
+  const weeklyTrend = useMemo(() => {
+    if (!weeklyData || !player) return [];
+    const playerWeekly = weeklyData.filter(
+      (r) => r.player_id === player.player_id && r.situation === "all" && r.field_zone === "all"
+    );
+    const byWeek = new Map<number, { carries: number; epaSum: number }>();
+    for (const r of playerWeekly) {
+      const c = r.carries || 0;
+      const prev = byWeek.get(r.week) || { carries: 0, epaSum: 0 };
+      prev.carries += c;
+      if (r.epa_per_carry != null && !isNaN(r.epa_per_carry)) prev.epaSum += r.epa_per_carry * c;
+      byWeek.set(r.week, prev);
+    }
+    return Array.from(byWeek.entries())
+      .map(([week, v]) => ({
+        week,
+        epa: v.carries > 0 ? v.epaSum / v.carries : NaN,
+        carries: v.carries,
+      }))
+      .filter((d) => d.carries > 0 && !isNaN(d.epa))
+      .sort((a, b) => a.week - b.week);
+  }, [weeklyData, player]);
 
   const handleKey = useCallback(
     (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); },
@@ -238,6 +264,50 @@ export default function RBStatCard({ playerGapStats, allLeagueStats, onClose }: 
         <div className="flex justify-center mb-5">
           <RadarChart values={radarValues} color={teamColor} axes={RB_RADAR_AXES} />
         </div>
+
+        {/* Weekly EPA sparkline */}
+        {weeklyTrend.length >= 2 && (() => {
+          const W = 360;
+          const H = 80;
+          const PAD_X = 24;
+          const PAD_Y = 12;
+          const minWeek = weeklyTrend[0].week;
+          const maxWeek = weeklyTrend[weeklyTrend.length - 1].week;
+          const epas = weeklyTrend.map((d) => d.epa);
+          const minEpa = Math.min(...epas, 0);
+          const maxEpa = Math.max(...epas, 0);
+          const rangeEpa = maxEpa - minEpa || 0.1;
+          const xScale = (w: number) => PAD_X + ((w - minWeek) / (maxWeek - minWeek || 1)) * (W - PAD_X * 2);
+          const yScale = (e: number) => PAD_Y + (1 - (e - minEpa) / rangeEpa) * (H - PAD_Y * 2);
+          const zeroY = yScale(0);
+          const pathD = weeklyTrend.map((d, i) => `${i === 0 ? "M" : "L"}${xScale(d.week).toFixed(1)},${yScale(d.epa).toFixed(1)}`).join(" ");
+          const lastIdx = weeklyTrend.length - 1;
+
+          return (
+            <div className="mb-5">
+              <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                EPA/Carry by Week
+              </div>
+              <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 80 }}>
+                {/* Zero line */}
+                <line x1={PAD_X} y1={zeroY} x2={W - PAD_X} y2={zeroY} stroke="#e2e8f0" strokeWidth={1} strokeDasharray="4,3" />
+                {/* Trend line */}
+                <path d={pathD} fill="none" stroke={teamColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                {/* Data points */}
+                {weeklyTrend.map((d, i) => (
+                  <g key={d.week}>
+                    <circle cx={xScale(d.week)} cy={yScale(d.epa)} r={i === lastIdx ? 5 : 3} fill={teamColor}>
+                      <title>Week {d.week}: {d.epa >= 0 ? "+" : ""}{d.epa.toFixed(2)} EPA/carry ({d.carries} carries)</title>
+                    </circle>
+                    <text x={xScale(d.week)} y={H - 1} textAnchor="middle" fontSize={8} fill="#94a3b8">{d.week}</text>
+                  </g>
+                ))}
+                {/* Zero label */}
+                <text x={PAD_X - 4} y={zeroY + 3} textAnchor="end" fontSize={8} fill="#94a3b8">0</text>
+              </svg>
+            </div>
+          );
+        })()}
 
         {/* Stat chips */}
         <div className="grid grid-cols-3 gap-2 mb-5">
