@@ -569,6 +569,7 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
           getVal={getVal}
           onClose={() => setSelectedQB(null)}
           season={season}
+          minDropbacks={minDropbacks}
         />
       )}
     </div>

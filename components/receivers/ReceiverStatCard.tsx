@@ -10,6 +10,7 @@ import RadarChart from "@/components/qb/RadarChart";
 interface ReceiverStatCardProps {
   receiver: ReceiverSeasonStat;
   allReceivers: ReceiverSeasonStat[];
+  minTargets: number;
   onClose: () => void;
 }
 
@@ -104,12 +105,12 @@ function chipColor(rank: number, total: number): string {
   return "#1e293b";
 }
 
-export default function ReceiverStatCard({ receiver, allReceivers, onClose }: ReceiverStatCardProps) {
+export default function ReceiverStatCard({ receiver, allReceivers, minTargets, onClose }: ReceiverStatCardProps) {
   const team = getTeam(receiver.team_id);
   const teamColor = getTeamColor(receiver.team_id);
 
-  // Percentile pool: min 30 targets
-  const pool = useMemo(() => allReceivers.filter((r) => r.targets >= 30), [allReceivers]);
+  // Percentile pool: already filtered by leaderboard's min targets slider
+  const pool = useMemo(() => allReceivers, [allReceivers]);
   const total = pool.length;
 
   const handleKey = useCallback(
@@ -207,7 +208,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, onClose }: Re
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-4">
-          Percentiles vs. {total} receivers with 30+ targets
+          Percentiles vs. {total} receivers with {minTargets}+ targets
         </p>
 
         {/* Stat Chips */}
@@ -237,7 +238,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, onClose }: Re
         {/* vs. League Average Bars */}
         <div className="border-t border-gray-100 pt-4">
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            vs. League Average (30+ targets)
+            vs. League Average ({minTargets}+ targets)
           </div>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-2.5">

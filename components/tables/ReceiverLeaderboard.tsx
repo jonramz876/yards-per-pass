@@ -550,6 +550,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
         <ReceiverStatCard
           receiver={selectedReceiver}
           allReceivers={filtered}
+          minTargets={minTargets}
           onClose={() => setSelectedReceiver(null)}
         />
       )}

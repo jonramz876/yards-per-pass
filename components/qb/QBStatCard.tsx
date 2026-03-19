@@ -14,6 +14,7 @@ interface QBStatCardProps {
   getVal: (qb: QBSeasonStat, key: string) => number;
   onClose: () => void;
   season: number;
+  minDropbacks?: number;
 }
 
 const RADAR_KEYS = [
@@ -90,7 +91,7 @@ function chipColor(rank: number, total: number): string {
   return "#1e293b";
 }
 
-export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season }: QBStatCardProps) {
+export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season, minDropbacks }: QBStatCardProps) {
   const team = getTeam(qb.team_id);
   const teamColor = getTeamColor(qb.team_id);
   const total = allQBs.length;
@@ -186,7 +187,7 @@ export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season }: 
           <RadarChart values={radarValues} color={teamColor} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-4">
-          Percentiles vs. {total} qualifying QBs
+          Percentiles vs. {total} QBs{minDropbacks ? ` with ${minDropbacks}+ dropbacks` : ""}
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-5">
@@ -214,7 +215,7 @@ export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season }: 
 
         <div className="border-t border-gray-100 pt-4">
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            vs. League Average (qualifying QBs)
+            vs. League Average{minDropbacks ? ` (${minDropbacks}+ dropbacks)` : ""}
           </div>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-2.5">
