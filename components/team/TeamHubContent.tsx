@@ -42,16 +42,24 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           teamQBs={data.teamQBs}
           teamReceivers={data.teamReceivers}
           slugMap={data.slugMap}
+          allTeamStats={data.allTeamStats}
+          teamId={team.id}
+          freshness={data.freshness}
         />
 
         <GroundGameSection
           teamRBGaps={data.teamRBGaps}
           teamDefGaps={data.teamDefGaps}
           teamId={team.id}
+          slugMap={data.slugMap}
+          allTeamStats={data.allTeamStats}
+          season={data.currentSeason}
+          freshness={data.freshness}
         />
 
         <DefenseSection
           teamStats={data.teamStats}
+          allTeamStats={data.allTeamStats}
           teamDefGaps={data.teamDefGaps}
         />
 
