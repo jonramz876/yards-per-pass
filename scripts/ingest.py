@@ -728,6 +728,18 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         # Team total offensive snaps (denominator for snap_share)
         team_total_snaps = snaps_with_team.groupby('posteam')['game_play'].nunique().to_dict()
 
+        # --- ROUTE PARTICIPATION: dropback plays per player / team total dropbacks ---
+        # Industry formula: "when the team passes, is this player on the field?"
+        dropback_plays = plays[plays['qb_dropback'] == 1][['game_id', 'play_id']].drop_duplicates()
+        snaps_on_dropbacks = snaps_with_team.merge(
+            dropback_plays, on=['game_id', 'play_id'], how='inner'
+        )
+        snaps_on_dropbacks['game_play'] = snaps_on_dropbacks['game_id'] + '_' + snaps_on_dropbacks['play_id'].astype(str)
+        # Player dropback snaps per team (for primary-team route participation)
+        player_dropback_snaps = snaps_on_dropbacks.groupby(['player_id', 'posteam'])['game_play'].nunique().reset_index(name='dropback_snaps')
+        # Team total dropback plays (denominator)
+        team_total_dropbacks = snaps_on_dropbacks.groupby('posteam')['game_play'].nunique().to_dict()
+
         # Join to pass plays to find who was on field during pass plays
         routes = part_exploded.merge(
             pass_plays,
@@ -782,9 +794,24 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     rec['targets_per_route_run'] = rec.apply(
         lambda r: r['targets'] / r['routes_run'] if r['routes_run'] > 0 else float('nan'), axis=1
     )
-    rec['route_participation_rate'] = rec.apply(
-        lambda r: r['routes_run'] / r['total_snaps'] if r['total_snaps'] > 0 else float('nan'), axis=1
-    )
+    # Route participation = dropback snaps on primary team / team total dropbacks
+    # Industry formula: "when the team passes, is this player on the field?"
+    if participation is not None and not participation.empty:
+        rec = rec.merge(
+            player_dropback_snaps,
+            left_on=['player_id', 'team_id'],
+            right_on=['player_id', 'posteam'],
+            how='left'
+        )
+        rec.drop(columns=['posteam'], inplace=True, errors='ignore')
+        rec['dropback_snaps'] = rec['dropback_snaps'].fillna(0).astype(int)
+        rec['route_participation_rate'] = rec.apply(
+            lambda r: r['dropback_snaps'] / team_total_dropbacks[r['team_id']]
+            if r['dropback_snaps'] > 0 and r['team_id'] in team_total_dropbacks else float('nan'), axis=1
+        )
+        rec.drop(columns=['dropback_snaps'], inplace=True)
+    else:
+        rec['route_participation_rate'] = float('nan')
 
     # Validate route participation bounds
     bad_route = rec[rec['route_participation_rate'] > 1.0]

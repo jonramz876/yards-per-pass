@@ -15,6 +15,7 @@ def make_plays(**overrides):
         'receiver_player_name': 'Test Receiver',
         'posteam': 'KC',
         'pass_attempt': 1,
+        'qb_dropback': 1,
         'sack': 0,
         'qb_scramble': 0,
         'complete_pass': 1,
@@ -445,15 +446,15 @@ class TestSnapCounts:
         assert abs(wr1['snap_share'] - 0.5) < 0.01  # 1 snap / 2 team snaps
 
     def test_route_participation_rate(self):
-        """route_participation_rate = routes_run / total_snaps."""
+        """route_participation_rate = player dropback snaps / team total dropbacks (industry formula)."""
         from ingest import aggregate_receiver_stats
-        # 3 plays: 2 pass + 1 run. WR1 on field for all 3.
+        # 3 plays: 2 dropback + 1 run. WR1 on field for all 3.
         pass1 = make_plays(game_id='GAME1', complete_pass=1)
         pass1['play_id'] = [0]
         pass2 = make_plays(game_id='GAME1', complete_pass=0, receiving_yards=0)
         pass2['play_id'] = [1]
         run = make_plays(game_id='GAME1', receiver_player_id=None, pass_attempt=0,
-                         complete_pass=0, receiving_yards=0, air_yards=0,
+                         qb_dropback=0, complete_pass=0, receiving_yards=0, air_yards=0,
                          yards_after_catch=0, epa=0.1, pass_touchdown=0)
         run['play_id'] = [2]
         plays = pd.concat([pass1, pass2, run], ignore_index=True)
@@ -466,8 +467,10 @@ class TestSnapCounts:
         result = aggregate_receiver_stats(plays, roster, 2025, participation)
         row = result.iloc[0]
         assert row['total_snaps'] == 3
-        assert row['routes_run'] == 2  # only pass plays
-        assert abs(row['route_participation_rate'] - 2/3) < 0.01
+        assert row['routes_run'] == 2  # only clean pass plays (for YPRR)
+        # Route participation = dropback snaps (2) / team total dropbacks (2) = 1.0
+        # Player was on field for ALL of the team's dropback plays
+        assert abs(row['route_participation_rate'] - 1.0) < 0.01
 
     def test_snap_zero_division(self):
         """Player with 0 total_snaps gets NaN for snap_share and route_participation_rate."""
