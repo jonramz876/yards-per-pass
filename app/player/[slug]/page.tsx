@@ -11,9 +11,6 @@ import PlayerPageContent from "@/components/player/PlayerPageContent";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
-export async function generateStaticParams() {
-  return [];
-}
 
 export async function generateMetadata({
   params,
