@@ -46,14 +46,15 @@ yardsperpass.com
 - Collision handling: append team abbreviation only when needed (`josh-allen-buf` vs `josh-allen-jax`)
 - Season as query param: `/player/patrick-mahomes?season=2025`
 - Tab as query param: `/player/patrick-mahomes?tab=game-log`
-- 301 redirect from gsis_id: `/player/00-0039732` → `/player/patrick-mahomes`
-- Case-insensitive: `/player/Patrick-Mahomes` → 301 to `/player/patrick-mahomes`
+- 301 redirect from gsis_id: `/player/00-0039732` → `/player/patrick-mahomes` (handled in page component via `redirect()` from `next/navigation`)
+- Case-insensitive: `/player/Patrick-Mahomes` → redirect to `/player/patrick-mahomes` (check `slug !== slug.toLowerCase()` in page component)
+- `not-found.tsx`: Shows "Player not found" with navbar, search bar, and links to QB/Receiver leaderboards
 - Canonical URL omits default season param
 - ISR: On-demand rendering (empty `generateStaticParams`), `revalidate = 3600`
 
 ### Team Hubs: `/team/[team_id]`
 - Uses existing 3-letter abbreviations: `/team/KC`, `/team/BUF`
-- Case-insensitive: `/team/kc` → served as `/team/KC`
+- Case-insensitive: `/team/kc` → served as `/team/KC` (uppercase in page component's params handler before `getTeam()` lookup)
 - All 32 pre-rendered via `generateStaticParams` at build time
 - Season as query param: `/team/KC?season=2025`
 - `revalidate = 3600`
@@ -84,6 +85,8 @@ CREATE INDEX idx_player_slugs_team ON player_slugs(current_team_id);
 
 Generated in `ingest.py` from all unique (player_id, player_name) pairs across qb_season_stats, receiver_season_stats, and rb_gap_stats. Position from roster lookup. Collision detection appends team abbreviation.
 
+**Pipeline integration:** Follows existing pattern — `ensure_player_slugs_table()` (NOT @retry), `upsert_player_slugs()` (@retry), added to `process_season()`, and `cleanup_stale_rows()` extended with player_slug_ids. RLS with public_read policy.
+
 ### `qb_weekly_stats`
 ```sql
 CREATE TABLE qb_weekly_stats (
@@ -103,16 +106,22 @@ CREATE TABLE qb_weekly_stats (
     touchdowns INT,
     interceptions INT,
     sacks INT,
-    epa_per_play NUMERIC,
+    epa_per_dropback NUMERIC,            -- EPA per dropback (not per play — matches radar axis)
     cpoe NUMERIC,
     success_rate NUMERIC,
     adot NUMERIC,
+    passer_rating NUMERIC,
+    ypa NUMERIC,                          -- yards per attempt
     rush_attempts INT,
     rush_yards INT,
     rush_tds INT,
+    fumbles INT,
+    fumbles_lost INT,
     UNIQUE (player_id, season, week)
 );
 ```
+
+**Note:** `passing_yards` excludes sack yardage (same rule as season-level stats). `epa_per_dropback` uses dropback-only plays (pass_attempt + sack + scramble), matching the radar chart axis.
 
 ### `receiver_weekly_stats`
 ```sql
@@ -134,7 +143,9 @@ CREATE TABLE receiver_weekly_stats (
     epa_per_target NUMERIC,
     catch_rate NUMERIC,
     yac NUMERIC,
+    yac_per_reception NUMERIC,
     adot NUMERIC,
+    air_yards NUMERIC,
     routes_run INT,
     UNIQUE (player_id, season, week)
 );
@@ -158,15 +169,28 @@ CREATE TABLE rb_weekly_stats (
     rushing_tds INT,
     epa_per_carry NUMERIC,
     success_rate NUMERIC,
+    yards_per_carry NUMERIC,
+    stuff_rate NUMERIC,
+    explosive_rate NUMERIC,
     targets INT,
     receptions INT,
     receiving_yards INT,
     receiving_tds INT,
+    fumbles INT,
+    fumbles_lost INT,
     UNIQUE (player_id, season, week)
 );
 ```
 
-All weekly tables populated in `ingest.py` via groupby on `(player_id, season, week)` from PBP data. Opponent and game result derived from PBP game-level columns.
+All weekly tables populated in `ingest.py` via groupby on `(player_id, season, week)` from PBP data.
+
+**Game context derivation:** `team_score`/`opponent_score` derived from nflverse `total_home_score`/`total_away_score` columns (take `max()` per game_id to get final score). `home_away` derived from `posteam` vs `home_team`. `result` (W/L) derived from score comparison. These PBP columns must be added to `REQUIRED_PBP_COLS`.
+
+**Bye week handling:** Detect gaps in the week sequence per player — if a player has data for weeks 1-6 and 8-17, week 7 is inferred as a bye. No external schedule dataset needed.
+
+**TypeScript interfaces:** Add `PlayerSlug`, `QBWeeklyStat`, `ReceiverWeeklyStat`, `RBWeeklyStat` to `lib/types/index.ts` mirroring the SQL schemas. All NUMERIC columns need entries in `parseNumericFields` arrays in the query functions.
+
+**Pagination:** Weekly stat queries may exceed Supabase 1000-row cap for multi-season queries. Extract `fetchAllRows()` from `lib/data/run-gaps.ts` into a shared `lib/data/utils.ts` utility (Phase 2).
 
 ---
 
@@ -183,7 +207,7 @@ All weekly tables populated in `ingest.py` via groupby on `(player_id, season, w
 - **Game Log** — weekly table + sparklines
 
 ### Overview Tab — QB
-**Radar chart axes (6):**
+**Radar chart axes (6):** *(NOTE: intentionally differs from current modal radar — drops Rush EPA, adds Volume)*
 1. Efficiency (EPA/Dropback)
 2. Accuracy (CPOE)
 3. Volume (Yards/Game)
@@ -284,7 +308,8 @@ Organized by **football concepts**, not database tables.
 ### D. Defense Section
 - Team defensive EPA/play (pass and rush splits)
 - Defensive gap heatmap (from `def_gap_stats`)
-- Opponent success rate, takeaways
+- Opponent success rate
+- Takeaways (interceptions + opponent fumbles lost — derive from PBP and add to `team_season_stats` pipeline)
 
 ### E. Division Rivals Strip
 - Horizontal row of 3 cards showing other division teams
@@ -415,13 +440,14 @@ Dynamic `opengraph-image.tsx` for both player and team pages — player name/tea
 | Phase | What | Sessions | Dependencies |
 |-------|------|----------|-------------|
 | 1 | **Data Foundation** — player_slugs table, 3 weekly tables, pipeline updates, ingest all seasons | 1 | None |
-| 2 | **Shared Utilities** — extract percentile/formatter code, build Breadcrumbs component | 1 | Phase 1 |
+| 2 | **Shared Utilities** — extract percentile/formatter code, extract `fetchAllRows` to shared util, build Breadcrumbs component | 1 | Phase 1 |
 | 3 | **Player Pages** — /player/[slug] with Overview + Game Log tabs, all 3 positions | 2-3 | Phases 1-2 |
 | 4 | **Link Leaderboards** — player names become Links, team abbreviations become Links | 1 | Phase 3 |
 | 5 | **Team Hubs** — /team/[team_id] with all sections, division rivals, programmatic summaries | 2 | Phases 1, 3 |
 | 6 | **Search + Nav** — SearchPalette (Cmd+K), breadcrumbs on all secondary pages | 1 | Phases 3-5 |
-| 7 | **Modal Removal + Homepage** — kill modals, redesign homepage as league dashboard | 1 | Phase 6 |
-| 8 | **SEO Polish** — metadata, JSON-LD, OG images, sitemap, canonical URLs | 1 | Phase 7 |
+| 7a | **Modal Removal** — kill modals, row click navigates to player page | 1 | Phase 6 |
+| 7b | **Homepage Redesign** — league dashboard with team grid + leaderboard strips | 1 | Phase 7a |
+| 8 | **SEO Polish** — metadata, JSON-LD, OG images, sitemap, canonical URLs | 1 | Phase 7b |
 
 **Total: ~10-12 sessions**
 
