@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getAllPlayerSlugs } from "@/lib/data/players";
 import DashboardShell from "@/components/layout/DashboardShell";
 import ReceiverLeaderboard from "@/components/tables/ReceiverLeaderboard";
 
@@ -30,10 +31,12 @@ export default async function ReceiversPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
 
-  const [data, freshness] = await Promise.all([
+  const [data, freshness, slugs] = await Promise.all([
     getReceiverStats(currentSeason),
     getDataFreshness(currentSeason),
+    getAllPlayerSlugs(),
   ]);
+  const slugMap = Object.fromEntries(slugs.map((s) => [s.player_id, s.slug]));
 
   const throughWeek = freshness?.through_week ?? 18;
 
@@ -44,7 +47,7 @@ export default async function ReceiversPage({
       currentSeason={currentSeason}
       freshness={freshness}
     >
-      <ReceiverLeaderboard data={data} throughWeek={throughWeek} season={currentSeason} />
+      <ReceiverLeaderboard data={data} throughWeek={throughWeek} season={currentSeason} slugMap={slugMap} />
     </DashboardShell>
   );
 }

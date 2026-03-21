@@ -249,9 +249,22 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
         linkDiv.style.marginTop = "8px";
         linkDiv.style.paddingTop = "6px";
         linkDiv.style.borderTop = "1px solid #e2e8f0";
-        linkDiv.style.textAlign = "center";
+        linkDiv.style.display = "flex";
+        linkDiv.style.justifyContent = "center";
+        linkDiv.style.gap = "12px";
+        const teamHubSpan = document.createElement("span");
+        teamHubSpan.textContent = "Team Hub →";
+        teamHubSpan.style.color = "#1e3a5f";
+        teamHubSpan.style.fontSize = "12px";
+        teamHubSpan.style.fontWeight = "600";
+        teamHubSpan.style.cursor = "pointer";
+        teamHubSpan.addEventListener("click", (e) => {
+          e.stopPropagation();
+          router.push(`/team/${d.team_id}`);
+        });
+        linkDiv.appendChild(teamHubSpan);
         const linkSpan = document.createElement("span");
-        linkSpan.textContent = "View Run Gaps →";
+        linkSpan.textContent = "Run Gaps →";
         linkSpan.style.color = "#1e3a5f";
         linkSpan.style.fontSize = "12px";
         linkSpan.style.fontWeight = "600";
@@ -290,10 +303,11 @@ export default function TeamScatterPlot({ data }: TeamScatterPlotProps) {
       activeTeam = null;
     }
 
-    // Mouse hover behavior
+    // Mouse hover behavior + click to navigate to team hub
     logoGroup
       .on("mouseenter", function (event, d) { showTooltip(event, d); })
-      .on("mouseleave", function (_, d) { hideTooltip(d); });
+      .on("mouseleave", function (_, d) { hideTooltip(d); })
+      .on("click", function (_, d) { router.push(`/team/${d.team_id}`); });
 
     // Touch behavior: tap to show, tap again or tap elsewhere to dismiss
     logoGroup

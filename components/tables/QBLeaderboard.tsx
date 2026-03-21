@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
@@ -12,6 +13,7 @@ interface QBLeaderboardProps {
   data: QBSeasonStat[];
   throughWeek: number;
   season: number;
+  slugMap?: Record<string, string>;
 }
 
 type ColumnDef = {
@@ -138,7 +140,7 @@ function formatAvg(key: string, val: number): string {
   }
 }
 
-export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboardProps) {
+export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} }: QBLeaderboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -491,10 +493,24 @@ export default function QBLeaderboard({ data, throughWeek, season }: QBLeaderboa
                         <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
-                            <span className="font-semibold text-navy">{qb.player_name}</span>
+                            <Link
+                              href={`/player/${slugMap[qb.player_id] || qb.player_id}`}
+                              className="font-semibold text-navy hover:text-nflred hover:underline transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {qb.player_name}
+                            </Link>
                           </div>
                         </td>
-                        <td className="px-2 py-2 text-gray-500 text-xs">{qb.team_id}</td>
+                        <td className="px-2 py-2 text-xs">
+                          <Link
+                            href={`/team/${qb.team_id}`}
+                            className="text-gray-500 hover:text-navy hover:underline transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {qb.team_id}
+                          </Link>
+                        </td>
                         {columns.map((col) => {
                           const val = getVal(qb, col.key);
                           const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);

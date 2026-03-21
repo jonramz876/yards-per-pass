@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import DashboardShell from "@/components/layout/DashboardShell";
 import QBLeaderboard from "@/components/tables/QBLeaderboard";
 import { getQBStats, getDataFreshness, getAvailableSeasons } from "@/lib/data/queries";
+import { getAllPlayerSlugs } from "@/lib/data/players";
 
 export const revalidate = 3600;
 
@@ -28,10 +29,12 @@ export default async function QBLeaderboardPage({
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
-  const [qbStats, freshness] = await Promise.all([
+  const [qbStats, freshness, slugs] = await Promise.all([
     getQBStats(currentSeason),
     getDataFreshness(currentSeason),
+    getAllPlayerSlugs(),
   ]);
+  const slugMap = Object.fromEntries(slugs.map((s) => [s.player_id, s.slug]));
 
   return (
     <DashboardShell
@@ -49,6 +52,7 @@ export default async function QBLeaderboardPage({
           data={qbStats}
           throughWeek={freshness?.through_week ?? 18}
           season={currentSeason}
+          slugMap={slugMap}
         />
       )}
     </DashboardShell>

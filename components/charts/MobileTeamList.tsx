@@ -1,6 +1,7 @@
 // components/charts/MobileTeamList.tsx
 "use client";
 
+import Link from "next/link";
 import type { TeamSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 
@@ -53,9 +54,12 @@ export default function MobileTeamList({ data }: MobileTeamListProps) {
                       className="w-3 h-3 rounded-full flex-shrink-0"
                       style={{ backgroundColor: getTeamColor(t.team_id) }}
                     />
-                    <span className="text-sm font-medium text-navy flex-1 truncate">
+                    <Link
+                      href={`/team/${t.team_id}`}
+                      className="text-sm font-medium text-navy hover:text-nflred hover:underline transition-colors flex-1 truncate"
+                    >
                       {team?.name ?? t.team_id}
-                    </span>
+                    </Link>
                     <span className="text-xs text-gray-500 tabular-nums">
                       {t.wins}-{t.losses}{t.ties > 0 ? `-${t.ties}` : ""}
                     </span>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import type { RBGapStat } from "@/lib/types";
 
 interface LeagueAvgStats {
@@ -18,6 +19,7 @@ interface PlayerGapCardsProps {
   leagueRank: number | null;
   leagueAvg: LeagueAvgStats;
   onPlayerClick?: (playerId: string) => void;
+  slugMap?: Record<string, string>;
 }
 
 const GAP_LABELS: Record<string, string> = {
@@ -55,6 +57,7 @@ export default function PlayerGapCards({
   leagueRank,
   leagueAvg,
   onPlayerClick,
+  slugMap = {},
 }: PlayerGapCardsProps) {
   const [minCarries, setMinCarries] = useState(10);
 
@@ -227,16 +230,17 @@ export default function PlayerGapCards({
             return (
               <div
                 key={r.id}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow${onPlayerClick ? " cursor-pointer" : ""}`}
+                onClick={() => onPlayerClick?.(r.player_id)}
               >
                 {/* Player name + carries */}
                 <div className="flex items-center justify-between mb-3">
-                  <span
-                    className={`font-bold text-sm ${onPlayerClick ? "text-navy hover:text-nflred cursor-pointer transition-colors" : "text-navy"}`}
-                    onClick={() => onPlayerClick?.(r.player_id)}
+                  <Link
+                    href={`/player/${slugMap[r.player_id] || r.player_id}`}
+                    className="font-bold text-sm text-navy hover:text-nflred hover:underline transition-colors"
                   >
                     {r.player_name}
-                  </span>
+                  </Link>
                   <span className="text-xs text-gray-400">{r.carries} carries</span>
                 </div>
 

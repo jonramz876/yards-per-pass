@@ -24,6 +24,7 @@ interface RunGapDiagramProps {
   teamGapEpas: TeamGapEpa[];
   defStats: DefGapStat[];
   allGapStats: RBGapStat[];
+  slugMap?: Record<string, string>;
 }
 
 const SITUATION_OPTIONS = [
@@ -192,6 +193,7 @@ export default function RunGapDiagram({
   teamGapEpas,
   defStats,
   allGapStats,
+  slugMap = {},
 }: RunGapDiagramProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1050,6 +1052,7 @@ export default function RunGapDiagram({
               explosive: leagueAvgByGap[selectedGap].avg_explosive,
             } : overallLeagueAvg}
             onPlayerClick={(playerId) => setSelectedRBId(playerId)}
+            slugMap={slugMap}
           />
         </div>
       )}
