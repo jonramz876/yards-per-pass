@@ -245,6 +245,19 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
         away[['team_id', 'wins', 'losses', 'ties']],
     ]).groupby('team_id').sum().reset_index()
 
+    # Turnover stats: takeaways (defensive forced turnovers) and giveaways (offensive turnovers)
+    int_by_def = plays[plays['interception'] == 1].groupby('defteam').size()
+    fum_by_def = plays[plays['fumble_lost'] == 1].groupby('defteam').size()
+    takeaways = (int_by_def.add(fum_by_def, fill_value=0)).reset_index()
+    takeaways.columns = ['team_id', 'takeaways']
+    takeaways['takeaways'] = takeaways['takeaways'].astype(int)
+
+    int_by_off = plays[plays['interception'] == 1].groupby('posteam').size()
+    fum_by_off = plays[plays['fumble_lost'] == 1].groupby('posteam').size()
+    giveaways = (int_by_off.add(fum_by_off, fill_value=0)).reset_index()
+    giveaways.columns = ['team_id', 'giveaways']
+    giveaways['giveaways'] = giveaways['giveaways'].astype(int)
+
     # Merge all
     team_stats = (
         off.merge(off_pass, on='team_id', how='left')
@@ -254,7 +267,12 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
         .merge(def_pass, on='team_id', how='left')
         .merge(def_rush, on='team_id', how='left')
         .merge(records, on='team_id', how='left')
+        .merge(takeaways, on='team_id', how='left')
+        .merge(giveaways, on='team_id', how='left')
     )
+    team_stats['takeaways'] = team_stats['takeaways'].fillna(0).astype(int)
+    team_stats['giveaways'] = team_stats['giveaways'].fillna(0).astype(int)
+    team_stats['turnover_diff'] = team_stats['takeaways'] - team_stats['giveaways']
     team_stats['season'] = season
 
     log.info("Aggregated stats for %d teams", len(team_stats))
@@ -940,6 +958,7 @@ def upsert_team_stats(conn, df: pd.DataFrame):
         'off_pass_epa', 'off_rush_epa', 'def_pass_epa', 'def_rush_epa',
         'off_success_rate', 'def_success_rate', 'pass_rate', 'plays',
         'wins', 'losses', 'ties',
+        'takeaways', 'giveaways', 'turnover_diff',
     ]
     # Replace NaN with None for SQL NULL (avoid PostgreSQL NaN in NUMERIC columns)
     clean_df = df[cols].where(df[cols].notna(), None)
@@ -984,6 +1003,15 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
             rows,
         )
     log.info("Upserted %d QB season rows", len(rows))
+
+
+def ensure_team_season_stats_columns(conn):
+    """Add new columns to team_season_stats (idempotent). NOT inside @retry."""
+    with conn.cursor() as cur:
+        for col, typ in [('takeaways', 'INT'), ('giveaways', 'INT'), ('turnover_diff', 'INT')]:
+            cur.execute(f"ALTER TABLE team_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
+    conn.commit()
+    log.info("Ensured team_season_stats has takeaways/giveaways/turnover_diff columns")
 
 
 def ensure_rb_gap_tables(conn):
@@ -2116,7 +2144,7 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
     log.info("Upserted %d player slug rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None):
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -2168,6 +2196,30 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             )
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale receiver_season_stats rows", cur.rowcount)
+
+        if qb_weekly_player_ids is not None and len(qb_weekly_player_ids) > 0:
+            cur.execute(
+                "DELETE FROM qb_weekly_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, qb_weekly_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale qb_weekly_stats rows", cur.rowcount)
+
+        if receiver_weekly_player_ids is not None and len(receiver_weekly_player_ids) > 0:
+            cur.execute(
+                "DELETE FROM receiver_weekly_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, receiver_weekly_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale receiver_weekly_stats rows", cur.rowcount)
+
+        if rb_weekly_player_ids is not None and len(rb_weekly_player_ids) > 0:
+            cur.execute(
+                "DELETE FROM rb_weekly_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, rb_weekly_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale rb_weekly_stats rows", cur.rowcount)
 
 
 @retry(max_retries=2, delay=3)
@@ -2266,6 +2318,7 @@ def process_season(season: int, conn, dry_run: bool = False):
             log.info("[SAMPLE] %s", {c: (round(row[c], 3) if isinstance(row[c], float) else row[c]) for c in avail_cols})
         return
 
+    ensure_team_season_stats_columns(conn)
     ensure_rb_gap_tables(conn)
     ensure_rb_gap_weekly_tables(conn)
     ensure_def_gap_tables(conn)
@@ -2293,6 +2346,9 @@ def process_season(season: int, conn, dry_run: bool = False):
             rb_gap_weekly_player_ids=rb_gap_stats_weekly['player_id'].unique().tolist() if not rb_gap_stats_weekly.empty else [],
             def_gap_team_ids=def_gap_stats['team_id'].unique().tolist() if not def_gap_stats.empty else [],
             receiver_player_ids=receiver_stats['player_id'].unique().tolist() if not receiver_stats.empty else [],
+            qb_weekly_player_ids=qb_weekly['player_id'].unique().tolist() if not qb_weekly.empty else [],
+            receiver_weekly_player_ids=receiver_weekly['player_id'].unique().tolist() if not receiver_weekly.empty else [],
+            rb_weekly_player_ids=rb_weekly['player_id'].unique().tolist() if not rb_weekly.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()
