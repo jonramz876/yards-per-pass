@@ -9,6 +9,7 @@ import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile } from "@/lib/stats/percentiles";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
+import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -36,6 +37,7 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
   { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
   { key: "route_participation_rate", label: "Route%", tooltip: "Route%", group: "efficiency" },
+  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
@@ -50,6 +52,7 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "total_snaps", label: "Snaps", group: "receiving" },
   { key: "yards_per_reception", label: "YPR", tooltip: "YPR", group: "efficiency" },
   { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
+  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
@@ -65,10 +68,17 @@ const GROUP_COLORS: Record<string, string> = {
   efficiency: "bg-navy/[0.78]",
 };
 
-function getVal(rec: ReceiverSeasonStat, key: string): number {
+function getVal(rec: ReceiverSeasonStat, key: string, scoringFmt?: ScoringFormat): number {
   switch (key) {
     case "yards_per_game":
       return rec.games ? rec.receiving_yards / rec.games : NaN;
+    case "fantasy_pts":
+      return wrFantasyPoints({
+        receiving_yards: rec.receiving_yards,
+        receiving_tds: rec.receiving_tds,
+        receptions: rec.receptions,
+        fumbles_lost: rec.fumbles_lost,
+      }, scoringFmt ?? "ppr");
     default: {
       const val = rec[key as keyof ReceiverSeasonStat] as number;
       return val ?? NaN;
@@ -106,8 +116,8 @@ function getHeatmapStyle(percentile: number): React.CSSProperties {
   return {};
 }
 
-function formatVal(key: string, rec: ReceiverSeasonStat): string {
-  const val = getVal(rec, key);
+function formatVal(key: string, rec: ReceiverSeasonStat, scoringFmt?: ScoringFormat): string {
+  const val = getVal(rec, key, scoringFmt);
   if (val == null || isNaN(val)) return "\u2014";
   switch (key) {
     case "epa_per_target":
@@ -124,6 +134,8 @@ function formatVal(key: string, rec: ReceiverSeasonStat): string {
       return (val * 100).toFixed(1) + "%";
     case "yards_per_reception":
     case "yards_per_game":
+      return val.toFixed(1);
+    case "fantasy_pts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -148,6 +160,8 @@ function formatAvg(key: string, val: number): string {
       return (val * 100).toFixed(1) + "%";
     case "yards_per_reception":
     case "yards_per_game":
+      return val.toFixed(1);
+    case "fantasy_pts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -252,6 +266,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [archFilter, setArchFilter] = useState("");
+  const [scoringFormat, setScoringFormat] = useState<ScoringFormat>("ppr");
 
   const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
@@ -324,8 +339,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       result = result.filter((rec) => archetypeMap[rec.player_id]?.label === archFilter);
     }
     result.sort((a, b) => {
-      const aVal = getVal(a, sortKey);
-      const bVal = getVal(b, sortKey);
+      const aVal = getVal(a, sortKey, scoringFormat);
+      const bVal = getVal(b, sortKey, scoringFormat);
       const aNull = aVal == null || Number.isNaN(aVal);
       const bNull = bVal == null || Number.isNaN(bVal);
       if (aNull && bNull) return 0;
@@ -334,7 +349,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
-  }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter, archFilter, archetypeMap]);
+  }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter, archFilter, archetypeMap, scoringFormat]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -353,26 +368,26 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     const pool = data.filter((rec) => rec.routes_run >= minRoutes);
     const avgs: Record<string, number> = {};
     for (const col of columns) {
-      const values = pool.map((rec) => getVal(rec, col.key)).filter((v) => !isNaN(v));
+      const values = pool.map((rec) => getVal(rec, col.key, scoringFormat)).filter((v) => !isNaN(v));
       avgs[col.key] = values.length
         ? values.reduce((a, b) => a + b, 0) / values.length
         : NaN;
     }
     return avgs;
-  }, [data, minRoutes, columns, showHeatmap]);
+  }, [data, minRoutes, columns, showHeatmap, scoringFormat]);
 
   // Team averages (only shown when team filter is active)
   const teamAverages = useMemo(() => {
     if (!showHeatmap || !teamFilter) return {};
     const avgs: Record<string, number> = {};
     for (const col of columns) {
-      const values = filtered.map((rec) => getVal(rec, col.key)).filter((v) => !isNaN(v));
+      const values = filtered.map((rec) => getVal(rec, col.key, scoringFormat)).filter((v) => !isNaN(v));
       avgs[col.key] = values.length
         ? values.reduce((a, b) => a + b, 0) / values.length
         : NaN;
     }
     return avgs;
-  }, [filtered, columns, showHeatmap, teamFilter]);
+  }, [filtered, columns, showHeatmap, teamFilter, scoringFormat]);
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -472,6 +487,21 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setScoringFormat(val)}
+                  className={`px-2 py-1 text-xs font-medium transition-colors ${
+                    scoringFormat === val
+                      ? "bg-navy text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-3">
               <label className="text-sm text-gray-500 whitespace-nowrap">
                 Min routes: <span className="font-semibold text-navy">{minRoutes}</span>
@@ -543,7 +573,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                   if (showHeatmap && idx === 0) {
                     const avgVal = nflAverages[sortKey];
                     if (!isNaN(avgVal)) {
-                      const recVal = getVal(rec, sortKey);
+                      const recVal = getVal(rec, sortKey, scoringFormat);
                       if (sortDir === "desc" ? avgVal >= recVal : avgVal <= recVal) {
                         showAvgBefore = true;
                       }
@@ -551,8 +581,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                   } else if (showHeatmap && idx > 0) {
                     const avgVal = nflAverages[sortKey];
                     if (!isNaN(avgVal)) {
-                      const prevVal = getVal(filtered[idx - 1], sortKey);
-                      const currVal = getVal(rec, sortKey);
+                      const prevVal = getVal(filtered[idx - 1], sortKey, scoringFormat);
+                      const currVal = getVal(rec, sortKey, scoringFormat);
                       if (sortDir === "desc") {
                         showAvgBefore = avgVal < prevVal && avgVal >= currVal;
                       } else {
@@ -632,7 +662,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           </Link>
                         </td>
                         {columns.map((col) => {
-                          const val = getVal(rec, col.key);
+                          const val = getVal(rec, col.key, scoringFormat);
                           const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
                           const pct = isHeatmapCol ? getPercentile(sortedByCol[col.key] || [], val) : -1;
                           const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
@@ -645,7 +675,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
                           return (
                             <td key={col.key} className={cellClass} style={heatStyle}>
-                              {formatVal(col.key, rec)}
+                              {formatVal(col.key, rec, scoringFormat)}
                             </td>
                           );
                         })}
@@ -657,7 +687,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                 {showHeatmap && filtered.length > 0 && (() => {
                   const avgVal = nflAverages[sortKey];
                   if (isNaN(avgVal)) return null;
-                  const lastVal = getVal(filtered[filtered.length - 1], sortKey);
+                  const lastVal = getVal(filtered[filtered.length - 1], sortKey, scoringFormat);
                   const belongsAfterLast = sortDir === "desc" ? avgVal < lastVal : avgVal > lastVal;
                   if (!belongsAfterLast) return null;
                   return (
