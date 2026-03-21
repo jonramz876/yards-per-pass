@@ -152,7 +152,6 @@ export function classifyWR(percentiles: number[]): Archetype | null {
 export function classifyRB(percentiles: number[]): Archetype | null {
   const [vol, eff, power, explosive, rec, cons] = percentiles;
   const above55 = [eff, power, explosive, cons].filter(p => p >= 55).length;
-  const above60 = percentiles.filter(p => p >= 60).length;
 
   // Three-Down Back — does it all
   if (vol >= 55 && rec >= 60 && cons >= 55 && above55 >= 2) return {
