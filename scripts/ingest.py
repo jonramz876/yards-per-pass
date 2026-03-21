@@ -2065,24 +2065,46 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
         log.info("No players found for slug generation")
         return pd.DataFrame(columns=['player_id', 'slug', 'player_name', 'position', 'current_team_id'])
 
-    # Build position lookup from roster
+    # Build position + full name lookups from roster
     pos_map = {}
+    full_name_map = {}  # gsis_id -> full_name (for better slugs than "P.Mahomes")
     if roster is not None and not roster.empty:
         for _, row in roster.iterrows():
             gsis_id = row.get('gsis_id')
             pos = row.get('position')
+            full_name = row.get('full_name')
             if gsis_id and pos:
                 pos_map[gsis_id] = pos
+            if gsis_id and full_name and pd.notna(full_name):
+                full_name_map[gsis_id] = full_name
 
-    # Load existing slugs from DB (immutability — never change them)
+    # Replace abbreviated names (P.Mahomes) with full names (Patrick Mahomes) for slug generation
+    for pid in players:
+        if pid in full_name_map:
+            pname, team = players[pid]
+            players[pid] = (full_name_map[pid], team)
+
+    # Load existing slugs from DB
+    # If a slug looks like it was generated from an abbreviated name (e.g., "pmahomes" from "P.Mahomes"),
+    # regenerate it using the full name. This is a one-time migration for the initial bad slugs.
     existing_slugs = {}  # player_id -> slug
     existing_slug_values = set()  # all slug strings in use
     if conn is not None:
         with conn.cursor() as cur:
             cur.execute("SELECT player_id, slug FROM player_slugs")
-            for pid, slug in cur.fetchall():
-                existing_slugs[pid] = slug
-                existing_slug_values.add(slug)
+            for pid, old_slug in cur.fetchall():
+                # Check if this slug should be regenerated (full name available and slug doesn't match)
+                if pid in full_name_map:
+                    expected_slug = make_slug(full_name_map[pid])
+                    if old_slug != expected_slug and not old_slug.startswith(expected_slug):
+                        # Old slug was from abbreviated name — skip it so it gets regenerated
+                        log.debug("Regenerating slug for %s: %s -> %s", pid, old_slug, expected_slug)
+                        # Delete the old slug so the new one can be inserted
+                        cur.execute("DELETE FROM player_slugs WHERE player_id = %s", (pid,))
+                        continue
+                existing_slugs[pid] = old_slug
+                existing_slug_values.add(old_slug)
+            conn.commit()
 
     # Filter to NEW players only
     new_players = {pid: info for pid, info in players.items() if pid not in existing_slugs}
