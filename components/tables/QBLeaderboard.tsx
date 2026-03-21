@@ -1,12 +1,11 @@
 // components/tables/QBLeaderboard.tsx
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
-import QBStatCard from "@/components/qb/QBStatCard";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 interface QBLeaderboardProps {
@@ -222,7 +221,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
-  const [selectedQB, setSelectedQB] = useState<QBSeasonStat | null>(null);
 
   const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
@@ -253,10 +251,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     });
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
-
-  useEffect(() => {
-    setSelectedQB(null);
-  }, [filtered]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -486,8 +480,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                     <React.Fragment key={qb.player_id}>
                       {avgRow}
                       <tr
-                        className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
-                        onClick={() => setSelectedQB(qb)}
+                        className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors"
                       >
                         <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
                         <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
@@ -496,7 +489,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                             <Link
                               href={`/player/${slugMap[qb.player_id] || qb.player_id}`}
                               className="font-semibold text-navy hover:text-nflred hover:underline transition-colors"
-                              onClick={(e) => e.stopPropagation()}
                             >
                               {qb.player_name}
                             </Link>
@@ -506,7 +498,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           <Link
                             href={`/team/${qb.team_id}`}
                             className="text-gray-500 hover:text-navy hover:underline transition-colors"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             {qb.team_id}
                           </Link>
@@ -578,16 +569,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
         )}
       </div>
 
-      {selectedQB && (
-        <QBStatCard
-          qb={selectedQB}
-          allQBs={filtered}
-          getVal={getVal}
-          onClose={() => setSelectedQB(null)}
-          season={season}
-          minDropbacks={minDropbacks}
-        />
-      )}
     </div>
   );
 }

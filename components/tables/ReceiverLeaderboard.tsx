@@ -1,13 +1,12 @@
 // components/tables/ReceiverLeaderboard.tsx
 "use client";
 
-import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import ReceiverStatCard from "@/components/receivers/ReceiverStatCard";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -198,7 +197,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     const set = new Set(data.map((r) => r.team_id));
     return Array.from(set).sort();
   }, [data]);
-  const [selectedReceiver, setSelectedReceiver] = useState<ReceiverSeasonStat | null>(null);
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
@@ -287,8 +285,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     });
     return result;
   }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter]);
-
-  useEffect(() => { setSelectedReceiver(null); }, [filtered]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -556,7 +552,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                             <Link
                               href={`/player/${slugMap[rec.player_id] || rec.player_id}`}
                               className="font-semibold text-navy hover:text-nflred hover:underline transition-colors"
-                              onClick={(e) => e.stopPropagation()}
                             >
                               {rec.player_name}
                             </Link>
@@ -567,7 +562,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           <Link
                             href={`/team/${rec.team_id}`}
                             className="text-gray-500 hover:text-navy hover:underline transition-colors"
-                            onClick={(e) => e.stopPropagation()}
                           >
                             {rec.team_id}
                           </Link>
@@ -638,14 +632,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
         <p><span className="font-semibold text-gray-500">Snap%</span> = player snaps / team offensive snaps. <span className="font-semibold text-gray-500">Route%</span> = routes run / total snaps (pass catchers &gt; blockers).</p>
       </div>
 
-      {selectedReceiver && (
-        <ReceiverStatCard
-          receiver={selectedReceiver}
-          allReceivers={filtered}
-          minRoutes={minRoutes}
-          onClose={() => setSelectedReceiver(null)}
-        />
-      )}
     </div>
   );
 }

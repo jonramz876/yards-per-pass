@@ -10,7 +10,6 @@ import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
 import PlayerGapCards from "./PlayerGapCards";
 import GapBarChart from "./GapBarChart";
-import RBStatCard from "./RBStatCard";
 
 interface RunGapDiagramProps {
   data: RBGapStat[];
@@ -195,11 +194,13 @@ export default function RunGapDiagram({
   allGapStats,
   slugMap = {},
 }: RunGapDiagramProps) {
+  // allGapStats was used by RBStatCard modal (removed in Phase 7a)
+  void allGapStats;
+
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(600);
   const [hoveredGap, setHoveredGap] = useState<string | null>(null);
-  const [selectedRBId, setSelectedRBId] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -1051,7 +1052,6 @@ export default function RunGapDiagram({
               stuff: leagueAvgByGap[selectedGap].avg_stuff,
               explosive: leagueAvgByGap[selectedGap].avg_explosive,
             } : overallLeagueAvg}
-            onPlayerClick={(playerId) => setSelectedRBId(playerId)}
             slugMap={slugMap}
           />
         </div>
@@ -1063,14 +1063,6 @@ export default function RunGapDiagram({
         Source: <a href="https://github.com/nflverse" target="_blank" rel="noopener noreferrer" className="underline hover:text-navy">nflverse</a> play-by-play (~85-90% of rush plays have gap data). Stats may differ from PFF/TruMedia due to methodology differences.
       </p>
 
-      {selectedRBId && (
-        <RBStatCard
-          playerGapStats={activeData.filter((r) => r.player_id === selectedRBId)}
-          allLeagueStats={allGapStats}
-          weeklyData={weeklyData}
-          onClose={() => setSelectedRBId(null)}
-        />
-      )}
     </div>
   );
 }

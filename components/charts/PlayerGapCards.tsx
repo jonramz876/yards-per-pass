@@ -18,7 +18,6 @@ interface PlayerGapCardsProps {
   teamAvgEpa: number;
   leagueRank: number | null;
   leagueAvg: LeagueAvgStats;
-  onPlayerClick?: (playerId: string) => void;
   slugMap?: Record<string, string>;
 }
 
@@ -56,7 +55,6 @@ export default function PlayerGapCards({
   teamAvgEpa,
   leagueRank,
   leagueAvg,
-  onPlayerClick,
   slugMap = {},
 }: PlayerGapCardsProps) {
   const [minCarries, setMinCarries] = useState(10);
@@ -230,8 +228,7 @@ export default function PlayerGapCards({
             return (
               <div
                 key={r.id}
-                className={`bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow${onPlayerClick ? " cursor-pointer" : ""}`}
-                onClick={() => onPlayerClick?.(r.player_id)}
+                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
               >
                 {/* Player name + carries */}
                 <div className="flex items-center justify-between mb-3">
