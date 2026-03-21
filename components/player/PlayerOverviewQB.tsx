@@ -7,6 +7,7 @@ import type { QBSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
+import { classifyQB } from "@/lib/stats/archetypes";
 
 interface PlayerOverviewQBProps {
   stats: QBSeasonStat;
@@ -103,6 +104,8 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
     [stats, allQBs]
   );
 
+  const archetype = useMemo(() => classifyQB(radarValues), [radarValues]);
+
   const chipData = useMemo(
     () =>
       RADAR_KEYS.map((key) => {
@@ -144,9 +147,20 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
         <div className="flex justify-center mb-1">
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
-        <p className="text-[10px] text-gray-400 text-center mb-5">
+        <p className="text-[10px] text-gray-400 text-center mb-3">
           Percentiles vs. {total} QBs &middot; {season}
         </p>
+
+        <div className="text-center mb-4">
+          <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
+            <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
+              {archetype.label}
+            </span>
+            <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
+              {archetype.description}
+            </p>
+          </Link>
+        </div>
 
         {/* Stat chips — 3x2 grid */}
         <div className="grid grid-cols-3 gap-2">

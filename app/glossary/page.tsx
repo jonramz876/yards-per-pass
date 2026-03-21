@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     "Plain-English definitions for EPA, CPOE, success rate, ANY/A, passer rating, and every stat on Yards Per Pass.",
 };
 
-const TERMS: { term: string; definition: string }[] = [
+const TERMS: { term: string; definition: string; id?: string }[] = [
   {
     term: "EPA (Expected Points Added)",
     definition:
@@ -149,6 +149,109 @@ const TERMS: { term: string; definition: string }[] = [
     term: "Route Participation Rate (Route%)",
     definition: "Routes run divided by total offensive snaps. Measures how often a player runs a route when on the field. A WR with 90% route participation is almost always running routes. A TE with 50% is blocking half the time. Separates pass catchers from blockers.",
   },
+  // --- QB Archetypes ---
+  {
+    term: "Complete Passer (QB Archetype)",
+    id: "complete-passer",
+    definition: "A quarterback with 4 or more radar axes at the 70th percentile or above. Elite across efficiency (EPA/DB), accuracy (CPOE), volume, depth, ball security, and consistency. Think Patrick Mahomes or Josh Allen at their peak.",
+  },
+  {
+    term: "Gunslinger (QB Archetype)",
+    id: "gunslinger",
+    definition: "A quarterback who pushes the ball downfield with aggression. Defined by Depth \u2265 75th percentile, Volume \u2265 60th, and Ball Security \u2264 40th. Trades turnovers for big plays and high aDOT.",
+  },
+  {
+    term: "Surgeon (QB Archetype)",
+    id: "surgeon",
+    definition: "A precise, consistent passer who picks apart defenses. Defined by Accuracy \u2265 75th percentile, Consistency \u2265 70th, and Efficiency \u2265 60th. Rarely forces throws and maintains a high CPOE.",
+  },
+  {
+    term: "Distributor (QB Archetype)",
+    id: "distributor",
+    definition: "A high-volume, high-accuracy passer who works the short-to-intermediate game. Defined by Volume \u2265 70th percentile, Accuracy \u2265 65th, and Depth \u2264 45th. Moves the chains efficiently without pushing deep.",
+  },
+  {
+    term: "Game Manager (QB Archetype)",
+    id: "game-manager",
+    definition: "A quarterback who protects the football and avoids mistakes. Defined by Consistency \u2265 70th percentile, Ball Security \u2265 70th, and Volume \u2264 40th. Leans on efficiency and ball security over explosiveness.",
+  },
+  {
+    term: "Versatile Passer (QB Archetype)",
+    id: "versatile-passer",
+    definition: "The fallback QB archetype when no other pattern matches. Shows a balanced skill set across all radar axes without a single dominant trait or defining weakness.",
+  },
+  // --- WR Archetypes ---
+  {
+    term: "Alpha WR1 (WR Archetype)",
+    id: "alpha-wr1",
+    definition: "A dominant number-one receiver. Defined by 4 or more radar axes \u2265 70th percentile and Volume \u2265 70th. Commands targets and produces at an elite level across the board.",
+  },
+  {
+    term: "Contested Catch WR (WR Archetype)",
+    id: "contested-catch-wr",
+    definition: "A receiver who wins downfield and at the catch point. Defined by Downfield (ADOT) \u2265 70th percentile and Catch Rate \u2265 65th. Combines high depth of target with reliable hands.",
+  },
+  {
+    term: "YAC Monster (WR Archetype)",
+    id: "yac-monster",
+    definition: "A receiver who is dangerous after the catch. Defined by YAC/Rec \u2265 80th percentile and Downfield \u2264 45th. Turns short throws into big gains with run-after-catch ability.",
+  },
+  {
+    term: "Field Stretcher (WR Archetype)",
+    id: "field-stretcher",
+    definition: "A vertical threat who stretches the field. Defined by Downfield (ADOT) \u2265 80th percentile and Catch Rate \u2264 45th. Trades catch rate for chunk plays and deep targets.",
+  },
+  {
+    term: "Possession Receiver (WR Archetype)",
+    id: "possession-receiver",
+    definition: "A reliable, sure-handed receiver. Defined by Catch Rate \u2265 75th percentile, Consistency (YPRR) \u2265 65th, and Downfield \u2264 40th. Converts targets at a high rate with route precision.",
+  },
+  {
+    term: "Deep Threat (WR Archetype)",
+    id: "deep-threat",
+    definition: "A pure vertical threat who lives on deep routes. Defined by Downfield (ADOT) \u2265 85th percentile. Stretches the defense vertically regardless of other traits.",
+  },
+  {
+    term: "Balanced Receiver (WR Archetype)",
+    id: "balanced-receiver",
+    definition: "The fallback WR archetype when no other pattern matches. Shows a versatile skill set across routes, catches, and production without a single defining trait.",
+  },
+  // --- RB Archetypes ---
+  {
+    term: "Three-Down Back (RB Archetype)",
+    id: "three-down-back",
+    definition: "A complete running back who stays on the field for all situations. Defined by Volume \u2265 60th percentile, Receiving \u2265 65th, Consistency \u2265 60th, and at least 1 of Efficiency/Power/Explosiveness/Consistency \u2265 55th. Carries the load and catches passes.",
+  },
+  {
+    term: "Workhorse (RB Archetype)",
+    id: "workhorse",
+    definition: "A high-volume carrier who produces through sheer workload. Defined by Volume \u2265 75th percentile, Efficiency \u2265 50th, and Receiving \u2264 40th. Grinds out production on the ground without significant pass-catching involvement.",
+  },
+  {
+    term: "Power Back (RB Archetype)",
+    id: "power-back",
+    definition: "A runner who excels at running through contact. Defined by Power (Stuff Avoidance) \u2265 75th percentile, Volume \u2265 55th, and Explosiveness \u2264 50th. Avoids getting stuffed and grinds for tough yards between the tackles.",
+  },
+  {
+    term: "Home Run Hitter (RB Archetype)",
+    id: "home-run-hitter",
+    definition: "A boom-or-bust runner with explosive big-play ability. Defined by Explosiveness \u2265 80th percentile and Consistency \u2264 40th. Trades consistency for chunk plays and long runs.",
+  },
+  {
+    term: "Pass-Catching Back (RB Archetype)",
+    id: "pass-catching-back",
+    definition: "A running back who creates receiving value out of the backfield. Defined by Receiving \u2265 80th percentile and Volume \u2264 45th. A weapon in the passing game who may not carry a heavy rushing workload.",
+  },
+  {
+    term: "Change of Pace (RB Archetype)",
+    id: "change-of-pace",
+    definition: "A back who maximizes limited touches. Defined by Efficiency \u2265 70th percentile, Explosiveness \u2265 65th, and Volume \u2264 35th. Efficient and explosive off the bench without a bellcow workload.",
+  },
+  {
+    term: "Well-Rounded Runner (RB Archetype)",
+    id: "well-rounded-runner",
+    definition: "The fallback RB archetype when no other pattern matches. Balanced across volume, efficiency, and style without a standout trait or defining weakness.",
+  },
 ];
 
 export default function GlossaryPage() {
@@ -163,7 +266,7 @@ export default function GlossaryPage() {
 
       <dl className="space-y-6">
         {TERMS.map((t) => (
-          <div key={t.term}>
+          <div key={t.term} id={t.id} className={t.id ? "scroll-mt-24" : undefined}>
             <dt className="text-sm font-bold text-navy">{t.term}</dt>
             <dd className="mt-1 text-sm text-gray-600 leading-relaxed">
               {t.definition}
