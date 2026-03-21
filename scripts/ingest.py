@@ -2115,10 +2115,17 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
             new_slug_map[pid] = base_slug
             existing_slug_values.add(base_slug)
         else:
-            # Collision: disambiguate with team abbreviation
+            # Collision: disambiguate with team abbreviation, then position if still colliding
             for pid, pname, team in group:
                 team_suffix = team.lower() if team else "unknown"
                 disambiguated = f"{base_slug}-{team_suffix}"
+                if disambiguated in existing_slug_values:
+                    # Same team collision — append position
+                    pos = pos_map.get(pid, "").lower() or "x"
+                    disambiguated = f"{base_slug}-{team_suffix}-{pos}"
+                if disambiguated in existing_slug_values:
+                    # Still colliding — append player_id suffix
+                    disambiguated = f"{base_slug}-{pid[-4:]}"
                 new_slug_map[pid] = disambiguated
                 existing_slug_values.add(disambiguated)
 
