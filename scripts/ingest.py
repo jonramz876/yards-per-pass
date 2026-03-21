@@ -711,10 +711,12 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         part_exploded = part_exploded[part_exploded['player_id'] != '']  # filter empty strings from trailing semicolons
         part_exploded = part_exploded.drop_duplicates(['nflverse_game_id', 'play_id', 'player_id'])  # guard against duplicate rows
 
-        # --- SNAP COUNTS: count ALL plays per player (not just pass plays) ---
+        # --- SNAP COUNTS: count offensive plays per player (pass + run only) ---
+        # Filter to actual offensive plays (exclude kickoffs, punts, FGs, kneeldowns, spikes, penalties)
+        offensive_plays = plays[plays['play_type'].isin(['pass', 'run'])][['game_id', 'play_id', 'posteam']].drop_duplicates()
         # Join to plays for team context (participation data has no team column)
         snaps_with_team = part_exploded.merge(
-            plays[['game_id', 'play_id', 'posteam']].drop_duplicates(),
+            offensive_plays,
             left_on=['nflverse_game_id', 'play_id'],
             right_on=['game_id', 'play_id'],
             how='inner'

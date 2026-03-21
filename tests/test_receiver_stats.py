@@ -15,6 +15,7 @@ def make_plays(**overrides):
         'receiver_player_name': 'Test Receiver',
         'posteam': 'KC',
         'pass_attempt': 1,
+        'play_type': 'pass',
         'qb_dropback': 1,
         'sack': 0,
         'qb_scramble': 0,
@@ -411,6 +412,7 @@ class TestSnapCounts:
         pass_play['play_id'] = [0]
         # 1 run play (no receiver, not a pass attempt) — WR1 still on field
         run_play = make_plays(game_id='GAME1', receiver_player_id=None, pass_attempt=0,
+                              play_type='run', qb_dropback=0,
                               complete_pass=0, receiving_yards=0, air_yards=0,
                               yards_after_catch=0, epa=0.1, pass_touchdown=0)
         run_play['play_id'] = [1]
@@ -422,8 +424,8 @@ class TestSnapCounts:
             make_participation(player_ids='WR1', play_id=1),
         ], ignore_index=True)
         result = aggregate_receiver_stats(plays, roster, 2025, participation)
-        assert result.iloc[0]['total_snaps'] == 2  # both plays
-        assert result.iloc[0]['routes_run'] == 1   # only pass play
+        assert result.iloc[0]['total_snaps'] == 2  # both offensive plays (pass + run)
+        assert result.iloc[0]['routes_run'] == 1   # only clean pass plays
 
     def test_snap_share_computation(self):
         """snap_share = player_snaps / team_total_snaps."""
@@ -454,7 +456,7 @@ class TestSnapCounts:
         pass2 = make_plays(game_id='GAME1', complete_pass=0, receiving_yards=0)
         pass2['play_id'] = [1]
         run = make_plays(game_id='GAME1', receiver_player_id=None, pass_attempt=0,
-                         qb_dropback=0, complete_pass=0, receiving_yards=0, air_yards=0,
+                         play_type='run', qb_dropback=0, complete_pass=0, receiving_yards=0, air_yards=0,
                          yards_after_catch=0, epa=0.1, pass_touchdown=0)
         run['play_id'] = [2]
         plays = pd.concat([pass1, pass2, run], ignore_index=True)
