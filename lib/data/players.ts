@@ -1,6 +1,7 @@
 // lib/data/players.ts
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
+import { fetchAllRows } from "@/lib/data/utils";
 import type {
   PlayerSlug,
   QBWeeklyStat,
@@ -47,13 +48,9 @@ export async function getPlayerBySlug(
 }
 
 export async function getAllPlayerSlugs(): Promise<PlayerSlug[]> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("player_slugs")
-    .select("*")
-    .order("player_name");
-  if (error || !data) return [];
-  return data as PlayerSlug[];
+  // Must paginate — table has 1200+ rows, Supabase silently caps at 1000
+  const rows = await fetchAllRows("player_slugs", "*", {});
+  return rows as unknown as PlayerSlug[];
 }
 
 export async function getQBWeeklyStats(
