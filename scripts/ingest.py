@@ -689,8 +689,10 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
             right_on=['game_id', 'play_id'],
             how='inner'
         )
-        # Total snaps per player per team
-        player_snap_counts = snaps_with_team.groupby(['player_id', 'posteam'])['play_id'].nunique().reset_index(name='total_snaps')
+        # Total snaps per player (ALL teams combined — used for route_participation_rate)
+        player_total_snaps = snaps_with_team.groupby('player_id')['play_id'].nunique().reset_index(name='total_snaps')
+        # Snaps per player per team (used for snap_share with primary team)
+        player_team_snaps = snaps_with_team.groupby(['player_id', 'posteam'])['play_id'].nunique().reset_index(name='primary_team_snaps')
         # Team total offensive snaps (denominator for snap_share)
         team_total_snaps = snaps_with_team.groupby('posteam')['play_id'].nunique().to_dict()
 
@@ -708,19 +710,24 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         rec = rec.merge(routes_per_player, on='player_id', how='left')
         rec['routes_run'] = rec['routes_run'].fillna(0).astype(int)
 
-        # Merge snap counts — use primary team (same as target_share logic)
+        # Merge total snaps (all teams combined) for route_participation_rate
+        rec = rec.merge(player_total_snaps, on='player_id', how='left')
+        rec['total_snaps'] = rec['total_snaps'].fillna(0).astype(int)
+
+        # Merge primary-team snaps for snap_share
         rec = rec.merge(
-            player_snap_counts,
+            player_team_snaps,
             left_on=['player_id', 'team_id'],
             right_on=['player_id', 'posteam'],
             how='left'
         )
         rec.drop(columns=['posteam'], inplace=True, errors='ignore')
-        rec['total_snaps'] = rec['total_snaps'].fillna(0).astype(int)
+        rec['primary_team_snaps'] = rec['primary_team_snaps'].fillna(0).astype(int)
         rec['snap_share'] = rec.apply(
-            lambda r: r['total_snaps'] / team_total_snaps.get(r['team_id'], 1)
-            if r['total_snaps'] > 0 else float('nan'), axis=1
+            lambda r: r['primary_team_snaps'] / team_total_snaps.get(r['team_id'], 1)
+            if r['primary_team_snaps'] > 0 else float('nan'), axis=1
         )
+        rec.drop(columns=['primary_team_snaps'], inplace=True)
 
         # Validate bounds
         bad_snap = rec[rec['snap_share'] > 1.0]

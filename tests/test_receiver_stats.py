@@ -496,7 +496,7 @@ class TestSnapCounts:
             assert row['route_participation_rate'] <= 1.0
 
     def test_traded_player_snap_share(self):
-        """Traded player's snap_share uses primary team's total snaps."""
+        """Traded player: total_snaps = all teams, snap_share = primary team only."""
         from ingest import aggregate_receiver_stats
         # WR1 has 2 targets on KC, 1 target on SF → primary team = KC
         kc1 = make_plays(game_id='GAME1', posteam='KC')
@@ -516,8 +516,12 @@ class TestSnapCounts:
         result = aggregate_receiver_stats(plays, roster, 2025, participation)
         row = result.iloc[0]
         assert row['team_id'] == 'KC'  # primary team
+        # total_snaps = ALL teams (3 plays total)
+        assert row['total_snaps'] == 3
         # snap_share = KC snaps (2) / KC team total (2) = 1.0
         assert abs(row['snap_share'] - 1.0) < 0.01
+        # route_participation_rate uses total_snaps (3), routes_run = 3 (all pass plays)
+        assert row['route_participation_rate'] <= 1.0
 
     def test_output_has_snap_columns(self):
         """Output DataFrame includes all snap count columns."""
