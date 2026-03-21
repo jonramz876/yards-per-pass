@@ -81,6 +81,7 @@ REQUIRED_PBP_COLS = [
     'fumble', 'fumble_lost', 'fumbled_1_player_id',
     'receiver_player_id', 'receiver_player_name',
     'receiving_yards', 'yards_after_catch',
+    'total_home_score', 'total_away_score',
 ]
 
 # --- Run gap mapping ---
@@ -111,6 +112,16 @@ def passer_rating(comp: int, att: int, yds: int, td: int, ints: int) -> float:
     c = max(0.0, min((td / att) * 20, 2.375))
     d = max(0.0, min(2.375 - ((ints / att) * 25), 2.375))
     return round(((a + b + c + d) / 6) * 100, 1)
+
+
+def make_slug(name: str) -> str:
+    """Convert 'Patrick Mahomes' to 'patrick-mahomes'."""
+    import re
+    slug = name.lower().strip()
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"\s+", "-", slug)
+    slug = re.sub(r"-+", "-", slug)
+    return slug.strip("-")
 
 
 @retry(max_retries=3, delay=5)
