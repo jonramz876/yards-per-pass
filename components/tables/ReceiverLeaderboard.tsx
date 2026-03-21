@@ -299,8 +299,23 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
     return sorted;
   }, [filtered, heatmapCols, showHeatmap]);
 
-  const averages = useMemo(() => {
+  // NFL-wide averages (always from full dataset, ignoring team/position filters)
+  const nflAverages = useMemo(() => {
     if (!showHeatmap) return {};
+    const pool = data.filter((rec) => rec.routes_run >= minRoutes);
+    const avgs: Record<string, number> = {};
+    for (const col of columns) {
+      const values = pool.map((rec) => getVal(rec, col.key)).filter((v) => !isNaN(v));
+      avgs[col.key] = values.length
+        ? values.reduce((a, b) => a + b, 0) / values.length
+        : NaN;
+    }
+    return avgs;
+  }, [data, minRoutes, columns, showHeatmap]);
+
+  // Team averages (only shown when team filter is active)
+  const teamAverages = useMemo(() => {
+    if (!showHeatmap || !teamFilter) return {};
     const avgs: Record<string, number> = {};
     for (const col of columns) {
       const values = filtered.map((rec) => getVal(rec, col.key)).filter((v) => !isNaN(v));
@@ -309,7 +324,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
         : NaN;
     }
     return avgs;
-  }, [filtered, columns, showHeatmap]);
+  }, [filtered, columns, showHeatmap, teamFilter]);
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -468,7 +483,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                   // Determine if NFL AVG row should appear before this receiver
                   let showAvgBefore = false;
                   if (showHeatmap && idx === 0) {
-                    const avgVal = averages[sortKey];
+                    const avgVal = nflAverages[sortKey];
                     if (!isNaN(avgVal)) {
                       const recVal = getVal(rec, sortKey);
                       if (sortDir === "desc" ? avgVal >= recVal : avgVal <= recVal) {
@@ -476,7 +491,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                       }
                     }
                   } else if (showHeatmap && idx > 0) {
-                    const avgVal = averages[sortKey];
+                    const avgVal = nflAverages[sortKey];
                     if (!isNaN(avgVal)) {
                       const prevVal = getVal(filtered[idx - 1], sortKey);
                       const currVal = getVal(rec, sortKey);
@@ -487,6 +502,26 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                       }
                     }
                   }
+
+                  // Team AVG row (only when team filter active, shown once before first player)
+                  const teamAvgRow = (showHeatmap && teamFilter && idx === 0) ? (
+                    <tr key="team-avg" className="border-t border-blue-300">
+                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#eff6ff" }}></td>
+                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 700, fontStyle: "italic" }}>
+                        {teamFilter} AVG
+                      </td>
+                      <td className="px-2 py-2" style={{ background: "#eff6ff", color: "#1e40af" }}>&mdash;</td>
+                      {columns.map((col) => (
+                        <td
+                          key={col.key}
+                          className="px-2 py-2 text-right tabular-nums"
+                          style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 600, borderBottom: "2px solid #3b82f6" }}
+                        >
+                          {formatAvg(col.key, teamAverages[col.key])}
+                        </td>
+                      ))}
+                    </tr>
+                  ) : null;
 
                   const avgRow = showAvgBefore ? (
                     <tr key="nfl-avg" className="border-t border-amber-400">
@@ -501,7 +536,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, averages[col.key])}
+                          {formatAvg(col.key, nflAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -509,6 +544,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
 
                   return (
                     <React.Fragment key={rec.player_id}>
+                      {teamAvgRow}
                       {avgRow}
                       <tr className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
                         <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
@@ -547,7 +583,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                 })}
                 {/* If avg belongs after the last receiver (below all rows) */}
                 {showHeatmap && filtered.length > 0 && (() => {
-                  const avgVal = averages[sortKey];
+                  const avgVal = nflAverages[sortKey];
                   if (isNaN(avgVal)) return null;
                   const lastVal = getVal(filtered[filtered.length - 1], sortKey);
                   const belongsAfterLast = sortDir === "desc" ? avgVal < lastVal : avgVal > lastVal;
@@ -565,7 +601,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, averages[col.key])}
+                          {formatAvg(col.key, nflAverages[col.key])}
                         </td>
                       ))}
                     </tr>
