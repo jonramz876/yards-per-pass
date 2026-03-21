@@ -19,6 +19,7 @@ export async function generateMetadata({
   params: Promise<{ team_id: string }>;
 }): Promise<Metadata> {
   const { team_id } = await params;
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
   const teamId = team_id.toUpperCase();
   const team = getTeam(teamId);
   if (!team) {
@@ -27,6 +28,9 @@ export async function generateMetadata({
   return {
     title: `${team.name} Stats | Yards Per Pass`,
     description: `${team.name} advanced stats, EPA rankings, passing attack, ground game, and defensive metrics.`,
+    alternates: {
+      canonical: `${base}/team/${teamId}`,
+    },
   };
 }
 
@@ -49,10 +53,28 @@ export default async function TeamPage({
 
   const data = await getTeamHubData(teamId, currentSeason);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SportsTeam",
+    "name": team.name,
+    "sport": "American Football",
+    "url": `${process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com"}/team/${team.id}`,
+    "memberOf": {
+      "@type": "SportsOrganization",
+      "name": "National Football League",
+    },
+  };
+
   return (
-    <TeamHubContent
-      team={team}
-      data={data}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <TeamHubContent
+        team={team}
+        data={data}
+      />
+    </>
   );
 }
