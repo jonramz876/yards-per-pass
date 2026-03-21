@@ -35,12 +35,12 @@ interface AggregatedRB {
 }
 
 const RADAR_AXES = [
-  { label: "Volume" },
-  { label: "Efficiency" },
-  { label: "Power" },
-  { label: "Explosiveness" },
-  { label: "Receiving" },
-  { label: "Consistency" },
+  { label: "Volume", sub: "Carries / Game" },
+  { label: "Efficiency", sub: "EPA / Carry" },
+  { label: "Power", sub: "Stuff Avoidance" },
+  { label: "Explosiveness", sub: "Explosive Run Rate" },
+  { label: "Receiving", sub: "Targets / Game" },
+  { label: "Consistency", sub: "Success Rate" },
 ];
 
 const RADAR_KEYS = [

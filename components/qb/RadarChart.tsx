@@ -7,10 +7,10 @@ interface RadarChartProps {
   /** Team primary color (hex) for the data polygon */
   color: string;
   /** Custom axis labels (must be exactly 6). Defaults to QB axes if omitted. */
-  axes?: { label: string }[];
+  axes?: { label: string; sub?: string }[];
 }
 
-const AXES = [
+const AXES: { label: string; sub?: string }[] = [
   { label: "EPA/Play" },
   { label: "CPOE" },
   { label: "aDOT" },
@@ -34,13 +34,13 @@ function hexPoints(radius: number): string {
   return Array.from({ length: 6 }, (_, i) => hexPoint(radius, i).join(",")).join(" ");
 }
 
-const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: "start" | "middle" | "end" }> = [
-  { x: 150, y: 16, anchor: "middle" },
-  { x: 248, y: 72, anchor: "start" },
-  { x: 248, y: 182, anchor: "start" },
-  { x: 150, y: 252, anchor: "middle" },
-  { x: 52, y: 182, anchor: "end" },
-  { x: 52, y: 72, anchor: "end" },
+const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: "start" | "middle" | "end"; subDy?: number }> = [
+  { x: 150, y: 12, anchor: "middle", subDy: -12 },
+  { x: 252, y: 72, anchor: "start" },
+  { x: 252, y: 186, anchor: "start" },
+  { x: 150, y: 242, anchor: "middle" },
+  { x: 48, y: 186, anchor: "end" },
+  { x: 48, y: 72, anchor: "end" },
 ];
 
 export default function RadarChart({ values, color, axes: customAxes }: RadarChartProps) {
@@ -62,7 +62,7 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
   const dataPolygon = dataPoints.map((p) => p.join(",")).join(" ");
 
   return (
-    <svg viewBox="-20 0 340 260" className="mx-auto w-full" style={{ maxWidth: 340 }}>
+    <svg viewBox="-20 -5 340 280" className="mx-auto w-full" style={{ maxWidth: 340 }}>
       {/* Outer ring */}
       <polygon
         points={hexPoints(R_OUTER)}
@@ -115,23 +115,35 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
         <circle key={i} cx={x} cy={y} r={3} fill={color} />
       ))}
 
-      {/* Axis labels */}
+      {/* Axis labels with optional subtitle */}
       {(customAxes || AXES).map((axis, i) => (
-        <text
-          key={axis.label}
-          x={LABEL_POSITIONS[i].x}
-          y={LABEL_POSITIONS[i].y}
-          textAnchor={LABEL_POSITIONS[i].anchor}
-          fontSize={12}
-          fill="#475569"
-          fontWeight={600}
-        >
-          {axis.label}
-        </text>
+        <g key={axis.label}>
+          <text
+            x={LABEL_POSITIONS[i].x}
+            y={LABEL_POSITIONS[i].y}
+            textAnchor={LABEL_POSITIONS[i].anchor}
+            fontSize={12}
+            fill="#475569"
+            fontWeight={600}
+          >
+            {axis.label}
+          </text>
+          {axis.sub && (
+            <text
+              x={LABEL_POSITIONS[i].x}
+              y={LABEL_POSITIONS[i].y + (LABEL_POSITIONS[i].subDy ?? 12)}
+              textAnchor={LABEL_POSITIONS[i].anchor}
+              fontSize={9}
+              fill="#94a3b8"
+            >
+              {axis.sub}
+            </text>
+          )}
+        </g>
       ))}
 
       {/* Legend */}
-      <text x={150} y={256} textAnchor="middle" fontSize={9} fill="#94a3b8">
+      <text x={150} y={268} textAnchor="middle" fontSize={9} fill="#94a3b8">
         outer ring = league best · dashed = 50th percentile
       </text>
     </svg>

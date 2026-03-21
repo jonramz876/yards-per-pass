@@ -17,12 +17,12 @@ interface PlayerOverviewWRProps {
 }
 
 const RADAR_AXES = [
-  { label: "Volume" },
-  { label: "Efficiency" },
-  { label: "Catch" },
-  { label: "Downfield" },
-  { label: "After Catch" },
-  { label: "Consistency" },
+  { label: "Volume", sub: "Targets / Game" },
+  { label: "Efficiency", sub: "EPA / Target" },
+  { label: "Catch", sub: "Catch Rate" },
+  { label: "Downfield", sub: "Avg Depth of Target" },
+  { label: "After Catch", sub: "YAC / Reception" },
+  { label: "Consistency", sub: "Yds Per Route Run" },
 ];
 
 const RADAR_KEYS = [

@@ -18,12 +18,12 @@ interface PlayerOverviewQBProps {
 
 // Radar: 6 axes matching the spec
 const RADAR_AXES = [
-  { label: "Efficiency" },
-  { label: "Accuracy" },
-  { label: "Volume" },
-  { label: "Depth" },
-  { label: "Ball Security" },
-  { label: "Consistency" },
+  { label: "Efficiency", sub: "EPA / Dropback" },
+  { label: "Accuracy", sub: "CPOE" },
+  { label: "Volume", sub: "Dropbacks / Game" },
+  { label: "Depth", sub: "Avg Depth of Target" },
+  { label: "Ball Security", sub: "INT Avoidance" },
+  { label: "Consistency", sub: "Success Rate" },
 ];
 
 const RADAR_KEYS = [
