@@ -2,8 +2,19 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import type { PlayerSlug } from "@/lib/types";
+import type {
+  PlayerSlug,
+  QBSeasonStat,
+  ReceiverSeasonStat,
+  QBWeeklyStat,
+  ReceiverWeeklyStat,
+  RBWeeklyStat,
+} from "@/lib/types";
 import PlayerHeader from "./PlayerHeader";
+import PlayerOverviewQB from "./PlayerOverviewQB";
+import PlayerOverviewWR from "./PlayerOverviewWR";
+import PlayerOverviewRB from "./PlayerOverviewRB";
+import GameLogTab from "./GameLogTab";
 
 interface PlayerPageContentProps {
   player: PlayerSlug;
@@ -47,6 +58,104 @@ export default function PlayerPageContent({
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
+  // ─── Render Overview tab based on position ──────────────────────────────────
+
+  function renderOverview() {
+    if (position === "QB") {
+      const qbStats = seasonStats as QBSeasonStat[];
+      const stat = qbStats[0];
+      if (!stat) {
+        return (
+          <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
+            <p className="text-lg font-medium mb-1">No season data</p>
+            <p className="text-sm">No QB stats found for {player.player_name} in {season}.</p>
+          </div>
+        );
+      }
+      return (
+        <PlayerOverviewQB
+          stats={stat}
+          allQBs={allPlayers as QBSeasonStat[]}
+          season={season}
+          teamId={player.current_team_id}
+        />
+      );
+    }
+
+    if (position === "WR" || position === "TE") {
+      const recStats = seasonStats as ReceiverSeasonStat[];
+      const stat = recStats[0];
+      if (!stat) {
+        return (
+          <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
+            <p className="text-lg font-medium mb-1">No season data</p>
+            <p className="text-sm">No receiver stats found for {player.player_name} in {season}.</p>
+          </div>
+        );
+      }
+      return (
+        <PlayerOverviewWR
+          stats={stat}
+          allReceivers={allPlayers as ReceiverSeasonStat[]}
+          season={season}
+          teamId={player.current_team_id}
+        />
+      );
+    }
+
+    if (position === "RB") {
+      const rbWeekly = weeklyStats as RBWeeklyStat[];
+      if (rbWeekly.length === 0) {
+        return (
+          <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
+            <p className="text-lg font-medium mb-1">No season data</p>
+            <p className="text-sm">No RB stats found for {player.player_name} in {season}.</p>
+          </div>
+        );
+      }
+      return (
+        <PlayerOverviewRB
+          weeklyStats={rbWeekly}
+          allRBWeekly={allPlayers as RBWeeklyStat[]}
+          season={season}
+          teamId={player.current_team_id}
+          playerName={player.player_name}
+        />
+      );
+    }
+
+    // Fallback for unknown positions
+    return (
+      <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
+        <p className="text-lg font-medium mb-1">Overview</p>
+        <p className="text-sm">{player.player_name} &mdash; {position} &mdash; {season}</p>
+      </div>
+    );
+  }
+
+  // ─── Render Game Log tab ────────────────────────────────────────────────────
+
+  function renderGameLog() {
+    // Cast weekly stats based on position
+    let typedWeekly: QBWeeklyStat[] | ReceiverWeeklyStat[] | RBWeeklyStat[];
+    if (position === "QB") {
+      typedWeekly = weeklyStats as QBWeeklyStat[];
+    } else if (position === "WR" || position === "TE") {
+      typedWeekly = weeklyStats as ReceiverWeeklyStat[];
+    } else {
+      typedWeekly = weeklyStats as RBWeeklyStat[];
+    }
+
+    return (
+      <GameLogTab
+        weeklyStats={typedWeekly}
+        position={position}
+        season={season}
+        teamId={player.current_team_id}
+      />
+    );
+  }
+
   return (
     <>
       <PlayerHeader player={player} season={season} seasons={seasons} />
@@ -71,25 +180,8 @@ export default function PlayerPageContent({
         ))}
       </div>
 
-      {/* Tab content — placeholders until sub-tasks fill them */}
-      {activeTab === "overview" ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
-          <p className="text-lg font-medium mb-1">Overview Tab</p>
-          <p className="text-sm">
-            {player.player_name} &mdash; {position} &mdash; {season} season
-            <br />
-            Season stats: {seasonStats.length} record(s) &middot; Weekly stats: {weeklyStats.length} game(s)
-            &middot; Peer group: {allPlayers.length} player(s)
-          </p>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
-          <p className="text-lg font-medium mb-1">Game Log Tab</p>
-          <p className="text-sm">
-            {player.player_name} &mdash; {weeklyStats.length} game(s) in {season}
-          </p>
-        </div>
-      )}
+      {/* Tab content */}
+      {activeTab === "overview" ? renderOverview() : renderGameLog()}
     </>
   );
 }

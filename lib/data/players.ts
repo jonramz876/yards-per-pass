@@ -115,3 +115,41 @@ export async function getRBWeeklyStats(
     )
   );
 }
+
+/** Fetch ALL RB weekly stats for a season (for percentile pool).
+ *  Uses pagination to handle Supabase's 1000-row limit. */
+export async function getAllRBWeeklyStats(
+  season: number
+): Promise<RBWeeklyStat[]> {
+  const supabase = createServerClient();
+  const all: RBWeeklyStat[] = [];
+  const PAGE_SIZE = 1000;
+  let offset = 0;
+  let done = false;
+
+  while (!done) {
+    const { data, error } = await supabase
+      .from("rb_weekly_stats")
+      .select("*")
+      .eq("season", season)
+      .range(offset, offset + PAGE_SIZE - 1);
+    if (error || !data || data.length === 0) {
+      done = true;
+      break;
+    }
+    for (const row of data) {
+      all.push(
+        parseNumericFields<RBWeeklyStat>(
+          row as unknown as RBWeeklyStat,
+          RB_WEEKLY_NUMERIC
+        )
+      );
+    }
+    if (data.length < PAGE_SIZE) {
+      done = true;
+    } else {
+      offset += PAGE_SIZE;
+    }
+  }
+  return all;
+}

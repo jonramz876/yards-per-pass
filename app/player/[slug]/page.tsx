@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats } from "@/lib/data/players";
+import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getAllRBWeeklyStats } from "@/lib/data/players";
 import { getQBStats, getAvailableSeasons } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
@@ -106,10 +106,13 @@ export default async function PlayerPage({
     weeklyStats = weekly;
     allPlayers = allReceivers;
   } else if (player.position === "RB") {
-    const weekly = await getRBWeeklyStats(player.player_id, currentSeason);
+    const [weekly, allRBWeekly] = await Promise.all([
+      getRBWeeklyStats(player.player_id, currentSeason),
+      getAllRBWeeklyStats(currentSeason),
+    ]);
     seasonStats = [];
     weeklyStats = weekly;
-    allPlayers = [];
+    allPlayers = allRBWeekly;
   }
 
   const breadcrumbs = getBreadcrumbs(player.position, player.player_name);
