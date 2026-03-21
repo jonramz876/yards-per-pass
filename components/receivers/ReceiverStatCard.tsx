@@ -5,6 +5,7 @@ import { useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
+import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 
 interface ReceiverStatCardProps {
@@ -84,28 +85,6 @@ function getBarVal(rec: ReceiverSeasonStat, key: string): number {
   }
 }
 
-function computePercentile(allValues: number[], value: number): number {
-  if (isNaN(value) || allValues.length === 0) return 0;
-  const rank = allValues.filter((v) => v < value).length;
-  return (rank / allValues.length) * 100;
-}
-
-function computeRank(allValues: number[], value: number): number {
-  if (isNaN(value)) return allValues.length;
-  return allValues.filter((v) => v > value).length + 1;
-}
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
-function chipColor(rank: number, total: number): string {
-  if (rank <= Math.ceil(total * 0.1)) return "#16a34a";
-  if (rank > total - Math.ceil(total * 0.1)) return "#dc2626";
-  return "#1e293b";
-}
 
 export default function ReceiverStatCard({ receiver, allReceivers, minRoutes, onClose }: ReceiverStatCardProps) {
   const team = getTeam(receiver.team_id);

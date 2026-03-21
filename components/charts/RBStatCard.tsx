@@ -4,6 +4,7 @@ import { useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { RBGapStat, RBGapStatWeekly } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
+import { computePercentile, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 
 interface RBStatCardProps {
@@ -98,11 +99,6 @@ function buildLeaguePool(allStats: RBGapStat[]): Map<string, ReturnType<typeof a
   return pool;
 }
 
-function computePercentile(sortedValues: number[], value: number): number {
-  if (isNaN(value) || sortedValues.length === 0) return 0;
-  const rank = sortedValues.filter((v) => v < value).length;
-  return (rank / sortedValues.length) * 100;
-}
 
 function getStatValue(player: ReturnType<typeof aggregatePlayer>, key: string): number {
   switch (key) {
@@ -129,17 +125,6 @@ function formatChipValue(key: string, val: number): string {
   }
 }
 
-function chipColor(rank: number, total: number): string {
-  if (rank <= Math.ceil(total * 0.1)) return "#16a34a";
-  if (rank > total - Math.ceil(total * 0.1)) return "#dc2626";
-  return "#1e293b";
-}
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
 
 export default function RBStatCard({ playerGapStats, allLeagueStats, weeklyData, onClose }: RBStatCardProps) {
   const isEmpty = playerGapStats.length === 0;

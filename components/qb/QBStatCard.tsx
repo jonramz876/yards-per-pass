@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { QBSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
+import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "./RadarChart";
 
 interface QBStatCardProps {
@@ -49,23 +50,6 @@ const BAR_STATS_RUSHER = [
   { key: "rush_yards_per_game", label: "Rush Y/G" },
 ];
 
-function computePercentile(allValues: number[], value: number): number {
-  if (isNaN(value) || allValues.length === 0) return 0;
-  const rank = allValues.filter((v) => v < value).length;
-  return (rank / allValues.length) * 100;
-}
-
-function computeRank(allValues: number[], value: number): number {
-  if (isNaN(value)) return allValues.length;
-  return allValues.filter((v) => v > value).length + 1;
-}
-
-function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
-
 function formatChipValue(key: string, val: number): string {
   if (isNaN(val)) return "\u2014";
   switch (key) {
@@ -83,12 +67,6 @@ function formatChipValue(key: string, val: number): string {
     default:
       return val.toFixed(2);
   }
-}
-
-function chipColor(rank: number, total: number): string {
-  if (rank <= Math.ceil(total * 0.1)) return "#16a34a";
-  if (rank > total - Math.ceil(total * 0.1)) return "#dc2626";
-  return "#1e293b";
 }
 
 export default function QBStatCard({ qb, allQBs, getVal: gv, onClose, season, minDropbacks }: QBStatCardProps) {
