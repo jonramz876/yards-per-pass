@@ -223,6 +223,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
+  const [archFilter, setArchFilter] = useState("");
 
   const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
@@ -234,25 +235,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     setSortDir("desc");
     pushURL({ tab: newTab, sort: newSort, dir: "desc" });
   }
-
-  const filtered = useMemo(() => {
-    let result = data.filter((qb) => qb.dropbacks >= minDropbacks);
-    if (search) {
-      const term = search.toLowerCase();
-      result = result.filter((qb) => qb.player_name.toLowerCase().includes(term));
-    }
-    result.sort((a, b) => {
-      const aVal = getVal(a, sortKey);
-      const bVal = getVal(b, sortKey);
-      const aNull = aVal == null || Number.isNaN(aVal);
-      const bNull = bVal == null || Number.isNaN(bVal);
-      if (aNull && bNull) return 0;
-      if (aNull) return 1;
-      if (bNull) return -1;
-      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
-    });
-    return result;
-  }, [data, sortKey, sortDir, search, minDropbacks]);
 
   // Compute archetype for each QB based on percentiles against ALL QBs (not filtered)
   // Must match the player page pool to ensure consistent archetype labels
@@ -287,6 +269,33 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     }
     return map;
   }, [data]);
+
+  const uniqueArchetypes = useMemo(
+    () => Array.from(new Set(Object.values(archetypeMap).map((a) => a.label))).sort(),
+    [archetypeMap]
+  );
+
+  const filtered = useMemo(() => {
+    let result = data.filter((qb) => qb.dropbacks >= minDropbacks);
+    if (search) {
+      const term = search.toLowerCase();
+      result = result.filter((qb) => qb.player_name.toLowerCase().includes(term));
+    }
+    if (archFilter) {
+      result = result.filter((qb) => archetypeMap[qb.player_id]?.label === archFilter);
+    }
+    result.sort((a, b) => {
+      const aVal = getVal(a, sortKey);
+      const bVal = getVal(b, sortKey);
+      const aNull = aVal == null || Number.isNaN(aVal);
+      const bNull = bVal == null || Number.isNaN(bVal);
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+    });
+    return result;
+  }, [data, sortKey, sortDir, search, minDropbacks, archFilter, archetypeMap]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -421,6 +430,16 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                 className="w-full sm:w-32"
               />
             </div>
+            <select
+              value={archFilter}
+              onChange={(e) => setArchFilter(e.target.value)}
+              className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600 w-full sm:w-auto"
+            >
+              <option value="">All Archetypes</option>
+              {uniqueArchetypes.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
             <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
               <input
                 type="checkbox"
