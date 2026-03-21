@@ -1,9 +1,12 @@
 # .github/workflows/data-refresh.yml
-name: Weekly Data Refresh
+name: Game Day Data Refresh
 
 on:
   schedule:
-    - cron: '0 11 * * 3'  # Every Wednesday at 11:00 AM UTC (after MNF data is published)
+    - cron: '0 12 * * 5'  # Friday 7 AM ET (12:00 UTC) — after Thursday Night Football
+    - cron: '0 12 * * 1'  # Monday 7 AM ET — after Sunday games
+    - cron: '0 12 * * 2'  # Tuesday 7 AM ET — after Monday Night Football
+    - cron: '0 12 * * 3'  # Wednesday 7 AM ET — late stat corrections
   workflow_dispatch:
     inputs:
       season:
