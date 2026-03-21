@@ -53,6 +53,17 @@ export async function getAllPlayerSlugs(): Promise<PlayerSlug[]> {
   return rows as unknown as PlayerSlug[];
 }
 
+export async function getPlayerSlugsByIds(playerIds: string[]): Promise<PlayerSlug[]> {
+  if (playerIds.length === 0) return [];
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("player_slugs")
+    .select("*")
+    .in("player_id", playerIds);
+  if (error || !data) return [];
+  return data as PlayerSlug[];
+}
+
 export async function getQBWeeklyStats(
   playerId: string,
   season: number

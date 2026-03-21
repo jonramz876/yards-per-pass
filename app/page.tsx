@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
-import { getAllPlayerSlugs } from "@/lib/data/players";
+import { getPlayerSlugsByIds } from "@/lib/data/players";
 import { NFL_TEAMS, DIVISIONS, getTeam } from "@/lib/data/teams";
 import type { TeamSeasonStat, PlayerSlug } from "@/lib/types";
 
@@ -44,18 +44,16 @@ export default async function HomePage() {
     const seasons = await getAvailableSeasons();
     currentSeason = seasons[0] || 2025;
 
-    [freshness, teamStats, qbStats, receiverStats, playerSlugs] = await Promise.all([
+    [freshness, teamStats, qbStats, receiverStats] = await Promise.all([
       getDataFreshness(currentSeason),
       getTeamStats(currentSeason),
       getQBStats(currentSeason),
       getReceiverStats(currentSeason),
-      getAllPlayerSlugs(),
     ]);
   } catch {
     // Data unavailable (e.g., CI build with placeholder credentials) — render with empty data
   }
 
-  const slugMap = buildSlugMap(playerSlugs);
   const recordMap = buildRecordMap(teamStats);
 
   // Top 5 QBs by EPA/play (min 100 dropbacks)
@@ -75,6 +73,21 @@ export default async function HomePage() {
     .filter((r) => r.routes_run >= 50 && r.yards_per_route_run > 0)
     .sort((a, b) => b.yards_per_route_run - a.yards_per_route_run)
     .slice(0, 5);
+
+  // Fetch only the slugs needed for leaderboard entries (~15 IDs instead of 1200+)
+  const leaderPlayerIds = Array.from(new Set([
+    ...epaLeaders.map((q) => q.player_id),
+    ...yardLeaders.map((r) => r.player_id),
+    ...yprrLeaders.map((r) => r.player_id),
+  ]));
+
+  try {
+    playerSlugs = await getPlayerSlugsByIds(leaderPlayerIds);
+  } catch {
+    // slug fetch failed — links will fall back to player_id
+  }
+
+  const slugMap = buildSlugMap(playerSlugs);
 
   // Division order: AFC East through NFC West
   const divisionOrder = DIVISIONS;
