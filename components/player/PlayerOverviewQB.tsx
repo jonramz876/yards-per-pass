@@ -18,12 +18,12 @@ interface PlayerOverviewQBProps {
 
 // Radar: 6 axes matching the spec
 const RADAR_AXES = [
-  { label: "Efficiency", sub: "EPA / Dropback" },
-  { label: "Accuracy", sub: "CPOE" },
-  { label: "Volume", sub: "Dropbacks / Game" },
-  { label: "Depth", sub: "Avg Depth of Target" },
-  { label: "Ball Security", sub: "INT Avoidance" },
-  { label: "Consistency", sub: "Success Rate" },
+  { label: "EPA/DB" },
+  { label: "CPOE" },
+  { label: "DB/Game" },
+  { label: "aDOT" },
+  { label: "INT%" },
+  { label: "Success%" },
 ];
 
 const RADAR_KEYS = [
@@ -154,7 +154,7 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
         <div className="text-center mb-4">
           <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
             <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
-              {archetype.label}
+              {archetype.icon} {archetype.label}
             </span>
             <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
               {archetype.description}

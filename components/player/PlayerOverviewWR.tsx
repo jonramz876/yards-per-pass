@@ -17,12 +17,12 @@ interface PlayerOverviewWRProps {
 }
 
 const RADAR_AXES = [
-  { label: "Volume", sub: "Targets / Game" },
-  { label: "Efficiency", sub: "EPA / Target" },
-  { label: "Catch", sub: "Catch Rate" },
-  { label: "Downfield", sub: "Avg Depth of Target" },
-  { label: "After Catch", sub: "YAC / Reception" },
-  { label: "Consistency", sub: "Yds Per Route Run" },
+  { label: "Tgt/Game" },
+  { label: "EPA/Tgt" },
+  { label: "Catch%" },
+  { label: "aDOT" },
+  { label: "YAC/Rec" },
+  { label: "YPRR" },
 ];
 
 const RADAR_KEYS = [
@@ -153,7 +153,7 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
         <div className="text-center mb-4">
           <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
             <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
-              {archetype.label}
+              {archetype.icon} {archetype.label}
             </span>
             <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
               {archetype.description}
