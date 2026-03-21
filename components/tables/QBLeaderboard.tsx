@@ -7,6 +7,8 @@ import type { QBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { computePercentile } from "@/lib/stats/percentiles";
+import { classifyQB } from "@/lib/stats/archetypes";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -252,6 +254,39 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
 
+  // Compute archetype for each QB based on percentiles against the filtered pool
+  const archetypeMap = useMemo(() => {
+    const pool = filtered;
+    const radarKeys = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"] as const;
+
+    function getRadarVal(qb: QBSeasonStat, key: string): number {
+      switch (key) {
+        case "epa_per_db": return qb.epa_per_db ?? NaN;
+        case "cpoe": return qb.cpoe ?? NaN;
+        case "dropbacks_game": return qb.games ? qb.dropbacks / qb.games : NaN;
+        case "adot": return qb.adot ?? NaN;
+        case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
+        case "success_rate": return qb.success_rate ?? NaN;
+        default: return NaN;
+      }
+    }
+
+    // Pre-sort all pools once
+    const sortedPools = radarKeys.map((key) =>
+      pool.map((q) => getRadarVal(q, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    );
+
+    const map: Record<string, { icon: string; label: string }> = {};
+    for (const qb of pool) {
+      const percentiles = radarKeys.map((key, i) =>
+        computePercentile(sortedPools[i], getRadarVal(qb, key))
+      );
+      const arch = classifyQB(percentiles);
+      map[qb.player_id] = { icon: arch.icon, label: arch.label };
+    }
+    return map;
+  }, [filtered]);
+
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
     const sorted: Record<string, number[]> = {};
@@ -492,6 +527,11 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                             >
                               {qb.player_name}
                             </Link>
+                            {archetypeMap[qb.player_id] && (
+                              <span className="text-xs ml-1" title={archetypeMap[qb.player_id].label}>
+                                {archetypeMap[qb.player_id].icon}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-2 py-2 text-xs">

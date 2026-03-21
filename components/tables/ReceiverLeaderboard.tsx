@@ -7,6 +7,8 @@ import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { computePercentile } from "@/lib/stats/percentiles";
+import { classifyWR } from "@/lib/stats/archetypes";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -286,6 +288,38 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     return result;
   }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter]);
 
+  // Compute archetype for each receiver based on percentiles against the filtered pool
+  const archetypeMap = useMemo(() => {
+    const pool = filtered;
+    const radarKeys = ["tgt_game", "epa_per_target", "catch_rate", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"] as const;
+
+    function getRadarVal(rec: ReceiverSeasonStat, key: string): number {
+      switch (key) {
+        case "tgt_game": return rec.games ? rec.targets / rec.games : NaN;
+        case "epa_per_target": return rec.epa_per_target ?? NaN;
+        case "catch_rate": return rec.catch_rate ?? NaN;
+        case "air_yards_per_target": return rec.air_yards_per_target ?? NaN;
+        case "yac_per_reception": return rec.yac_per_reception ?? NaN;
+        case "yards_per_route_run": return rec.yards_per_route_run ?? NaN;
+        default: return NaN;
+      }
+    }
+
+    const sortedPools = radarKeys.map((key) =>
+      pool.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    );
+
+    const map: Record<string, { icon: string; label: string }> = {};
+    for (const rec of pool) {
+      const percentiles = radarKeys.map((key, i) =>
+        computePercentile(sortedPools[i], getRadarVal(rec, key))
+      );
+      const arch = classifyWR(percentiles);
+      map[rec.player_id] = { icon: arch.icon, label: arch.label };
+    }
+    return map;
+  }, [filtered]);
+
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
     const sorted: Record<string, number[]> = {};
@@ -555,6 +589,11 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                             >
                               {rec.player_name}
                             </Link>
+                            {archetypeMap[rec.player_id] && (
+                              <span className="text-xs ml-0.5" title={archetypeMap[rec.player_id].label}>
+                                {archetypeMap[rec.player_id].icon}
+                              </span>
+                            )}
                             <span className="text-[10px] text-gray-400 ml-1">{rec.position}</span>
                           </div>
                         </td>
