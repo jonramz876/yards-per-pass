@@ -83,6 +83,14 @@ export function rbFantasyPoints(stats: {
 
 QB fantasy points don't vary by format (no receptions). WR/TE/RB points depend on the PPR multiplier.
 
+All functions should use `(stats.field || 0)` defensive patterns for null safety.
+
+**Note:** QB types use `rush_yards`/`rush_tds`, RB types use `rushing_yards`/`rushing_tds`. The function signatures must match the correct type field names.
+
+**Note:** `ReceiverWeeklyStat` is missing `fumbles`/`fumbles_lost` fields. For weekly WR/TE game log rows, treat fumbles as 0 (known limitation — season totals will be accurate). If the columns are added to the weekly table later, the game log will automatically pick them up.
+
+**Note:** `PlayerOverviewRB.tsx` aggregates weekly stats into `AggregatedRB` which currently skips `fumbles_lost`. Implementation must add `fumbles_lost` to the aggregation loop.
+
 ### Files Changed
 
 | File | Change |
@@ -101,7 +109,7 @@ QB fantasy points don't vary by format (no receptions). WR/TE/RB points depend o
 
 ### Schedule
 
-Add cron triggers to existing `.github/workflows/refresh.yml` (Weekly Data Refresh):
+Replace the existing single cron in `.github/workflows/data-refresh.yml` with 4 cron entries:
 
 ```yaml
 on:
@@ -110,8 +118,10 @@ on:
     - cron: '0 12 * * 1'  # Monday 7 AM ET — after Sunday games
     - cron: '0 12 * * 2'  # Tuesday 7 AM ET — after Monday Night Football
     - cron: '0 12 * * 3'  # Wednesday 7 AM ET — late stat corrections
-  workflow_dispatch:       # keep manual trigger
+  workflow_dispatch:       # keep manual trigger (with optional season input)
 ```
+
+**Note:** This replaces the existing `cron: '0 11 * * 3'` (Wednesday only). The Wednesday entry moves from 11 UTC to 12 UTC for consistency.
 
 ### Existing Safeguards (no changes needed)
 - "Check for offseason" step skips if no new data available
@@ -123,7 +133,7 @@ on:
 
 | File | Change |
 |------|--------|
-| `.github/workflows/refresh.yml` | Add 4 cron schedule entries |
+| `.github/workflows/data-refresh.yml` | Replace single Wednesday cron with 4 game-day crons |
 
 ---
 
