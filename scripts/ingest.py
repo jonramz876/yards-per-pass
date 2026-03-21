@@ -681,6 +681,19 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         part_exploded = part_exploded[part_exploded['player_id'] != '']  # filter empty strings from trailing semicolons
         part_exploded = part_exploded.drop_duplicates(['nflverse_game_id', 'play_id', 'player_id'])  # guard against duplicate rows
 
+        # --- SNAP COUNTS: count ALL plays per player (not just pass plays) ---
+        # Join to plays for team context (participation data has no team column)
+        snaps_with_team = part_exploded.merge(
+            plays[['game_id', 'play_id', 'posteam']].drop_duplicates(),
+            left_on=['nflverse_game_id', 'play_id'],
+            right_on=['game_id', 'play_id'],
+            how='inner'
+        )
+        # Total snaps per player per team
+        player_snap_counts = snaps_with_team.groupby(['player_id', 'posteam'])['play_id'].nunique().reset_index(name='total_snaps')
+        # Team total offensive snaps (denominator for snap_share)
+        team_total_snaps = snaps_with_team.groupby('posteam')['play_id'].nunique().to_dict()
+
         # Join to pass plays to find who was on field during pass plays
         routes = part_exploded.merge(
             pass_plays,
@@ -695,12 +708,33 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         rec = rec.merge(routes_per_player, on='player_id', how='left')
         rec['routes_run'] = rec['routes_run'].fillna(0).astype(int)
 
+        # Merge snap counts — use primary team (same as target_share logic)
+        rec = rec.merge(
+            player_snap_counts,
+            left_on=['player_id', 'team_id'],
+            right_on=['player_id', 'posteam'],
+            how='left'
+        )
+        rec.drop(columns=['posteam'], inplace=True, errors='ignore')
+        rec['total_snaps'] = rec['total_snaps'].fillna(0).astype(int)
+        rec['snap_share'] = rec.apply(
+            lambda r: r['total_snaps'] / team_total_snaps.get(r['team_id'], 1)
+            if r['total_snaps'] > 0 else float('nan'), axis=1
+        )
+
+        # Validate bounds
+        bad_snap = rec[rec['snap_share'] > 1.0]
+        if not bad_snap.empty:
+            log.warning("snap_share > 1.0 for %d players: %s", len(bad_snap), bad_snap['player_name'].tolist()[:5])
+
         # Sanity check: warn if participation join produced suspiciously few routes
         total_routes = rec['routes_run'].sum()
         if total_routes < 10000:
             log.warning("Low route count (%d total) — participation data may not have matched PBP game IDs", total_routes)
     else:
         rec['routes_run'] = 0
+        rec['total_snaps'] = 0
+        rec['snap_share'] = float('nan')
 
     # Derived route metrics
     rec['yards_per_route_run'] = rec.apply(
@@ -709,6 +743,14 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     rec['targets_per_route_run'] = rec.apply(
         lambda r: r['targets'] / r['routes_run'] if r['routes_run'] > 0 else float('nan'), axis=1
     )
+    rec['route_participation_rate'] = rec.apply(
+        lambda r: r['routes_run'] / r['total_snaps'] if r['total_snaps'] > 0 else float('nan'), axis=1
+    )
+
+    # Validate route participation bounds
+    bad_route = rec[rec['route_participation_rate'] > 1.0]
+    if not bad_route.empty:
+        log.warning("route_participation_rate > 1.0 for %d players: %s", len(bad_route), bad_route['player_name'].tolist()[:5])
 
     # Select final columns
     cols = [
@@ -718,6 +760,7 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         'epa_per_target', 'yac', 'yac_per_reception',
         'air_yards', 'air_yards_per_target', 'target_share',
         'routes_run', 'yards_per_route_run', 'targets_per_route_run',
+        'total_snaps', 'snap_share', 'route_participation_rate',
         'fumbles', 'fumbles_lost',
     ]
     return rec[cols]
@@ -1044,7 +1087,8 @@ def ensure_receiver_stats_table(conn):
             CREATE INDEX IF NOT EXISTS idx_receiver_team ON receiver_season_stats(team_id, season);
         """)
         # Add route columns (idempotent for existing tables)
-        for col, typ in [('routes_run', 'INTEGER'), ('yards_per_route_run', 'NUMERIC'), ('targets_per_route_run', 'NUMERIC')]:
+        for col, typ in [('routes_run', 'INTEGER'), ('yards_per_route_run', 'NUMERIC'), ('targets_per_route_run', 'NUMERIC'),
+                         ('total_snaps', 'INTEGER'), ('snap_share', 'NUMERIC'), ('route_participation_rate', 'NUMERIC')]:
             cur.execute(f"ALTER TABLE receiver_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
         # RLS (wrapped in exception blocks for idempotent re-runs)
         cur.execute("""
@@ -1076,6 +1120,7 @@ def upsert_receiver_stats(conn, df: pd.DataFrame):
         'epa_per_target', 'yac', 'yac_per_reception',
         'air_yards', 'air_yards_per_target', 'target_share',
         'routes_run', 'yards_per_route_run', 'targets_per_route_run',
+        'total_snaps', 'snap_share', 'route_participation_rate',
         'fumbles', 'fumbles_lost',
     ]
     clean_df = df[cols].where(df[cols].notna(), None)

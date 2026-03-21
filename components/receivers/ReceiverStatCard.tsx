@@ -42,10 +42,12 @@ const RADAR_LABELS: Record<string, string> = {
 };
 
 const BAR_STATS = [
-  { key: "yards_per_game", label: "Yds/G" },
-  { key: "tds_per_game", label: "TD/G" },
-  { key: "receptions_per_game", label: "Rec/G" },
-  { key: "yards_per_reception", label: "YPR" },
+  { key: "yards_per_game", label: "Yds/G", pct: false },
+  { key: "tds_per_game", label: "TD/G", pct: false },
+  { key: "receptions_per_game", label: "Rec/G", pct: false },
+  { key: "yards_per_reception", label: "YPR", pct: false },
+  { key: "snap_share", label: "Snap%", pct: true },
+  { key: "route_participation_rate", label: "Route%", pct: true },
 ];
 
 function getStatValue(rec: ReceiverSeasonStat, key: string): number {
@@ -263,7 +265,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, minRoutes, on
                     color: "#94a3b8",
                   }}
                 >
-                  avg: {isNaN(bar.avg) ? "\u2014" : bar.avg < 10 ? bar.avg.toFixed(1) : bar.avg.toFixed(0)}
+                  avg: {isNaN(bar.avg) ? "\u2014" : bar.pct ? (bar.avg * 100).toFixed(1) + "%" : bar.avg < 10 ? bar.avg.toFixed(1) : bar.avg.toFixed(0)}
                 </div>
                 {bar.delta >= 0 ? (
                   <div
@@ -289,7 +291,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, minRoutes, on
               </div>
               <div className="w-[90px] text-right leading-tight">
                 <div className="text-[11px] font-bold text-gray-900">
-                  {isNaN(bar.val) ? "\u2014" : bar.val.toFixed(1)}
+                  {isNaN(bar.val) ? "\u2014" : bar.pct ? (bar.val * 100).toFixed(1) + "%" : bar.val.toFixed(1)}
                 </div>
                 <div
                   className="text-[10px]"
@@ -297,7 +299,7 @@ export default function ReceiverStatCard({ receiver, allReceivers, minRoutes, on
                 >
                   {isNaN(bar.delta)
                     ? ""
-                    : (bar.delta >= 0 ? "+" : "") + bar.delta.toFixed(1)}
+                    : (bar.delta >= 0 ? "+" : "") + (bar.pct ? (bar.delta * 100).toFixed(1) + "%" : bar.delta.toFixed(1))}
                 </div>
               </div>
             </div>

@@ -397,3 +397,134 @@ class TestRoutesRun:
         result = aggregate_receiver_stats(plays, roster, 2025)
         for col in ['routes_run', 'yards_per_route_run', 'targets_per_route_run']:
             assert col in result.columns, f"Missing column: {col}"
+
+
+class TestSnapCounts:
+    """Snap count, snap share, and route participation rate from participation data."""
+
+    def test_total_snaps_counts_all_plays(self):
+        """total_snaps counts ALL plays (pass + run), not just pass plays."""
+        from ingest import aggregate_receiver_stats
+        # 1 pass play targeting WR1
+        pass_play = make_plays(game_id='GAME1', complete_pass=1)
+        pass_play['play_id'] = [0]
+        # 1 run play (no receiver, not a pass attempt) — WR1 still on field
+        run_play = make_plays(game_id='GAME1', receiver_player_id=None, pass_attempt=0,
+                              complete_pass=0, receiving_yards=0, air_yards=0,
+                              yards_after_catch=0, epa=0.1, pass_touchdown=0)
+        run_play['play_id'] = [1]
+        plays = pd.concat([pass_play, run_play], ignore_index=True)
+        roster = make_roster()
+        # WR1 on field for BOTH plays
+        participation = pd.concat([
+            make_participation(player_ids='WR1', play_id=0),
+            make_participation(player_ids='WR1', play_id=1),
+        ], ignore_index=True)
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        assert result.iloc[0]['total_snaps'] == 2  # both plays
+        assert result.iloc[0]['routes_run'] == 1   # only pass play
+
+    def test_snap_share_computation(self):
+        """snap_share = player_snaps / team_total_snaps."""
+        from ingest import aggregate_receiver_stats
+        # 2 plays, WR1 on field for 1, WR2 on field for both
+        play1 = make_plays(game_id='GAME1', complete_pass=1)
+        play1['play_id'] = [0]
+        play2 = make_plays(game_id='GAME1', receiver_player_id='WR2',
+                           receiver_player_name='Other WR', complete_pass=1)
+        play2['play_id'] = [1]
+        plays = pd.concat([play1, play2], ignore_index=True)
+        roster = pd.concat([make_roster('WR1', 'WR'), make_roster('WR2', 'WR')], ignore_index=True)
+        participation = pd.concat([
+            make_participation(player_ids=['WR1', 'WR2'], play_id=0),
+            make_participation(player_ids=['WR2'], play_id=1),
+        ], ignore_index=True)
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        wr1 = result[result['player_id'] == 'WR1'].iloc[0]
+        assert wr1['total_snaps'] == 1
+        assert abs(wr1['snap_share'] - 0.5) < 0.01  # 1 snap / 2 team snaps
+
+    def test_route_participation_rate(self):
+        """route_participation_rate = routes_run / total_snaps."""
+        from ingest import aggregate_receiver_stats
+        # 3 plays: 2 pass + 1 run. WR1 on field for all 3.
+        pass1 = make_plays(game_id='GAME1', complete_pass=1)
+        pass1['play_id'] = [0]
+        pass2 = make_plays(game_id='GAME1', complete_pass=0, receiving_yards=0)
+        pass2['play_id'] = [1]
+        run = make_plays(game_id='GAME1', receiver_player_id=None, pass_attempt=0,
+                         complete_pass=0, receiving_yards=0, air_yards=0,
+                         yards_after_catch=0, epa=0.1, pass_touchdown=0)
+        run['play_id'] = [2]
+        plays = pd.concat([pass1, pass2, run], ignore_index=True)
+        roster = make_roster()
+        participation = pd.concat([
+            make_participation(player_ids='WR1', play_id=0),
+            make_participation(player_ids='WR1', play_id=1),
+            make_participation(player_ids='WR1', play_id=2),
+        ], ignore_index=True)
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        row = result.iloc[0]
+        assert row['total_snaps'] == 3
+        assert row['routes_run'] == 2  # only pass plays
+        assert abs(row['route_participation_rate'] - 2/3) < 0.01
+
+    def test_snap_zero_division(self):
+        """Player with 0 total_snaps gets NaN for snap_share and route_participation_rate."""
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        roster = make_roster()
+        # No participation data — fallback
+        result = aggregate_receiver_stats(plays, roster, 2025, None)
+        assert result.iloc[0]['total_snaps'] == 0
+        assert math.isnan(result.iloc[0]['snap_share'])
+        assert math.isnan(result.iloc[0]['route_participation_rate'])
+
+    def test_snap_share_bounds(self):
+        """No player should have snap_share > 1.0 or route_participation_rate > 1.0."""
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        roster = make_roster()
+        participation = make_participation(player_ids='WR1', play_id=0)
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        row = result.iloc[0]
+        if not math.isnan(row['snap_share']):
+            assert row['snap_share'] <= 1.0
+        if not math.isnan(row['route_participation_rate']):
+            assert row['route_participation_rate'] <= 1.0
+
+    def test_traded_player_snap_share(self):
+        """Traded player's snap_share uses primary team's total snaps."""
+        from ingest import aggregate_receiver_stats
+        # WR1 has 2 targets on KC, 1 target on SF → primary team = KC
+        kc1 = make_plays(game_id='GAME1', posteam='KC')
+        kc1['play_id'] = [0]
+        kc2 = make_plays(game_id='GAME2', posteam='KC')
+        kc2['play_id'] = [1]
+        sf1 = make_plays(game_id='GAME3', posteam='SF')
+        sf1['play_id'] = [2]
+        plays = pd.concat([kc1, kc2, sf1], ignore_index=True)
+        roster = make_roster()
+        # On field for all 3 plays
+        participation = pd.concat([
+            make_participation(play_id=0, game_id='GAME1'),
+            make_participation(play_id=1, game_id='GAME2'),
+            make_participation(play_id=2, game_id='GAME3'),
+        ], ignore_index=True)
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        row = result.iloc[0]
+        assert row['team_id'] == 'KC'  # primary team
+        # snap_share = KC snaps (2) / KC team total (2) = 1.0
+        assert abs(row['snap_share'] - 1.0) < 0.01
+
+    def test_output_has_snap_columns(self):
+        """Output DataFrame includes all snap count columns."""
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025)
+        for col in ['total_snaps', 'snap_share', 'route_participation_rate']:
+            assert col in result.columns, f"Missing column: {col}"

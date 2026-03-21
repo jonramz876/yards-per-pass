@@ -31,6 +31,8 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "target_share", label: "Tgt Share", tooltip: "Tgt Share", group: "efficiency" },
   { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
   { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
+  { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
+  { key: "route_participation_rate", label: "Route%", tooltip: "Route%", group: "efficiency" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
@@ -42,6 +44,7 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "receiving_tds", label: "TD", group: "receiving" },
   { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
   { key: "routes_run", label: "Routes", group: "receiving" },
+  { key: "total_snaps", label: "Snaps", group: "receiving" },
   { key: "yards_per_reception", label: "YPR", tooltip: "YPR", group: "efficiency" },
   { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
 ];
@@ -75,6 +78,7 @@ const HEATMAP_COLS_ADVANCED = new Set([
   "epa_per_target", "catch_rate", "yards_per_target",
   "air_yards_per_target", "yac_per_reception", "target_share",
   "yards_per_route_run", "targets_per_route_run",
+  "snap_share", "route_participation_rate",
 ]);
 const HEATMAP_COLS_STANDARD = new Set([
   "catch_rate", "yards_per_reception",
@@ -112,6 +116,8 @@ function formatVal(key: string, rec: ReceiverSeasonStat): string {
       return val.toFixed(2);
     case "catch_rate":
     case "target_share":
+    case "snap_share":
+    case "route_participation_rate":
       return (val * 100).toFixed(1) + "%";
     case "yards_per_reception":
     case "yards_per_game":
@@ -134,6 +140,8 @@ function formatAvg(key: string, val: number): string {
       return val.toFixed(2);
     case "catch_rate":
     case "target_share":
+    case "snap_share":
+    case "route_participation_rate":
       return (val * 100).toFixed(1) + "%";
     case "yards_per_reception":
     case "yards_per_game":
@@ -552,6 +560,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
         <p><span className="font-semibold text-gray-500">Catch%</span> = receptions / targets. <span className="font-semibold text-gray-500">ADOT</span> = average depth of target. <span className="font-semibold text-gray-500">YAC/Rec</span> = yards after catch per reception.</p>
         <p><span className="font-semibold text-gray-500">Tgt Share</span> = player targets / team pass attempts. Values may exceed typical ranges for players who changed teams mid-season.</p>
+        <p><span className="font-semibold text-gray-500">Snap%</span> = player snaps / team offensive snaps. <span className="font-semibold text-gray-500">Route%</span> = routes run / total snaps (pass catchers &gt; blockers).</p>
       </div>
 
       {selectedReceiver && (

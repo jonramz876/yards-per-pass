@@ -137,6 +137,18 @@ const TERMS: { term: string; definition: string }[] = [
     term: "TPRR (Targets Per Route Run)",
     definition: "Targets divided by routes run. Measures how often a quarterback looks at a receiver on each route they run. High TPRR indicates a receiver who commands attention from the offense regardless of overall target volume.",
   },
+  {
+    term: "Snap Count",
+    definition: "Total offensive plays a player was on the field for. Derived from play-by-play participation data \u2014 counts all play types (passes, runs, penalties). Does not include special teams snaps.",
+  },
+  {
+    term: "Snap Share (Snap%)",
+    definition: "Player\u2019s offensive snap count divided by their team\u2019s total offensive snaps. A snap share of 85% means the player was on the field for 85% of the team\u2019s offensive plays. The primary measure of a receiver\u2019s playing time.",
+  },
+  {
+    term: "Route Participation Rate (Route%)",
+    definition: "Routes run divided by total offensive snaps. Measures how often a player runs a route when on the field. A WR with 90% route participation is almost always running routes. A TE with 50% is blocking half the time. Separates pass catchers from blockers.",
+  },
 ];
 
 export default function GlossaryPage() {

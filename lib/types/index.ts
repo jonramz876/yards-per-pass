@@ -129,4 +129,7 @@ export interface ReceiverSeasonStat {
   routes_run: number;
   yards_per_route_run: number;
   targets_per_route_run: number;
+  total_snaps: number;
+  snap_share: number;
+  route_participation_rate: number;
 }

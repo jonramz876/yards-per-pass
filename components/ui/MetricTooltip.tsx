@@ -49,6 +49,9 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   YPR: "Yards per reception. Total receiving yards \u00f7 receptions. A simple per-catch efficiency measure.",
   YPRR: "Yards Per Route Run \u2014 receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted.",
   TPRR: "Targets Per Route Run \u2014 targets divided by routes run. Measures how often a receiver gets targeted on each route they run.",
+  Snaps: "Total offensive plays the player was on the field. Derived from play-by-play participation data.",
+  "Snap%": "Percentage of team\u2019s offensive plays the player was on the field. 100% means every snap.",
+  "Route%": "How often the player runs a route when on the field. High = pure pass catcher, low = run blocker. WRs are typically 80\u201395%, blocking TEs can be 40\u201360%.",
 };
 
 interface MetricTooltipProps {
