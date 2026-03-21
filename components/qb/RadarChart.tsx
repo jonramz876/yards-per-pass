@@ -11,11 +11,11 @@ interface RadarChartProps {
 }
 
 const AXES: { label: string }[] = [
-  { label: "EPA/Play" },
+  { label: "EPA/DB" },
   { label: "CPOE" },
+  { label: "DB/Game" },
   { label: "aDOT" },
-  { label: "TD:INT" },
-  { label: "Rush EPA" },
+  { label: "INT%" },
   { label: "Success%" },
 ];
 
