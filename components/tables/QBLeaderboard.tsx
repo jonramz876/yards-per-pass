@@ -9,6 +9,7 @@ import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile } from "@/lib/stats/percentiles";
 import { classifyQB } from "@/lib/stats/archetypes";
+import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -34,6 +35,7 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "td_int_ratio", label: "TD:INT", tooltip: "TD:INT", group: "efficiency" },
   { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
   { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
+  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
@@ -55,6 +57,7 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "rush_yards", label: "Rush Yds", group: "rushing" },
   { key: "rush_tds", label: "Rush TD", group: "rushing" },
   { key: "total_tds", label: "Tot TD", group: "rushing" },
+  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
@@ -77,6 +80,14 @@ function getVal(qb: QBSeasonStat, key: string): number {
     case "tds_per_game": return qb.games ? qb.touchdowns / qb.games : NaN;
     case "total_tds": return qb.touchdowns + qb.rush_tds;
     case "td_int_ratio": return qb.interceptions > 0 ? qb.touchdowns / qb.interceptions : Infinity;
+    case "fantasy_pts": return qbFantasyPoints({
+      passing_yards: qb.passing_yards,
+      touchdowns: qb.touchdowns,
+      interceptions: qb.interceptions,
+      rush_yards: qb.rush_yards,
+      rush_tds: qb.rush_tds,
+      fumbles_lost: qb.fumbles_lost,
+    });
     default: {
       const val = qb[key as keyof QBSeasonStat] as number;
       return val ?? NaN;
@@ -135,6 +146,8 @@ function formatAvg(key: string, val: number): string {
       return val === Infinity ? "\u221E" : val.toFixed(1) + ":1";
     case "yards_per_game":
     case "tds_per_game":
+      return val.toFixed(1);
+    case "fantasy_pts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -224,6 +237,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [archFilter, setArchFilter] = useState("");
+  const [scoringFormat, setScoringFormat] = useState<ScoringFormat>("ppr");
 
   const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
@@ -359,6 +373,8 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
       case "td_int_ratio":
         if (!Number.isFinite(n)) return `${qb.touchdowns}:0`;
         return n.toFixed(1) + ":1";
+      case "fantasy_pts":
+        return n.toFixed(1);
       default:
         return Number.isInteger(n) ? n.toString() : n.toFixed(1);
     }
@@ -440,6 +456,21 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setScoringFormat(val)}
+                  className={`px-2 py-1 text-xs font-medium transition-colors ${
+                    scoringFormat === val
+                      ? "bg-navy text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
               <input
                 type="checkbox"
