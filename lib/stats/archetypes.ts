@@ -48,7 +48,8 @@ export function classifyQB(percentiles: number[]): Archetype {
 
 // WR axes: [Volume, Efficiency, Catch, Downfield, AfterCatch, Consistency]
 export function classifyWR(percentiles: number[]): Archetype {
-  const [vol, eff, catch_, downfield, yac, cons] = percentiles;
+  const [vol, _eff, catch_, downfield, yac, cons] = percentiles;
+  void _eff; // used indirectly via above70 filter
   const above70 = percentiles.filter(p => p >= 70).length;
 
   if (above70 >= 4 && vol >= 70) return {
