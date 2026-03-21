@@ -254,9 +254,10 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks]);
 
-  // Compute archetype for each QB based on percentiles against the filtered pool
+  // Compute archetype for each QB based on percentiles against ALL QBs (not filtered)
+  // Must match the player page pool to ensure consistent archetype labels
   const archetypeMap = useMemo(() => {
-    const pool = filtered;
+    const pool = data;
     const radarKeys = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"] as const;
 
     function getRadarVal(qb: QBSeasonStat, key: string): number {
@@ -285,7 +286,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
       map[qb.player_id] = { icon: arch.icon, label: arch.label };
     }
     return map;
-  }, [filtered]);
+  }, [data]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
