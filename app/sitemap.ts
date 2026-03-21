@@ -5,7 +5,12 @@ import type { MetadataRoute } from "next";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
-  const players = await getAllPlayerSlugs();
+  let players: { slug: string }[] = [];
+  try {
+    players = await getAllPlayerSlugs();
+  } catch {
+    // Supabase unavailable (e.g., CI build) — sitemap will have static + team pages only
+  }
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
