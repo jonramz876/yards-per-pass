@@ -14,6 +14,7 @@ const RECEIVER_NUMERIC_FIELDS = [
   "target_share",
   "yards_per_route_run",
   "targets_per_route_run",
+  "total_snaps",
   "snap_share",
   "route_participation_rate",
 ];

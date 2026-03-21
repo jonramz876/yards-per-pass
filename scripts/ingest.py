@@ -689,12 +689,14 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
             right_on=['game_id', 'play_id'],
             how='inner'
         )
+        # Composite key for unique plays (play_id resets per game in nflverse)
+        snaps_with_team['game_play'] = snaps_with_team['game_id'] + '_' + snaps_with_team['play_id'].astype(str)
         # Total snaps per player (ALL teams combined — used for route_participation_rate)
-        player_total_snaps = snaps_with_team.groupby('player_id')['play_id'].nunique().reset_index(name='total_snaps')
+        player_total_snaps = snaps_with_team.groupby('player_id')['game_play'].nunique().reset_index(name='total_snaps')
         # Snaps per player per team (used for snap_share with primary team)
-        player_team_snaps = snaps_with_team.groupby(['player_id', 'posteam'])['play_id'].nunique().reset_index(name='primary_team_snaps')
+        player_team_snaps = snaps_with_team.groupby(['player_id', 'posteam'])['game_play'].nunique().reset_index(name='primary_team_snaps')
         # Team total offensive snaps (denominator for snap_share)
-        team_total_snaps = snaps_with_team.groupby('posteam')['play_id'].nunique().to_dict()
+        team_total_snaps = snaps_with_team.groupby('posteam')['game_play'].nunique().to_dict()
 
         # Join to pass plays to find who was on field during pass plays
         routes = part_exploded.merge(
@@ -724,8 +726,8 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         rec.drop(columns=['posteam'], inplace=True, errors='ignore')
         rec['primary_team_snaps'] = rec['primary_team_snaps'].fillna(0).astype(int)
         rec['snap_share'] = rec.apply(
-            lambda r: r['primary_team_snaps'] / team_total_snaps.get(r['team_id'], 1)
-            if r['primary_team_snaps'] > 0 else float('nan'), axis=1
+            lambda r: r['primary_team_snaps'] / team_total_snaps[r['team_id']]
+            if r['primary_team_snaps'] > 0 and r['team_id'] in team_total_snaps else float('nan'), axis=1
         )
         rec.drop(columns=['primary_team_snaps'], inplace=True)
 
