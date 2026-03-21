@@ -181,6 +181,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
   })();
 
   const urlPos = searchParams.get("pos") || "";
+  const urlTeam = searchParams.get("team") || "";
 
   const [tab, setTab] = useState<Tab>(initialTab);
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
@@ -188,14 +189,21 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
   const [search, setSearch] = useState(urlSearch);
   const [minRoutes, setMinRoutes] = useState(initialMin);
   const [posFilter, setPosFilter] = useState(urlPos);
+  const [teamFilter, setTeamFilter] = useState(urlTeam);
+
+  // Unique teams sorted alphabetically for the dropdown
+  const teams = useMemo(() => {
+    const set = new Set(data.map((r) => r.team_id));
+    return Array.from(set).sort();
+  }, [data]);
   const [selectedReceiver, setSelectedReceiver] = useState<ReceiverSeasonStat | null>(null);
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; pos?: string }) => {
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; pos?: string; team?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
       // Remove our managed keys, then re-add non-defaults
-      ["tab", "sort", "dir", "q", "min", "pos"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "pos", "team"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
       const defaultSort = newTab === "advanced" ? "epa_per_target" : "receiving_yards";
@@ -204,6 +212,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       const newQ = overrides.q ?? search;
       const newMin = overrides.min ?? minRoutes;
       const newPos = overrides.pos ?? posFilter;
+      const newTeam = overrides.team ?? teamFilter;
 
       if (newTab !== "advanced") params.set("tab", newTab);
       if (newSort !== defaultSort) params.set("sort", newSort);
@@ -211,15 +220,16 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       if (newQ) params.set("q", newQ);
       if (newMin !== computedDefaultMin) params.set("min", String(newMin));
       if (newPos) params.set("pos", newPos);
+      if (newTeam) params.set("team", newTeam);
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minRoutes, posFilter, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minRoutes, posFilter, teamFilter, computedDefaultMin, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; pos?: string }) => {
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; pos?: string; team?: string }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -256,6 +266,9 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
     if (posFilter) {
       result = result.filter((rec) => rec.position === posFilter);
     }
+    if (teamFilter) {
+      result = result.filter((rec) => rec.team_id === teamFilter);
+    }
     if (search) {
       const term = search.toLowerCase();
       result = result.filter((rec) => rec.player_name.toLowerCase().includes(term));
@@ -271,7 +284,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
-  }, [data, sortKey, sortDir, search, minRoutes, posFilter]);
+  }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter]);
 
   useEffect(() => { setSelectedReceiver(null); }, [filtered]);
 
@@ -372,6 +385,19 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
               <option value="WR">WR</option>
               <option value="TE">TE</option>
               <option value="RB">RB</option>
+            </select>
+            <select
+              value={teamFilter}
+              onChange={(e) => {
+                setTeamFilter(e.target.value);
+                pushURL({ team: e.target.value });
+              }}
+              className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600 w-full sm:w-auto"
+            >
+              <option value="">All Teams</option>
+              {teams.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
             <div className="flex items-center gap-3">
               <label className="text-sm text-gray-500 whitespace-nowrap">
@@ -553,7 +579,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season }: Recei
 
       <p className="mt-2 text-xs text-gray-400">
         Showing {filtered.length} of {data.length} receivers with &ge;{minRoutes} routes
-        {posFilter ? ` (${posFilter} only)` : ""}
+        {posFilter ? ` (${posFilter} only)` : ""}{teamFilter ? ` (${teamFilter})` : ""}
       </p>
 
       <div className="mt-4 text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-3">
