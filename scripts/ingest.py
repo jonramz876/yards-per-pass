@@ -1256,6 +1256,703 @@ def upsert_rb_gap_stats_weekly(conn, df: pd.DataFrame):
     log.info("Upserted %d weekly RB gap stat rows", len(rows))
 
 
+# --- Weekly stats tables (game logs) ---
+
+def _derive_game_context(plays: pd.DataFrame) -> pd.DataFrame:
+    """Derive per-game context (opponent, home/away, score, result) from PBP plays.
+
+    Returns DataFrame with columns: game_id, posteam, opponent_id, home_away,
+    team_score, opponent_score, result.
+    """
+    # Get unique game+team combos
+    game_teams = plays[['game_id', 'posteam', 'defteam', 'home_team', 'away_team',
+                         'total_home_score', 'total_away_score']].copy()
+
+    # Final scores: max of running score columns per game
+    final_scores = game_teams.groupby('game_id').agg(
+        home_score=('total_home_score', 'max'),
+        away_score=('total_away_score', 'max'),
+        home_team=('home_team', 'first'),
+        away_team=('away_team', 'first'),
+    ).reset_index()
+
+    # Build context per (game_id, posteam)
+    game_team_context = game_teams[['game_id', 'posteam', 'defteam']].drop_duplicates()
+    # Take the most common defteam per game+posteam (should be unique but guard it)
+    game_team_context = game_team_context.groupby(['game_id', 'posteam']).agg(
+        opponent_id=('defteam', 'first')
+    ).reset_index()
+
+    game_team_context = game_team_context.merge(final_scores, on='game_id', how='left')
+
+    # home_away
+    game_team_context['home_away'] = game_team_context.apply(
+        lambda r: 'home' if r['posteam'] == r['home_team'] else 'away', axis=1
+    )
+
+    # team_score / opponent_score
+    game_team_context['team_score'] = game_team_context.apply(
+        lambda r: int(r['home_score']) if r['home_away'] == 'home' else int(r['away_score']), axis=1
+    )
+    game_team_context['opponent_score'] = game_team_context.apply(
+        lambda r: int(r['away_score']) if r['home_away'] == 'home' else int(r['home_score']), axis=1
+    )
+
+    # result
+    game_team_context['result'] = game_team_context.apply(
+        lambda r: 'W' if r['team_score'] > r['opponent_score']
+        else ('L' if r['team_score'] < r['opponent_score'] else 'T'), axis=1
+    )
+
+    return game_team_context[['game_id', 'posteam', 'opponent_id', 'home_away',
+                               'team_score', 'opponent_score', 'result']]
+
+
+def _get_game_week_map(plays: pd.DataFrame) -> dict:
+    """Return dict mapping game_id -> week."""
+    return plays.groupby('game_id')['week'].first().to_dict()
+
+
+def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate QB weekly (game-log) stats from filtered plays."""
+    qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
+
+    # --- Dropback stats ---
+    dropbacks = plays[plays['qb_dropback'] == 1].copy()
+
+    # Fix scramble attribution (same as season-level)
+    scramble_mask = dropbacks['qb_scramble'] == 1
+    dropbacks.loc[scramble_mask, 'passer_player_id'] = (
+        dropbacks.loc[scramble_mask, 'passer_player_id'].fillna(
+            dropbacks.loc[scramble_mask, 'rusher_player_id']
+        )
+    )
+
+    # Filter to roster QBs early for weekly
+    dropbacks = dropbacks[dropbacks['passer_player_id'].isin(qb_ids)]
+
+    if dropbacks.empty:
+        return pd.DataFrame()
+
+    # Game-week map
+    game_week = _get_game_week_map(plays)
+    game_context = _derive_game_context(plays)
+
+    # True pass attempts (exclude sacks)
+    true_passes = dropbacks[(dropbacks['pass_attempt'] == 1) & (dropbacks['sack'] != 1)]
+
+    # Group dropbacks by passer + game
+    qb_game = dropbacks.groupby(['passer_player_id', 'game_id', 'posteam']).agg(
+        epa_per_dropback=('epa', 'mean'),
+        sacks=('sack', 'sum'),
+        cpoe=('cpoe', lambda x: x.dropna().mean()),
+        success_rate=('success', lambda x: x.dropna().mean()),
+    ).reset_index()
+
+    # True pass attempts per game
+    pass_att = true_passes.groupby(['passer_player_id', 'game_id']).agg(
+        completions=('complete_pass', 'sum'),
+        attempts=('game_id', 'count'),
+        passing_yards=('passing_yards', lambda s: s.fillna(0).sum()),
+        touchdowns=('pass_touchdown', 'sum'),
+        interceptions=('interception', 'sum'),
+    ).reset_index()
+
+    qb_game = qb_game.merge(pass_att, on=['passer_player_id', 'game_id'], how='left')
+    for col in ['completions', 'attempts', 'passing_yards', 'touchdowns', 'interceptions']:
+        qb_game[col] = qb_game[col].fillna(0).astype(int)
+
+    # aDOT per game
+    adot_plays = dropbacks[
+        (dropbacks['pass_attempt'] == 1) &
+        (dropbacks['sack'] != 1) &
+        (dropbacks['qb_scramble'] != 1)
+    ]
+    adot_game = adot_plays.groupby(['passer_player_id', 'game_id'])['air_yards'].apply(
+        lambda x: x.dropna().mean()
+    ).reset_index().rename(columns={'air_yards': 'adot'})
+    qb_game = qb_game.merge(adot_game, on=['passer_player_id', 'game_id'], how='left')
+
+    # Passer rating & YPA
+    qb_game['passer_rating'] = qb_game.apply(
+        lambda r: passer_rating(
+            int(r['completions']), int(r['attempts']),
+            int(r['passing_yards']), int(r['touchdowns']), int(r['interceptions'])
+        ), axis=1
+    )
+    qb_game['ypa'] = qb_game.apply(
+        lambda r: r['passing_yards'] / r['attempts'] if r['attempts'] > 0 else 0.0, axis=1
+    )
+
+    # --- Rush stats per game (designed runs + scrambles) ---
+    designed_rushes = plays[
+        (plays['rusher_player_id'].isin(qb_ids)) &
+        (plays['qb_dropback'] == 0)
+    ].copy()
+
+    rush_game = designed_rushes.groupby(['rusher_player_id', 'game_id']).agg(
+        rush_attempts=('epa', 'count'),
+        rush_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
+        rush_tds=('rush_touchdown', 'sum'),
+    ).reset_index().rename(columns={'rusher_player_id': 'passer_player_id'})
+
+    # Scramble rush stats per game
+    scramble_plays = dropbacks[dropbacks['qb_scramble'] == 1]
+    scramble_game = scramble_plays.groupby(['passer_player_id', 'game_id']).agg(
+        scr_count=('epa', 'count'),
+        scr_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
+        scr_tds=('rush_touchdown', 'sum'),
+    ).reset_index()
+
+    qb_game = qb_game.merge(rush_game, on=['passer_player_id', 'game_id'], how='left')
+    qb_game = qb_game.merge(scramble_game, on=['passer_player_id', 'game_id'], how='left')
+
+    for col in ['rush_attempts', 'rush_yards', 'rush_tds', 'scr_count', 'scr_yards', 'scr_tds']:
+        qb_game[col] = qb_game[col].fillna(0).astype(int)
+
+    qb_game['rush_attempts'] = qb_game['rush_attempts'] + qb_game['scr_count']
+    qb_game['rush_yards'] = qb_game['rush_yards'] + qb_game['scr_yards']
+    qb_game['rush_tds'] = qb_game['rush_tds'] + qb_game['scr_tds']
+
+    # --- Fumbles per game ---
+    all_qb_plays = pd.concat([dropbacks, designed_rushes])
+    qb_fumble_plays = all_qb_plays[all_qb_plays['fumbled_1_player_id'].isin(qb_ids)]
+    if not qb_fumble_plays.empty:
+        fumble_game = qb_fumble_plays.groupby(['fumbled_1_player_id', 'game_id']).agg(
+            fumbles=('fumble', 'sum'),
+            fumbles_lost=('fumble_lost', 'sum'),
+        ).reset_index().rename(columns={'fumbled_1_player_id': 'passer_player_id'})
+    else:
+        fumble_game = pd.DataFrame(columns=['passer_player_id', 'game_id', 'fumbles', 'fumbles_lost'])
+    qb_game = qb_game.merge(fumble_game, on=['passer_player_id', 'game_id'], how='left')
+    qb_game['fumbles'] = qb_game['fumbles'].fillna(0).astype(int)
+    qb_game['fumbles_lost'] = qb_game['fumbles_lost'].fillna(0).astype(int)
+
+    # Add week from game_id
+    qb_game['week'] = qb_game['game_id'].map(game_week)
+
+    # Merge game context
+    qb_game = qb_game.merge(
+        game_context,
+        left_on=['game_id', 'posteam'],
+        right_on=['game_id', 'posteam'],
+        how='left'
+    )
+
+    # Rename and select
+    qb_game = qb_game.rename(columns={
+        'passer_player_id': 'player_id',
+        'posteam': 'team_id',
+    })
+    qb_game['season'] = season
+
+    cols = [
+        'player_id', 'season', 'week', 'team_id', 'opponent_id', 'home_away',
+        'result', 'team_score', 'opponent_score',
+        'completions', 'attempts', 'passing_yards', 'touchdowns', 'interceptions',
+        'sacks', 'epa_per_dropback', 'cpoe', 'success_rate', 'adot',
+        'passer_rating', 'ypa',
+        'rush_attempts', 'rush_yards', 'rush_tds',
+        'fumbles', 'fumbles_lost',
+    ]
+    result = qb_game[cols].copy()
+
+    log.info("Aggregated weekly stats for %d QB game rows", len(result))
+    return result
+
+
+def aggregate_receiver_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int,
+                                     participation: pd.DataFrame = None) -> pd.DataFrame:
+    """Aggregate receiver weekly (game-log) stats from filtered plays."""
+    # Filter to target plays
+    target_plays = plays[
+        (plays['receiver_player_id'].notna()) &
+        (plays['pass_attempt'] == 1) &
+        (plays['sack'] != 1) &
+        (plays['qb_scramble'] != 1)
+    ].copy()
+
+    if target_plays.empty:
+        return pd.DataFrame()
+
+    # Position lookup
+    pos_lookup = roster.groupby('gsis_id')['position'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else 'WR'
+    ).to_dict()
+
+    game_week = _get_game_week_map(plays)
+    game_context = _derive_game_context(plays)
+
+    # Group by receiver + game
+    rec = target_plays.groupby(['receiver_player_id', 'game_id', 'posteam']).agg(
+        targets=('game_id', 'count'),
+        receptions=('complete_pass', 'sum'),
+        receiving_yards=('receiving_yards', lambda x: x.dropna().sum()),
+        epa_per_target=('epa', 'mean'),
+        yac=('yards_after_catch', lambda x: x.dropna().sum()),
+        air_yards=('air_yards', lambda x: x.dropna().sum()),
+        adot=('air_yards', lambda x: x.dropna().mean()),
+    ).reset_index().rename(columns={'receiver_player_id': 'player_id', 'posteam': 'team_id'})
+
+    # TDs on completions only
+    completed = target_plays[target_plays['complete_pass'] == 1]
+    td_game = completed.groupby(['receiver_player_id', 'game_id'])['pass_touchdown'].sum().reset_index()
+    td_game.columns = ['player_id', 'game_id', 'receiving_tds']
+    rec = rec.merge(td_game, on=['player_id', 'game_id'], how='left')
+    rec['receiving_tds'] = rec['receiving_tds'].fillna(0).astype(int)
+
+    # Derived rates
+    rec['receptions'] = rec['receptions'].astype(int)
+    rec['receiving_yards'] = rec['receiving_yards'].fillna(0).astype(int)
+    rec['catch_rate'] = rec['receptions'] / rec['targets']
+    rec['yac_per_reception'] = rec.apply(
+        lambda r: r['yac'] / r['receptions'] if r['receptions'] > 0 else float('nan'), axis=1
+    )
+
+    # Filter to skill positions
+    rec['position'] = rec['player_id'].map(pos_lookup).fillna('WR')
+    rec = rec[rec['position'].isin(['WR', 'TE', 'RB', 'FB'])]
+
+    # Routes run from participation (per game)
+    if participation is not None and not participation.empty:
+        pass_plays_ids = plays[
+            (plays['pass_attempt'] == 1) &
+            (plays['sack'] != 1) &
+            (plays['qb_scramble'] != 1)
+        ][['game_id', 'play_id']].drop_duplicates()
+
+        part_cols = participation[['nflverse_game_id', 'play_id', 'offense_players']].copy()
+        part_cols = part_cols.dropna(subset=['offense_players'])
+        part_exploded = part_cols.assign(
+            player_id=part_cols['offense_players'].str.split(';')
+        ).explode('player_id')
+        part_exploded['player_id'] = part_exploded['player_id'].str.strip()
+        part_exploded = part_exploded[part_exploded['player_id'] != '']
+        part_exploded = part_exploded.drop_duplicates(['nflverse_game_id', 'play_id', 'player_id'])
+
+        routes = part_exploded.merge(
+            pass_plays_ids,
+            left_on=['nflverse_game_id', 'play_id'],
+            right_on=['game_id', 'play_id'],
+            how='inner'
+        )
+        routes_per_game = routes.groupby(['player_id', 'nflverse_game_id']).size().reset_index(name='routes_run')
+        routes_per_game = routes_per_game.rename(columns={'nflverse_game_id': 'game_id'})
+
+        rec = rec.merge(routes_per_game, on=['player_id', 'game_id'], how='left')
+        rec['routes_run'] = rec['routes_run'].fillna(0).astype(int)
+    else:
+        rec['routes_run'] = 0
+
+    rec['yards_per_route_run'] = rec.apply(
+        lambda r: r['receiving_yards'] / r['routes_run'] if r['routes_run'] > 0 else float('nan'), axis=1
+    )
+
+    # Add week and game context
+    rec['week'] = rec['game_id'].map(game_week)
+    rec = rec.merge(
+        game_context,
+        left_on=['game_id', 'team_id'],
+        right_on=['game_id', 'posteam'],
+        how='left'
+    )
+    rec.drop(columns=['posteam'], inplace=True, errors='ignore')
+
+    rec['season'] = season
+
+    cols = [
+        'player_id', 'season', 'week', 'team_id', 'opponent_id', 'home_away',
+        'result', 'team_score', 'opponent_score',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'epa_per_target', 'catch_rate',
+        'yac', 'yac_per_reception', 'adot', 'air_yards',
+        'routes_run', 'yards_per_route_run',
+    ]
+    result = rec[cols].copy()
+
+    log.info("Aggregated weekly stats for %d receiver game rows", len(result))
+    return result
+
+
+def aggregate_rb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate RB weekly (game-log) stats from filtered plays."""
+    # Filter to RB/FB from roster
+    rb_ids = set(roster[roster['position'].isin(['RB', 'FB'])]['gsis_id'].dropna().unique())
+
+    # Rush plays: designed runs by RBs (exclude scrambles)
+    rushes = plays[
+        (plays['rush_attempt'] == 1) &
+        (plays['qb_scramble'] != 1) &
+        (plays['rusher_player_id'].isin(rb_ids))
+    ].copy()
+
+    game_week = _get_game_week_map(plays)
+    game_context = _derive_game_context(plays)
+
+    if rushes.empty and plays[plays['receiver_player_id'].isin(rb_ids)].empty:
+        return pd.DataFrame()
+
+    # Group rush stats by rusher + game
+    if not rushes.empty:
+        rush_game = rushes.groupby(['rusher_player_id', 'game_id', 'posteam']).agg(
+            carries=('epa', 'count'),
+            rushing_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
+            rushing_tds=('rush_touchdown', 'sum'),
+            epa_per_carry=('epa', 'mean'),
+            success_rate=('success', lambda x: x.dropna().mean()),
+            yards_per_carry=('yards_gained', 'mean'),
+            stuff_rate=('yards_gained', lambda x: (x <= 0).mean()),
+            explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
+        ).reset_index().rename(columns={'rusher_player_id': 'player_id', 'posteam': 'team_id'})
+    else:
+        rush_game = pd.DataFrame(columns=[
+            'player_id', 'game_id', 'team_id', 'carries', 'rushing_yards', 'rushing_tds',
+            'epa_per_carry', 'success_rate', 'yards_per_carry', 'stuff_rate', 'explosive_rate',
+        ])
+
+    # Receiving stats for RBs
+    rb_targets = plays[
+        (plays['receiver_player_id'].isin(rb_ids)) &
+        (plays['pass_attempt'] == 1) &
+        (plays['sack'] != 1) &
+        (plays['qb_scramble'] != 1)
+    ].copy()
+
+    if not rb_targets.empty:
+        recv_game = rb_targets.groupby(['receiver_player_id', 'game_id']).agg(
+            targets=('game_id', 'count'),
+            receptions=('complete_pass', 'sum'),
+            receiving_yards=('receiving_yards', lambda x: x.dropna().sum()),
+        ).reset_index().rename(columns={'receiver_player_id': 'player_id'})
+
+        completed = rb_targets[rb_targets['complete_pass'] == 1]
+        recv_td = completed.groupby(['receiver_player_id', 'game_id'])['pass_touchdown'].sum().reset_index()
+        recv_td.columns = ['player_id', 'game_id', 'receiving_tds']
+        recv_game = recv_game.merge(recv_td, on=['player_id', 'game_id'], how='left')
+        recv_game['receiving_tds'] = recv_game['receiving_tds'].fillna(0).astype(int)
+        recv_game['receptions'] = recv_game['receptions'].astype(int)
+        recv_game['receiving_yards'] = recv_game['receiving_yards'].fillna(0).astype(int)
+    else:
+        recv_game = pd.DataFrame(columns=['player_id', 'game_id', 'targets', 'receptions',
+                                           'receiving_yards', 'receiving_tds'])
+
+    # Merge rush + receiving
+    if rush_game.empty and recv_game.empty:
+        return pd.DataFrame()
+
+    if not rush_game.empty and not recv_game.empty:
+        rb_game = rush_game.merge(recv_game, on=['player_id', 'game_id'], how='outer')
+    elif not rush_game.empty:
+        rb_game = rush_game.copy()
+        for col in ['targets', 'receptions', 'receiving_yards', 'receiving_tds']:
+            rb_game[col] = 0
+    else:
+        rb_game = recv_game.copy()
+        # Need team_id from plays for receive-only games
+        team_map_recv = rb_targets.groupby('receiver_player_id')['posteam'].first().to_dict()
+        rb_game['team_id'] = rb_game['player_id'].map(team_map_recv)
+        for col in ['carries', 'rushing_yards', 'rushing_tds', 'epa_per_carry',
+                     'success_rate', 'yards_per_carry', 'stuff_rate', 'explosive_rate']:
+            rb_game[col] = 0
+
+    # Fill NaN for receiving cols on rush-only games and vice versa
+    for col in ['targets', 'receptions', 'receiving_yards', 'receiving_tds']:
+        rb_game[col] = rb_game[col].fillna(0).astype(int)
+    for col in ['carries', 'rushing_yards', 'rushing_tds']:
+        rb_game[col] = rb_game[col].fillna(0).astype(int)
+    for col in ['epa_per_carry', 'success_rate', 'yards_per_carry', 'stuff_rate', 'explosive_rate']:
+        rb_game[col] = rb_game[col].fillna(float('nan'))
+
+    # Fumbles per game
+    all_rb_plays = pd.concat([rushes, rb_targets]) if not rb_targets.empty else rushes
+    fumble_plays = all_rb_plays[all_rb_plays['fumbled_1_player_id'].isin(rb_ids)]
+    if not fumble_plays.empty:
+        fumble_game = fumble_plays.groupby(['fumbled_1_player_id', 'game_id']).agg(
+            fumbles=('fumble', 'sum'),
+            fumbles_lost=('fumble_lost', 'sum'),
+        ).reset_index().rename(columns={'fumbled_1_player_id': 'player_id'})
+    else:
+        fumble_game = pd.DataFrame(columns=['player_id', 'game_id', 'fumbles', 'fumbles_lost'])
+    rb_game = rb_game.merge(fumble_game, on=['player_id', 'game_id'], how='left')
+    rb_game['fumbles'] = rb_game['fumbles'].fillna(0).astype(int)
+    rb_game['fumbles_lost'] = rb_game['fumbles_lost'].fillna(0).astype(int)
+
+    # Fill team_id for receive-only games if still NaN
+    if rb_game['team_id'].isna().any():
+        # Get team from receiving plays
+        recv_teams = rb_targets.groupby(['receiver_player_id', 'game_id'])['posteam'].first().reset_index()
+        recv_teams.columns = ['player_id', 'game_id', 'team_id_recv']
+        rb_game = rb_game.merge(recv_teams, on=['player_id', 'game_id'], how='left')
+        rb_game['team_id'] = rb_game['team_id'].fillna(rb_game.get('team_id_recv'))
+        rb_game.drop(columns=['team_id_recv'], inplace=True, errors='ignore')
+
+    # Add week and game context
+    rb_game['week'] = rb_game['game_id'].map(game_week)
+    rb_game = rb_game.merge(
+        game_context,
+        left_on=['game_id', 'team_id'],
+        right_on=['game_id', 'posteam'],
+        how='left'
+    )
+    rb_game.drop(columns=['posteam'], inplace=True, errors='ignore')
+
+    rb_game['season'] = season
+
+    cols = [
+        'player_id', 'season', 'week', 'team_id', 'opponent_id', 'home_away',
+        'result', 'team_score', 'opponent_score',
+        'carries', 'rushing_yards', 'rushing_tds',
+        'epa_per_carry', 'success_rate', 'yards_per_carry',
+        'stuff_rate', 'explosive_rate',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'fumbles', 'fumbles_lost',
+    ]
+    result = rb_game[cols].copy()
+
+    log.info("Aggregated weekly stats for %d RB game rows", len(result))
+    return result
+
+
+def ensure_qb_weekly_stats_table(conn):
+    """Create qb_weekly_stats table if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS qb_weekly_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                season INT NOT NULL,
+                week INT NOT NULL,
+                team_id TEXT REFERENCES teams(id),
+                opponent_id TEXT REFERENCES teams(id),
+                home_away TEXT,
+                result TEXT,
+                team_score INT,
+                opponent_score INT,
+                completions INT,
+                attempts INT,
+                passing_yards INT,
+                touchdowns INT,
+                interceptions INT,
+                sacks INT,
+                epa_per_dropback NUMERIC,
+                cpoe NUMERIC,
+                success_rate NUMERIC,
+                adot NUMERIC,
+                passer_rating NUMERIC,
+                ypa NUMERIC,
+                rush_attempts INT,
+                rush_yards INT,
+                rush_tds INT,
+                fumbles INT,
+                fumbles_lost INT,
+                UNIQUE (player_id, season, week)
+            );
+            CREATE INDEX IF NOT EXISTS idx_qb_weekly_team_season ON qb_weekly_stats(team_id, season);
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE qb_weekly_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON qb_weekly_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured qb_weekly_stats table exists with RLS")
+
+
+def ensure_receiver_weekly_stats_table(conn):
+    """Create receiver_weekly_stats table if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS receiver_weekly_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                season INT NOT NULL,
+                week INT NOT NULL,
+                team_id TEXT REFERENCES teams(id),
+                opponent_id TEXT REFERENCES teams(id),
+                home_away TEXT,
+                result TEXT,
+                team_score INT,
+                opponent_score INT,
+                targets INT,
+                receptions INT,
+                receiving_yards INT,
+                receiving_tds INT,
+                epa_per_target NUMERIC,
+                catch_rate NUMERIC,
+                yac NUMERIC,
+                yac_per_reception NUMERIC,
+                adot NUMERIC,
+                air_yards NUMERIC,
+                routes_run INT,
+                yards_per_route_run NUMERIC,
+                UNIQUE (player_id, season, week)
+            );
+            CREATE INDEX IF NOT EXISTS idx_receiver_weekly_team_season ON receiver_weekly_stats(team_id, season);
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE receiver_weekly_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON receiver_weekly_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured receiver_weekly_stats table exists with RLS")
+
+
+def ensure_rb_weekly_stats_table(conn):
+    """Create rb_weekly_stats table if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS rb_weekly_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                season INT NOT NULL,
+                week INT NOT NULL,
+                team_id TEXT REFERENCES teams(id),
+                opponent_id TEXT REFERENCES teams(id),
+                home_away TEXT,
+                result TEXT,
+                team_score INT,
+                opponent_score INT,
+                carries INT,
+                rushing_yards INT,
+                rushing_tds INT,
+                epa_per_carry NUMERIC,
+                success_rate NUMERIC,
+                yards_per_carry NUMERIC,
+                stuff_rate NUMERIC,
+                explosive_rate NUMERIC,
+                targets INT,
+                receptions INT,
+                receiving_yards INT,
+                receiving_tds INT,
+                fumbles INT,
+                fumbles_lost INT,
+                UNIQUE (player_id, season, week)
+            );
+            CREATE INDEX IF NOT EXISTS idx_rb_weekly_team_season ON rb_weekly_stats(team_id, season);
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE rb_weekly_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON rb_weekly_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured rb_weekly_stats table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_qb_weekly_stats(conn, df: pd.DataFrame):
+    """Upsert QB weekly stats."""
+    if df.empty:
+        log.info("No QB weekly stats to upsert (empty DataFrame)")
+        return
+    cols = [
+        'player_id', 'season', 'week', 'team_id', 'opponent_id', 'home_away',
+        'result', 'team_score', 'opponent_score',
+        'completions', 'attempts', 'passing_yards', 'touchdowns', 'interceptions',
+        'sacks', 'epa_per_dropback', 'cpoe', 'success_rate', 'adot',
+        'passer_rating', 'ypa',
+        'rush_attempts', 'rush_yards', 'rush_tds',
+        'fumbles', 'fumbles_lost',
+    ]
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('player_id', 'season', 'week'))
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO qb_weekly_stats ({col_names})
+                VALUES %s
+                ON CONFLICT (player_id, season, week) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d QB weekly stat rows", len(rows))
+
+
+@retry(max_retries=2, delay=3)
+def upsert_receiver_weekly_stats(conn, df: pd.DataFrame):
+    """Upsert receiver weekly stats."""
+    if df.empty:
+        log.info("No receiver weekly stats to upsert (empty DataFrame)")
+        return
+    cols = [
+        'player_id', 'season', 'week', 'team_id', 'opponent_id', 'home_away',
+        'result', 'team_score', 'opponent_score',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'epa_per_target', 'catch_rate',
+        'yac', 'yac_per_reception', 'adot', 'air_yards',
+        'routes_run', 'yards_per_route_run',
+    ]
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('player_id', 'season', 'week'))
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO receiver_weekly_stats ({col_names})
+                VALUES %s
+                ON CONFLICT (player_id, season, week) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d receiver weekly stat rows", len(rows))
+
+
+@retry(max_retries=2, delay=3)
+def upsert_rb_weekly_stats(conn, df: pd.DataFrame):
+    """Upsert RB weekly stats."""
+    if df.empty:
+        log.info("No RB weekly stats to upsert (empty DataFrame)")
+        return
+    cols = [
+        'player_id', 'season', 'week', 'team_id', 'opponent_id', 'home_away',
+        'result', 'team_score', 'opponent_score',
+        'carries', 'rushing_yards', 'rushing_tds',
+        'epa_per_carry', 'success_rate', 'yards_per_carry',
+        'stuff_rate', 'explosive_rate',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'fumbles', 'fumbles_lost',
+    ]
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('player_id', 'season', 'week'))
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO rb_weekly_stats ({col_names})
+                VALUES %s
+                ON CONFLICT (player_id, season, week) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d RB weekly stat rows", len(rows))
+
+
 # --- Player slugs ---
 
 def ensure_player_slugs_table(conn):
@@ -1544,6 +2241,9 @@ def process_season(season: int, conn, dry_run: bool = False):
     rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     def_gap_stats = aggregate_def_gap_stats(plays, season)
     receiver_stats = aggregate_receiver_stats(plays, roster, season, participation)
+    qb_weekly = aggregate_qb_weekly_stats(plays, roster, season)
+    receiver_weekly = aggregate_receiver_weekly_stats(plays, roster, season, participation)
+    rb_weekly = aggregate_rb_weekly_stats(plays, roster, season)
     through_week = int(plays['week'].max())
 
     validate_data(team_stats, qb_stats, receiver_stats)
@@ -1551,6 +2251,8 @@ def process_season(season: int, conn, dry_run: bool = False):
     if dry_run:
         log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, %d RB gap weekly rows, %d def gap rows, %d receiver rows, through_week=%d",
                  len(team_stats), len(qb_stats), len(rb_gap_stats), len(rb_gap_stats_weekly), len(def_gap_stats), len(receiver_stats), through_week)
+        log.info("[DRY RUN] QB weekly: %d rows, Receiver weekly: %d rows, RB weekly: %d rows",
+                 len(qb_weekly), len(receiver_weekly), len(rb_weekly))
         log.info("[DRY RUN] Aggregated %d RB gap stat rows", len(rb_gap_stats))
         log.info("[DRY RUN] Aggregated %d RB gap weekly stat rows", len(rb_gap_stats_weekly))
         log.info("[DRY RUN] Def gap: %d rows", len(def_gap_stats))
@@ -1568,6 +2270,9 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_rb_gap_weekly_tables(conn)
     ensure_def_gap_tables(conn)
     ensure_receiver_stats_table(conn)
+    ensure_qb_weekly_stats_table(conn)
+    ensure_receiver_weekly_stats_table(conn)
+    ensure_rb_weekly_stats_table(conn)
 
     try:
         upsert_teams(conn, team_stats)
@@ -1577,6 +2282,9 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_rb_gap_stats_weekly(conn, rb_gap_stats_weekly)
         upsert_def_gap_stats(conn, def_gap_stats)
         upsert_receiver_stats(conn, receiver_stats)
+        upsert_qb_weekly_stats(conn, qb_weekly)
+        upsert_receiver_weekly_stats(conn, receiver_weekly)
+        upsert_rb_weekly_stats(conn, rb_weekly)
         cleanup_stale_rows(
             conn, season,
             team_ids=team_stats['team_id'].unique().tolist(),
