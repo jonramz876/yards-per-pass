@@ -147,7 +147,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   },
   {
     term: "Route Participation Rate (Route%)",
-    definition: "Routes run divided by total offensive snaps. Measures how often a player runs a route when on the field. A WR with 90% route participation is almost always running routes. A TE with 50% is blocking half the time. Separates pass catchers from blockers.",
+    definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks.",
   },
   // --- QB Archetypes ---
   { term: "Complete Passer (QB Archetype)", id: "complete-passer",

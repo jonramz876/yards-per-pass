@@ -291,7 +291,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   // Compute archetype for each receiver based on percentiles against ALL receivers (not filtered)
   // Must match the player page pool to ensure consistent archetype labels
   const archetypeMap = useMemo(() => {
-    const pool = data.filter((r) => r.routes_run >= minRoutes);
+    const pool = data;
     const radarKeys = ["tgt_game", "epa_per_target", "catch_rate", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"] as const;
 
     function getRadarVal(rec: ReceiverSeasonStat, key: string): number {
@@ -319,7 +319,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       if (arch) map[rec.player_id] = { icon: arch.icon, label: arch.label };
     }
     return map;
-  }, [data, minRoutes]);
+  }, [data]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
