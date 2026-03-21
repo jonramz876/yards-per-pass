@@ -50,7 +50,8 @@ yardsperpass.com
 - Case-insensitive: `/player/Patrick-Mahomes` → redirect to `/player/patrick-mahomes` (check `slug !== slug.toLowerCase()` in page component)
 - `not-found.tsx`: Shows "Player not found" with navbar, search bar, and links to QB/Receiver leaderboards
 - Canonical URL omits default season param
-- ISR: On-demand rendering (empty `generateStaticParams`), `revalidate = 3600`
+- ISR: On-demand rendering (empty `generateStaticParams`, `dynamicParams = true` explicit), `revalidate = 3600`
+- Display team derived from season-level stats tables (correct per season), NOT from `player_slugs.current_team_id` (which can go stale on trades)
 
 ### Team Hubs: `/team/[team_id]`
 - Uses existing 3-letter abbreviations: `/team/KC`, `/team/BUF`
@@ -85,6 +86,8 @@ CREATE INDEX idx_player_slugs_team ON player_slugs(current_team_id);
 
 Generated in `ingest.py` from all unique (player_id, player_name) pairs across qb_season_stats, receiver_season_stats, and rb_gap_stats. Position from roster lookup. Collision detection appends team abbreviation.
 
+**Slug immutability rule:** Once a slug is assigned, it NEVER changes. If a new player creates a collision with an existing slug, the NEW player gets the team-suffixed slug. Existing slugs are locked. This prevents breaking URLs and Google index entries. Implementation: check if slug already exists before generating; only generate new slugs for new player_ids.
+
 **Pipeline integration:** Follows existing pattern — `ensure_player_slugs_table()` (NOT @retry), `upsert_player_slugs()` (@retry), added to `process_season()`, and `cleanup_stale_rows()` extended with player_slug_ids. RLS with public_read policy.
 
 ### `qb_weekly_stats`
@@ -95,7 +98,7 @@ CREATE TABLE qb_weekly_stats (
     season INT NOT NULL,
     week INT NOT NULL,
     team_id TEXT REFERENCES teams(id),
-    opponent_id TEXT,
+    opponent_id TEXT REFERENCES teams(id),
     home_away TEXT,                       -- 'home' or 'away'
     result TEXT,                          -- 'W' or 'L'
     team_score INT,
@@ -119,6 +122,7 @@ CREATE TABLE qb_weekly_stats (
     fumbles_lost INT,
     UNIQUE (player_id, season, week)
 );
+CREATE INDEX idx_qb_weekly_team_season ON qb_weekly_stats(team_id, season);
 ```
 
 **Note:** `passing_yards` excludes sack yardage (same rule as season-level stats). `epa_per_dropback` uses dropback-only plays (pass_attempt + sack + scramble), matching the radar chart axis.
@@ -131,7 +135,7 @@ CREATE TABLE receiver_weekly_stats (
     season INT NOT NULL,
     week INT NOT NULL,
     team_id TEXT REFERENCES teams(id),
-    opponent_id TEXT,
+    opponent_id TEXT REFERENCES teams(id),
     home_away TEXT,
     result TEXT,
     team_score INT,
@@ -147,8 +151,10 @@ CREATE TABLE receiver_weekly_stats (
     adot NUMERIC,
     air_yards NUMERIC,
     routes_run INT,
+    yards_per_route_run NUMERIC,
     UNIQUE (player_id, season, week)
 );
+CREATE INDEX idx_receiver_weekly_team_season ON receiver_weekly_stats(team_id, season);
 ```
 
 ### `rb_weekly_stats`
@@ -159,7 +165,7 @@ CREATE TABLE rb_weekly_stats (
     season INT NOT NULL,
     week INT NOT NULL,
     team_id TEXT REFERENCES teams(id),
-    opponent_id TEXT,
+    opponent_id TEXT REFERENCES teams(id),
     home_away TEXT,
     result TEXT,
     team_score INT,
@@ -180,6 +186,7 @@ CREATE TABLE rb_weekly_stats (
     fumbles_lost INT,
     UNIQUE (player_id, season, week)
 );
+CREATE INDEX idx_rb_weekly_team_season ON rb_weekly_stats(team_id, season);
 ```
 
 All weekly tables populated in `ingest.py` via groupby on `(player_id, season, week)` from PBP data.
@@ -210,9 +217,9 @@ All weekly tables populated in `ingest.py` via groupby on `(player_id, season, w
 **Radar chart axes (6):** *(NOTE: intentionally differs from current modal radar — drops Rush EPA, adds Volume)*
 1. Efficiency (EPA/Dropback)
 2. Accuracy (CPOE)
-3. Volume (Yards/Game)
-4. Big Plays (aDOT)
-5. Ball Security (TD:INT ratio)
+3. Volume (Dropbacks/Game) — *not* Yards/Game, which overlaps with efficiency
+4. Depth (aDOT) — measures throw depth/aggressiveness, not big plays per se
+5. Ball Security (INT% — interceptions / attempts) — avoids TD:INT ratio edge cases
 6. Consistency (Success Rate)
 
 **Stat chips:** 3×2 grid with ranked values (same format as current modal)
@@ -246,10 +253,10 @@ All weekly tables populated in `ingest.py` via groupby on `(player_id, season, w
 2. Efficiency (EPA/Carry)
 3. Power (Stuff Avoidance — inverse stuff rate)
 4. Explosiveness (Explosive Run Rate)
-5. Receiving (EPA/Target as receiver)
+5. Receiving (Targets/Game as receiver) — *not* EPA/Target, too noisy on small RB target samples
 6. Consistency (Success Rate)
 
-**Gap breakdown:** Personal 7-gap bar chart
+**Gap breakdown:** Personal 7-gap bar chart (data from `rb_gap_stats` season-level table, NOT `rb_weekly_stats`)
 
 **Cross-link:** "View [Team] Run Gaps →" → `/run-gaps?team=[team_id]`
 
@@ -268,16 +275,20 @@ Two SVG sparklines at top:
 - Opponent: team logo + abbreviation, linked to `/team/[opp_id]`
 - H/A: "@" for away, "vs" for home
 - Result: "W 31-24" or "L 17-28"
-- Bye weeks: grayed-out row with "BYE" label
+- **BYE weeks:** Grayed-out row with "BYE" label. Detect team bye from PBP (week where team has no plays). All other missing weeks show "DNP" (Did Not Play) — do NOT infer byes from gaps, as injuries would be mislabeled.
 
 ### QB columns
-| Comp/Att | Yards | TD | INT | EPA/Play | CPOE | Sck | Rush Yds | Rush TD |
+| Comp/Att | Yards | TD | INT | Rating | EPA/DB | CPOE | Sck | Rush Yds | Rush TD |
+
+*(EPA/DB matches the radar axis — NOT EPA/Play. Passer Rating included because casual fans expect it.)*
 
 ### WR/TE columns
 | Tgt | Rec | Yards | TD | EPA/Tgt | Catch% | ADOT | YAC | Routes |
 
 ### RB columns
-| Car | Yards | TD | EPA/Car | Succ% | Tgt | Rec | Rec Yds | Rec TD |
+| Car | Yards | YPC | TD | EPA/Car | Succ% | Tgt | Rec | Rec Yds | Rec TD |
+
+*(YPC = yards per carry, expected by every fan on RB game logs.)*
 
 ---
 
@@ -296,7 +307,7 @@ Organized by **football concepts**, not database tables.
 ### B. Passing Attack Section
 - **Programmatic summary:** "The {team} passing offense ranks {rank}th in EPA/play ({value}) through Week {week}."
 - **QB card:** Starting QB radar chart (compact) + key stats (EPA/DB, CPOE, success rate). Name links to `/player/[slug]`.
-- **Receivers table:** Team receivers sorted by targets — Target Share, EPA/Tgt, Catch%, YPRR. Each name links to `/player/[slug]`.
+- **Receivers table:** Team receivers sorted by targets — position badge (WR/TE/RB), Target Share, EPA/Tgt, Catch%, YPRR. Each name links to `/player/[slug]`.
 - **Cross-link:** "See full QB Rankings →" → `/qb-leaderboard`
 
 ### C. Ground Game Section
@@ -309,7 +320,9 @@ Organized by **football concepts**, not database tables.
 - Team defensive EPA/play (pass and rush splits)
 - Defensive gap heatmap (from `def_gap_stats`)
 - Opponent success rate
-- Takeaways (interceptions + opponent fumbles lost — derive from PBP and add to `team_season_stats` pipeline)
+- Takeaways (interceptions + opponent fumbles lost — derive from PBP, add to `team_season_stats` in Phase 1)
+- Giveaways (team INTs thrown + team fumbles lost)
+- **Turnover differential** (takeaways - giveaways) — one of the strongest win correlates in the NFL
 
 ### E. Division Rivals Strip
 - Horizontal row of 3 cards showing other division teams
@@ -439,7 +452,7 @@ Dynamic `opengraph-image.tsx` for both player and team pages — player name/tea
 
 | Phase | What | Sessions | Dependencies |
 |-------|------|----------|-------------|
-| 1 | **Data Foundation** — player_slugs table, 3 weekly tables, pipeline updates, ingest all seasons | 1 | None |
+| 1 | **Data Foundation** — player_slugs table, 3 weekly tables, takeaways in team_season_stats, pipeline updates, revalidation API update (`/player` + `/team` paths), ingest all seasons | 1 | None |
 | 2 | **Shared Utilities** — extract percentile/formatter code, extract `fetchAllRows` to shared util, build Breadcrumbs component | 1 | Phase 1 |
 | 3 | **Player Pages** — /player/[slug] with Overview + Game Log tabs, all 3 positions | 2-3 | Phases 1-2 |
 | 4 | **Link Leaderboards** — player names become Links, team abbreviations become Links | 1 | Phase 3 |
