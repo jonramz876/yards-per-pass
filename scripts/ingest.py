@@ -1256,6 +1256,169 @@ def upsert_rb_gap_stats_weekly(conn, df: pd.DataFrame):
     log.info("Upserted %d weekly RB gap stat rows", len(rows))
 
 
+# --- Player slugs ---
+
+def ensure_player_slugs_table(conn):
+    """Create player_slugs table if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS player_slugs (
+                player_id TEXT PRIMARY KEY,
+                slug TEXT NOT NULL UNIQUE,
+                player_name TEXT NOT NULL,
+                position TEXT,
+                current_team_id TEXT REFERENCES teams(id),
+                created_at TIMESTAMPTZ DEFAULT now(),
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            CREATE INDEX IF NOT EXISTS idx_player_slugs_slug ON player_slugs(slug);
+            CREATE INDEX IF NOT EXISTS idx_player_slugs_team ON player_slugs(current_team_id);
+        """)
+        # RLS (wrapped in exception blocks for idempotent re-runs)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE player_slugs ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON player_slugs FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured player_slugs table exists")
+
+
+def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
+    """Collect all unique players, generate slugs with collision handling.
+
+    Existing slugs are NEVER changed (immutability). Only new players get slugs.
+    Collisions (e.g. two Josh Allens) are resolved by appending team abbreviation.
+    """
+    # Collect all unique (player_id, player_name, team) from stat DataFrames
+    players = {}  # player_id -> (player_name, team_id)
+    for df, name_col, team_col in [
+        (qb_stats, 'player_name', 'team_id'),
+        (receiver_stats, 'player_name', 'team_id'),
+        (rb_gap_stats, 'player_name', 'team_id'),
+    ]:
+        if df is None or df.empty:
+            continue
+        for _, row in df.iterrows():
+            pid = row.get('player_id')
+            pname = row.get(name_col)
+            team = row.get(team_col)
+            if pid and pname and pid not in players:
+                players[pid] = (pname, team)
+
+    if not players:
+        log.info("No players found for slug generation")
+        return pd.DataFrame(columns=['player_id', 'slug', 'player_name', 'position', 'current_team_id'])
+
+    # Build position lookup from roster
+    pos_map = {}
+    if roster is not None and not roster.empty:
+        for _, row in roster.iterrows():
+            gsis_id = row.get('gsis_id')
+            pos = row.get('position')
+            if gsis_id and pos:
+                pos_map[gsis_id] = pos
+
+    # Load existing slugs from DB (immutability — never change them)
+    existing_slugs = {}  # player_id -> slug
+    existing_slug_values = set()  # all slug strings in use
+    if conn is not None:
+        with conn.cursor() as cur:
+            cur.execute("SELECT player_id, slug FROM player_slugs")
+            for pid, slug in cur.fetchall():
+                existing_slugs[pid] = slug
+                existing_slug_values.add(slug)
+
+    # Filter to NEW players only
+    new_players = {pid: info for pid, info in players.items() if pid not in existing_slugs}
+    if not new_players:
+        log.info("No new players need slugs (%d already exist)", len(existing_slugs))
+        # Still return full set for upsert (name/position/team updates)
+        rows = []
+        for pid, (pname, team) in players.items():
+            rows.append({
+                'player_id': pid,
+                'slug': existing_slugs[pid],
+                'player_name': pname,
+                'position': pos_map.get(pid),
+                'current_team_id': team,
+            })
+        return pd.DataFrame(rows)
+
+    # Generate slugs for new players, detecting collisions
+    # First pass: group new players by base slug
+    slug_groups = {}  # base_slug -> [(player_id, player_name, team_id), ...]
+    for pid, (pname, team) in new_players.items():
+        base = make_slug(pname)
+        slug_groups.setdefault(base, []).append((pid, pname, team))
+
+    new_slug_map = {}  # player_id -> slug
+    for base_slug, group in slug_groups.items():
+        if len(group) == 1 and base_slug not in existing_slug_values:
+            # No collision — use base slug
+            pid, pname, team = group[0]
+            new_slug_map[pid] = base_slug
+            existing_slug_values.add(base_slug)
+        else:
+            # Collision: disambiguate with team abbreviation
+            for pid, pname, team in group:
+                team_suffix = team.lower() if team else "unknown"
+                disambiguated = f"{base_slug}-{team_suffix}"
+                new_slug_map[pid] = disambiguated
+                existing_slug_values.add(disambiguated)
+
+    # Build result DataFrame for ALL players (existing + new)
+    rows = []
+    for pid, (pname, team) in players.items():
+        slug = existing_slugs.get(pid) or new_slug_map.get(pid)
+        if slug:
+            rows.append({
+                'player_id': pid,
+                'slug': slug,
+                'player_name': pname,
+                'position': pos_map.get(pid),
+                'current_team_id': team,
+            })
+
+    log.info("Generated %d new slugs (%d total players)", len(new_slug_map), len(rows))
+    return pd.DataFrame(rows)
+
+
+@retry(max_retries=2, delay=3)
+def upsert_player_slugs(conn, df: pd.DataFrame):
+    """Upsert player slugs. ON CONFLICT updates name/position/team but NEVER slug."""
+    if df.empty:
+        log.info("No player slugs to upsert (empty DataFrame)")
+        return
+
+    cols = ['player_id', 'slug', 'player_name', 'position', 'current_team_id']
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    # Never update slug — only update name, position, team
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}" for c in ['player_name', 'position', 'current_team_id']
+    )
+    update_set += ", updated_at = now()"
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO player_slugs ({col_names})
+                VALUES %s
+                ON CONFLICT (player_id) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d player slug rows", len(rows))
+
+
 def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
