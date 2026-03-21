@@ -8,6 +8,7 @@ import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
+import { wrFantasyPoints } from "@/lib/stats/fantasy";
 
 interface PlayerOverviewWRProps {
   stats: ReceiverSeasonStat;
@@ -50,6 +51,7 @@ const BAR_STATS: { key: string; label: string; pct: boolean }[] = [
   { key: "yards_per_reception", label: "YPR", pct: false },
   { key: "snap_share", label: "Snap%", pct: true },
   { key: "route_participation_rate", label: "Route%", pct: true },
+  { key: "fantasy_pts", label: "FPts", pct: false },
 ];
 
 function getStatValue(rec: ReceiverSeasonStat, key: string): number {
@@ -69,6 +71,12 @@ function getBarValue(rec: ReceiverSeasonStat, key: string): number {
     case "yards_per_game": return rec.games ? rec.receiving_yards / rec.games : NaN;
     case "tds_per_game": return rec.games ? rec.receiving_tds / rec.games : NaN;
     case "receptions_per_game": return rec.games ? rec.receptions / rec.games : NaN;
+    case "fantasy_pts": return wrFantasyPoints({
+      receiving_yards: rec.receiving_yards,
+      receiving_tds: rec.receiving_tds,
+      receptions: rec.receptions,
+      fumbles_lost: rec.fumbles_lost,
+    }, "ppr");
     default: return (rec[key as keyof ReceiverSeasonStat] as number) ?? NaN;
   }
 }

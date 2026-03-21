@@ -8,6 +8,7 @@ import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 import { classifyRB } from "@/lib/stats/archetypes";
+import { rbFantasyPoints } from "@/lib/stats/fantasy";
 
 interface PlayerOverviewRBProps {
   weeklyStats: RBWeeklyStat[];
@@ -32,6 +33,7 @@ interface AggregatedRB {
   receptions: number;
   receiving_yards: number;
   receiving_tds: number;
+  fumbles_lost: number;
 }
 
 const RADAR_AXES = [
@@ -66,6 +68,7 @@ const BAR_STATS = [
   { key: "rush_tds_game", label: "TD/G" },
   { key: "yards_per_carry", label: "YPC" },
   { key: "success_rate", label: "Success%" },
+  { key: "fantasy_pts", label: "FPts" },
 ];
 
 /** Aggregate weekly rows into a season summary for one player */
@@ -76,6 +79,8 @@ function aggregateWeekly(rows: RBWeeklyStat[]): AggregatedRB {
   let epaCount = 0, srCount = 0, stuffCount = 0, explCount = 0, ypcCount = 0;
   let targets = 0, receptions = 0, recYds = 0, recTds = 0;
 
+  let fumblesLost = 0;
+
   for (const r of rows) {
     const c = r.carries || 0;
     carries += c;
@@ -85,6 +90,7 @@ function aggregateWeekly(rows: RBWeeklyStat[]): AggregatedRB {
     receptions += r.receptions || 0;
     recYds += r.receiving_yards || 0;
     recTds += r.receiving_tds || 0;
+    fumblesLost += r.fumbles_lost || 0;
     if (c > 0) {
       if (!isNaN(r.epa_per_carry)) { epaSum += r.epa_per_carry * c; epaCount += c; }
       if (!isNaN(r.success_rate)) { srSum += r.success_rate * c; srCount += c; }
@@ -109,6 +115,7 @@ function aggregateWeekly(rows: RBWeeklyStat[]): AggregatedRB {
     receptions,
     receiving_yards: recYds,
     receiving_tds: recTds,
+    fumbles_lost: fumblesLost,
   };
 }
 
@@ -130,6 +137,14 @@ function getBarValue(agg: AggregatedRB, key: string): number {
     case "rush_tds_game": return agg.games ? agg.rushing_tds / agg.games : NaN;
     case "yards_per_carry": return agg.yards_per_carry;
     case "success_rate": return agg.success_rate;
+    case "fantasy_pts": return rbFantasyPoints({
+      rushing_yards: agg.rushing_yards,
+      rushing_tds: agg.rushing_tds,
+      receiving_yards: agg.receiving_yards,
+      receiving_tds: agg.receiving_tds,
+      receptions: agg.receptions,
+      fumbles_lost: agg.fumbles_lost,
+    }, "ppr");
     default: return NaN;
   }
 }

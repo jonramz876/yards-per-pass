@@ -8,6 +8,7 @@ import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 import { classifyQB } from "@/lib/stats/archetypes";
+import { qbFantasyPoints } from "@/lib/stats/fantasy";
 
 interface PlayerOverviewQBProps {
   stats: QBSeasonStat;
@@ -49,6 +50,7 @@ const BAR_STATS = [
   { key: "tds_per_game", label: "TD/G" },
   { key: "passer_rating", label: "Rating" },
   { key: "any_a", label: "ANY/A" },
+  { key: "fantasy_pts", label: "FPts" },
 ];
 
 function getStatValue(qb: QBSeasonStat, key: string): number {
@@ -70,6 +72,14 @@ function getBarValue(qb: QBSeasonStat, key: string): number {
     case "tds_per_game": return qb.games ? qb.touchdowns / qb.games : NaN;
     case "passer_rating": return qb.passer_rating;
     case "any_a": return qb.any_a;
+    case "fantasy_pts": return qbFantasyPoints({
+      passing_yards: qb.passing_yards,
+      touchdowns: qb.touchdowns,
+      interceptions: qb.interceptions,
+      rush_yards: qb.rush_yards,
+      rush_tds: qb.rush_tds,
+      fumbles_lost: qb.fumbles_lost,
+    });
     default: return NaN;
   }
 }
