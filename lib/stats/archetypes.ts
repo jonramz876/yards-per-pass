@@ -155,6 +155,65 @@ export function classifyWR(percentiles: number[]): Archetype | null {
   return null;
 }
 
+// TE axes: same as WR [Volume, Efficiency, Catch, Downfield, AfterCatch, Consistency]
+// but percentiles should be computed against TE-only pool (not WRs)
+export function classifyTE(percentiles: number[]): Archetype | null {
+  const [vol, eff, catch_, downfield, yac, cons] = percentiles;
+  const above70 = percentiles.filter(p => p >= 70).length;
+
+  // Elite TE1 — dominant across the board
+  if (above70 >= 4 && vol >= 60) return {
+    label: "Elite TE1",
+    icon: "\u{1F48E}",
+    description: "Dominant tight end \u2014 elite receiving production across volume, efficiency, and consistency.",
+    glossaryAnchor: "elite-te1",
+  };
+  // Seam Stretcher — attacks downfield
+  if (downfield >= 70 && eff >= 50) return {
+    label: "Seam Stretcher",
+    icon: "\u{1F680}",
+    description: "Attacks downfield as a seam threat \u2014 high aDOT for a tight end, stretching the middle of the field.",
+    glossaryAnchor: "seam-stretcher",
+  };
+  // YAC Weapon — dangerous after the catch
+  if (yac >= 70 && downfield <= 55) return {
+    label: "YAC Weapon",
+    icon: "\u26A1",
+    description: "Dangerous after the catch \u2014 turns short targets into chunk gains with run-after-catch ability.",
+    glossaryAnchor: "yac-weapon-te",
+  };
+  // Security Blanket — reliable short-area target
+  if (catch_ >= 70 && vol >= 55) return {
+    label: "Security Blanket",
+    icon: "\u{1F3AF}",
+    description: "Reliable short-area target with a high catch rate \u2014 the QB\u2019s safety valve.",
+    glossaryAnchor: "security-blanket",
+  };
+  // Move TE — deployed like a WR, high route participation
+  if (cons >= 70 && eff >= 55 && vol >= 50) return {
+    label: "Move TE",
+    icon: "\u{1F504}",
+    description: "Deployed like a wide receiver \u2014 high YPRR and consistent production as a pass catcher.",
+    glossaryAnchor: "move-te",
+  };
+  // Target Hog — commands heavy target share at TE
+  if (vol >= 80) return {
+    label: "Target Hog",
+    icon: "\u{1F9F2}",
+    description: "Commands a massive target share for a tight end \u2014 the primary receiving option at the position.",
+    glossaryAnchor: "target-hog-te",
+  };
+  // Blocking TE — low volume, likely a blocker who catches occasionally
+  if (vol <= 25 && cons <= 35) return {
+    label: "Blocking TE",
+    icon: "\u{1F6E1}\uFE0F",
+    description: "Primarily a blocker who catches the occasional pass \u2014 low target volume and route involvement.",
+    glossaryAnchor: "blocking-te",
+  };
+  // No match
+  return null;
+}
+
 // RB axes: [Volume, Efficiency, Power, Explosiveness, Receiving, Consistency]
 export function classifyRB(percentiles: number[]): Archetype | null {
   const [vol, eff, power, explosive, rec, cons] = percentiles;

@@ -7,7 +7,7 @@ import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
-import { classifyWR } from "@/lib/stats/archetypes";
+import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 
 interface PlayerOverviewWRProps {
   stats: ReceiverSeasonStat;
@@ -89,21 +89,29 @@ function formatChipValue(key: string, val: number): string {
 export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }: PlayerOverviewWRProps) {
   const team = getTeam(teamId);
   const teamColor = getTeamColor(teamId);
-  const total = allReceivers.length;
+
+  const isTE = stats.position === "TE";
+
+  // For TEs, compute percentiles against TE-only pool; for WRs, against WR-only pool
+  const positionPool = useMemo(
+    () => isTE ? allReceivers.filter((r) => r.position === "TE") : allReceivers.filter((r) => r.position !== "TE"),
+    [allReceivers, isTE]
+  );
+  const total = positionPool.length;
 
   const radarValues = useMemo(
     () =>
       RADAR_KEYS.map((key) => {
-        const allVals = allReceivers
+        const allVals = positionPool
           .map((r) => getStatValue(r, key))
           .filter((v) => !isNaN(v))
           .sort((a, b) => a - b);
         return computePercentile(allVals, getStatValue(stats, key));
       }),
-    [stats, allReceivers]
+    [stats, positionPool]
   );
 
-  const archetype = useMemo(() => classifyWR(radarValues), [radarValues]);
+  const archetype = useMemo(() => isTE ? classifyTE(radarValues) : classifyWR(radarValues), [radarValues, isTE]);
 
   const chipData = useMemo(
     () =>

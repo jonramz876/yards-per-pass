@@ -8,7 +8,7 @@ import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile } from "@/lib/stats/percentiles";
-import { classifyWR } from "@/lib/stats/archetypes";
+import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -288,10 +288,10 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     return result;
   }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter]);
 
-  // Compute archetype for each receiver based on percentiles against ALL receivers (not filtered)
-  // Must match the player page pool to ensure consistent archetype labels
+  // Compute archetype for each receiver — TEs get their own pool and classifier
   const archetypeMap = useMemo(() => {
-    const pool = data;
+    const wrPool = data.filter((r) => r.position !== "TE");
+    const tePool = data.filter((r) => r.position === "TE");
     const radarKeys = ["tgt_game", "epa_per_target", "catch_rate", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"] as const;
 
     function getRadarVal(rec: ReceiverSeasonStat, key: string): number {
@@ -306,16 +306,22 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       }
     }
 
-    const sortedPools = radarKeys.map((key) =>
-      pool.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    // Pre-sort pools for WRs and TEs separately
+    const wrSorted = radarKeys.map((key) =>
+      wrPool.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    );
+    const teSorted = radarKeys.map((key) =>
+      tePool.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
     );
 
     const map: Record<string, { icon: string; label: string }> = {};
-    for (const rec of pool) {
+    for (const rec of data) {
+      const isTE = rec.position === "TE";
+      const pools = isTE ? teSorted : wrSorted;
       const percentiles = radarKeys.map((key, i) =>
-        computePercentile(sortedPools[i], getRadarVal(rec, key))
+        computePercentile(pools[i], getRadarVal(rec, key))
       );
-      const arch = classifyWR(percentiles);
+      const arch = isTE ? classifyTE(percentiles) : classifyWR(percentiles);
       if (arch) map[rec.player_id] = { icon: arch.icon, label: arch.label };
     }
     return map;
