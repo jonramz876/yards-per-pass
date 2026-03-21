@@ -642,8 +642,9 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     ).to_dict()
     rec['position'] = rec['player_id'].map(pos_lookup).fillna('WR')
 
-    # Filter to skill positions only (exclude OL, DL trick-play catches)
-    rec = rec[rec['position'].isin(['WR', 'TE', 'RB', 'FB', 'QB'])]
+    # Filter to skill positions only (exclude OL, DL, QB — QBs appear in
+    # offense_players on every snap, inflating routes_run/total_snaps)
+    rec = rec[rec['position'].isin(['WR', 'TE', 'RB', 'FB'])]
 
     # Fumbles: search full plays DataFrame for receiver player IDs
     receiver_ids = set(rec['player_id'])
