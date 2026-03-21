@@ -33,16 +33,27 @@ function buildRecordMap(teams: TeamSeasonStat[]): Map<string, string> {
 /*  Page component                                                     */
 /* ------------------------------------------------------------------ */
 export default async function HomePage() {
-  const seasons = await getAvailableSeasons();
-  const currentSeason = seasons[0] || 2025;
+  let currentSeason = 2025;
+  let freshness = null;
+  let teamStats: TeamSeasonStat[] = [];
+  let qbStats: import("@/lib/types").QBSeasonStat[] = [];
+  let receiverStats: import("@/lib/types").ReceiverSeasonStat[] = [];
+  let playerSlugs: PlayerSlug[] = [];
 
-  const [freshness, teamStats, qbStats, receiverStats, playerSlugs] = await Promise.all([
-    getDataFreshness(currentSeason),
-    getTeamStats(currentSeason),
-    getQBStats(currentSeason),
-    getReceiverStats(currentSeason),
-    getAllPlayerSlugs(),
-  ]);
+  try {
+    const seasons = await getAvailableSeasons();
+    currentSeason = seasons[0] || 2025;
+
+    [freshness, teamStats, qbStats, receiverStats, playerSlugs] = await Promise.all([
+      getDataFreshness(currentSeason),
+      getTeamStats(currentSeason),
+      getQBStats(currentSeason),
+      getReceiverStats(currentSeason),
+      getAllPlayerSlugs(),
+    ]);
+  } catch {
+    // Data unavailable (e.g., CI build with placeholder credentials) — render with empty data
+  }
 
   const slugMap = buildSlugMap(playerSlugs);
   const recordMap = buildRecordMap(teamStats);
