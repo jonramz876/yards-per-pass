@@ -133,3 +133,92 @@ export interface ReceiverSeasonStat {
   snap_share: number;
   route_participation_rate: number;
 }
+
+// Player page types
+
+export interface PlayerSlug {
+  player_id: string;
+  slug: string;
+  player_name: string;
+  position: string;
+  current_team_id: string;
+}
+
+export interface QBWeeklyStat {
+  player_id: string;
+  season: number;
+  week: number;
+  team_id: string;
+  opponent_id: string;
+  home_away: string;
+  result: string;
+  team_score: number;
+  opponent_score: number;
+  completions: number;
+  attempts: number;
+  passing_yards: number;
+  touchdowns: number;
+  interceptions: number;
+  sacks: number;
+  epa_per_dropback: number;
+  cpoe: number;
+  success_rate: number;
+  adot: number;
+  passer_rating: number;
+  ypa: number;
+  rush_attempts: number;
+  rush_yards: number;
+  rush_tds: number;
+  fumbles: number;
+  fumbles_lost: number;
+}
+
+export interface ReceiverWeeklyStat {
+  player_id: string;
+  season: number;
+  week: number;
+  team_id: string;
+  opponent_id: string;
+  home_away: string;
+  result: string;
+  team_score: number;
+  opponent_score: number;
+  targets: number;
+  receptions: number;
+  receiving_yards: number;
+  receiving_tds: number;
+  epa_per_target: number;
+  catch_rate: number;
+  yac: number;
+  yac_per_reception: number;
+  adot: number;
+  air_yards: number;
+  routes_run: number;
+  yards_per_route_run: number;
+}
+
+export interface RBWeeklyStat {
+  player_id: string;
+  season: number;
+  week: number;
+  team_id: string;
+  opponent_id: string;
+  home_away: string;
+  result: string;
+  team_score: number;
+  opponent_score: number;
+  carries: number;
+  rushing_yards: number;
+  rushing_tds: number;
+  epa_per_carry: number;
+  success_rate: number;
+  yards_per_carry: number;
+  stuff_rate: number;
+  explosive_rate: number;
+  targets: number;
+  receptions: number;
+  receiving_yards: number;
+  receiving_tds: number;
+  fumbles: number;
+  fumbles_lost: number;
+}

@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
   revalidatePath("/qb-leaderboard");
   revalidatePath("/run-gaps");
   revalidatePath("/receivers");
+  revalidatePath("/player", "layout");
+  revalidatePath("/team", "layout");
 
   return NextResponse.json({
     revalidated: true,
