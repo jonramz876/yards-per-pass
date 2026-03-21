@@ -242,16 +242,18 @@ export default function PlayerOverviewRB({
               Percentiles vs. {total} RBs &middot; {season}
             </p>
 
-            <div className="text-center mb-4">
-              <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
-                <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
-                  {archetype.icon} {archetype.label}
-                </span>
-                <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
-                  {archetype.description}
-                </p>
-              </Link>
-            </div>
+            {archetype && (
+              <div className="text-center mb-4">
+                <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
+                  <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
+                    {archetype.icon} {archetype.label}
+                  </span>
+                  <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
+                    {archetype.description}
+                  </p>
+                </Link>
+              </div>
+            )}
 
             {/* Stat chips */}
             <div className="grid grid-cols-3 gap-2">

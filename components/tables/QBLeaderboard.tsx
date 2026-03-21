@@ -283,7 +283,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
         computePercentile(sortedPools[i], getRadarVal(qb, key))
       );
       const arch = classifyQB(percentiles);
-      map[qb.player_id] = { icon: arch.icon, label: arch.label };
+      if (arch) map[qb.player_id] = { icon: arch.icon, label: arch.label };
     }
     return map;
   }, [data]);

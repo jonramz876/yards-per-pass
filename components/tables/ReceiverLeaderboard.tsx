@@ -316,7 +316,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
         computePercentile(sortedPools[i], getRadarVal(rec, key))
       );
       const arch = classifyWR(percentiles);
-      map[rec.player_id] = { icon: arch.icon, label: arch.label };
+      if (arch) map[rec.player_id] = { icon: arch.icon, label: arch.label };
     }
     return map;
   }, [data, minRoutes]);
