@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { QBWeeklyStat, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
+import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
 
 type WeeklyRow = QBWeeklyStat | ReceiverWeeklyStat | RBWeeklyStat;
 
@@ -69,6 +70,17 @@ const QB_COLS: ColDef[] = [
   { key: "sacks", label: "Sck", numeric: true, sortable: true, getValue: (r) => (r as QBWeeklyStat).sacks, format: fmtInt },
   { key: "rush_yards", label: "RuYd", numeric: true, sortable: true, getValue: (r) => (r as QBWeeklyStat).rush_yards, format: fmtInt },
   { key: "rush_tds", label: "RuTD", numeric: true, sortable: true, getValue: (r) => (r as QBWeeklyStat).rush_tds, format: fmtInt },
+  { key: "fantasy_pts", label: "FPts", numeric: true, sortable: true, getValue: (r) => {
+    const qb = r as QBWeeklyStat;
+    return qbFantasyPoints({
+      passing_yards: qb.passing_yards,
+      touchdowns: qb.touchdowns,
+      interceptions: qb.interceptions,
+      rush_yards: qb.rush_yards,
+      rush_tds: qb.rush_tds,
+      fumbles_lost: qb.fumbles_lost,
+    });
+  }, format: fmtDec1 },
 ];
 
 const WR_COLS: ColDef[] = [
@@ -81,6 +93,15 @@ const WR_COLS: ColDef[] = [
   { key: "adot", label: "ADOT", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).adot, format: fmtDec1 },
   { key: "yac", label: "YAC", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).yac, format: fmtInt },
   { key: "routes_run", label: "Routes", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).routes_run, format: fmtInt },
+  { key: "fantasy_pts", label: "FPts", numeric: true, sortable: true, getValue: (r) => {
+    const wr = r as ReceiverWeeklyStat;
+    return wrFantasyPoints({
+      receiving_yards: wr.receiving_yards,
+      receiving_tds: wr.receiving_tds,
+      receptions: wr.receptions,
+      fumbles_lost: 0,
+    }, "ppr");
+  }, format: fmtDec1 },
 ];
 
 const RB_COLS: ColDef[] = [
@@ -94,6 +115,17 @@ const RB_COLS: ColDef[] = [
   { key: "receptions", label: "Rec", numeric: true, sortable: true, getValue: (r) => (r as RBWeeklyStat).receptions, format: fmtInt },
   { key: "receiving_yards", label: "RcYd", numeric: true, sortable: true, getValue: (r) => (r as RBWeeklyStat).receiving_yards, format: fmtInt },
   { key: "receiving_tds", label: "RcTD", numeric: true, sortable: true, getValue: (r) => (r as RBWeeklyStat).receiving_tds, format: fmtInt },
+  { key: "fantasy_pts", label: "FPts", numeric: true, sortable: true, getValue: (r) => {
+    const rb = r as RBWeeklyStat;
+    return rbFantasyPoints({
+      rushing_yards: rb.rushing_yards,
+      rushing_tds: rb.rushing_tds,
+      receiving_yards: rb.receiving_yards,
+      receiving_tds: rb.receiving_tds,
+      receptions: rb.receptions,
+      fumbles_lost: rb.fumbles_lost,
+    }, "ppr");
+  }, format: fmtDec1 },
 ];
 
 // ─── Sparkline Components ────────────────────────────────────────────────────
