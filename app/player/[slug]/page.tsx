@@ -87,37 +87,41 @@ export default async function PlayerPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
 
-  // Fetch position-specific data in parallel
+  // Fetch position-specific data in parallel — catch errors so page doesn't 500
   let seasonStats: unknown[] = [];
   let weeklyStats: unknown[] = [];
   let allPlayers: unknown[] = [];
 
-  if (player.position === "QB") {
-    const [allQBs, weekly] = await Promise.all([
-      getQBStats(currentSeason),
-      getQBWeeklyStats(player.player_id, currentSeason),
-    ]);
-    const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
-    seasonStats = playerSeason;
-    weeklyStats = weekly;
-    allPlayers = allQBs;
-  } else if (player.position === "WR" || player.position === "TE") {
-    const [allReceivers, weekly] = await Promise.all([
-      getReceiverStats(currentSeason),
-      getReceiverWeeklyStats(player.player_id, currentSeason),
-    ]);
-    const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
-    seasonStats = playerSeason;
-    weeklyStats = weekly;
-    allPlayers = allReceivers;
-  } else if (player.position === "RB") {
-    const [weekly, allRBWeekly] = await Promise.all([
-      getRBWeeklyStats(player.player_id, currentSeason),
-      getAllRBWeeklyStats(currentSeason),
-    ]);
-    seasonStats = [];
-    weeklyStats = weekly;
-    allPlayers = allRBWeekly;
+  try {
+    if (player.position === "QB") {
+      const [allQBs, weekly] = await Promise.all([
+        getQBStats(currentSeason).catch(() => []),
+        getQBWeeklyStats(player.player_id, currentSeason),
+      ]);
+      const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
+      seasonStats = playerSeason;
+      weeklyStats = weekly;
+      allPlayers = allQBs;
+    } else if (player.position === "WR" || player.position === "TE") {
+      const [allReceivers, weekly] = await Promise.all([
+        getReceiverStats(currentSeason).catch(() => []),
+        getReceiverWeeklyStats(player.player_id, currentSeason),
+      ]);
+      const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
+      seasonStats = playerSeason;
+      weeklyStats = weekly;
+      allPlayers = allReceivers;
+    } else if (player.position === "RB") {
+      const [weekly, allRBWeekly] = await Promise.all([
+        getRBWeeklyStats(player.player_id, currentSeason),
+        getAllRBWeeklyStats(currentSeason),
+      ]);
+      seasonStats = [];
+      weeklyStats = weekly;
+      allPlayers = allRBWeekly;
+    }
+  } catch {
+    // Data fetch failed — page will render with empty data
   }
 
   const breadcrumbs = getBreadcrumbs(player.position, player.player_name);
