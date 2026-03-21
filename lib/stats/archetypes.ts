@@ -64,6 +64,13 @@ export function classifyQB(percentiles: number[]): Archetype | null {
     description: "Protects the football and moves the chains, leaning on efficiency over explosiveness.",
     glossaryAnchor: "game-manager",
   };
+  // Sniper — deep + safe, doesn't need high volume
+  if (depth >= 65 && ballSec >= 65) return {
+    label: "Sniper",
+    icon: "\u{1F3AF}",
+    description: "Accurate deep passer who protects the football \u2014 high aDOT with elite ball security.",
+    glossaryAnchor: "sniper",
+  };
   // Improviser — high efficiency with low accuracy (makes plays outside structure)
   if (eff >= 65 && above60 >= 3 && acc <= 50) return {
     label: "Improviser",
@@ -102,8 +109,8 @@ export function classifyWR(percentiles: number[]): Archetype | null {
     description: "Dangerous after the catch, turning short throws into big gains.",
     glossaryAnchor: "yac-monster",
   };
-  // Target Magnet — commands a huge target share
-  if (vol >= 80 && eff >= 45) return {
+  // Target Magnet — commands a huge target share (eff threshold low — volume dominance matters)
+  if (vol >= 80) return {
     label: "Target Magnet",
     icon: "\u{1F9F2}",
     description: "Commands an elite target share \u2014 the offense runs through this receiver.",
@@ -159,6 +166,21 @@ export function classifyRB(percentiles: number[]): Archetype | null {
     icon: "\u{1F48E}",
     description: "Does it all \u2014 carries the load, catches passes, and stays on the field.",
     glossaryAnchor: "three-down-back",
+  };
+  // Elite Runner — elite across multiple rushing dimensions
+  const rushAxesAbove70 = [eff, power, explosive, cons].filter(p => p >= 70).length;
+  if (rushAxesAbove70 >= 3 && vol >= 55) return {
+    label: "Elite Runner",
+    icon: "\u{1F525}",
+    description: "Elite across multiple rushing dimensions \u2014 efficiency, power, explosiveness, or consistency.",
+    glossaryAnchor: "elite-runner-rb",
+  };
+  // Dual-Threat Back — high volume + receiving regardless of other axes
+  if (vol >= 55 && rec >= 70) return {
+    label: "Dual-Threat Back",
+    icon: "\u{1F504}",
+    description: "Dangerous as both a runner and receiver \u2014 a true two-way weapon out of the backfield.",
+    glossaryAnchor: "dual-threat-back",
   };
   // Workhorse — high volume grinder
   if (vol >= 70 && eff >= 45 && rec <= 45) return {

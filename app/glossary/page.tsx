@@ -164,6 +164,8 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Throws at an extremely high rate with solid efficiency. Defined by DB/Game \u2265 80th and EPA/DB \u2265 50th percentile." },
   { term: "Game Manager (QB Archetype)", id: "game-manager",
     definition: "Protects the football and avoids mistakes. Defined by Success% \u2265 65th, INT% \u2265 65th, and DB/Game \u2264 45th." },
+  { term: "Sniper (QB Archetype)", id: "sniper",
+    definition: "Accurate deep passer who protects the football. Defined by aDOT \u2265 65th and INT% \u2265 65th. Pushes the ball downfield without turning it over." },
   { term: "Improviser (QB Archetype)", id: "improviser",
     definition: "Creates plays outside of structure. Defined by EPA/DB \u2265 65th, 3+ axes \u2265 60th, and CPOE \u2264 50th. High EPA despite inconsistent accuracy." },
   // --- WR Archetypes ---
@@ -174,7 +176,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   { term: "YAC Monster (WR Archetype)", id: "yac-monster",
     definition: "Dangerous after the catch. Defined by YAC/Rec \u2265 75th and aDOT \u2264 50th. Turns short throws into big gains." },
   { term: "Target Magnet (WR Archetype)", id: "target-magnet",
-    definition: "Commands an elite target share. Defined by Tgt/Game \u2265 80th and EPA/Tgt \u2265 45th. The offense runs through this receiver." },
+    definition: "Commands an elite target share. Defined by Tgt/Game \u2265 80th percentile. The offense runs through this receiver regardless of per-target efficiency." },
   { term: "Field Stretcher (WR Archetype)", id: "field-stretcher",
     definition: "Stretches the field vertically. Defined by aDOT \u2265 75th and Catch% \u2264 50th. Trades catch rate for chunk plays." },
   { term: "Possession Receiver (WR Archetype)", id: "possession-receiver",
@@ -188,6 +190,10 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   // --- RB Archetypes ---
   { term: "Three-Down Back (RB Archetype)", id: "three-down-back",
     definition: "Does it all. Defined by Car/Game \u2265 55th, Tgt/Game \u2265 60th, Success% \u2265 55th, and 2+ of EPA/Car, Stuff Avoid, Explosive%, Success% \u2265 55th." },
+  { term: "Elite Runner (RB Archetype)", id: "elite-runner-rb",
+    definition: "Elite across multiple rushing dimensions. Defined by 3+ of EPA/Car, Stuff Avoid, Explosive%, Success% at the 70th percentile with Car/Game \u2265 55th. A dominant pure runner." },
+  { term: "Dual-Threat Back (RB Archetype)", id: "dual-threat-back",
+    definition: "Dangerous as both a runner and receiver. Defined by Car/Game \u2265 55th and Tgt/Game \u2265 70th. A true two-way weapon out of the backfield." },
   { term: "Workhorse (RB Archetype)", id: "workhorse",
     definition: "High-volume carrier. Defined by Car/Game \u2265 70th, EPA/Car \u2265 45th, and Tgt/Game \u2264 45th. Grinds out production on the ground." },
   { term: "Power Back (RB Archetype)", id: "power-back",
