@@ -2349,6 +2349,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_qb_weekly_stats_table(conn)
     ensure_receiver_weekly_stats_table(conn)
     ensure_rb_weekly_stats_table(conn)
+    ensure_player_slugs_table(conn)
 
     try:
         upsert_teams(conn, team_stats)
@@ -2361,6 +2362,8 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_qb_weekly_stats(conn, qb_weekly)
         upsert_receiver_weekly_stats(conn, receiver_weekly)
         upsert_rb_weekly_stats(conn, rb_weekly)
+        player_slugs_df = generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn)
+        upsert_player_slugs(conn, player_slugs_df)
         cleanup_stale_rows(
             conn, season,
             team_ids=team_stats['team_id'].unique().tolist(),
