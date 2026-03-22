@@ -108,7 +108,7 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
     () => {
       const minRoutes = isTE ? MIN_ROUTES_TE : MIN_ROUTES_WR;
       return allReceivers
-        .filter((r) => isTE ? r.position === "TE" : r.position !== "TE")
+        .filter((r) => isTE ? r.position === "TE" : r.position === "WR")
         .filter((r) => r.routes_run >= minRoutes);
     },
     [allReceivers, isTE]
