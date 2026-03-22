@@ -62,17 +62,9 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** Volume-based white glow: more attempts = brighter against green turf */
-function volumeColor(attempts: number, maxAttempts: number): string {
-  if (maxAttempts === 0) return "rgba(255,255,255,0.03)";
-  const intensity = clamp(attempts / maxAttempts, 0.05, 0.3);
-  return `rgba(255, 255, 255, ${intensity})`;
-}
-
 function getCellColor(
   tab: TabKey,
   zone: QBPassLocationStat | undefined,
-  maxAttempts: number,
   maxYards: number,
 ): string {
   if (!zone || zone.pass_attempts === 0) return "rgba(255,255,255,0.03)";
@@ -193,7 +185,6 @@ export default function PlayerFieldHeatMap({
   const totalCompPct = totalAttempts > 0 ? (totalCompletions / totalAttempts) * 100 : 0;
 
   /* Compute max values for color normalization */
-  const maxAttempts = Math.max(...stats.map((s) => s.pass_attempts), 1);
   const maxYards = Math.max(...stats.map((s) => s.passing_yards), 1);
 
   return (
@@ -303,7 +294,7 @@ export default function PlayerFieldHeatMap({
             const row = ROWS[depth];
             const col = COLS[dir];
             const zone = lookup[`${depth}-${dir}`];
-            const fillColor = getCellColor(activeTab, zone, maxAttempts, maxYards);
+            const fillColor = getCellColor(activeTab, zone, maxYards);
             const bigNum = getBigNumber(activeTab, zone);
             const bigNumColor = getBigNumberColor(activeTab, zone);
             const isEmpty = !zone || zone.pass_attempts === 0;
