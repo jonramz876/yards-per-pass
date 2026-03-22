@@ -34,9 +34,9 @@ for (const depth of DEPTH_BINS) {
 
 /* ─── Layout constants ─── */
 const ROWS: Record<string, { y: number; h: number }> = {
-  deep: { y: 30, h: 72 },
-  intermediate: { y: 110, h: 82 },
-  short: { y: 200, h: 82 },
+  deep: { y: 30, h: 76 },
+  intermediate: { y: 114, h: 82 },
+  short: { y: 204, h: 82 },
 };
 const COLS: Record<string, { x: number; w: number }> = {
   left: { x: 48, w: 96 },
@@ -180,8 +180,8 @@ export default function PlayerFieldHeatMap({
       </div>
 
       {/* Summary bar */}
-      <div className="bg-[#1a2332] text-white rounded-lg px-4 py-2 mb-3 flex items-center justify-between text-xs">
-        <span className="font-semibold">{season} Season Totals</span>
+      <div className="bg-[#1a2332] text-white rounded-lg px-4 py-2 mb-3 flex flex-wrap items-center justify-between text-xs gap-y-1">
+        <span className="font-semibold">{playerName} <span className="font-normal opacity-70">| {season}</span></span>
         <div className="flex gap-3">
           <span>{totalAttempts} att</span>
           <span>
@@ -195,32 +195,29 @@ export default function PlayerFieldHeatMap({
       </div>
 
       {/* SVG Field Diagram */}
-      <svg viewBox="0 0 360 310" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
+      <svg viewBox="0 0 360 314" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
         {/* Turf background */}
-        <rect x={40} y={0} width={320} height={310} rx={8} fill="#2d5a27" />
+        <rect x={40} y={0} width={320} height={314} rx={8} fill="#2d5a27" />
 
         {/* Top boundary */}
         <line x1={40} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
 
         {/* 20-yard line */}
-        <line x1={40} y1={104} x2={360} y2={104} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-        <rect x={170} y={94} width={40} height={16} rx={8} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={106} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.8)" fontWeight={600}>
-          20 yds
-        </text>
+        <line x1={40} y1={108} x2={360} y2={108} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
 
         {/* 10-yard line */}
-        <line x1={40} y1={196} x2={360} y2={196} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-        <rect x={170} y={186} width={40} height={16} rx={8} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={198} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.8)" fontWeight={600}>
-          10 yds
-        </text>
+        <line x1={40} y1={200} x2={360} y2={200} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
 
         {/* Line of scrimmage */}
-        <line x1={40} y1={290} x2={360} y2={290} stroke="#f59e0b" strokeWidth={2} />
-        <rect x={160} y={294} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={304} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
+        <line x1={40} y1={294} x2={360} y2={294} stroke="#f59e0b" strokeWidth={2} />
+        <rect x={160} y={298} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
+        <text x={190} y={308} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
           SCRIMMAGE
+        </text>
+
+        {/* Source branding */}
+        <text x={356} y={308} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)" fontFamily="system-ui, sans-serif">
+          yardsperpass.com
         </text>
 
         {/* Direction labels at top */}
