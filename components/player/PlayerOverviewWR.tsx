@@ -101,8 +101,16 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
   const isTE = stats.position === "TE";
 
   // For TEs, compute percentiles against TE-only pool; for WRs, against WR-only pool
+  // Filter to qualified players (25+ targets for TEs, 50+ targets for WRs) to avoid noise
+  const MIN_TARGETS_WR = 50;
+  const MIN_TARGETS_TE = 25;
   const positionPool = useMemo(
-    () => isTE ? allReceivers.filter((r) => r.position === "TE") : allReceivers.filter((r) => r.position !== "TE"),
+    () => {
+      const minTgt = isTE ? MIN_TARGETS_TE : MIN_TARGETS_WR;
+      return allReceivers
+        .filter((r) => isTE ? r.position === "TE" : r.position !== "TE")
+        .filter((r) => r.targets >= minTgt);
+    },
     [allReceivers, isTE]
   );
   const total = positionPool.length;
@@ -163,7 +171,7 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-3">
-          Percentiles vs. {total} {stats.position === "TE" ? "TEs" : "WRs"} &middot; {season}
+          Percentiles vs. {total} {isTE ? "TEs" : "WRs"} ({isTE ? "25" : "50"}+ targets) &middot; {season}
         </p>
 
         {archetype && (

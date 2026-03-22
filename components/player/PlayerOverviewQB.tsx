@@ -158,7 +158,7 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-3">
-          Percentiles vs. {total} QBs &middot; {season}
+          Percentiles vs. {total} QBs (100+ dropbacks) &middot; {season}
         </p>
 
         {archetype && (

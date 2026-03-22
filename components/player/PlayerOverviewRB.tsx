@@ -254,7 +254,7 @@ export default function PlayerOverviewRB({
               <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
             </div>
             <p className="text-[10px] text-gray-400 text-center mb-3">
-              Percentiles vs. {total} RBs &middot; {season}
+              Percentiles vs. {total} RBs (30+ carries) &middot; {season}
             </p>
 
             {archetype && (
