@@ -52,6 +52,12 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   Snaps: "Total offensive plays the player was on the field. Derived from play-by-play participation data.",
   "Snap%": "Percentage of team\u2019s offensive plays the player was on the field. 100% means every snap.",
   "Route%": "How often the player runs a route when on the field. High = pure pass catcher, low = run blocker. WRs are typically 80\u201395%, blocking TEs can be 40\u201360%.",
+  "EPA/Car":
+    "Points added per carry. The best single efficiency measure for rushers. Above 0 = above average.",
+  "Stuff%":
+    "Percentage of carries stopped at or behind the line of scrimmage (\u22640 yards). Lower is better.",
+  "Explosive%":
+    "Percentage of carries that gain 10+ yards. Higher is better \u2014 measures big-play ability on the ground.",
 };
 
 interface MetricTooltipProps {

@@ -13,6 +13,7 @@ export async function POST(request: NextRequest) {
   revalidatePath("/qb-leaderboard");
   revalidatePath("/run-gaps");
   revalidatePath("/receivers");
+  revalidatePath("/rushing");
   revalidatePath("/player", "layout");
   revalidatePath("/team", "layout");
 
