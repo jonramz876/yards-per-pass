@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import type { QBSeasonStat } from "@/lib/types";
+import type { QBSeasonStat, CrossLinkReceiver } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
@@ -15,6 +15,7 @@ interface PlayerOverviewQBProps {
   allQBs: QBSeasonStat[];
   season: number;
   teamId: string;
+  topReceivers?: CrossLinkReceiver[];
 }
 
 // Radar: 6 axes matching the spec
@@ -97,7 +98,7 @@ function formatChipValue(key: string, val: number): string {
   }
 }
 
-export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: PlayerOverviewQBProps) {
+export default function PlayerOverviewQB({ stats, allQBs, season, teamId, topReceivers = [] }: PlayerOverviewQBProps) {
   const team = getTeam(teamId);
   const teamColor = getTeamColor(teamId);
   const total = allQBs.length;
@@ -139,13 +140,6 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
       }),
     [stats, allQBs]
   );
-
-  // Team context: top 3 receivers on same team
-  const teammates = useMemo(() => {
-    // allQBs is QB-only, so we can't look up receivers from it.
-    // This section is a placeholder that will show nothing unless allPlayers includes receivers.
-    return [] as { name: string; team_id: string }[];
-  }, []);
 
   const MIN_DROPBACKS = 100;
   const meetsThreshold = stats.dropbacks >= MIN_DROPBACKS;
@@ -290,16 +284,25 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
           ))}
         </div>
 
-        {/* Team context: top 3 receivers */}
-        {teammates.length > 0 && (
+        {/* Team context: top receivers */}
+        {topReceivers.length > 0 && (
           <div className="rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
               Throws To
             </h3>
             <div className="space-y-2">
-              {teammates.map((tm) => (
-                <div key={tm.name} className="text-sm text-gray-700">
-                  {tm.name}
+              {topReceivers.map((r) => (
+                <div key={r.player_id} className="flex items-center justify-between text-sm">
+                  {r.slug ? (
+                    <Link href={`/player/${r.slug}`} className="text-navy hover:text-nflred hover:underline transition-colors font-medium">
+                      {r.player_name}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-700 font-medium">{r.player_name}</span>
+                  )}
+                  <span className="text-gray-400 text-xs tabular-nums">
+                    {r.targets} tgt &middot; {r.receiving_yards} yds &middot; {r.receiving_tds} TD
+                  </span>
                 </div>
               ))}
             </div>

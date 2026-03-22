@@ -7,9 +7,9 @@ import type { RBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { computePercentile } from "@/lib/stats/percentiles";
+import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyRB } from "@/lib/stats/archetypes";
-import { rbFantasyPoints } from "@/lib/stats/fantasy";
+import { rbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 
 interface RBLeaderboardProps {
   data: RBSeasonStat[];
@@ -27,7 +27,7 @@ type ColumnDef = {
 
 const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "games", label: "GP", group: "core" },
-  { key: "rush_fpts", label: "Rush FPts", group: "core" },
+  { key: "fpts", label: "FPts", group: "core" },
   { key: "epa_per_carry", label: "EPA/Car", tooltip: "EPA/Car", group: "core" },
   { key: "success_rate", label: "Success%", tooltip: "Success%", group: "efficiency" },
   { key: "stuff_rate", label: "Stuff%", tooltip: "Stuff%", group: "efficiency" },
@@ -37,7 +37,7 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
 
 const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "games", label: "GP", group: "core" },
-  { key: "rush_fpts", label: "Rush FPts", group: "core" },
+  { key: "fpts", label: "FPts", group: "core" },
   { key: "carries", label: "Carries", group: "rushing" },
   { key: "rushing_yards", label: "Yards", group: "rushing" },
   { key: "yards_per_carry", label: "YPC", group: "rushing" },
@@ -59,18 +59,21 @@ const GROUP_COLORS: Record<string, string> = {
   efficiency: "bg-navy/[0.78]",
 };
 
-function getVal(rb: RBSeasonStat, key: string): number {
+function getVal(rb: RBSeasonStat, key: string, scoringFmt?: ScoringFormat): number {
   switch (key) {
     case "yards_per_game":
       return rb.games ? rb.rushing_yards / rb.games : NaN;
     case "carries_per_game":
       return rb.games ? rb.carries / rb.games : NaN;
-    case "rush_fpts":
+    case "fpts":
       return rbFantasyPoints({
         rushing_yards: rb.rushing_yards,
         rushing_tds: rb.rushing_tds,
+        receiving_yards: rb.receiving_yards,
+        receiving_tds: rb.receiving_tds,
+        receptions: rb.receptions,
         fumbles_lost: rb.fumbles_lost,
-      });
+      }, scoringFmt ?? "ppr");
     default: {
       const val = rb[key as keyof RBSeasonStat] as number;
       return val ?? NaN;
@@ -89,28 +92,8 @@ const HEATMAP_COLS_STANDARD = new Set([
 // For stuff_rate, lower is better
 const INVERTED_COLS = new Set(["stuff_rate"]);
 
-function getPercentile(sortedValues: number[], value: number): number {
-  if (isNaN(value) || sortedValues.length === 0) return -1;
-  const rank = sortedValues.filter((v) => v < value).length;
-  return (rank / sortedValues.length) * 100;
-}
-
-function getHeatmapStyle(percentile: number, inverted: boolean = false): React.CSSProperties {
-  if (percentile < 0) return {};
-  const p = inverted ? 100 - percentile : percentile;
-  if (p >= 90)
-    return { background: "rgba(34,197,94,0.25)", color: "#15803d", fontWeight: 600 };
-  if (p >= 75)
-    return { background: "rgba(34,197,94,0.12)", color: "#16a34a" };
-  if (p <= 10)
-    return { background: "rgba(239,68,68,0.25)", color: "#dc2626", fontWeight: 600 };
-  if (p <= 25)
-    return { background: "rgba(239,68,68,0.12)", color: "#dc2626" };
-  return {};
-}
-
-function formatVal(key: string, rb: RBSeasonStat): string {
-  const val = getVal(rb, key);
+function formatVal(key: string, rb: RBSeasonStat, scoringFmt?: ScoringFormat): string {
+  const val = getVal(rb, key, scoringFmt);
   if (val == null || isNaN(val)) return "\u2014";
   switch (key) {
     case "epa_per_carry":
@@ -123,7 +106,7 @@ function formatVal(key: string, rb: RBSeasonStat): string {
     case "yards_per_game":
     case "carries_per_game":
       return val.toFixed(1);
-    case "rush_fpts":
+    case "fpts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -144,7 +127,7 @@ function formatAvg(key: string, val: number): string {
     case "yards_per_game":
     case "carries_per_game":
       return val.toFixed(1);
-    case "rush_fpts":
+    case "fpts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -182,6 +165,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   const urlTeam = searchParams.get("team") || "";
   const urlArch = searchParams.get("arch") || "";
+  const urlScoring = searchParams.get("scoring");
+  const initialScoring: ScoringFormat = urlScoring === "half" ? "half" : urlScoring === "std" ? "std" : "ppr";
 
   const [tab, setTab] = useState<Tab>(initialTab);
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
@@ -190,6 +175,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const [minCarries, setMinCarries] = useState(initialMin);
   const [teamFilter, setTeamFilter] = useState(urlTeam);
   const [archFilter, setArchFilter] = useState(urlArch);
+  const [scoringFormat, setScoringFormat] = useState<ScoringFormat>(initialScoring);
 
   // Unique teams sorted alphabetically for the dropdown
   const teams = useMemo(() => {
@@ -199,9 +185,9 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   // Build URL from current state, omitting defaults
   const buildParams = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; team?: string; arch?: string }) => {
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; team?: string; arch?: string; scoring?: ScoringFormat }) => {
       const params = new URLSearchParams(searchParams.toString());
-      ["tab", "sort", "dir", "q", "min", "team", "arch"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "team", "arch", "scoring"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
       const defaultSort = newTab === "advanced" ? "epa_per_carry" : "rushing_yards";
@@ -211,6 +197,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       const newMin = overrides.min ?? minCarries;
       const newTeam = overrides.team ?? teamFilter;
       const newArch = overrides.arch ?? archFilter;
+      const newScoring = overrides.scoring ?? scoringFormat;
 
       if (newTab !== "advanced") params.set("tab", newTab);
       if (newSort !== defaultSort) params.set("sort", newSort);
@@ -219,15 +206,16 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       if (newMin !== computedDefaultMin) params.set("min", String(newMin));
       if (newTeam) params.set("team", newTeam);
       if (newArch) params.set("arch", newArch);
+      if (newScoring !== "ppr") params.set("scoring", newScoring);
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minCarries, teamFilter, archFilter, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minCarries, teamFilter, archFilter, scoringFormat, computedDefaultMin, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; team?: string; arch?: string }) => {
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; team?: string; arch?: string; scoring?: ScoringFormat }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -313,8 +301,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       result = result.filter((rb) => archetypeMap[rb.player_id]?.label === archFilter);
     }
     result.sort((a, b) => {
-      const aVal = getVal(a, sortKey);
-      const bVal = getVal(b, sortKey);
+      const aVal = getVal(a, sortKey, scoringFormat);
+      const bVal = getVal(b, sortKey, scoringFormat);
       const aNull = aVal == null || Number.isNaN(aVal);
       const bNull = bVal == null || Number.isNaN(bVal);
       if (aNull && bNull) return 0;
@@ -323,7 +311,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
-  }, [data, sortKey, sortDir, search, minCarries, teamFilter, archFilter, archetypeMap]);
+  }, [data, sortKey, sortDir, search, minCarries, teamFilter, archFilter, archetypeMap, scoringFormat]);
 
   // Heatmap percentiles use the min-carries-only pool (ignoring team/archetype filters)
   const heatmapPool = useMemo(() => data.filter((rb) => rb.carries >= minCarries), [data, minCarries]);
@@ -332,12 +320,12 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     if (!showHeatmap) return {};
     const sorted: Record<string, number[]> = {};
     Array.from(heatmapCols).forEach((col) => {
-      const values = heatmapPool.map((rb) => getVal(rb, col)).filter((v) => !isNaN(v));
+      const values = heatmapPool.map((rb) => getVal(rb, col, scoringFormat)).filter((v) => !isNaN(v));
       values.sort((a, b) => a - b);
       sorted[col] = values;
     });
     return sorted;
-  }, [heatmapPool, heatmapCols, showHeatmap]);
+  }, [heatmapPool, heatmapCols, showHeatmap, scoringFormat]);
 
   // NFL-wide averages (always from full dataset, ignoring team filters)
   const nflAverages = useMemo(() => {
@@ -345,26 +333,26 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     const pool = data.filter((rb) => rb.carries >= minCarries);
     const avgs: Record<string, number> = {};
     for (const col of columns) {
-      const values = pool.map((rb) => getVal(rb, col.key)).filter((v) => !isNaN(v));
+      const values = pool.map((rb) => getVal(rb, col.key, scoringFormat)).filter((v) => !isNaN(v));
       avgs[col.key] = values.length
         ? values.reduce((a, b) => a + b, 0) / values.length
         : NaN;
     }
     return avgs;
-  }, [data, minCarries, columns, showHeatmap]);
+  }, [data, minCarries, columns, showHeatmap, scoringFormat]);
 
   // Team averages (only shown when team filter is active)
   const teamAverages = useMemo(() => {
     if (!showHeatmap || !teamFilter) return {};
     const avgs: Record<string, number> = {};
     for (const col of columns) {
-      const values = filtered.map((rb) => getVal(rb, col.key)).filter((v) => !isNaN(v));
+      const values = filtered.map((rb) => getVal(rb, col.key, scoringFormat)).filter((v) => !isNaN(v));
       avgs[col.key] = values.length
         ? values.reduce((a, b) => a + b, 0) / values.length
         : NaN;
     }
     return avgs;
-  }, [filtered, columns, showHeatmap, teamFilter]);
+  }, [filtered, columns, showHeatmap, teamFilter, scoringFormat]);
 
   function handleSort(key: string) {
     if (sortKey === key) {
@@ -414,6 +402,21 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
             >
               Standard
             </button>
+          </div>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => { setScoringFormat(val); pushURL({ scoring: val }); }}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  scoringFormat === val
+                    ? "bg-navy text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -524,7 +527,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                   if (showHeatmap && idx === 0) {
                     const avgVal = nflAverages[sortKey];
                     if (!isNaN(avgVal)) {
-                      const rbVal = getVal(rb, sortKey);
+                      const rbVal = getVal(rb, sortKey, scoringFormat);
                       if (sortDir === "desc" ? avgVal >= rbVal : avgVal <= rbVal) {
                         showAvgBefore = true;
                       }
@@ -532,8 +535,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                   } else if (showHeatmap && idx > 0) {
                     const avgVal = nflAverages[sortKey];
                     if (!isNaN(avgVal)) {
-                      const prevVal = getVal(filtered[idx - 1], sortKey);
-                      const currVal = getVal(rb, sortKey);
+                      const prevVal = getVal(filtered[idx - 1], sortKey, scoringFormat);
+                      const currVal = getVal(rb, sortKey, scoringFormat);
                       if (sortDir === "desc") {
                         showAvgBefore = avgVal < prevVal && avgVal >= currVal;
                       } else {
@@ -613,9 +616,9 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           </Link>
                         </td>
                         {columns.map((col) => {
-                          const val = getVal(rb, col.key);
+                          const val = getVal(rb, col.key, scoringFormat);
                           const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
-                          const pct = isHeatmapCol ? getPercentile(sortedByCol[col.key] || [], val) : -1;
+                          const pct = isHeatmapCol ? getHeatmapPercentile(sortedByCol[col.key] || [], val) : -1;
                           const inverted = INVERTED_COLS.has(col.key);
                           const heatStyle = isHeatmapCol ? getHeatmapStyle(pct, inverted) : {};
 
@@ -627,7 +630,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
                           return (
                             <td key={col.key} className={cellClass} style={heatStyle}>
-                              {formatVal(col.key, rb)}
+                              {formatVal(col.key, rb, scoringFormat)}
                             </td>
                           );
                         })}
@@ -639,7 +642,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                 {showHeatmap && filtered.length > 0 && (() => {
                   const avgVal = nflAverages[sortKey];
                   if (isNaN(avgVal)) return null;
-                  const lastVal = getVal(filtered[filtered.length - 1], sortKey);
+                  const lastVal = getVal(filtered[filtered.length - 1], sortKey, scoringFormat);
                   const belongsAfterLast = sortDir === "desc" ? avgVal < lastVal : avgVal > lastVal;
                   if (!belongsAfterLast) return null;
                   return (
@@ -676,7 +679,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
         <p><span className="font-semibold text-gray-500">EPA/Car</span> = expected points added per carry. <span className="font-semibold text-gray-500">Success%</span> = carries gaining enough yards to stay on schedule.</p>
         <p><span className="font-semibold text-gray-500">Stuff%</span> = carries stopped at or behind the line of scrimmage. <span className="font-semibold text-gray-500">Explosive%</span> = carries gaining 10+ yards.</p>
-        <p><span className="font-semibold text-gray-500">Rush FPts</span> = rushing-only fantasy points (yards/10 + TDs&times;6 &minus; fumbles lost). Does not include receiving stats.</p>
+        <p><span className="font-semibold text-gray-500">FPts</span> = total fantasy points (rushing + receiving). PPR: +1/rec, Half: +0.5/rec, Standard: 0.</p>
       </div>
 
     </div>

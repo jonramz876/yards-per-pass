@@ -252,55 +252,49 @@ export default function PlayerOverviewRB({
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
           Performance Profile
         </h3>
-        {false ? ( // threshold check moved to early return above
-          <div />
-        ) : (
-          <>
-            <div className="flex justify-center mb-1">
-              <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
-            </div>
-            <p className="text-[10px] text-gray-400 text-center mb-3">
-              Percentiles vs. {total} RBs (30+ carries) &middot; {season}
-            </p>
+        <div className="flex justify-center mb-1">
+          <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
+        </div>
+        <p className="text-[10px] text-gray-400 text-center mb-3">
+          Percentiles vs. {total} RBs (30+ carries) &middot; {season}
+        </p>
 
-            {archetype && (
-              <div className="text-center mb-4">
-                <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
-                  <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
-                    {archetype.icon} {archetype.label}
-                  </span>
-                  <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
-                    {archetype.description}
-                  </p>
-                </Link>
-              </div>
-            )}
-
-            {/* Stat chips */}
-            <div className="grid grid-cols-3 gap-2">
-              {chipData.map((chip) => (
-                <div
-                  key={chip.key}
-                  className="rounded-lg p-3 text-center"
-                  style={{ background: "#f8fafc" }}
-                >
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wide">
-                    {RADAR_LABELS[chip.key]}
-                  </div>
-                  <div
-                    className="text-lg font-bold my-0.5"
-                    style={{ color: chipColor(chip.rank, total) }}
-                  >
-                    {formatChipValue(chip.key, chip.val)}
-                  </div>
-                  <div className="text-[10px] text-gray-400">
-                    {ordinal(chip.rank)} of {total}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
+        {archetype && (
+          <div className="text-center mb-4">
+            <Link href={`/glossary#${archetype.glossaryAnchor}`} className="group">
+              <span className="text-lg font-bold text-navy group-hover:text-nflred transition-colors">
+                {archetype.icon} {archetype.label}
+              </span>
+              <p className="text-xs text-gray-500 mt-0.5 group-hover:text-gray-700 transition-colors">
+                {archetype.description}
+              </p>
+            </Link>
+          </div>
         )}
+
+        {/* Stat chips */}
+        <div className="grid grid-cols-3 gap-2">
+          {chipData.map((chip) => (
+            <div
+              key={chip.key}
+              className="rounded-lg p-3 text-center"
+              style={{ background: "#f8fafc" }}
+            >
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">
+                {RADAR_LABELS[chip.key]}
+              </div>
+              <div
+                className="text-lg font-bold my-0.5"
+                style={{ color: chipColor(chip.rank, total) }}
+              >
+                {formatChipValue(chip.key, chip.val)}
+              </div>
+              <div className="text-[10px] text-gray-400">
+                {ordinal(chip.rank)} of {total}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Right column: Bars + cross-link */}

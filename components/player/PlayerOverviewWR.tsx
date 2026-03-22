@@ -3,7 +3,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import type { ReceiverSeasonStat } from "@/lib/types";
+import type { ReceiverSeasonStat, CrossLinkQB } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
@@ -15,6 +15,7 @@ interface PlayerOverviewWRProps {
   allReceivers: ReceiverSeasonStat[];
   season: number;
   teamId: string;
+  teamQBData?: CrossLinkQB;
 }
 
 const RADAR_AXES = [
@@ -94,7 +95,7 @@ function formatChipValue(key: string, val: number): string {
   }
 }
 
-export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }: PlayerOverviewWRProps) {
+export default function PlayerOverviewWR({ stats, allReceivers, season, teamId, teamQBData }: PlayerOverviewWRProps) {
   const team = getTeam(teamId);
   const teamColor = getTeamColor(teamId);
 
@@ -152,13 +153,6 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
       }),
     [stats, positionPool]
   );
-
-  // Team context: find the team's QB
-  const teamQB = useMemo(() => {
-    // allReceivers only has receivers, so we can't look up QBs from it.
-    // This will be blank unless a QB dataset is passed. Placeholder for now.
-    return null as { name: string } | null;
-  }, []);
 
   const minRoutes = isTE ? MIN_ROUTES_TE : MIN_ROUTES_WR;
   const meetsThreshold = stats.routes_run >= minRoutes;
@@ -315,12 +309,23 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
         </div>
 
         {/* Team context: QB */}
-        {teamQB && (
+        {teamQBData && (
           <div className="rounded-xl border border-gray-200 bg-white p-6">
             <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
               Catches From
             </h3>
-            <div className="text-sm text-gray-700">{teamQB.name}</div>
+            <div className="flex items-center justify-between text-sm">
+              {teamQBData.slug ? (
+                <Link href={`/player/${teamQBData.slug}`} className="text-navy hover:text-nflred hover:underline transition-colors font-medium">
+                  {teamQBData.player_name}
+                </Link>
+              ) : (
+                <span className="text-gray-700 font-medium">{teamQBData.player_name}</span>
+              )}
+              <span className="text-gray-400 text-xs tabular-nums">
+                {teamQBData.passing_yards} yds &middot; {teamQBData.touchdowns} TD
+              </span>
+            </div>
           </div>
         )}
 

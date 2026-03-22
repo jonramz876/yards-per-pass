@@ -7,7 +7,7 @@ import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { computePercentile } from "@/lib/stats/percentiles";
+import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 
@@ -96,25 +96,6 @@ const HEATMAP_COLS_ADVANCED = new Set([
 const HEATMAP_COLS_STANDARD = new Set([
   "catch_rate", "yards_per_reception",
 ]);
-
-function getPercentile(sortedValues: number[], value: number): number {
-  if (isNaN(value) || sortedValues.length === 0) return -1;
-  const rank = sortedValues.filter((v) => v < value).length;
-  return (rank / sortedValues.length) * 100;
-}
-
-function getHeatmapStyle(percentile: number): React.CSSProperties {
-  if (percentile < 0) return {};
-  if (percentile >= 90)
-    return { background: "rgba(34,197,94,0.25)", color: "#15803d", fontWeight: 600 };
-  if (percentile >= 75)
-    return { background: "rgba(34,197,94,0.12)", color: "#16a34a" };
-  if (percentile <= 10)
-    return { background: "rgba(239,68,68,0.25)", color: "#dc2626", fontWeight: 600 };
-  if (percentile <= 25)
-    return { background: "rgba(239,68,68,0.12)", color: "#dc2626" };
-  return {};
-}
 
 function formatVal(key: string, rec: ReceiverSeasonStat, scoringFmt?: ScoringFormat): string {
   const val = getVal(rec, key, scoringFmt);
@@ -669,7 +650,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                         {columns.map((col) => {
                           const val = getVal(rec, col.key, scoringFormat);
                           const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
-                          const pct = isHeatmapCol ? getPercentile(sortedByCol[col.key] || [], val) : -1;
+                          const pct = isHeatmapCol ? getHeatmapPercentile(sortedByCol[col.key] || [], val) : -1;
                           const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
 
                           const cellClass = isHeatmapCol
