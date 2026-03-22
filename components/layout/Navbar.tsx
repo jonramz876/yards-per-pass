@@ -9,10 +9,10 @@ import SearchPalette from "@/components/search/SearchPalette";
 
 const NAV_LINKS = [
   { href: "/teams", label: "Team Tiers" },
-  { href: "/qb-leaderboard", label: "QB Rankings" },
-  { href: "/receivers", label: "Receivers" },
+  { href: "/qb-leaderboard", label: "Passing" },
+  { href: "/receivers", label: "Receiving" },
+  { href: "/rushing", label: "Rushing" },
   { href: "/run-gaps", label: "Run Gaps" },
-  { href: "/glossary", label: "Glossary", noSeason: true },
 ] as const;
 
 export default function Navbar() {
