@@ -2276,6 +2276,78 @@ def upsert_rb_weekly_stats(conn, df: pd.DataFrame):
     log.info("Upserted %d RB weekly stat rows", len(rows))
 
 
+# --- QB pass location stats ---
+
+def ensure_qb_pass_location_tables(conn):
+    """Create qb_pass_location_stats table if it doesn't exist."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS qb_pass_location_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                team_id TEXT NOT NULL REFERENCES teams(id),
+                season INT NOT NULL,
+                depth_bin TEXT NOT NULL,
+                direction_bin TEXT NOT NULL,
+                pass_attempts INT NOT NULL,
+                completions INT NOT NULL,
+                passing_yards NUMERIC,
+                pass_tds INT DEFAULT 0,
+                interceptions INT DEFAULT 0,
+                epa_sum NUMERIC,
+                epa_per_attempt NUMERIC,
+                completion_pct NUMERIC,
+                adot NUMERIC,
+                passer_rating NUMERIC,
+                UNIQUE (player_id, season, depth_bin, direction_bin)
+            )
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE qb_pass_location_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON qb_pass_location_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$
+        """)
+    conn.commit()
+    log.info("Ensured qb_pass_location_stats table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_qb_pass_location_stats(conn, df: pd.DataFrame):
+    """Upsert QB pass location stats."""
+    if df.empty:
+        log.info("No QB pass location stats to upsert")
+        return
+
+    cols = ['player_id', 'player_name', 'team_id', 'season',
+            'depth_bin', 'direction_bin', 'pass_attempts', 'completions',
+            'passing_yards', 'pass_tds', 'interceptions',
+            'epa_sum', 'epa_per_attempt', 'completion_pct', 'adot', 'passer_rating']
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}" for c in cols
+        if c not in ('player_id', 'season', 'depth_bin', 'direction_bin')
+    )
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"INSERT INTO qb_pass_location_stats ({col_names}) VALUES %s "
+            f"ON CONFLICT (player_id, season, depth_bin, direction_bin) DO UPDATE SET {update_set}",
+            rows,
+        )
+    log.info("Upserted %d QB pass location stat rows", len(rows))
+
+
 # --- Player slugs ---
 
 def ensure_player_slugs_table(conn):
@@ -2468,7 +2540,7 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
     log.info("Upserted %d player slug rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None):
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -2553,6 +2625,14 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale rb_weekly_stats rows", cur.rowcount)
 
+        if qb_pass_loc_player_ids is not None:
+            cur.execute(
+                "DELETE FROM qb_pass_location_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, qb_pass_loc_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale qb_pass_location_stats rows", cur.rowcount)
+
 
 @retry(max_retries=2, delay=3)
 def update_freshness(conn, season: int, through_week: int):
@@ -2621,6 +2701,7 @@ def process_season(season: int, conn, dry_run: bool = False):
 
     team_stats = aggregate_team_stats(plays, pbp, season)
     qb_stats = aggregate_qb_stats(plays, roster, season)
+    qb_pass_loc = aggregate_qb_pass_location_stats(plays, roster, season)
     rb_gap_stats = aggregate_rb_gap_stats(plays, season)
     rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     def_gap_stats = aggregate_def_gap_stats(plays, season)
@@ -2660,12 +2741,14 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_qb_weekly_stats_table(conn)
     ensure_receiver_weekly_stats_table(conn)
     ensure_rb_weekly_stats_table(conn)
+    ensure_qb_pass_location_tables(conn)
     ensure_player_slugs_table(conn)
 
     try:
         upsert_teams(conn, team_stats)
         upsert_team_stats(conn, team_stats)
         upsert_qb_stats(conn, qb_stats)
+        upsert_qb_pass_location_stats(conn, qb_pass_loc)
         upsert_rb_gap_stats(conn, rb_gap_stats)
         upsert_rb_gap_stats_weekly(conn, rb_gap_stats_weekly)
         upsert_def_gap_stats(conn, def_gap_stats)
@@ -2688,6 +2771,7 @@ def process_season(season: int, conn, dry_run: bool = False):
             qb_weekly_player_ids=qb_weekly['player_id'].unique().tolist() if not qb_weekly.empty else [],
             receiver_weekly_player_ids=receiver_weekly['player_id'].unique().tolist() if not receiver_weekly.empty else [],
             rb_weekly_player_ids=rb_weekly['player_id'].unique().tolist() if not rb_weekly.empty else [],
+            qb_pass_loc_player_ids=qb_pass_loc['player_id'].unique().tolist() if not qb_pass_loc.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()
