@@ -62,11 +62,11 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** Volume-based navy blue: more attempts = darker */
+/** Volume-based white glow: more attempts = brighter against green turf */
 function volumeColor(attempts: number, maxAttempts: number): string {
   if (maxAttempts === 0) return "rgba(255,255,255,0.03)";
-  const intensity = clamp(attempts / maxAttempts, 0.08, 0.55);
-  return `rgba(30, 58, 138, ${intensity})`; // navy blue
+  const intensity = clamp(attempts / maxAttempts, 0.05, 0.3);
+  return `rgba(255, 255, 255, ${intensity})`;
 }
 
 function getCellColor(
@@ -230,22 +230,22 @@ export default function PlayerFieldHeatMap({
 
           {/* 20-yard line */}
           <line x1={40} y1={118} x2={360} y2={118} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-          <rect x={170} y={109} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
-          <text x={190} y={121} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
+          <rect x={180} y={109} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
+          <text x={200} y={121} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
             20 yds
           </text>
 
           {/* 10-yard line */}
           <line x1={40} y1={226} x2={360} y2={226} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-          <rect x={170} y={217} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
-          <text x={190} y={229} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
+          <rect x={180} y={217} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
+          <text x={200} y={229} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
             10 yds
           </text>
 
           {/* Line of scrimmage */}
           <line x1={40} y1={330} x2={360} y2={330} stroke="#f59e0b" strokeWidth={2} />
-          <rect x={160} y={334} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
-          <text x={190} y={344} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
+          <rect x={170} y={334} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
+          <text x={200} y={344} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
             SCRIMMAGE
           </text>
 
@@ -394,7 +394,8 @@ export default function PlayerFieldHeatMap({
               style={{
                 width: 14,
                 height: 80,
-                background: "linear-gradient(to bottom, rgba(30,58,138,0.55), rgba(30,58,138,0.08))",
+                background: "linear-gradient(to bottom, rgba(255,255,255,0.3), rgba(255,255,255,0.05))",
+                border: "1px solid rgba(45,90,39,1)",
               }}
             />
             <span className="text-[9px] text-gray-400 mt-1">{maxAttempts}</span>
