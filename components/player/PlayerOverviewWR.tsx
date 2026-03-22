@@ -101,15 +101,15 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
   const isTE = stats.position === "TE";
 
   // For TEs, compute percentiles against TE-only pool; for WRs, against WR-only pool
-  // Filter to qualified players (25+ targets for TEs, 50+ targets for WRs) to avoid noise
-  const MIN_TARGETS_WR = 50;
-  const MIN_TARGETS_TE = 25;
+  // Filter to qualified players by routes run (better than targets — measures opportunity not results)
+  const MIN_ROUTES_WR = 200;
+  const MIN_ROUTES_TE = 100;
   const positionPool = useMemo(
     () => {
-      const minTgt = isTE ? MIN_TARGETS_TE : MIN_TARGETS_WR;
+      const minRoutes = isTE ? MIN_ROUTES_TE : MIN_ROUTES_WR;
       return allReceivers
         .filter((r) => isTE ? r.position === "TE" : r.position !== "TE")
-        .filter((r) => r.targets >= minTgt);
+        .filter((r) => r.routes_run >= minRoutes);
     },
     [allReceivers, isTE]
   );
@@ -160,6 +160,20 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
     return null as { name: string } | null;
   }, []);
 
+  const minRoutes = isTE ? MIN_ROUTES_TE : MIN_ROUTES_WR;
+  const meetsThreshold = stats.routes_run >= minRoutes;
+
+  if (!meetsThreshold) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+        <p className="text-gray-400 text-sm mb-1">Not enough data to qualify</p>
+        <p className="text-gray-300 text-xs">
+          {stats.routes_run} routes run — minimum {minRoutes} required for {isTE ? "TE" : "WR"} rankings
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left column: Radar + chips */}
@@ -171,7 +185,7 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-3">
-          Percentiles vs. {total} {isTE ? "TEs" : "WRs"} ({isTE ? "25" : "50"}+ targets) &middot; {season}
+          Percentiles vs. {total} {isTE ? "TEs" : "WRs"} ({isTE ? "100" : "200"}+ routes) &middot; {season}
         </p>
 
         {archetype && (

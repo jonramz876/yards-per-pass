@@ -232,7 +232,19 @@ export default function PlayerOverviewRB({
     [playerAgg, leaguePool]
   );
 
-  const notEnoughData = playerAgg.carries < 10;
+  const MIN_CARRIES = 30;
+  const notEnoughData = playerAgg.carries < MIN_CARRIES;
+
+  if (notEnoughData) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+        <p className="text-gray-400 text-sm mb-1">Not enough data to qualify</p>
+        <p className="text-gray-300 text-xs">
+          {playerAgg.carries} carries — minimum {MIN_CARRIES} required for RB rankings
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -241,13 +253,8 @@ export default function PlayerOverviewRB({
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
           Performance Profile
         </h3>
-        {notEnoughData ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-2">Not enough data for radar chart.</p>
-            <p className="text-xs text-gray-400">
-              {playerName} has {playerAgg.carries} carries this season.
-            </p>
-          </div>
+        {false ? ( // threshold check moved to early return above
+          <div />
         ) : (
           <>
             <div className="flex justify-center mb-1">

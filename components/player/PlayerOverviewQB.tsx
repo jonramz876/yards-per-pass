@@ -147,6 +147,20 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId }: Play
     return [] as { name: string; team_id: string }[];
   }, []);
 
+  const MIN_DROPBACKS = 100;
+  const meetsThreshold = stats.dropbacks >= MIN_DROPBACKS;
+
+  if (!meetsThreshold) {
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+        <p className="text-gray-400 text-sm mb-1">Not enough data to qualify</p>
+        <p className="text-gray-300 text-xs">
+          {stats.dropbacks} dropbacks — minimum {MIN_DROPBACKS} required for QB rankings
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left column: Radar + chips */}
