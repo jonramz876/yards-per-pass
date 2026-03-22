@@ -227,6 +227,8 @@ export async function getAllRBWeeklyStats(
 }
 
 const QB_PASS_LOC_NUMERIC = [
+  "passing_yards",
+  "epa_sum",
   "epa_per_attempt",
   "completion_pct",
   "adot",

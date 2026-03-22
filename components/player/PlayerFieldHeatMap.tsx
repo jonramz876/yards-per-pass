@@ -76,13 +76,11 @@ function getCellColor(
       return `rgba(16, 185, 129, ${intensity})`;
     }
     case "catch_pct": {
-      const pct = zone.completion_pct ?? 0;
+      const pct = (zone.completion_pct ?? 0) * 100; // stored as 0-1, convert to 0-100
       if (pct >= 65) {
-        // Green tones — higher pct = more opaque green
         const t = clamp((pct - 65) / 35, 0.05, 0.6);
         return `rgba(16, 185, 129, ${t})`;
       }
-      // Red tones — lower pct = more opaque red
       const t = clamp((65 - pct) / 65, 0.05, 0.6);
       return `rgba(239, 68, 68, ${t})`;
     }
@@ -111,7 +109,7 @@ function getBigNumber(tab: TabKey, zone: QBPassLocationStat | undefined): string
     case "targets":
       return String(zone.pass_attempts);
     case "catch_pct":
-      return zone.completion_pct != null ? `${zone.completion_pct.toFixed(1)}%` : "\u2014";
+      return zone.completion_pct != null ? `${(zone.completion_pct * 100).toFixed(1)}%` : "\u2014";
     case "yards":
       return String(zone.passing_yards);
     case "epa": {

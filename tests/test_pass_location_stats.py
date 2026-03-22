@@ -222,7 +222,9 @@ class TestAggregation:
         result = aggregate_qb_pass_location_stats(plays, roster, 2024)
         row = result[(result['depth_bin'] == 'short') & (result['direction_bin'] == 'left')]
         assert not pd.isna(row.iloc[0]['passer_rating'])
-        assert row.iloc[0]['passer_rating'] > 0
+        # Hand-calculated: 3/5 comp, 30 yds, 1 TD, 1 INT
+        # a=1.5, b=0.75, c=2.375(clamped), d=0.0(clamped) → (4.625/6)*100 = 77.1
+        assert row.iloc[0]['passer_rating'] == pytest.approx(77.1, abs=0.1)
 
     def test_multi_team_qb_primary_team(self):
         plays = pd.DataFrame([
