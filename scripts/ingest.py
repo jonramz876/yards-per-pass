@@ -704,6 +704,95 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     return result
 
 
+def aggregate_qb_pass_location_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate QB pass attempts by field zone (depth x direction) for heat map."""
+    for col in ('pass_location', 'air_yards', 'qb_spike'):
+        if col not in plays.columns:
+            log.warning("Column '%s' not found in PBP data — skipping pass location stats", col)
+            return pd.DataFrame(columns=[
+                'player_id', 'player_name', 'team_id', 'season',
+                'depth_bin', 'direction_bin', 'pass_attempts', 'completions',
+                'passing_yards', 'pass_tds', 'interceptions',
+                'epa_sum', 'epa_per_attempt', 'completion_pct', 'adot', 'passer_rating',
+            ])
+
+    qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
+
+    passes = plays[
+        (plays['pass_attempt'] == 1) &
+        (plays['sack'] != 1) &
+        (plays['qb_scramble'] != 1) &
+        (plays['qb_spike'] != 1) &
+        (plays['passer_player_id'].isin(qb_ids)) &
+        (plays['air_yards'].notna()) &
+        (plays['pass_location'].notna())
+    ].copy()
+
+    if passes.empty:
+        return pd.DataFrame(columns=[
+            'player_id', 'player_name', 'team_id', 'season',
+            'depth_bin', 'direction_bin', 'pass_attempts', 'completions',
+            'passing_yards', 'pass_tds', 'interceptions',
+            'epa_sum', 'epa_per_attempt', 'completion_pct', 'adot', 'passer_rating',
+        ])
+
+    # Bin depth
+    passes['depth_bin'] = pd.cut(
+        passes['air_yards'],
+        bins=[-999, 10, 20, 999],
+        labels=['short', 'intermediate', 'deep'],
+        right=False,
+    )
+    passes['direction_bin'] = passes['pass_location']
+
+    # Name map
+    name_map = passes.groupby('passer_player_id')['passer_player_name'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
+    ).to_dict()
+
+    # Team assignment: most attempts
+    team_counts = passes.groupby(['passer_player_id', 'posteam']).size().reset_index(name='cnt')
+    team_primary = team_counts.sort_values('cnt', ascending=False).drop_duplicates('passer_player_id')
+    team_map = dict(zip(team_primary['passer_player_id'], team_primary['posteam']))
+
+    # Aggregate
+    grouped = passes.groupby(['passer_player_id', 'depth_bin', 'direction_bin'], observed=True).agg(
+        pass_attempts=('epa', 'count'),
+        completions=('complete_pass', 'sum'),
+        passing_yards=('passing_yards', lambda s: s.fillna(0).sum()),
+        pass_tds=('pass_touchdown', 'sum'),
+        interceptions=('interception', 'sum'),
+        epa_sum=('epa', lambda s: s.dropna().sum()),
+        adot=('air_yards', lambda s: s.dropna().mean()),
+    ).reset_index()
+
+    grouped = grouped.rename(columns={'passer_player_id': 'player_id'})
+    grouped['player_name'] = grouped['player_id'].map(name_map)
+    grouped['team_id'] = grouped['player_id'].map(team_map)
+    grouped['season'] = season
+    grouped['epa_per_attempt'] = grouped['epa_sum'] / grouped['pass_attempts']
+    grouped['completion_pct'] = grouped['completions'] / grouped['pass_attempts']
+
+    # Passer rating — only for zones with 5+ attempts
+    def calc_passer_rating(row):
+        if row['pass_attempts'] < 5:
+            return None
+        return passer_rating(
+            int(row['completions']), int(row['pass_attempts']),
+            int(row['passing_yards']), int(row['pass_tds']), int(row['interceptions'])
+        )
+    grouped['passer_rating'] = grouped.apply(calc_passer_rating, axis=1)
+
+    # Convert categorical to string for DB
+    grouped['depth_bin'] = grouped['depth_bin'].astype(str)
+    grouped['direction_bin'] = grouped['direction_bin'].astype(str)
+
+    log.info("Aggregated %d QB pass location zones for %d QBs",
+             len(grouped), grouped['player_id'].nunique())
+
+    return grouped
+
+
 def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int, participation: pd.DataFrame = None) -> pd.DataFrame:
     """Aggregate receiver season stats from filtered plays."""
     # Filter to target plays: receiver exists, pass attempt, not a sack or scramble
