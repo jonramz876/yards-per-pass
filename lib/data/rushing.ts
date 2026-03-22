@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/data/utils";
 import { parseNumericFields } from "@/lib/utils";
 import type { RBSeasonStat } from "@/lib/types";
 
@@ -13,16 +13,8 @@ const RB_NUMERIC_FIELDS = [
 export async function getRBSeasonStats(
   season: number
 ): Promise<RBSeasonStat[]> {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("rb_season_stats")
-    .select("*")
-    .eq("season", season);
-
-  if (error) throw new Error(`Failed to fetch RB season stats: ${error.message}`);
-  if (!data) return [];
-
-  return data.map((row) =>
+  const rows = await fetchAllRows("rb_season_stats", "*", { season });
+  return rows.map((row) =>
     parseNumericFields<RBSeasonStat>(
       row as unknown as RBSeasonStat,
       RB_NUMERIC_FIELDS

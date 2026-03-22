@@ -181,6 +181,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
   })();
 
   const urlTeam = searchParams.get("team") || "";
+  const urlArch = searchParams.get("arch") || "";
 
   const [tab, setTab] = useState<Tab>(initialTab);
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
@@ -188,6 +189,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const [search, setSearch] = useState(urlSearch);
   const [minCarries, setMinCarries] = useState(initialMin);
   const [teamFilter, setTeamFilter] = useState(urlTeam);
+  const [archFilter, setArchFilter] = useState(urlArch);
 
   // Unique teams sorted alphabetically for the dropdown
   const teams = useMemo(() => {
@@ -197,9 +199,9 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   // Build URL from current state, omitting defaults
   const buildParams = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; team?: string }) => {
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; team?: string; arch?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
-      ["tab", "sort", "dir", "q", "min", "team"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "team", "arch"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
       const defaultSort = newTab === "advanced" ? "epa_per_carry" : "rushing_yards";
@@ -208,6 +210,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       const newQ = overrides.q ?? search;
       const newMin = overrides.min ?? minCarries;
       const newTeam = overrides.team ?? teamFilter;
+      const newArch = overrides.arch ?? archFilter;
 
       if (newTab !== "advanced") params.set("tab", newTab);
       if (newSort !== defaultSort) params.set("sort", newSort);
@@ -215,15 +218,16 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       if (newQ) params.set("q", newQ);
       if (newMin !== computedDefaultMin) params.set("min", String(newMin));
       if (newTeam) params.set("team", newTeam);
+      if (newArch) params.set("arch", newArch);
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minCarries, teamFilter, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minCarries, teamFilter, archFilter, computedDefaultMin, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; team?: string }) => {
+    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; team?: string; arch?: string }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -243,7 +247,6 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
   const [showHeatmap, setShowHeatmap] = useState(true);
-  const [archFilter, setArchFilter] = useState("");
 
   const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
 
@@ -258,7 +261,6 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   // Compute archetype for each RB
   // RB axes: [Volume, Efficiency, Power, Explosiveness, Receiving, Consistency]
-  // Since we don't have receiving data in this table, receiving percentile will be 0
   const archetypeMap = useMemo(() => {
     const radarKeys = ["car_game", "epa_per_carry", "stuff_rate_inv", "explosive_rate", "receiving_proxy", "success_rate"] as const;
 
@@ -268,7 +270,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
         case "epa_per_carry": return rb.epa_per_carry ?? NaN;
         case "stuff_rate_inv": return rb.stuff_rate != null ? (1 - rb.stuff_rate) : NaN; // invert: lower stuff = better power
         case "explosive_rate": return rb.explosive_rate ?? NaN;
-        case "receiving_proxy": return 0; // no receiving data on this table
+        case "receiving_proxy": return rb.games ? (rb.targets || 0) / rb.games : NaN;
         case "success_rate": return rb.success_rate ?? NaN;
         default: return NaN;
       }
@@ -320,16 +322,19 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return result;
   }, [data, sortKey, sortDir, search, minCarries, teamFilter, archFilter, archetypeMap]);
 
+  // Heatmap percentiles use the min-carries-only pool (ignoring team/archetype filters)
+  const heatmapPool = useMemo(() => data.filter((rb) => rb.carries >= minCarries), [data, minCarries]);
+
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
     const sorted: Record<string, number[]> = {};
     Array.from(heatmapCols).forEach((col) => {
-      const values = filtered.map((rb) => getVal(rb, col)).filter((v) => !isNaN(v));
+      const values = heatmapPool.map((rb) => getVal(rb, col)).filter((v) => !isNaN(v));
       values.sort((a, b) => a - b);
       sorted[col] = values;
     });
     return sorted;
-  }, [filtered, heatmapCols, showHeatmap]);
+  }, [heatmapPool, heatmapCols, showHeatmap]);
 
   // NFL-wide averages (always from full dataset, ignoring team filters)
   const nflAverages = useMemo(() => {
@@ -437,7 +442,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
             </select>
             <select
               value={archFilter}
-              onChange={(e) => setArchFilter(e.target.value)}
+              onChange={(e) => { setArchFilter(e.target.value); pushURL({ arch: e.target.value }); }}
               className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600 w-full sm:w-auto"
             >
               <option value="">All Archetypes</option>
