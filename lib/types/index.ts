@@ -158,6 +158,26 @@ export interface RBSeasonStat {
   receiving_tds: number;
 }
 
+// Cross-link types for player pages
+export interface CrossLinkReceiver {
+  player_id: string;
+  player_name: string;
+  slug: string | null;
+  targets: number;
+  receptions: number;
+  receiving_yards: number;
+  receiving_tds: number;
+}
+
+export interface CrossLinkQB {
+  player_id: string;
+  player_name: string;
+  slug: string | null;
+  dropbacks: number;
+  passing_yards: number;
+  touchdowns: number;
+}
+
 // Player page types
 
 export interface PlayerSlug {
@@ -245,4 +265,25 @@ export interface RBWeeklyStat {
   receiving_tds: number;
   fumbles: number;
   fumbles_lost: number;
+}
+
+// QB Field Heat Map types
+export interface QBPassLocationStat {
+  id: string;
+  player_id: string;
+  player_name: string;
+  team_id: string;
+  season: number;
+  depth_bin: string;
+  direction_bin: string;
+  pass_attempts: number;
+  completions: number;
+  passing_yards: number;
+  pass_tds: number;
+  interceptions: number;
+  epa_sum: number | null;
+  epa_per_attempt: number | null;
+  completion_pct: number | null;
+  adot: number | null;
+  passer_rating: number | null;
 }

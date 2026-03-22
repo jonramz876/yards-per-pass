@@ -7,6 +7,9 @@ import type {
   QBWeeklyStat,
   ReceiverWeeklyStat,
   RBWeeklyStat,
+  CrossLinkReceiver,
+  CrossLinkQB,
+  QBPassLocationStat,
 } from "@/lib/types";
 
 const QB_WEEKLY_NUMERIC = [
@@ -124,6 +127,67 @@ export async function getRBWeeklyStats(
   );
 }
 
+/** Fetch top receivers on a team for a given season (for QB "Throws To" cross-link). */
+export async function getTeamTopReceivers(
+  teamId: string,
+  season: number,
+  limit: number = 5
+): Promise<CrossLinkReceiver[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("receiver_season_stats")
+    .select("player_id, player_name, targets, receptions, receiving_yards, receiving_tds")
+    .eq("team_id", teamId)
+    .eq("season", season)
+    .order("targets", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+
+  // Fetch slugs for linking
+  const playerIds = data.map((r) => r.player_id);
+  const slugs = await getPlayerSlugsByIds(playerIds);
+  const slugMap = Object.fromEntries(slugs.map((s) => [s.player_id, s.slug]));
+
+  return data.map((r) => ({
+    player_id: r.player_id,
+    player_name: r.player_name,
+    slug: slugMap[r.player_id] || null,
+    targets: r.targets ?? 0,
+    receptions: r.receptions ?? 0,
+    receiving_yards: r.receiving_yards ?? 0,
+    receiving_tds: r.receiving_tds ?? 0,
+  }));
+}
+
+/** Fetch the starting QB on a team for a given season (for WR "Catches From" cross-link). */
+export async function getTeamStartingQB(
+  teamId: string,
+  season: number
+): Promise<CrossLinkQB | null> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("qb_season_stats")
+    .select("player_id, player_name, dropbacks, passing_yards, touchdowns")
+    .eq("team_id", teamId)
+    .eq("season", season)
+    .order("dropbacks", { ascending: false })
+    .limit(1);
+  if (error || !data || data.length === 0) return null;
+
+  const row = data[0];
+  const slugs = await getPlayerSlugsByIds([row.player_id]);
+  const slug = slugs[0]?.slug || null;
+
+  return {
+    player_id: row.player_id,
+    player_name: row.player_name,
+    slug,
+    dropbacks: row.dropbacks ?? 0,
+    passing_yards: row.passing_yards ?? 0,
+    touchdowns: row.touchdowns ?? 0,
+  };
+}
+
 /** Fetch ALL RB weekly stats for a season (for percentile pool).
  *  Uses pagination to handle Supabase's 1000-row limit. */
 export async function getAllRBWeeklyStats(
@@ -160,4 +224,30 @@ export async function getAllRBWeeklyStats(
     }
   }
   return all;
+}
+
+const QB_PASS_LOC_NUMERIC = [
+  "epa_per_attempt",
+  "completion_pct",
+  "adot",
+  "passer_rating",
+];
+
+export async function getQBPassLocationStats(
+  playerId: string,
+  season: number
+): Promise<QBPassLocationStat[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("qb_pass_location_stats")
+    .select("*")
+    .eq("player_id", playerId)
+    .eq("season", season);
+  if (error || !data) return [];
+  return data.map((row) =>
+    parseNumericFields<QBPassLocationStat>(
+      row as unknown as QBPassLocationStat,
+      QB_PASS_LOC_NUMERIC
+    )
+  );
 }
