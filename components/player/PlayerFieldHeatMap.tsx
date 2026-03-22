@@ -15,10 +15,10 @@ interface PlayerFieldHeatMapProps {
 type TabKey = "targets" | "catch_pct" | "yards" | "epa";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "targets", label: "Targets" },
-  { key: "catch_pct", label: "Catch%" },
-  { key: "yards", label: "Yards" },
   { key: "epa", label: "EPA/Att" },
+  { key: "targets", label: "Attempts" },
+  { key: "catch_pct", label: "Comp%" },
+  { key: "yards", label: "Yards" },
 ];
 
 /* ─── Zone grid (depth × direction) ─── */
@@ -34,9 +34,9 @@ for (const depth of DEPTH_BINS) {
 
 /* ─── Layout constants ─── */
 const ROWS: Record<string, { y: number; h: number }> = {
-  deep: { y: 35, h: 100 },
-  intermediate: { y: 151, h: 124 },
-  short: { y: 291, h: 122 },
+  deep: { y: 30, h: 72 },
+  intermediate: { y: 110, h: 82 },
+  short: { y: 200, h: 82 },
 };
 const COLS: Record<string, { x: number; w: number }> = {
   left: { x: 48, w: 96 },
@@ -128,7 +128,7 @@ export default function PlayerFieldHeatMap({
   playerName,
   season,
 }: PlayerFieldHeatMapProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("targets");
+  const [activeTab, setActiveTab] = useState<TabKey>("epa");
 
   if (stats.length === 0) {
     return (
@@ -161,7 +161,7 @@ export default function PlayerFieldHeatMap({
   );
 
   return (
-    <div>
+    <div className="max-w-lg mx-auto">
       {/* Tab bar */}
       <div className="flex gap-1 mb-3">
         {TABS.map((t) => (
@@ -195,31 +195,31 @@ export default function PlayerFieldHeatMap({
       </div>
 
       {/* SVG Field Diagram */}
-      <svg viewBox="0 0 360 440" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
+      <svg viewBox="0 0 360 310" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
         {/* Turf background */}
-        <rect x={40} y={0} width={320} height={440} rx={8} fill="#2d5a27" />
+        <rect x={40} y={0} width={320} height={310} rx={8} fill="#2d5a27" />
 
         {/* Top boundary */}
         <line x1={40} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
 
         {/* 20-yard line */}
-        <line x1={40} y1={143} x2={360} y2={143} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-        <rect x={170} y={133} width={40} height={16} rx={8} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={145} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.8)" fontWeight={600}>
+        <line x1={40} y1={104} x2={360} y2={104} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+        <rect x={170} y={94} width={40} height={16} rx={8} fill="rgba(0,0,0,0.45)" />
+        <text x={190} y={106} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.8)" fontWeight={600}>
           20 yds
         </text>
 
         {/* 10-yard line */}
-        <line x1={40} y1={283} x2={360} y2={283} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-        <rect x={170} y={273} width={40} height={16} rx={8} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={285} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.8)" fontWeight={600}>
+        <line x1={40} y1={196} x2={360} y2={196} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+        <rect x={170} y={186} width={40} height={16} rx={8} fill="rgba(0,0,0,0.45)" />
+        <text x={190} y={198} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.8)" fontWeight={600}>
           10 yds
         </text>
 
         {/* Line of scrimmage */}
-        <line x1={40} y1={420} x2={360} y2={420} stroke="#f59e0b" strokeWidth={2} />
-        <rect x={160} y={424} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={434} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
+        <line x1={40} y1={290} x2={360} y2={290} stroke="#f59e0b" strokeWidth={2} />
+        <rect x={160} y={294} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
+        <text x={190} y={304} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
           SCRIMMAGE
         </text>
 
