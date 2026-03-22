@@ -276,13 +276,16 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       }
     }
 
+    // Filter to qualified RBs (30+ carries) to match player page percentile pool
+    const qualified = data.filter((rb) => rb.carries >= 30);
+
     // Pre-sort pools
     const sorted = radarKeys.map((key) =>
-      data.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+      qualified.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
     );
 
     const map: Record<string, { icon: string; label: string }> = {};
-    for (const rb of data) {
+    for (const rb of qualified) {
       const percentiles = radarKeys.map((key, i) =>
         computePercentile(sorted[i], getRadarVal(rb, key))
       );

@@ -281,8 +281,9 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   // Compute archetype for each receiver — TEs get their own pool and classifier
   const archetypeMap = useMemo(() => {
-    const wrPool = data.filter((r) => r.position !== "TE");
-    const tePool = data.filter((r) => r.position === "TE");
+    // Filter to qualified players to match player page percentile pools
+    const wrPool = data.filter((r) => r.position !== "TE" && r.targets >= 50);
+    const tePool = data.filter((r) => r.position === "TE" && r.targets >= 25);
     const radarKeys = ["tgt_game", "epa_per_target", "catch_rate", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"] as const;
 
     function getRadarVal(rec: ReceiverSeasonStat, key: string): number {

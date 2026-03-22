@@ -253,7 +253,8 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   // Compute archetype for each QB based on percentiles against ALL QBs (not filtered)
   // Must match the player page pool to ensure consistent archetype labels
   const archetypeMap = useMemo(() => {
-    const pool = data;
+    // Filter to qualified QBs (100+ dropbacks) to match player page percentile pool
+    const pool = data.filter((qb) => qb.dropbacks >= 100);
     const radarKeys = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"] as const;
 
     function getRadarVal(qb: QBSeasonStat, key: string): number {
