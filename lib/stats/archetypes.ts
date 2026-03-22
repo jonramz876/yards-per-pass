@@ -219,8 +219,9 @@ export function classifyRB(percentiles: number[]): Archetype | null {
   const [vol, eff, power, explosive, rec, cons] = percentiles;
   const above55 = [eff, power, explosive, cons].filter(p => p >= 55).length;
 
-  // Three-Down Back — does it all
-  if (vol >= 55 && rec >= 60 && cons >= 55 && above55 >= 2) return {
+  // Three-Down Back — does it all (no major weakness — all axes above 30th)
+  const belowThreshold = percentiles.filter(p => p < 30).length;
+  if (vol >= 55 && rec >= 60 && cons >= 55 && above55 >= 2 && belowThreshold === 0) return {
     label: "Three-Down Back",
     icon: "\u{1F48E}",
     description: "Does it all \u2014 carries the load, catches passes, and stays on the field.",
