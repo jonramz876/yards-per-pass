@@ -520,7 +520,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       </div>
 
       {/* Table */}
-      <div className="border border-gray-200 rounded-md overflow-x-auto">
+      <div className="border border-gray-200 rounded-md overflow-x-auto max-w-full">
         <table className="w-full text-sm">
           <thead>
             <tr>
