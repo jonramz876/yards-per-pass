@@ -596,6 +596,93 @@ def aggregate_def_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
                      'def_success_rate', 'def_stuff_rate', 'def_explosive_rate']]
 
 
+def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate RB/FB season rushing stats from filtered plays.
+
+    Excludes QB scrambles (those are QB rushing, not RB).
+    Filters to RB/FB positions from roster only.
+    """
+    # Identify RB/FB player IDs from roster
+    rb_ids = set(roster[roster['position'].isin(['RB', 'FB'])]['gsis_id'].dropna().unique())
+
+    # Rush plays: designed runs by RBs (exclude scrambles)
+    rushes = plays[
+        (plays['rush_attempt'] == 1) &
+        (plays['qb_scramble'] != 1) &
+        (plays['rusher_player_id'].isin(rb_ids))
+    ].copy()
+
+    if rushes.empty:
+        return pd.DataFrame()
+
+    # Get most common player name per player_id
+    name_map = rushes.groupby('rusher_player_id')['rusher_player_name'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else x.iloc[0]
+    ).to_dict()
+
+    # Group by rusher
+    rb = rushes.groupby('rusher_player_id').agg(
+        carries=('epa', 'count'),
+        rushing_yards=('yards_gained', lambda s: s.fillna(0).sum()),
+        rushing_tds=('rush_touchdown', 'sum'),
+        epa_per_carry=('epa', 'mean'),
+        success_rate=('success', lambda x: x.dropna().mean()),
+        stuff_rate=('yards_gained', lambda x: (x <= 0).mean()),
+        explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
+        games=('game_id', 'nunique'),
+    ).reset_index().rename(columns={'rusher_player_id': 'player_id'})
+
+    rb['player_name'] = rb['player_id'].map(name_map)
+    rb['yards_per_carry'] = rb.apply(
+        lambda r: r['rushing_yards'] / r['carries'] if r['carries'] > 0 else float('nan'), axis=1
+    )
+
+    # Team assignment: team with most carries
+    team_counts = rushes.groupby(['rusher_player_id', 'posteam']).size().reset_index(name='cnt')
+    team_primary = team_counts.sort_values('cnt', ascending=False).drop_duplicates('rusher_player_id')
+    team_primary = team_primary[['rusher_player_id', 'posteam']].rename(
+        columns={'rusher_player_id': 'player_id', 'posteam': 'team_id'}
+    )
+    rb = rb.merge(team_primary, on='player_id', how='left')
+
+    # Position from roster (mode = most frequent)
+    pos_lookup = roster.groupby('gsis_id')['position'].agg(
+        lambda x: x.mode().iloc[0] if len(x.mode()) > 0 else 'RB'
+    ).to_dict()
+    rb['position'] = rb['player_id'].map(pos_lookup).fillna('RB')
+
+    # Fumbles: attribute via fumbled_1_player_id
+    fumble_plays = plays[plays['fumbled_1_player_id'].isin(rb_ids)]
+    if not fumble_plays.empty:
+        fumble_stats = fumble_plays.groupby('fumbled_1_player_id').agg(
+            fumbles=('fumble', 'sum'),
+            fumbles_lost=('fumble_lost', 'sum'),
+        ).reset_index().rename(columns={'fumbled_1_player_id': 'player_id'})
+    else:
+        fumble_stats = pd.DataFrame(columns=['player_id', 'fumbles', 'fumbles_lost'])
+    rb = rb.merge(fumble_stats, on='player_id', how='left')
+    rb['fumbles'] = rb['fumbles'].fillna(0).astype(int)
+    rb['fumbles_lost'] = rb['fumbles_lost'].fillna(0).astype(int)
+
+    # Convert types
+    rb['season'] = season
+    rb['rushing_yards'] = rb['rushing_yards'].fillna(0).astype(int)
+    rb['rushing_tds'] = rb['rushing_tds'].fillna(0).astype(int)
+    rb['carries'] = rb['carries'].astype(int)
+
+    # Select final columns
+    cols = [
+        'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
+        'carries', 'rushing_yards', 'rushing_tds', 'yards_per_carry',
+        'epa_per_carry', 'success_rate', 'stuff_rate', 'explosive_rate',
+        'fumbles', 'fumbles_lost',
+    ]
+    result = rb[cols].copy()
+
+    log.info("Aggregated season stats for %d RBs", len(result))
+    return result
+
+
 def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int, participation: pd.DataFrame = None) -> pd.DataFrame:
     """Aggregate receiver season stats from filtered plays."""
     # Filter to target plays: receiver exists, pass attempt, not a sack or scramble
@@ -1209,6 +1296,78 @@ def upsert_receiver_stats(conn, df: pd.DataFrame):
             rows,
         )
     log.info("Upserted %d receiver season rows", len(rows))
+
+
+def ensure_rb_season_stats_table(conn):
+    """Create rb_season_stats table if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS rb_season_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                player_id TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                position TEXT NOT NULL,
+                team_id TEXT REFERENCES teams(id),
+                season INTEGER NOT NULL,
+                games INTEGER,
+                carries INTEGER,
+                rushing_yards INTEGER,
+                rushing_tds INTEGER,
+                yards_per_carry NUMERIC,
+                epa_per_carry NUMERIC,
+                success_rate NUMERIC,
+                stuff_rate NUMERIC,
+                explosive_rate NUMERIC,
+                fumbles INTEGER,
+                fumbles_lost INTEGER,
+                UNIQUE(player_id, season)
+            );
+            CREATE INDEX IF NOT EXISTS idx_rb_season ON rb_season_stats(season);
+            CREATE INDEX IF NOT EXISTS idx_rb_team ON rb_season_stats(team_id, season);
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE rb_season_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON rb_season_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured rb_season_stats table exists")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_rb_season_stats(conn, df: pd.DataFrame):
+    """Upsert RB season stats into rb_season_stats table."""
+    if df.empty:
+        log.info("No RB season stats to upsert (empty DataFrame)")
+        return
+
+    cols = [
+        'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
+        'carries', 'rushing_yards', 'rushing_tds', 'yards_per_carry',
+        'epa_per_carry', 'success_rate', 'stuff_rate', 'explosive_rate',
+        'fumbles', 'fumbles_lost',
+    ]
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('player_id', 'season'))
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO rb_season_stats ({col_names})
+                VALUES %s
+                ON CONFLICT (player_id, season) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d RB season rows", len(rows))
 
 
 @retry(max_retries=2, delay=3)
@@ -2196,7 +2355,7 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
     log.info("Upserted %d player slug rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None):
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -2248,6 +2407,14 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             )
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale receiver_season_stats rows", cur.rowcount)
+
+        if rb_season_player_ids is not None and len(rb_season_player_ids) > 0:
+            cur.execute(
+                "DELETE FROM rb_season_stats WHERE season = %s AND player_id != ALL(%s)",
+                (season, rb_season_player_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale rb_season_stats rows", cur.rowcount)
 
         if qb_weekly_player_ids is not None and len(qb_weekly_player_ids) > 0:
             cur.execute(
@@ -2345,6 +2512,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     def_gap_stats = aggregate_def_gap_stats(plays, season)
     receiver_stats = aggregate_receiver_stats(plays, roster, season, participation)
+    rb_season_stats = aggregate_rb_season_stats(plays, roster, season)
     qb_weekly = aggregate_qb_weekly_stats(plays, roster, season)
     receiver_weekly = aggregate_receiver_weekly_stats(plays, roster, season, participation)
     rb_weekly = aggregate_rb_weekly_stats(plays, roster, season)
@@ -2353,8 +2521,8 @@ def process_season(season: int, conn, dry_run: bool = False):
     validate_data(team_stats, qb_stats, receiver_stats)
 
     if dry_run:
-        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, %d RB gap weekly rows, %d def gap rows, %d receiver rows, through_week=%d",
-                 len(team_stats), len(qb_stats), len(rb_gap_stats), len(rb_gap_stats_weekly), len(def_gap_stats), len(receiver_stats), through_week)
+        log.info("[DRY RUN] Would upsert: %d team rows, %d QB rows, %d RB gap rows, %d RB gap weekly rows, %d def gap rows, %d receiver rows, %d RB season rows, through_week=%d",
+                 len(team_stats), len(qb_stats), len(rb_gap_stats), len(rb_gap_stats_weekly), len(def_gap_stats), len(receiver_stats), len(rb_season_stats), through_week)
         log.info("[DRY RUN] QB weekly: %d rows, Receiver weekly: %d rows, RB weekly: %d rows",
                  len(qb_weekly), len(receiver_weekly), len(rb_weekly))
         log.info("[DRY RUN] Aggregated %d RB gap stat rows", len(rb_gap_stats))
@@ -2375,6 +2543,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_rb_gap_weekly_tables(conn)
     ensure_def_gap_tables(conn)
     ensure_receiver_stats_table(conn)
+    ensure_rb_season_stats_table(conn)
     ensure_qb_weekly_stats_table(conn)
     ensure_receiver_weekly_stats_table(conn)
     ensure_rb_weekly_stats_table(conn)
@@ -2388,6 +2557,7 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_rb_gap_stats_weekly(conn, rb_gap_stats_weekly)
         upsert_def_gap_stats(conn, def_gap_stats)
         upsert_receiver_stats(conn, receiver_stats)
+        upsert_rb_season_stats(conn, rb_season_stats)
         upsert_qb_weekly_stats(conn, qb_weekly)
         upsert_receiver_weekly_stats(conn, receiver_weekly)
         upsert_rb_weekly_stats(conn, rb_weekly)
@@ -2401,6 +2571,7 @@ def process_season(season: int, conn, dry_run: bool = False):
             rb_gap_weekly_player_ids=rb_gap_stats_weekly['player_id'].unique().tolist() if not rb_gap_stats_weekly.empty else [],
             def_gap_team_ids=def_gap_stats['team_id'].unique().tolist() if not def_gap_stats.empty else [],
             receiver_player_ids=receiver_stats['player_id'].unique().tolist() if not receiver_stats.empty else [],
+            rb_season_player_ids=rb_season_stats['player_id'].unique().tolist() if not rb_season_stats.empty else [],
             qb_weekly_player_ids=qb_weekly['player_id'].unique().tolist() if not qb_weekly.empty else [],
             receiver_weekly_player_ids=receiver_weekly['player_id'].unique().tolist() if not receiver_weekly.empty else [],
             rb_weekly_player_ids=rb_weekly['player_id'].unique().tolist() if not rb_weekly.empty else [],
