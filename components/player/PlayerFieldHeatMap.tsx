@@ -65,20 +65,18 @@ function clamp(v: number, lo: number, hi: number): number {
 function getCellColor(
   tab: TabKey,
   zone: QBPassLocationStat | undefined,
+  maxAttempts: number,
   maxYards: number,
 ): string {
   if (!zone || zone.pass_attempts === 0) return "rgba(255,255,255,0.03)";
 
   switch (tab) {
     case "epa": {
-      // Blue-to-red divergent: positive EPA = blue, negative = red
-      const epa = zone.epa_per_attempt ?? 0;
-      if (epa >= 0) {
-        const t = clamp(epa / 0.4, 0.08, 0.55); // 0.4 EPA/att = max saturation
-        return `rgba(37, 99, 235, ${t})`;
-      }
-      const t = clamp(Math.abs(epa) / 0.4, 0.08, 0.55);
-      return `rgba(220, 38, 38, ${t})`;
+      // Blue/red intensity based on attempt volume — more attempts = more saturated
+      const ratio = maxAttempts > 0 ? zone.pass_attempts / maxAttempts : 0;
+      const t = clamp(ratio, 0.08, 0.55);
+      // Blue tint for volume (EPA number itself shows green/red for efficiency)
+      return `rgba(37, 99, 235, ${t})`;
     }
     case "cpoe": {
       // Blue-to-red divergent: positive CPOE = blue, negative = red
@@ -141,8 +139,11 @@ function getSubLine(tab: TabKey, zone: QBPassLocationStat): string {
     const pct = zone.completion_pct != null ? (zone.completion_pct * 100).toFixed(0) : "0";
     return `${zone.completions}/${zone.pass_attempts} \u2014 ${pct}%`;
   }
-  if (tab === "ypa" || tab === "yards") {
+  if (tab === "ypa") {
     return `${zone.pass_attempts} att \u2014 ${Math.round(zone.passing_yards)} yds`;
+  }
+  if (tab === "yards") {
+    return `${zone.completions} comp / ${zone.pass_attempts} att`;
   }
   return `${zone.completions}/${zone.pass_attempts}`;
 }
@@ -185,6 +186,7 @@ export default function PlayerFieldHeatMap({
   const totalCompPct = totalAttempts > 0 ? (totalCompletions / totalAttempts) * 100 : 0;
 
   /* Compute max values for color normalization */
+  const maxAttempts = Math.max(...stats.map((s) => s.pass_attempts), 1);
   const maxYards = Math.max(...stats.map((s) => s.passing_yards), 1);
 
   return (
@@ -294,7 +296,7 @@ export default function PlayerFieldHeatMap({
             const row = ROWS[depth];
             const col = COLS[dir];
             const zone = lookup[`${depth}-${dir}`];
-            const fillColor = getCellColor(activeTab, zone, maxYards);
+            const fillColor = getCellColor(activeTab, zone, maxAttempts, maxYards);
             const bigNum = getBigNumber(activeTab, zone);
             const bigNumColor = getBigNumberColor(activeTab, zone);
             const isEmpty = !zone || zone.pass_attempts === 0;
@@ -385,12 +387,25 @@ export default function PlayerFieldHeatMap({
           })}
         </svg>
 
-        {/* Legend (shown on EPA and CPOE tabs — blue/red divergent scale) */}
-        {(activeTab === "epa" || activeTab === "cpoe") && (
+        {/* Legend — EPA tab: volume scale; CPOE tab: divergent scale */}
+        {activeTab === "epa" && (
           <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
-            <span className="text-[9px] text-gray-400 font-semibold mb-1">
-              {activeTab === "epa" ? "EPA" : "CPOE"}
-            </span>
+            <span className="text-[9px] text-gray-400 font-semibold mb-1">ATT</span>
+            <div
+              className="rounded-sm"
+              style={{
+                width: 14,
+                height: 80,
+                background: "linear-gradient(to bottom, rgba(37,99,235,0.55), rgba(37,99,235,0.08))",
+              }}
+            />
+            <span className="text-[9px] text-gray-400 mt-1">{maxAttempts}</span>
+            <span className="text-[9px] text-gray-400 mt-auto">0</span>
+          </div>
+        )}
+        {activeTab === "cpoe" && (
+          <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
+            <span className="text-[9px] text-gray-400 font-semibold mb-1">CPOE</span>
             <div
               className="rounded-sm"
               style={{
