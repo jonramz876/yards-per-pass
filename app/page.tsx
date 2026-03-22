@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
+import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getPlayerSlugsByIds } from "@/lib/data/players";
 import { NFL_TEAMS, DIVISIONS, getTeam } from "@/lib/data/teams";
 import type { TeamSeasonStat, PlayerSlug } from "@/lib/types";
@@ -38,17 +39,19 @@ export default async function HomePage() {
   let teamStats: TeamSeasonStat[] = [];
   let qbStats: import("@/lib/types").QBSeasonStat[] = [];
   let receiverStats: import("@/lib/types").ReceiverSeasonStat[] = [];
+  let rbStats: import("@/lib/types").RBSeasonStat[] = [];
   let playerSlugs: PlayerSlug[] = [];
 
   try {
     const seasons = await getAvailableSeasons();
     currentSeason = seasons[0] || 2025;
 
-    [freshness, teamStats, qbStats, receiverStats] = await Promise.all([
+    [freshness, teamStats, qbStats, receiverStats, rbStats] = await Promise.all([
       getDataFreshness(currentSeason),
       getTeamStats(currentSeason),
       getQBStats(currentSeason),
       getReceiverStats(currentSeason),
+      getRBSeasonStats(currentSeason),
     ]);
   } catch {
     // Data unavailable (e.g., CI build with placeholder credentials) — render with empty data
@@ -74,11 +77,18 @@ export default async function HomePage() {
     .sort((a, b) => b.yards_per_route_run - a.yards_per_route_run)
     .slice(0, 5);
 
-  // Fetch only the slugs needed for leaderboard entries (~15 IDs instead of 1200+)
+  // Top 5 RBs by rushing yards (min 50 carries)
+  const rushLeaders = [...rbStats]
+    .filter((rb) => rb.carries >= 50)
+    .sort((a, b) => b.rushing_yards - a.rushing_yards)
+    .slice(0, 5);
+
+  // Fetch only the slugs needed for leaderboard entries (~20 IDs instead of 1200+)
   const leaderPlayerIds = Array.from(new Set([
     ...epaLeaders.map((q) => q.player_id),
     ...yardLeaders.map((r) => r.player_id),
     ...yprrLeaders.map((r) => r.player_id),
+    ...rushLeaders.map((rb) => rb.player_id),
   ]));
 
   try {
@@ -189,6 +199,17 @@ export default async function HomePage() {
             slug: slugMap.get(r.player_id),
             teamId: r.team_id,
             value: r.yards_per_route_run.toFixed(2),
+          }))}
+        />
+        <LeaderStrip
+          title="Rushing Leaders"
+          subtitle="Rushing Yards"
+          items={rushLeaders.map((rb, i) => ({
+            rank: i + 1,
+            name: rb.player_name,
+            slug: slugMap.get(rb.player_id),
+            teamId: rb.team_id,
+            value: rb.rushing_yards.toLocaleString(),
           }))}
         />
       </section>
