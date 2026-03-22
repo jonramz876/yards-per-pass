@@ -78,9 +78,16 @@ function getCellColor(
   if (!zone || zone.pass_attempts === 0) return "rgba(255,255,255,0.03)";
 
   switch (tab) {
-    case "epa":
-      // Color = volume (navy intensity), number shows EPA in green/red
-      return volumeColor(zone.pass_attempts, maxAttempts);
+    case "epa": {
+      // Blue-to-red divergent: positive EPA = blue, negative = red
+      const epa = zone.epa_per_attempt ?? 0;
+      if (epa >= 0) {
+        const t = clamp(epa / 0.4, 0.08, 0.55); // 0.4 EPA/att = max saturation
+        return `rgba(37, 99, 235, ${t})`;
+      }
+      const t = clamp(Math.abs(epa) / 0.4, 0.08, 0.55);
+      return `rgba(220, 38, 38, ${t})`;
+    }
     case "cpoe": {
       // Blue-to-red divergent: positive CPOE = blue, negative = red
       const cpoe = zone.cpoe ?? 0;
@@ -125,7 +132,7 @@ function getBigNumber(tab: TabKey, zone: QBPassLocationStat | undefined): string
     case "cpoe": {
       const v = zone.cpoe;
       if (v == null) return "\u2014";
-      return v >= 0 ? `+${v.toFixed(1)}` : v.toFixed(1);
+      return v >= 0 ? `+${v.toFixed(1)}%` : `${v.toFixed(1)}%`;
     }
     case "ypa":
       return zone.yards_per_attempt != null ? zone.yards_per_attempt.toFixed(1) : "\u2014";
@@ -385,28 +392,12 @@ export default function PlayerFieldHeatMap({
           })}
         </svg>
 
-        {/* Legend (shown on EPA tab — volume scale) */}
-        {activeTab === "epa" && (
+        {/* Legend (shown on EPA and CPOE tabs — blue/red divergent scale) */}
+        {(activeTab === "epa" || activeTab === "cpoe") && (
           <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
-            <span className="text-[9px] text-gray-400 font-semibold mb-1">ATT</span>
-            <div
-              className="rounded-sm"
-              style={{
-                width: 14,
-                height: 80,
-                background: "linear-gradient(to bottom, rgba(255,255,255,0.3), rgba(255,255,255,0.05))",
-                border: "1px solid rgba(45,90,39,1)",
-              }}
-            />
-            <span className="text-[9px] text-gray-400 mt-1">{maxAttempts}</span>
-            <span className="text-[9px] text-gray-400 mt-auto">0</span>
-          </div>
-        )}
-
-        {/* Legend (shown on CPOE tab — divergent scale) */}
-        {activeTab === "cpoe" && (
-          <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
-            <span className="text-[9px] text-gray-400 font-semibold mb-1">CPOE</span>
+            <span className="text-[9px] text-gray-400 font-semibold mb-1">
+              {activeTab === "epa" ? "EPA" : "CPOE"}
+            </span>
             <div
               className="rounded-sm"
               style={{
