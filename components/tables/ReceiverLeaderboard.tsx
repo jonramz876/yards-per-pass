@@ -27,6 +27,7 @@ type ColumnDef = {
 
 const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "games", label: "GP", group: "core" },
+  { key: "fantasy_pts", label: "FPts", group: "core" },
   { key: "epa_per_target", label: "EPA/Tgt", tooltip: "EPA/Tgt", group: "core" },
   { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
   { key: "yards_per_target", label: "Y/Tgt", group: "receiving" },
@@ -37,7 +38,6 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
   { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
   { key: "route_participation_rate", label: "Route%", tooltip: "Route%", group: "efficiency" },
-  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
@@ -50,9 +50,9 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
   { key: "routes_run", label: "Routes", group: "receiving" },
   { key: "total_snaps", label: "Snaps", group: "receiving" },
+  { key: "fantasy_pts", label: "FPts", group: "receiving" },
   { key: "yards_per_reception", label: "YPR", tooltip: "YPR", group: "efficiency" },
   { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
-  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
@@ -414,8 +414,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     <div>
       {/* Tab bar + Controls */}
       <div className="flex flex-col gap-4 mb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Tabs */}
+        {/* Row 1: Tabs + PPR toggle */}
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
             <button
               onClick={() => switchTab("advanced")}
@@ -438,8 +438,25 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
               Standard
             </button>
           </div>
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setScoringFormat(val)}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${
+                  scoringFormat === val
+                    ? "bg-navy text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          {/* Search + Position Filter + Slider */}
+        {/* Row 2: Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
               type="text"
@@ -487,21 +504,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-              {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
-                <button
-                  key={val}
-                  onClick={() => setScoringFormat(val)}
-                  className={`px-2 py-1 text-xs font-medium transition-colors ${
-                    scoringFormat === val
-                      ? "bg-navy text-white"
-                      : "bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
             <div className="flex items-center gap-3">
               <label className="text-sm text-gray-500 whitespace-nowrap">
                 Min routes: <span className="font-semibold text-navy">{minRoutes}</span>

@@ -27,6 +27,7 @@ type ColumnDef = {
 
 const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "games", label: "GP", group: "core" },
+  { key: "fantasy_pts", label: "FPts", group: "core" },
   { key: "epa_per_play", label: "EPA/Play", tooltip: "EPA/Play", group: "core" },
   { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
   { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
@@ -35,7 +36,6 @@ const ADVANCED_COLUMNS: ColumnDef[] = [
   { key: "td_int_ratio", label: "TD:INT", tooltip: "TD:INT", group: "efficiency" },
   { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
   { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
-  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const STANDARD_COLUMNS: ColumnDef[] = [
@@ -55,9 +55,9 @@ const STANDARD_COLUMNS: ColumnDef[] = [
   { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
   { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing" },
   { key: "rush_yards", label: "Rush Yds", group: "rushing" },
+  { key: "fantasy_pts", label: "FPts", group: "rushing" },
   { key: "rush_tds", label: "Rush TD", group: "rushing" },
   { key: "total_tds", label: "Tot TD", group: "rushing" },
-  { key: "fantasy_pts", label: "FPts", group: "efficiency" },
 ];
 
 const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
