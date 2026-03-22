@@ -279,13 +279,13 @@ export default function PlayerFieldHeatMap({
             return (
               <text
                 key={d.depth}
-                x={28}
+                x={44}
                 y={cy}
                 textAnchor="middle"
                 fontSize={9}
-                fill="rgba(255,255,255,0.55)"
+                fill="rgba(255,255,255,0.5)"
                 fontWeight={700}
-                transform={`rotate(-90, 28, ${cy})`}
+                transform={`rotate(-90, 44, ${cy})`}
               >
                 {d.label}
               </text>
