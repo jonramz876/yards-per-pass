@@ -47,7 +47,7 @@ const COLS: Record<string, { x: number; w: number }> = {
 
 const DEPTH_LABELS: { depth: string; label: string }[] = [
   { depth: "deep", label: "DEEP (20+)" },
-  { depth: "intermediate", label: "INTERMEDIATE" },
+  { depth: "intermediate", label: "INTERMEDIATE (10-19)" },
   { depth: "short", label: "SHORT (0-9)" },
 ];
 
@@ -222,8 +222,8 @@ export default function PlayerFieldHeatMap({
         </div>
       </div>
 
-      {/* SVG Field Diagram + Legend */}
-      <div className="flex items-start gap-2">
+      {/* SVG Field Diagram + Legend — legend stacks below on mobile */}
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2">
         <svg viewBox="0 0 360 350" className="w-full flex-1" role="img" aria-label={`${playerName} pass location heat map`}>
           {/* Turf background */}
           <rect x={40} y={0} width={320} height={350} rx={8} fill="#2d5a27" />

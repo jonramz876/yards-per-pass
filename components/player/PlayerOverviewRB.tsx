@@ -386,10 +386,10 @@ export default function PlayerOverviewRB({
 
         {/* Cross-link */}
         <Link
-          href={`/run-gaps?team=${teamId}`}
+          href={`/rushing?team=${teamId}`}
           className="block rounded-xl border border-gray-200 bg-white p-4 text-center text-sm font-semibold text-navy hover:text-nflred hover:border-gray-300 transition-colors"
         >
-          View {team?.name ?? teamId} Run Gaps &rarr;
+          View {team?.name ?? teamId} Rushing &rarr;
         </Link>
       </div>
     </div>
