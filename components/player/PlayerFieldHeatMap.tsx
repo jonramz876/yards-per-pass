@@ -226,27 +226,27 @@ export default function PlayerFieldHeatMap({
       <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2">
         <svg viewBox="0 0 360 350" className="w-full flex-1" role="img" aria-label={`${playerName} pass location heat map`}>
           {/* Turf background */}
-          <rect x={40} y={0} width={320} height={350} rx={8} fill="#2d5a27" />
+          <rect x={0} y={0} width={360} height={350} rx={8} fill="#2d5a27" />
 
           {/* Top boundary */}
-          <line x1={40} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+          <line x1={0} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
 
           {/* 20-yard line */}
-          <line x1={40} y1={118} x2={360} y2={118} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+          <line x1={0} y1={118} x2={360} y2={118} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
           <rect x={180} y={109} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
           <text x={200} y={121} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
             20 yds
           </text>
 
           {/* 10-yard line */}
-          <line x1={40} y1={226} x2={360} y2={226} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+          <line x1={0} y1={226} x2={360} y2={226} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
           <rect x={180} y={217} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
           <text x={200} y={229} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
             10 yds
           </text>
 
           {/* Line of scrimmage */}
-          <line x1={40} y1={330} x2={360} y2={330} stroke="#f59e0b" strokeWidth={2} />
+          <line x1={0} y1={330} x2={360} y2={330} stroke="#f59e0b" strokeWidth={2} />
           <rect x={170} y={334} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
           <text x={200} y={344} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
             SCRIMMAGE
