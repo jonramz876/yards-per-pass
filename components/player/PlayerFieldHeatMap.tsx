@@ -47,7 +47,7 @@ const COLS: Record<string, { x: number; w: number }> = {
 
 const DEPTH_LABELS: { depth: string; label: string }[] = [
   { depth: "deep", label: "DEEP (20+)" },
-  { depth: "intermediate", label: "INTERMEDIATE (10-19)" },
+  { depth: "intermediate", label: "MID (10-19)" },
   { depth: "short", label: "SHORT (0-9)" },
 ];
 
