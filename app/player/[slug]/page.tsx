@@ -2,7 +2,8 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getAllRBWeeklyStats } from "@/lib/data/players";
+import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getAllRBWeeklyStats, getTeamTopReceivers, getTeamStartingQB, getQBPassLocationStats } from "@/lib/data/players";
+import type { QBPassLocationStat } from "@/lib/types";
 import { getQBStats, getAvailableSeasons } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getTeam } from "@/lib/data/teams";
@@ -47,7 +48,7 @@ function getBreadcrumbs(position: string, playerName: string) {
       ];
     case "RB":
       return [
-        { label: "Run Gaps", href: "/run-gaps" },
+        { label: "Rushing", href: "/rushing" },
         { label: playerName },
       ];
     default:
@@ -88,27 +89,36 @@ export default async function PlayerPage({
   let seasonStats: unknown[] = [];
   let weeklyStats: unknown[] = [];
   let allPlayers: unknown[] = [];
+  let crossLinkReceivers: Awaited<ReturnType<typeof getTeamTopReceivers>> = [];
+  let crossLinkQB: Awaited<ReturnType<typeof getTeamStartingQB>> = null;
+  let passLocationStats: QBPassLocationStat[] = [];
 
   try {
     if (player.position === "QB") {
-      const [allQBs, weekly] = await Promise.all([
+      const [allQBs, weekly, teamReceivers, passLocStats] = await Promise.all([
         getQBStats(currentSeason).catch(() => []),
         getQBWeeklyStats(player.player_id, currentSeason),
+        getTeamTopReceivers(player.current_team_id, currentSeason, 5).catch(() => []),
+        getQBPassLocationStats(player.player_id, currentSeason).catch(() => []),
       ]);
       const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
       seasonStats = playerSeason;
       weeklyStats = weekly;
       // Filter percentile pool to qualified QBs (100+ dropbacks) to avoid backup QB noise
       allPlayers = allQBs.filter((qb) => qb.dropbacks >= 100);
+      crossLinkReceivers = teamReceivers;
+      passLocationStats = passLocStats;
     } else if (player.position === "WR" || player.position === "TE") {
-      const [allReceivers, weekly] = await Promise.all([
+      const [allReceivers, weekly, teamQB] = await Promise.all([
         getReceiverStats(currentSeason).catch(() => []),
         getReceiverWeeklyStats(player.player_id, currentSeason),
+        getTeamStartingQB(player.current_team_id, currentSeason).catch(() => null),
       ]);
       const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
       seasonStats = playerSeason;
       weeklyStats = weekly;
       allPlayers = allReceivers;
+      crossLinkQB = teamQB;
     } else if (player.position === "RB") {
       const [weekly, allRBWeekly] = await Promise.all([
         getRBWeeklyStats(player.player_id, currentSeason),
@@ -152,6 +162,9 @@ export default async function PlayerPage({
           seasons={seasons}
           position={player.position}
           tab={tab || "overview"}
+          crossLinkReceivers={crossLinkReceivers}
+          crossLinkQB={crossLinkQB}
+          passLocationStats={passLocationStats}
         />
       </Suspense>
     </div>

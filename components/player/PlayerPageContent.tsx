@@ -9,12 +9,16 @@ import type {
   QBWeeklyStat,
   ReceiverWeeklyStat,
   RBWeeklyStat,
+  CrossLinkReceiver,
+  CrossLinkQB,
+  QBPassLocationStat,
 } from "@/lib/types";
 import PlayerHeader from "./PlayerHeader";
 import PlayerOverviewQB from "./PlayerOverviewQB";
 import PlayerOverviewWR from "./PlayerOverviewWR";
 import PlayerOverviewRB from "./PlayerOverviewRB";
 import GameLogTab from "./GameLogTab";
+import PlayerFieldHeatMap from "./PlayerFieldHeatMap";
 
 interface PlayerPageContentProps {
   player: PlayerSlug;
@@ -25,11 +29,20 @@ interface PlayerPageContentProps {
   seasons: number[];
   position: string;
   tab: string;
+  crossLinkReceivers?: CrossLinkReceiver[];
+  crossLinkQB?: CrossLinkQB | null;
+  passLocationStats?: QBPassLocationStat[];
 }
 
 const TABS = [
   { key: "overview", label: "Overview" },
   { key: "game-log", label: "Game Log" },
+] as const;
+
+const QB_TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "game-log", label: "Game Log" },
+  { key: "field-map", label: "Field Map" },
 ] as const;
 
 export default function PlayerPageContent({
@@ -41,12 +54,16 @@ export default function PlayerPageContent({
   seasons,
   position,
   tab,
+  crossLinkReceivers = [],
+  crossLinkQB,
+  passLocationStats = [],
 }: PlayerPageContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const activeTab = TABS.some((t) => t.key === tab) ? tab : "overview";
+  const tabs = position === "QB" ? QB_TABS : TABS;
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : "overview";
 
   function handleTabChange(newTab: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -78,6 +95,7 @@ export default function PlayerPageContent({
           allQBs={allPlayers as QBSeasonStat[]}
           season={season}
           teamId={player.current_team_id}
+          topReceivers={crossLinkReceivers}
         />
       );
     }
@@ -99,6 +117,7 @@ export default function PlayerPageContent({
           allReceivers={allPlayers as ReceiverSeasonStat[]}
           season={season}
           teamId={player.current_team_id}
+          teamQBData={crossLinkQB ?? undefined}
         />
       );
     }
@@ -133,6 +152,18 @@ export default function PlayerPageContent({
     );
   }
 
+  // ─── Render Field Map tab ───────────────────────────────────────────────────
+
+  function renderFieldMap() {
+    return (
+      <PlayerFieldHeatMap
+        stats={passLocationStats}
+        playerName={player.player_name}
+        season={season}
+      />
+    );
+  }
+
   // ─── Render Game Log tab ────────────────────────────────────────────────────
 
   function renderGameLog() {
@@ -162,7 +193,7 @@ export default function PlayerPageContent({
 
       {/* Tab bar */}
       <div className="flex items-center gap-0 border-b border-gray-200 mb-6">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => handleTabChange(t.key)}
@@ -181,7 +212,7 @@ export default function PlayerPageContent({
       </div>
 
       {/* Tab content */}
-      {activeTab === "overview" ? renderOverview() : renderGameLog()}
+      {activeTab === "overview" ? renderOverview() : activeTab === "field-map" ? renderFieldMap() : renderGameLog()}
     </>
   );
 }
