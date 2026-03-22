@@ -59,36 +59,42 @@ export default async function HomePage() {
 
   const recordMap = buildRecordMap(teamStats);
 
-  // Top 5 QBs by EPA/play (min 100 dropbacks)
+  // Strip 1: QB Efficiency — top 5 by EPA/play
   const epaLeaders = [...qbStats]
     .filter((q) => q.dropbacks >= 100 && q.epa_per_play != null)
     .sort((a, b) => (b.epa_per_play ?? 0) - (a.epa_per_play ?? 0))
     .slice(0, 5);
 
-  // Top 5 receivers by receiving yards (min 30 targets)
-  const yardLeaders = [...receiverStats]
-    .filter((r) => r.targets >= 30)
-    .sort((a, b) => b.receiving_yards - a.receiving_yards)
+  // Strip 2: QB Accuracy — top 5 by CPOE
+  const cpoeLeaders = [...qbStats]
+    .filter((q) => q.dropbacks >= 100 && q.cpoe != null)
+    .sort((a, b) => (b.cpoe ?? 0) - (a.cpoe ?? 0))
     .slice(0, 5);
 
-  // Top 5 receivers by YPRR (min 50 routes run)
+  // Strip 3: Receiving Efficiency — top 5 by YPRR
   const yprrLeaders = [...receiverStats]
     .filter((r) => r.routes_run >= 50 && r.yards_per_route_run > 0)
     .sort((a, b) => b.yards_per_route_run - a.yards_per_route_run)
     .slice(0, 5);
 
-  // Top 5 RBs by rushing yards (min 50 carries)
-  const rushLeaders = [...rbStats]
-    .filter((rb) => rb.carries >= 50)
-    .sort((a, b) => b.rushing_yards - a.rushing_yards)
+  // Strip 4: Rushing Efficiency — top 5 by EPA/carry
+  const rushEpaLeaders = [...rbStats]
+    .filter((rb) => rb.carries >= 50 && rb.epa_per_carry != null)
+    .sort((a, b) => (b.epa_per_carry ?? 0) - (a.epa_per_carry ?? 0))
     .slice(0, 5);
 
-  // Fetch only the slugs needed for leaderboard entries (~20 IDs instead of 1200+)
+  // Strip 5: Team Defense — top 5 by defensive EPA (lower = better, so sort ascending)
+  const defLeaders = [...teamStats]
+    .filter((t) => t.def_epa_play != null)
+    .sort((a, b) => (a.def_epa_play ?? 0) - (b.def_epa_play ?? 0))
+    .slice(0, 5);
+
+  // Fetch only the slugs needed for player leaderboard entries
   const leaderPlayerIds = Array.from(new Set([
     ...epaLeaders.map((q) => q.player_id),
-    ...yardLeaders.map((r) => r.player_id),
+    ...cpoeLeaders.map((q) => q.player_id),
     ...yprrLeaders.map((r) => r.player_id),
-    ...rushLeaders.map((rb) => rb.player_id),
+    ...rushEpaLeaders.map((rb) => rb.player_id),
   ]));
 
   try {
@@ -169,8 +175,8 @@ export default async function HomePage() {
       {/* ---- 3. Stat Leaderboard Strips ---- */}
       <section className="space-y-6">
         <LeaderStrip
-          title="EPA Leaders"
-          subtitle="QBs by EPA/Play"
+          title="QB Efficiency"
+          subtitle="EPA per Play"
           items={epaLeaders.map((q, i) => ({
             rank: i + 1,
             name: q.player_name,
@@ -180,18 +186,18 @@ export default async function HomePage() {
           }))}
         />
         <LeaderStrip
-          title="Receiving Leaders"
-          subtitle="By Receiving Yards"
-          items={yardLeaders.map((r, i) => ({
+          title="QB Accuracy"
+          subtitle="Completion % Over Expected"
+          items={cpoeLeaders.map((q, i) => ({
             rank: i + 1,
-            name: r.player_name,
-            slug: slugMap.get(r.player_id),
-            teamId: r.team_id,
-            value: r.receiving_yards.toLocaleString(),
+            name: q.player_name,
+            slug: slugMap.get(q.player_id),
+            teamId: q.team_id,
+            value: (q.cpoe ?? 0) >= 0 ? `+${(q.cpoe ?? 0).toFixed(1)}` : (q.cpoe ?? 0).toFixed(1),
           }))}
         />
         <LeaderStrip
-          title="YPRR Leaders"
+          title="Receiving Efficiency"
           subtitle="Yards Per Route Run"
           items={yprrLeaders.map((r, i) => ({
             rank: i + 1,
@@ -202,15 +208,29 @@ export default async function HomePage() {
           }))}
         />
         <LeaderStrip
-          title="Rushing Leaders"
-          subtitle="Rushing Yards"
-          items={rushLeaders.map((rb, i) => ({
+          title="Rushing Efficiency"
+          subtitle="EPA per Carry"
+          items={rushEpaLeaders.map((rb, i) => ({
             rank: i + 1,
             name: rb.player_name,
             slug: slugMap.get(rb.player_id),
             teamId: rb.team_id,
-            value: rb.rushing_yards.toLocaleString(),
+            value: (rb.epa_per_carry ?? 0).toFixed(3),
           }))}
+        />
+        <LeaderStrip
+          title="Team Defense"
+          subtitle="Defensive EPA/Play (lower = better)"
+          items={defLeaders.map((t, i) => {
+            const team = getTeam(t.team_id);
+            return {
+              rank: i + 1,
+              name: team?.name ?? t.team_id,
+              href: `/team/${t.team_id}`,
+              teamId: t.team_id,
+              value: (t.def_epa_play ?? 0).toFixed(3),
+            };
+          })}
         />
       </section>
 
@@ -248,6 +268,7 @@ interface LeaderItem {
   rank: number;
   name: string;
   slug?: string;
+  href?: string; // override link (for team entries that go to /team/[id] instead of /player/[slug])
   teamId: string;
   value: string;
 }
@@ -293,8 +314,9 @@ function LeaderStrip({
             </div>
           );
 
-          return item.slug ? (
-            <Link key={item.rank} href={`/player/${item.slug}`}>
+          const linkHref = item.href || (item.slug ? `/player/${item.slug}` : null);
+          return linkHref ? (
+            <Link key={item.rank} href={linkHref}>
               {card}
             </Link>
           ) : (
