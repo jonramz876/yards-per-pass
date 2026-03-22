@@ -284,6 +284,8 @@ export interface QBPassLocationStat {
   epa_sum: number | null;
   epa_per_attempt: number | null;
   completion_pct: number | null;
+  yards_per_attempt: number | null;
   adot: number | null;
+  cpoe: number | null;
   passer_rating: number | null;
 }

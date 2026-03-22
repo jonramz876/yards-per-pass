@@ -231,7 +231,9 @@ const QB_PASS_LOC_NUMERIC = [
   "epa_sum",
   "epa_per_attempt",
   "completion_pct",
+  "yards_per_attempt",
   "adot",
+  "cpoe",
   "passer_rating",
 ];
 

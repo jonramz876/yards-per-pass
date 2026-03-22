@@ -713,7 +713,7 @@ def aggregate_qb_pass_location_stats(plays: pd.DataFrame, roster: pd.DataFrame, 
                 'player_id', 'player_name', 'team_id', 'season',
                 'depth_bin', 'direction_bin', 'pass_attempts', 'completions',
                 'passing_yards', 'pass_tds', 'interceptions',
-                'epa_sum', 'epa_per_attempt', 'completion_pct', 'adot', 'passer_rating',
+                'epa_sum', 'epa_per_attempt', 'completion_pct', 'yards_per_attempt', 'adot', 'cpoe', 'passer_rating',
             ])
 
     qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
@@ -764,6 +764,7 @@ def aggregate_qb_pass_location_stats(plays: pd.DataFrame, roster: pd.DataFrame, 
         interceptions=('interception', 'sum'),
         epa_sum=('epa', lambda s: s.dropna().sum()),
         adot=('air_yards', lambda s: s.dropna().mean()),
+        cpoe=('cpoe', lambda s: s.dropna().mean()),
     ).reset_index()
 
     grouped = grouped.rename(columns={'passer_player_id': 'player_id'})
@@ -772,6 +773,7 @@ def aggregate_qb_pass_location_stats(plays: pd.DataFrame, roster: pd.DataFrame, 
     grouped['season'] = season
     grouped['epa_per_attempt'] = grouped['epa_sum'] / grouped['pass_attempts']
     grouped['completion_pct'] = grouped['completions'] / grouped['pass_attempts']
+    grouped['yards_per_attempt'] = grouped['passing_yards'] / grouped['pass_attempts']
 
     # Passer rating — only for zones with 5+ attempts
     def calc_passer_rating(row):
@@ -2298,11 +2300,20 @@ def ensure_qb_pass_location_tables(conn):
                 epa_sum NUMERIC,
                 epa_per_attempt NUMERIC,
                 completion_pct NUMERIC,
+                yards_per_attempt NUMERIC,
                 adot NUMERIC,
+                cpoe NUMERIC,
                 passer_rating NUMERIC,
                 UNIQUE (player_id, season, depth_bin, direction_bin)
             )
         """)
+        # Add columns if table already exists (migrations)
+        for col in ('cpoe', 'yards_per_attempt'):
+            cur.execute(f"""
+                DO $$ BEGIN
+                    ALTER TABLE qb_pass_location_stats ADD COLUMN IF NOT EXISTS {col} NUMERIC;
+                END $$
+            """)
         cur.execute("""
             DO $$ BEGIN
                 ALTER TABLE qb_pass_location_stats ENABLE ROW LEVEL SECURITY;
@@ -2329,7 +2340,7 @@ def upsert_qb_pass_location_stats(conn, df: pd.DataFrame):
     cols = ['player_id', 'player_name', 'team_id', 'season',
             'depth_bin', 'direction_bin', 'pass_attempts', 'completions',
             'passing_yards', 'pass_tds', 'interceptions',
-            'epa_sum', 'epa_per_attempt', 'completion_pct', 'adot', 'passer_rating']
+            'epa_sum', 'epa_per_attempt', 'completion_pct', 'yards_per_attempt', 'adot', 'cpoe', 'passer_rating']
     clean_df = df[cols].where(df[cols].notna(), None)
     rows = [tuple(r) for _, r in clean_df.iterrows()]
     col_names = ', '.join(cols)

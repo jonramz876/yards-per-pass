@@ -17,7 +17,7 @@ def _make_roster(player_ids):
 
 def _make_play(passer_id='QB1', air_yards=10, pass_location='middle',
                complete=1, yards=10, td=0, interception=0, epa=0.5,
-               sack=0, scramble=0, spike=0, week=1, team='KC'):
+               cpoe=2.0, sack=0, scramble=0, spike=0, week=1, team='KC'):
     """Build a single pass play dict with all required PBP columns."""
     return {
         'pass_attempt': 1,
@@ -33,6 +33,7 @@ def _make_play(passer_id='QB1', air_yards=10, pass_location='middle',
         'pass_touchdown': td,
         'interception': interception,
         'epa': epa,
+        'cpoe': cpoe,
         'posteam': team,
         'week': week,
         'game_id': f'2024_0{week}_{team}_OPP',

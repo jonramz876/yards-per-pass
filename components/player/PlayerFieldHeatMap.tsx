@@ -12,12 +12,12 @@ interface PlayerFieldHeatMapProps {
 }
 
 /* ─── Tab definitions ─── */
-type TabKey = "targets" | "catch_pct" | "yards" | "epa";
+type TabKey = "epa" | "cpoe" | "ypa" | "yards";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "epa", label: "EPA/Att" },
-  { key: "targets", label: "Attempts" },
-  { key: "catch_pct", label: "Comp%" },
+  { key: "cpoe", label: "CPOE" },
+  { key: "ypa", label: "Yds/Att" },
   { key: "yards", label: "Yards" },
 ];
 
@@ -62,65 +62,95 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
+/** Volume-based navy blue: more attempts = darker */
+function volumeColor(attempts: number, maxAttempts: number): string {
+  if (maxAttempts === 0) return "rgba(255,255,255,0.03)";
+  const intensity = clamp(attempts / maxAttempts, 0.08, 0.55);
+  return `rgba(30, 58, 138, ${intensity})`; // navy blue
+}
+
 function getCellColor(
   tab: TabKey,
   zone: QBPassLocationStat | undefined,
-  maxTargets: number,
+  maxAttempts: number,
   maxYards: number,
-  maxEpaAbs: number
 ): string {
   if (!zone || zone.pass_attempts === 0) return "rgba(255,255,255,0.03)";
 
   switch (tab) {
-    case "targets": {
-      const intensity = clamp(maxTargets > 0 ? zone.pass_attempts / maxTargets : 0, 0.05, 0.6);
-      return `rgba(16, 185, 129, ${intensity})`;
-    }
-    case "catch_pct": {
-      const pct = (zone.completion_pct ?? 0) * 100; // stored as 0-1, convert to 0-100
-      if (pct >= 65) {
-        const t = clamp((pct - 65) / 35, 0.05, 0.6);
-        return `rgba(16, 185, 129, ${t})`;
+    case "epa":
+      // Color = volume (navy intensity), number shows EPA in green/red
+      return volumeColor(zone.pass_attempts, maxAttempts);
+    case "cpoe": {
+      // Blue-to-red divergent: positive CPOE = blue, negative = red
+      const cpoe = zone.cpoe ?? 0;
+      if (cpoe >= 0) {
+        const t = clamp(cpoe / 15, 0.08, 0.55); // 15 CPOE = max saturation
+        return `rgba(37, 99, 235, ${t})`; // blue
       }
-      const t = clamp((65 - pct) / 65, 0.05, 0.6);
-      return `rgba(239, 68, 68, ${t})`;
+      const t = clamp(Math.abs(cpoe) / 15, 0.08, 0.55);
+      return `rgba(220, 38, 38, ${t})`; // red
+    }
+    case "ypa": {
+      const ypa = zone.yards_per_attempt ?? 0;
+      const intensity = clamp(ypa / 15, 0.08, 0.55); // 15 Y/A = max
+      return `rgba(16, 185, 129, ${intensity})`; // green
     }
     case "yards": {
-      const intensity = clamp(maxYards > 0 ? zone.passing_yards / maxYards : 0, 0.05, 0.6);
+      const intensity = clamp(maxYards > 0 ? zone.passing_yards / maxYards : 0, 0.08, 0.55);
       return `rgba(16, 185, 129, ${intensity})`;
-    }
-    case "epa": {
-      const epa = zone.epa_per_attempt ?? 0;
-      if (epa >= 0) {
-        const opacity = clamp(maxEpaAbs > 0 ? epa / maxEpaAbs : 0, 0.05, 0.6);
-        return `rgba(34, 197, 94, ${opacity})`;
-      }
-      const opacity = clamp(maxEpaAbs > 0 ? Math.abs(epa) / maxEpaAbs : 0, 0.05, 0.6);
-      return `rgba(239, 68, 68, ${opacity})`;
     }
     default:
       return "rgba(255,255,255,0.03)";
   }
 }
 
+/** EPA number text color: green for positive, red for negative, white for zero */
+function epaTextColor(epa: number | null): string {
+  if (epa == null) return "white";
+  if (epa > 0.05) return "#4ade80";
+  if (epa < -0.05) return "#f87171";
+  return "white";
+}
+
 function getBigNumber(tab: TabKey, zone: QBPassLocationStat | undefined): string {
   if (!zone || zone.pass_attempts === 0) return "\u2014";
 
   switch (tab) {
-    case "targets":
-      return String(zone.pass_attempts);
-    case "catch_pct":
-      return zone.completion_pct != null ? `${(zone.completion_pct * 100).toFixed(1)}%` : "\u2014";
-    case "yards":
-      return String(zone.passing_yards);
     case "epa": {
       const v = zone.epa_per_attempt;
       if (v == null) return "\u2014";
       return v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2);
     }
+    case "cpoe": {
+      const v = zone.cpoe;
+      if (v == null) return "\u2014";
+      return v >= 0 ? `+${v.toFixed(1)}` : v.toFixed(1);
+    }
+    case "ypa":
+      return zone.yards_per_attempt != null ? zone.yards_per_attempt.toFixed(1) : "\u2014";
+    case "yards":
+      return String(Math.round(zone.passing_yards));
     default:
       return "\u2014";
   }
+}
+
+/** Sub-line text varies by tab */
+function getSubLine(tab: TabKey, zone: QBPassLocationStat): string {
+  if (tab === "cpoe") {
+    // Show completions/attempts — comp%
+    const pct = zone.completion_pct != null ? (zone.completion_pct * 100).toFixed(0) : "0";
+    return `${zone.completions}/${zone.pass_attempts} \u2014 ${pct}%`;
+  }
+  return `${zone.completions}/${zone.pass_attempts}`;
+}
+
+/** Big number fill color depends on tab */
+function getBigNumberColor(tab: TabKey, zone: QBPassLocationStat | undefined): string {
+  if (!zone) return "white";
+  if (tab === "epa") return epaTextColor(zone.epa_per_attempt);
+  return "white";
 }
 
 /* ─── Component ─── */
@@ -154,12 +184,8 @@ export default function PlayerFieldHeatMap({
   const totalCompPct = totalAttempts > 0 ? (totalCompletions / totalAttempts) * 100 : 0;
 
   /* Compute max values for color normalization */
-  const maxTargets = Math.max(...stats.map((s) => s.pass_attempts), 1);
+  const maxAttempts = Math.max(...stats.map((s) => s.pass_attempts), 1);
   const maxYards = Math.max(...stats.map((s) => s.passing_yards), 1);
-  const maxEpaAbs = Math.max(
-    ...stats.map((s) => Math.abs(s.epa_per_attempt ?? 0)),
-    0.01
-  );
 
   return (
     <div className="max-w-lg mx-auto">
@@ -185,180 +211,217 @@ export default function PlayerFieldHeatMap({
         <span className="font-semibold">{playerName} <span className="font-normal opacity-70">| {season}</span></span>
         <div className="flex gap-3">
           <span>{totalAttempts} att</span>
-          <span>
-            {totalCompletions}/{totalAttempts}
-          </span>
+          <span>{totalCompletions}/{totalAttempts}</span>
           <span>{totalCompPct.toFixed(1)}%</span>
-          <span>{totalYards} yds</span>
+          <span>{Math.round(totalYards)} yds</span>
           <span className="text-green-400">{totalTds} TD</span>
           <span className="text-red-400">{totalInts} INT</span>
         </div>
       </div>
 
-      {/* SVG Field Diagram */}
-      <svg viewBox="0 0 360 350" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
-        {/* Turf background */}
-        <rect x={40} y={0} width={320} height={350} rx={8} fill="#2d5a27" />
+      {/* SVG Field Diagram + Legend */}
+      <div className="flex items-start gap-2">
+        <svg viewBox="0 0 360 350" className="w-full flex-1" role="img" aria-label={`${playerName} pass location heat map`}>
+          {/* Turf background */}
+          <rect x={40} y={0} width={320} height={350} rx={8} fill="#2d5a27" />
 
-        {/* Top boundary */}
-        <line x1={40} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
+          {/* Top boundary */}
+          <line x1={40} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
 
-        {/* 20-yard line (in the gap between deep and intermediate rows) */}
-        <line x1={40} y1={118} x2={360} y2={118} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-        <rect x={170} y={109} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
-        <text x={190} y={121} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
-          20 yds
-        </text>
-
-        {/* 10-yard line (in the gap between intermediate and short rows) */}
-        <line x1={40} y1={226} x2={360} y2={226} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
-        <rect x={170} y={217} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
-        <text x={190} y={229} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
-          10 yds
-        </text>
-
-        {/* Line of scrimmage */}
-        <line x1={40} y1={330} x2={360} y2={330} stroke="#f59e0b" strokeWidth={2} />
-        <rect x={160} y={334} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={344} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
-          SCRIMMAGE
-        </text>
-
-        {/* Source branding */}
-        <text x={356} y={344} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)" fontFamily="system-ui, sans-serif">
-          yardsperpass.com
-        </text>
-
-        {/* Direction labels at top */}
-        {DIR_LABELS.map((d) => (
-          <text
-            key={d.dir}
-            x={d.x}
-            y={25}
-            textAnchor="middle"
-            fontSize={10}
-            fill="rgba(255,255,255,0.6)"
-            fontWeight={600}
-          >
-            {d.label}
+          {/* 20-yard line */}
+          <line x1={40} y1={118} x2={360} y2={118} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+          <rect x={170} y={109} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
+          <text x={190} y={121} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
+            20 yds
           </text>
-        ))}
 
-        {/* Depth labels on left gutter (rotated 90°) */}
-        {DEPTH_LABELS.map((d) => {
-          const row = ROWS[d.depth];
-          const cy = row.y + row.h / 2;
-          return (
+          {/* 10-yard line */}
+          <line x1={40} y1={226} x2={360} y2={226} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+          <rect x={170} y={217} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
+          <text x={190} y={229} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
+            10 yds
+          </text>
+
+          {/* Line of scrimmage */}
+          <line x1={40} y1={330} x2={360} y2={330} stroke="#f59e0b" strokeWidth={2} />
+          <rect x={160} y={334} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
+          <text x={190} y={344} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
+            SCRIMMAGE
+          </text>
+
+          {/* Source branding */}
+          <text x={356} y={344} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)" fontFamily="system-ui, sans-serif">
+            yardsperpass.com
+          </text>
+
+          {/* Direction labels at top */}
+          {DIR_LABELS.map((d) => (
             <text
-              key={d.depth}
-              x={28}
-              y={cy}
+              key={d.dir}
+              x={d.x}
+              y={25}
               textAnchor="middle"
-              fontSize={9}
-              fill="rgba(255,255,255,0.55)"
-              fontWeight={700}
-              transform={`rotate(-90, 28, ${cy})`}
+              fontSize={10}
+              fill="rgba(255,255,255,0.6)"
+              fontWeight={600}
             >
               {d.label}
             </text>
-          );
-        })}
+          ))}
 
-        {/* Grid cells */}
-        {ZONES.map(({ depth, dir }) => {
-          const row = ROWS[depth];
-          const col = COLS[dir];
-          const zone = lookup[`${depth}-${dir}`];
-          const fillColor = getCellColor(activeTab, zone, maxTargets, maxYards, maxEpaAbs);
-          const bigNum = getBigNumber(activeTab, zone);
-          const isEmpty = !zone || zone.pass_attempts === 0;
-          const cx = col.x + col.w / 2;
-          const cy = row.y + row.h / 2;
+          {/* Depth labels on left gutter (rotated 90°) */}
+          {DEPTH_LABELS.map((d) => {
+            const row = ROWS[d.depth];
+            const cy = row.y + row.h / 2;
+            return (
+              <text
+                key={d.depth}
+                x={28}
+                y={cy}
+                textAnchor="middle"
+                fontSize={9}
+                fill="rgba(255,255,255,0.55)"
+                fontWeight={700}
+                transform={`rotate(-90, 28, ${cy})`}
+              >
+                {d.label}
+              </text>
+            );
+          })}
 
-          return (
-            <g key={`${depth}-${dir}`}>
-              {/* Cell background */}
-              <rect
-                x={col.x}
-                y={row.y}
-                width={col.w}
-                height={row.h}
-                rx={6}
-                fill={fillColor}
-                stroke="rgba(255,255,255,0.12)"
-                strokeWidth={1}
-              />
+          {/* Grid cells */}
+          {ZONES.map(({ depth, dir }) => {
+            const row = ROWS[depth];
+            const col = COLS[dir];
+            const zone = lookup[`${depth}-${dir}`];
+            const fillColor = getCellColor(activeTab, zone, maxAttempts, maxYards);
+            const bigNum = getBigNumber(activeTab, zone);
+            const bigNumColor = getBigNumberColor(activeTab, zone);
+            const isEmpty = !zone || zone.pass_attempts === 0;
+            const cx = col.x + col.w / 2;
+            const cy = row.y + row.h / 2;
 
-              {isEmpty ? (
-                /* Empty zone — dash */
-                <text
-                  x={cx}
-                  y={cy + 4}
-                  textAnchor="middle"
-                  fontSize={20}
-                  fill="rgba(255,255,255,0.25)"
-                  fontWeight={700}
-                >
-                  {"\u2014"}
-                </text>
-              ) : (
-                <>
-                  {/* Big number */}
+            return (
+              <g key={`${depth}-${dir}`}>
+                {/* Cell background */}
+                <rect
+                  x={col.x}
+                  y={row.y}
+                  width={col.w}
+                  height={row.h}
+                  rx={6}
+                  fill={fillColor}
+                  stroke="rgba(255,255,255,0.12)"
+                  strokeWidth={1}
+                />
+
+                {isEmpty ? (
                   <text
                     x={cx}
-                    y={cy - 10}
+                    y={cy + 4}
                     textAnchor="middle"
                     fontSize={20}
-                    fill="white"
+                    fill="rgba(255,255,255,0.25)"
                     fontWeight={700}
                   >
-                    {bigNum}
+                    {"\u2014"}
                   </text>
-
-                  {/* Sub-line: completions/attempts */}
-                  <text
-                    x={cx}
-                    y={cy + 8}
-                    textAnchor="middle"
-                    fontSize={11}
-                    fill="rgba(255,255,255,0.7)"
-                  >
-                    {zone.completions}/{zone.pass_attempts}
-                  </text>
-
-                  {/* TD badge */}
-                  {zone.pass_tds > 0 && (
+                ) : (
+                  <>
+                    {/* Big number */}
                     <text
-                      x={cx - (zone.interceptions > 0 ? 16 : 0)}
-                      y={cy + 24}
+                      x={cx}
+                      y={cy - 10}
                       textAnchor="middle"
-                      fontSize={10}
-                      fill="#4ade80"
+                      fontSize={18}
+                      fill={bigNumColor}
                       fontWeight={700}
                     >
-                      {zone.pass_tds} TD
+                      {bigNum}
                     </text>
-                  )}
 
-                  {/* INT badge */}
-                  {zone.interceptions > 0 && (
+                    {/* Sub-line */}
                     <text
-                      x={cx + (zone.pass_tds > 0 ? 16 : 0)}
-                      y={cy + 24}
+                      x={cx}
+                      y={cy + 6}
                       textAnchor="middle"
                       fontSize={10}
-                      fill="#f87171"
-                      fontWeight={700}
+                      fill="rgba(255,255,255,0.7)"
                     >
-                      {zone.interceptions} INT
+                      {getSubLine(activeTab, zone)}
                     </text>
-                  )}
-                </>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+
+                    {/* TD badge */}
+                    {zone.pass_tds > 0 && (
+                      <text
+                        x={cx - (zone.interceptions > 0 ? 16 : 0)}
+                        y={cy + 20}
+                        textAnchor="middle"
+                        fontSize={9}
+                        fill="#4ade80"
+                        fontWeight={700}
+                      >
+                        {zone.pass_tds} TD
+                      </text>
+                    )}
+
+                    {/* INT badge */}
+                    {zone.interceptions > 0 && (
+                      <text
+                        x={cx + (zone.pass_tds > 0 ? 16 : 0)}
+                        y={cy + 20}
+                        textAnchor="middle"
+                        fontSize={9}
+                        fill="#f87171"
+                        fontWeight={700}
+                      >
+                        {zone.interceptions} INT
+                      </text>
+                    )}
+                  </>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Legend (shown on EPA tab — volume scale) */}
+        {activeTab === "epa" && (
+          <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
+            <span className="text-[9px] text-gray-400 font-semibold mb-1">ATT</span>
+            <div
+              className="rounded-sm"
+              style={{
+                width: 14,
+                height: 80,
+                background: "linear-gradient(to bottom, rgba(30,58,138,0.55), rgba(30,58,138,0.08))",
+              }}
+            />
+            <span className="text-[9px] text-gray-400 mt-1">{maxAttempts}</span>
+            <span className="text-[9px] text-gray-400 mt-auto">0</span>
+          </div>
+        )}
+
+        {/* Legend (shown on CPOE tab — divergent scale) */}
+        {activeTab === "cpoe" && (
+          <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
+            <span className="text-[9px] text-gray-400 font-semibold mb-1">CPOE</span>
+            <div
+              className="rounded-sm"
+              style={{
+                width: 14,
+                height: 80,
+                background: "linear-gradient(to bottom, rgba(37,99,235,0.55), rgba(255,255,255,0.1), rgba(220,38,38,0.55))",
+              }}
+            />
+            <div className="flex flex-col items-center text-[9px] text-gray-400">
+              <span>+</span>
+              <span className="my-3">0</span>
+              <span>&minus;</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
