@@ -133,24 +133,24 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
     () =>
       RADAR_KEYS.map((key) => {
         const val = getStatValue(stats, key);
-        const allVals = allReceivers.map((r) => getStatValue(r, key)).filter((v) => !isNaN(v));
+        const allVals = positionPool.map((r) => getStatValue(r, key)).filter((v) => !isNaN(v));
         const rank = computeRank(allVals, val);
         return { key, val, rank };
       }),
-    [stats, allReceivers]
+    [stats, positionPool]
   );
 
   const barData = useMemo(
     () =>
       BAR_STATS.map((stat) => {
         const val = getBarValue(stats, stat.key);
-        const allVals = allReceivers.map((r) => getBarValue(r, stat.key)).filter((v) => !isNaN(v));
+        const allVals = positionPool.map((r) => getBarValue(r, stat.key)).filter((v) => !isNaN(v));
         const avg = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : 0;
         const delta = val - avg;
         const barWidth = avg !== 0 ? Math.min(Math.abs(delta / avg) * 100, 45) : 0;
         return { ...stat, val, avg, delta, barWidth };
       }),
-    [stats, allReceivers]
+    [stats, positionPool]
   );
 
   // Team context: find the team's QB

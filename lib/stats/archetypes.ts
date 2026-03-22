@@ -15,8 +15,9 @@ export function classifyQB(percentiles: number[]): Archetype | null {
   const above70 = percentiles.filter(p => p >= 70).length;
   const above60 = percentiles.filter(p => p >= 60).length;
 
-  // Complete Passer — elite across 4+ axes
-  if (above70 >= 4) return {
+  // Complete Passer — elite across 4+ axes, no major weakness
+  const qbBelow30 = percentiles.filter(p => p < 30).length;
+  if (above70 >= 4 && qbBelow30 === 0) return {
     label: "Complete Passer",
     icon: "\u{1F451}",
     description: "Elite across the board \u2014 efficiency, accuracy, and volume all in the upper tier.",
@@ -88,8 +89,9 @@ export function classifyWR(percentiles: number[]): Archetype | null {
   const above70 = percentiles.filter(p => p >= 70).length;
   const above60 = percentiles.filter(p => p >= 60).length;
 
-  // Alpha WR1 — elite across the board
-  if (above70 >= 4 && vol >= 65) return {
+  // Alpha WR1 — elite across the board, no major weakness
+  const wrBelow30 = percentiles.filter(p => p < 30).length;
+  if (above70 >= 4 && vol >= 65 && wrBelow30 === 0) return {
     label: "Alpha WR1",
     icon: "\u{2B50}",
     description: "Dominates target share and production \u2014 a true number-one receiver.",
@@ -161,8 +163,9 @@ export function classifyTE(percentiles: number[]): Archetype | null {
   const [vol, eff, catch_, downfield, yac, cons] = percentiles;
   const above70 = percentiles.filter(p => p >= 70).length;
 
-  // Elite TE1 — dominant across the board
-  if (above70 >= 4 && vol >= 60) return {
+  // Elite TE1 — dominant across the board, no major weakness
+  const teBelow30 = percentiles.filter(p => p < 30).length;
+  if (above70 >= 4 && vol >= 60 && teBelow30 === 0) return {
     label: "Elite TE1",
     icon: "\u{1F48E}",
     description: "Dominant tight end \u2014 elite receiving production across volume, efficiency, and consistency.",
