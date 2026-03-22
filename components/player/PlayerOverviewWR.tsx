@@ -230,9 +230,12 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId }
       <div className="space-y-6">
         {/* Vs-league bars */}
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-4">
+          <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
             vs. League Average
           </h3>
+          <p className="text-[9px] text-gray-300 mb-4">
+            {isTE ? "100" : "200"}+ routes · {total} {isTE ? "TEs" : "WRs"}
+          </p>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-3.5">
               <div className="text-[11px] text-gray-500 w-[54px] text-right shrink-0">

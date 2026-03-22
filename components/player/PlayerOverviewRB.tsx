@@ -167,7 +167,6 @@ export default function PlayerOverviewRB({
   allRBWeekly,
   season,
   teamId,
-  playerName,
 }: PlayerOverviewRBProps) {
   const team = getTeam(teamId);
   const teamColor = getTeamColor(teamId);
@@ -306,11 +305,13 @@ export default function PlayerOverviewRB({
 
       {/* Right column: Bars + cross-link */}
       <div className="space-y-6">
-        {!notEnoughData && (
           <div className="rounded-xl border border-gray-200 bg-white p-6">
-            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-4">
+            <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
               vs. League Average
             </h3>
+            <p className="text-[9px] text-gray-300 mb-4">
+              30+ carries · {total} RBs
+            </p>
             {barData.map((bar) => (
               <div key={bar.key} className="flex items-center gap-2 mb-3.5">
                 <div className="text-[11px] text-gray-500 w-[54px] text-right shrink-0">
@@ -388,7 +389,6 @@ export default function PlayerOverviewRB({
               </div>
             ))}
           </div>
-        )}
 
         {/* Cross-link */}
         <Link
