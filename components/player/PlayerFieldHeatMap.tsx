@@ -391,6 +391,7 @@ export default function PlayerFieldHeatMap({
         {activeTab === "epa" && (
           <div className="flex flex-col items-center pt-8 flex-shrink-0" style={{ width: 36 }}>
             <span className="text-[9px] text-gray-400 font-semibold mb-1">ATT</span>
+            <span className="text-[9px] text-gray-400 mb-1">{maxAttempts}</span>
             <div
               className="rounded-sm"
               style={{
@@ -399,8 +400,7 @@ export default function PlayerFieldHeatMap({
                 background: "linear-gradient(to bottom, rgba(37,99,235,0.55), rgba(37,99,235,0.08))",
               }}
             />
-            <span className="text-[9px] text-gray-400 mt-1">{maxAttempts}</span>
-            <span className="text-[9px] text-gray-400 mt-auto">0</span>
+            <span className="text-[9px] text-gray-400 mt-1">0</span>
           </div>
         )}
         {activeTab === "cpoe" && (
