@@ -42,7 +42,7 @@ const TABS = [
 const QB_TABS = [
   { key: "overview", label: "Overview" },
   { key: "game-log", label: "Game Log" },
-  { key: "field-map", label: "Field Map" },
+  { key: "field-map", label: "Passing Map" },
 ] as const;
 
 export default function PlayerPageContent({

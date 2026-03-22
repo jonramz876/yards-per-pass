@@ -33,10 +33,11 @@ for (const depth of DEPTH_BINS) {
 }
 
 /* ─── Layout constants ─── */
+// 24px gaps between rows for yard-line pill labels
 const ROWS: Record<string, { y: number; h: number }> = {
   deep: { y: 30, h: 76 },
-  intermediate: { y: 114, h: 82 },
-  short: { y: 204, h: 82 },
+  intermediate: { y: 132, h: 82 },
+  short: { y: 240, h: 82 },
 };
 const COLS: Record<string, { x: number; w: number }> = {
   left: { x: 48, w: 96 },
@@ -195,28 +196,36 @@ export default function PlayerFieldHeatMap({
       </div>
 
       {/* SVG Field Diagram */}
-      <svg viewBox="0 0 360 314" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
+      <svg viewBox="0 0 360 350" className="w-full" role="img" aria-label={`${playerName} pass location heat map`}>
         {/* Turf background */}
-        <rect x={40} y={0} width={320} height={314} rx={8} fill="#2d5a27" />
+        <rect x={40} y={0} width={320} height={350} rx={8} fill="#2d5a27" />
 
         {/* Top boundary */}
         <line x1={40} y1={8} x2={360} y2={8} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
 
-        {/* 20-yard line */}
-        <line x1={40} y1={108} x2={360} y2={108} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+        {/* 20-yard line (in the gap between deep and intermediate rows) */}
+        <line x1={40} y1={118} x2={360} y2={118} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+        <rect x={170} y={109} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
+        <text x={190} y={121} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
+          20 yds
+        </text>
 
-        {/* 10-yard line */}
-        <line x1={40} y1={200} x2={360} y2={200} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+        {/* 10-yard line (in the gap between intermediate and short rows) */}
+        <line x1={40} y1={226} x2={360} y2={226} stroke="rgba(255,255,255,0.35)" strokeWidth={1} strokeDasharray="6,4" />
+        <rect x={170} y={217} width={40} height={16} rx={8} fill="rgba(0,0,0,0.5)" />
+        <text x={190} y={229} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.85)" fontWeight={600}>
+          10 yds
+        </text>
 
         {/* Line of scrimmage */}
-        <line x1={40} y1={294} x2={360} y2={294} stroke="#f59e0b" strokeWidth={2} />
-        <rect x={160} y={298} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
-        <text x={190} y={308} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
+        <line x1={40} y1={330} x2={360} y2={330} stroke="#f59e0b" strokeWidth={2} />
+        <rect x={160} y={334} width={60} height={14} rx={7} fill="rgba(0,0,0,0.45)" />
+        <text x={190} y={344} textAnchor="middle" fontSize={8} fill="#f59e0b" fontWeight={700}>
           SCRIMMAGE
         </text>
 
         {/* Source branding */}
-        <text x={356} y={308} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)" fontFamily="system-ui, sans-serif">
+        <text x={356} y={344} textAnchor="end" fontSize={8} fill="rgba(255,255,255,0.35)" fontFamily="system-ui, sans-serif">
           yardsperpass.com
         </text>
 
