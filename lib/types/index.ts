@@ -152,6 +152,10 @@ export interface RBSeasonStat {
   explosive_rate: number;
   fumbles: number;
   fumbles_lost: number;
+  targets: number;
+  receptions: number;
+  receiving_yards: number;
+  receiving_tds: number;
 }
 
 // Player page types

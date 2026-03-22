@@ -623,7 +623,7 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     # Group by rusher
     rb = rushes.groupby('rusher_player_id').agg(
         carries=('epa', 'count'),
-        rushing_yards=('yards_gained', lambda s: s.fillna(0).sum()),
+        rushing_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
         rushing_tds=('rush_touchdown', 'sum'),
         epa_per_carry=('epa', 'mean'),
         success_rate=('success', lambda x: x.dropna().mean()),
@@ -664,6 +664,26 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     rb['fumbles'] = rb['fumbles'].fillna(0).astype(int)
     rb['fumbles_lost'] = rb['fumbles_lost'].fillna(0).astype(int)
 
+    # Receiving stats for RBs
+    rec_plays = plays[
+        (plays['receiver_player_id'].isin(rb_ids)) &
+        (plays['pass_attempt'] == 1) &
+        (plays['sack'] != 1) &
+        (plays['qb_scramble'] != 1)
+    ]
+    rec_stats = rec_plays.groupby('receiver_player_id').agg(
+        targets=('game_id', 'count'),
+        receptions=('complete_pass', 'sum'),
+        receiving_yards=('receiving_yards', lambda x: x.fillna(0).sum()),
+        receiving_tds=('pass_touchdown', 'sum'),
+    ).reset_index().rename(columns={'receiver_player_id': 'player_id'})
+
+    rb = rb.merge(rec_stats, on='player_id', how='left')
+    rb['targets'] = rb['targets'].fillna(0).astype(int)
+    rb['receptions'] = rb['receptions'].fillna(0).astype(int)
+    rb['receiving_yards'] = rb['receiving_yards'].fillna(0).astype(int)
+    rb['receiving_tds'] = rb['receiving_tds'].fillna(0).astype(int)
+
     # Convert types
     rb['season'] = season
     rb['rushing_yards'] = rb['rushing_yards'].fillna(0).astype(int)
@@ -676,6 +696,7 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
         'carries', 'rushing_yards', 'rushing_tds', 'yards_per_carry',
         'epa_per_carry', 'success_rate', 'stuff_rate', 'explosive_rate',
         'fumbles', 'fumbles_lost',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
     ]
     result = rb[cols].copy()
 
@@ -1325,6 +1346,8 @@ def ensure_rb_season_stats_table(conn):
             CREATE INDEX IF NOT EXISTS idx_rb_season ON rb_season_stats(season);
             CREATE INDEX IF NOT EXISTS idx_rb_team ON rb_season_stats(team_id, season);
         """)
+        for col, typ in [('targets', 'INTEGER'), ('receptions', 'INTEGER'), ('receiving_yards', 'INTEGER'), ('receiving_tds', 'INTEGER')]:
+            cur.execute(f"ALTER TABLE rb_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
         cur.execute("""
             DO $$ BEGIN
                 ALTER TABLE rb_season_stats ENABLE ROW LEVEL SECURITY;
@@ -1353,6 +1376,7 @@ def upsert_rb_season_stats(conn, df: pd.DataFrame):
         'carries', 'rushing_yards', 'rushing_tds', 'yards_per_carry',
         'epa_per_carry', 'success_rate', 'stuff_rate', 'explosive_rate',
         'fumbles', 'fumbles_lost',
+        'targets', 'receptions', 'receiving_yards', 'receiving_tds',
     ]
     clean_df = df[cols].where(df[cols].notna(), None)
     rows = [tuple(r) for _, r in clean_df.iterrows()]
