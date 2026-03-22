@@ -39,6 +39,12 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
       "Average distance in yards a QB throws downfield. Higher = more aggressive. Computed on true pass attempts only (sacks and scrambles excluded).",
   },
   {
+    term: "Field Heat Map",
+    id: "field-heat-map",
+    definition:
+      "A 3\u00d73 grid showing where a QB throws on the field, broken down by depth (short 0-9 yards, intermediate 10-19, deep 20+) and direction (left, middle, right). Air yards measures the distance the ball travels in the air from the line of scrimmage. Direction (L/M/R) is derived from nflverse charting data, which categorizes passes into three zones.",
+  },
+  {
     term: "YPA (Yards Per Attempt)",
     definition:
       "Passing yards divided by pass attempts. A simple efficiency measure. Sacks are excluded from the denominator.",
