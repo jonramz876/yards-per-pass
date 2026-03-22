@@ -134,6 +134,26 @@ export interface ReceiverSeasonStat {
   route_participation_rate: number;
 }
 
+export interface RBSeasonStat {
+  id: string;
+  player_id: string;
+  player_name: string;
+  position: string;
+  team_id: string;
+  season: number;
+  games: number;
+  carries: number;
+  rushing_yards: number;
+  rushing_tds: number;
+  yards_per_carry: number;
+  epa_per_carry: number;
+  success_rate: number;
+  stuff_rate: number;
+  explosive_rate: number;
+  fumbles: number;
+  fumbles_lost: number;
+}
+
 // Player page types
 
 export interface PlayerSlug {
