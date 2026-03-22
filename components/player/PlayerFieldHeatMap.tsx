@@ -184,6 +184,7 @@ export default function PlayerFieldHeatMap({
   const totalTds = stats.reduce((a, s) => a + s.pass_tds, 0);
   const totalInts = stats.reduce((a, s) => a + s.interceptions, 0);
   const totalCompPct = totalAttempts > 0 ? (totalCompletions / totalAttempts) * 100 : 0;
+  const totalEpa = stats.reduce((a, s) => a + (s.epa_sum ?? 0), 0);
 
   /* Compute max values for color normalization */
   const maxAttempts = Math.max(...stats.map((s) => s.pass_attempts), 1);
@@ -212,7 +213,7 @@ export default function PlayerFieldHeatMap({
       <div className="bg-[#1a2332] text-white rounded-lg px-4 py-2 mb-3 flex flex-wrap items-center justify-between text-xs gap-y-1">
         <span className="font-semibold">{playerName} <span className="font-normal opacity-70">| {season}</span></span>
         <div className="flex gap-3">
-          <span>{totalAttempts} att</span>
+          <span className="text-yellow-400">{totalEpa >= 0 ? "+" : ""}{totalEpa.toFixed(1)} EPA</span>
           <span>{totalCompletions}/{totalAttempts}</span>
           <span>{totalCompPct.toFixed(1)}%</span>
           <span>{Math.round(totalYards)} yds</span>
