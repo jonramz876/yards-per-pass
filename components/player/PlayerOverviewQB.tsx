@@ -23,7 +23,7 @@ const RADAR_AXES = [
   { label: "CPOE" },
   { label: "DB/Game" },
   { label: "aDOT" },
-  { label: "INT%" },
+  { label: "INT Rate" },
   { label: "Success%" },
 ];
 
@@ -41,7 +41,7 @@ const RADAR_LABELS: Record<string, string> = {
   cpoe: "CPOE",
   dropbacks_game: "DB/G",
   adot: "aDOT",
-  inv_int_pct: "INT Avoidance",
+  inv_int_pct: "INT Rate",
   success_rate: "Success%",
 };
 
@@ -91,7 +91,7 @@ function formatChipValue(key: string, val: number): string {
     case "cpoe": return (val >= 0 ? "+" : "") + val.toFixed(1);
     case "dropbacks_game": return val.toFixed(1);
     case "adot": return val.toFixed(1);
-    case "inv_int_pct": return (val * 100).toFixed(1) + "%";
+    case "inv_int_pct": return ((1 - val) * 100).toFixed(1) + "%"; // show raw INT rate (lower = better)
     case "success_rate": return (val * 100).toFixed(1) + "%";
     default: return val.toFixed(2);
   }

@@ -98,7 +98,8 @@ export default async function PlayerPage({
       const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
       seasonStats = playerSeason;
       weeklyStats = weekly;
-      allPlayers = allQBs;
+      // Filter percentile pool to qualified QBs (100+ dropbacks) to avoid backup QB noise
+      allPlayers = allQBs.filter((qb) => qb.dropbacks >= 100);
     } else if (player.position === "WR" || player.position === "TE") {
       const [allReceivers, weekly] = await Promise.all([
         getReceiverStats(currentSeason).catch(() => []),

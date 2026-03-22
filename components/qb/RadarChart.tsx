@@ -15,7 +15,7 @@ const AXES: { label: string }[] = [
   { label: "CPOE" },
   { label: "DB/Game" },
   { label: "aDOT" },
-  { label: "INT%" },
+  { label: "INT Rate" },
   { label: "Success%" },
 ];
 
