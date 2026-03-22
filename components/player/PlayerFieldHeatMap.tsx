@@ -146,9 +146,11 @@ function getBigNumber(tab: TabKey, zone: QBPassLocationStat | undefined): string
 /** Sub-line text varies by tab */
 function getSubLine(tab: TabKey, zone: QBPassLocationStat): string {
   if (tab === "cpoe") {
-    // Show completions/attempts — comp%
     const pct = zone.completion_pct != null ? (zone.completion_pct * 100).toFixed(0) : "0";
     return `${zone.completions}/${zone.pass_attempts} \u2014 ${pct}%`;
+  }
+  if (tab === "ypa" || tab === "yards") {
+    return `${zone.pass_attempts} att \u2014 ${Math.round(zone.passing_yards)} yds`;
   }
   return `${zone.completions}/${zone.pass_attempts}`;
 }
