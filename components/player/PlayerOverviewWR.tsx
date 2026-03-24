@@ -21,7 +21,7 @@ interface PlayerOverviewWRProps {
 const RADAR_AXES = [
   { label: "Tgt/Game" },
   { label: "EPA/Tgt" },
-  { label: "Catch%" },
+  { label: "CROE" },
   { label: "aDOT" },
   { label: "YAC/Rec" },
   { label: "YPRR" },
@@ -30,7 +30,7 @@ const RADAR_AXES = [
 const RADAR_KEYS = [
   "targets_game",          // Volume — Targets/Game
   "epa_per_target",        // Efficiency — EPA/Target
-  "catch_rate",            // Catch — Catch Rate
+  "croe",                  // Quality — Catch Rate Over Expected (replaces Catch%)
   "air_yards_per_target",  // Downfield — ADOT
   "yac_per_reception",     // After Catch — YAC/Rec
   "yards_per_route_run",   // Consistency — YPRR
@@ -39,7 +39,7 @@ const RADAR_KEYS = [
 const RADAR_LABELS: Record<string, string> = {
   targets_game: "Tgt/G",
   epa_per_target: "EPA/Tgt",
-  catch_rate: "Catch%",
+  croe: "CROE",
   air_yards_per_target: "ADOT",
   yac_per_reception: "YAC/Rec",
   yards_per_route_run: "YPRR",
@@ -59,7 +59,7 @@ function getStatValue(rec: ReceiverSeasonStat, key: string): number {
   switch (key) {
     case "targets_game": return rec.games ? rec.targets / rec.games : NaN;
     case "epa_per_target": return rec.epa_per_target;
-    case "catch_rate": return rec.catch_rate;
+    case "croe": return rec.croe ?? NaN;
     case "air_yards_per_target": return rec.air_yards_per_target;
     case "yac_per_reception": return rec.yac_per_reception;
     case "yards_per_route_run": return rec.yards_per_route_run;
@@ -87,7 +87,7 @@ function formatChipValue(key: string, val: number): string {
   switch (key) {
     case "targets_game": return val.toFixed(1);
     case "epa_per_target": return val.toFixed(2);
-    case "catch_rate": return (val * 100).toFixed(1) + "%";
+    case "croe": return (val >= 0 ? "+" : "") + (val * 100).toFixed(1) + "%";
     case "air_yards_per_target": return val.toFixed(1);
     case "yac_per_reception": return val.toFixed(1);
     case "yards_per_route_run": return val.toFixed(2);

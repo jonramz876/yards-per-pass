@@ -26,6 +26,11 @@ const QB_NUMERIC_FIELDS = [
   "passer_rating",
   "any_a",
   "rush_epa_per_play",
+  "td_pct",
+  "int_pct",
+  "sack_pct",
+  "scramble_pct",
+  "total_epa",
 ];
 
 export async function getTeamStats(

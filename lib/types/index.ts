@@ -60,6 +60,12 @@ export interface QBSeasonStat {
   rush_epa_per_play: number | null;
   fumbles: number;
   fumbles_lost: number;
+  // Leaderboard overhaul stats
+  td_pct: number | null;
+  int_pct: number | null;
+  sack_pct: number | null;
+  scramble_pct: number | null;
+  total_epa: number | null;
 }
 
 export interface DataFreshness {
@@ -132,6 +138,11 @@ export interface ReceiverSeasonStat {
   total_snaps: number;
   snap_share: number;
   route_participation_rate: number;
+  // Leaderboard overhaul stats
+  air_yards_share: number | null;
+  croe: number | null;
+  receiving_success_rate: number | null;
+  total_receiving_epa: number | null;
 }
 
 export interface RBSeasonStat {
@@ -156,6 +167,10 @@ export interface RBSeasonStat {
   receptions: number;
   receiving_yards: number;
   receiving_tds: number;
+  // Leaderboard overhaul stats
+  total_touches: number | null;
+  touches_per_game: number | null;
+  total_rushing_epa: number | null;
 }
 
 // Cross-link types for player pages

@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: "/receivers", label: "Receiving" },
   { href: "/rushing", label: "Rushing" },
   { href: "/run-gaps", label: "Run Gaps" },
+  { href: "/compare", label: "Compare", noSeason: true },
   { href: "/glossary", label: "Glossary", noSeason: true },
 ] as const;
 

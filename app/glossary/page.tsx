@@ -155,6 +155,57 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     term: "Route Participation Rate (Route%)",
     definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks.",
   },
+  // --- Leaderboard Overhaul Stats (2026-03-24) ---
+  {
+    term: "CROE (Catch Rate Over Expected)",
+    id: "croe",
+    definition: "Actual catch rate minus expected catch rate (based on throw difficulty). Positive means the receiver catches more than expected given the passes thrown to them. A better version of raw Catch% because it adjusts for throw quality. Derived from the same completion probability model that powers CPOE.",
+  },
+  {
+    term: "TD% (Touchdown Percentage)",
+    id: "td-pct",
+    definition: "Passing touchdowns divided by pass attempts, times 100. What percentage of a QB\u2019s throws go for touchdowns. League average is around 4\u20135%.",
+  },
+  {
+    term: "INT% (Interception Percentage)",
+    id: "int-pct",
+    definition: "Interceptions divided by pass attempts, times 100. Lower is better. League average is around 2\u20133%.",
+  },
+  {
+    term: "SK% (Sack Percentage)",
+    id: "sack-pct",
+    definition: "Sacks divided by (attempts + sacks), times 100. Measures how often a QB gets sacked. Lower is better. Note: sacks are excluded from the attempts count, so the denominator adds them back.",
+  },
+  {
+    term: "SCR% (Scramble Percentage)",
+    id: "scramble-pct",
+    definition: "Scrambles divided by total dropbacks, times 100. Measures how often a QB abandons the pocket and runs. High SCR% can indicate either great mobility or a collapsing pocket.",
+  },
+  {
+    term: "Air Yards Share (AY%)",
+    id: "air-yards-share",
+    definition: "Percentage of a team\u2019s total air yards belonging to this receiver. Measures how much of the team\u2019s downfield passing game flows through a specific player. Higher than Target Share for deep threats, lower for checkdown targets.",
+  },
+  {
+    term: "Receiving Success Rate (Recv SR%)",
+    id: "receiving-success-rate",
+    definition: "Percentage of a receiver\u2019s targets that produce positive EPA (Expected Points Added). Measures how often a receiver\u2019s plays help the team. Higher is better.",
+  },
+  {
+    term: "Total EPA",
+    id: "total-epa",
+    definition: "The raw sum of EPA across all plays. Unlike EPA/play or EPA/target, this is volume-based \u2014 more plays means a higher total. Measures overall impact rather than per-play efficiency. A QB with 50 Total EPA had more total impact than one with 30, even if the latter had better EPA/play.",
+  },
+  {
+    term: "Total Touches (TCH)",
+    id: "total-touches",
+    definition: "Carries plus receptions. The total number of times a running back touches the ball. Measures overall offensive involvement.",
+  },
+  {
+    term: "PFR Qualified",
+    id: "pfr-qualified",
+    definition: "Pro Football Reference\u2019s minimum thresholds for stat qualification. QBs: 14 attempts per team game (238/season). RBs: 6.25 carries per team game (106/season). WR/TEs: 1.875 targets per team game (32/season). These thresholds filter out players with small sample sizes.",
+  },
   // --- QB Archetypes ---
   { term: "Complete Passer (QB Archetype)", id: "complete-passer",
     definition: "A quarterback with 4+ radar axes at the 70th percentile or above. Elite across EPA/DB, CPOE, DB/Game, aDOT, INT%, and Success%." },

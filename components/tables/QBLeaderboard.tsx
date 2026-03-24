@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { QBSeasonStat } from "@/lib/types";
-import { getTeamColor } from "@/lib/data/teams";
+import { getTeamColor, getTeamLogo } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
@@ -25,46 +25,113 @@ type ColumnDef = {
   tooltip?: string;
 };
 
-const ADVANCED_COLUMNS: ColumnDef[] = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "fantasy_pts", label: "FPts", group: "core" },
-  { key: "epa_per_play", label: "EPA/Play", tooltip: "EPA/Play", group: "core" },
-  { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
-  { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
-  { key: "success_rate", label: "Success%", tooltip: "Success%", group: "passing" },
-  { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
-  { key: "td_int_ratio", label: "TD:INT", tooltip: "TD:INT", group: "efficiency" },
-  { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
-  { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
-];
+type TabConfig = {
+  label: string;
+  columns: ColumnDef[];
+  heatmapCols: Set<string>;
+  defaultSort: string;
+  rankBy: string;
+  defaultHeatmap: boolean;
+  showRank: boolean;
+};
 
-const STANDARD_COLUMNS: ColumnDef[] = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "completions", label: "Cmp", group: "passing" },
-  { key: "attempts", label: "Att", group: "passing" },
-  { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
-  { key: "passing_yards", label: "Yards", group: "passing" },
-  { key: "yards_per_game", label: "Yds/G", group: "passing" },
-  { key: "touchdowns", label: "TD", group: "passing" },
-  { key: "tds_per_game", label: "TD/G", group: "passing" },
-  { key: "interceptions", label: "INT", group: "passing" },
-  { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "passing" },
-  { key: "sacks", label: "Sk", tooltip: "Sk", group: "passing" },
-  { key: "sack_yards_lost", label: "Sk Yds", tooltip: "Sk Yds", group: "passing" },
-  { key: "ypa", label: "YPA", tooltip: "YPA", group: "efficiency" },
-  { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
-  { key: "rush_attempts", label: "Rush Att", tooltip: "Rush Att", group: "rushing" },
-  { key: "rush_yards", label: "Rush Yds", group: "rushing" },
-  { key: "fantasy_pts", label: "FPts", group: "rushing" },
-  { key: "rush_tds", label: "Rush TD", group: "rushing" },
-  { key: "total_tds", label: "Tot TD", group: "rushing" },
-];
+const QB_TABS: Record<string, TabConfig> = {
+  overview: {
+    label: "Overview",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "fantasy_pts", label: "FPts", group: "core" },
+      { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
+      { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
+      { key: "success_rate", label: "Success%", tooltip: "Success%", group: "passing" },
+      { key: "any_a", label: "ANY/A", tooltip: "ANY/A", group: "efficiency" },
+      { key: "passer_rating", label: "Rating", tooltip: "Rating", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["epa_per_db", "cpoe", "success_rate", "any_a", "passer_rating"]),
+    defaultSort: "epa_per_db",
+    rankBy: "epa_per_db",
+    defaultHeatmap: true,
+    showRank: true,
+  },
+  passing: {
+    label: "Passing",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "completions", label: "Cmp", group: "passing" },
+      { key: "attempts", label: "Att", group: "passing" },
+      { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
+      { key: "passing_yards", label: "Yards", group: "passing" },
+      { key: "yards_per_game", label: "Yds/G", group: "passing" },
+      { key: "ypa", label: "YPA", tooltip: "YPA", group: "passing" },
+      { key: "adot", label: "aDOT", tooltip: "aDOT", group: "efficiency" },
+      { key: "touchdowns", label: "TD", group: "passing" },
+      { key: "interceptions", label: "INT", group: "passing" },
+    ],
+    heatmapCols: new Set(["completion_pct", "ypa", "adot"]),
+    defaultSort: "passing_yards",
+    rankBy: "passing_yards",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  rates: {
+    label: "Rates",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "td_pct", label: "TD%", tooltip: "TD%", group: "passing" },
+      { key: "int_pct", label: "INT%", tooltip: "INT%", group: "passing" },
+      { key: "sack_pct", label: "SK%", tooltip: "SK%", group: "passing" },
+      { key: "scramble_pct", label: "SCR%", tooltip: "SCR%", group: "passing" },
+      { key: "completion_pct", label: "Comp%", tooltip: "Comp%", group: "passing" },
+      { key: "success_rate", label: "Success%", tooltip: "Success%", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["td_pct", "int_pct", "sack_pct", "completion_pct", "success_rate"]),
+    defaultSort: "td_pct",
+    rankBy: "td_pct",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  epa: {
+    label: "EPA",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "total_epa", label: "Total EPA", tooltip: "Total EPA", group: "core" },
+      { key: "epa_per_db", label: "EPA/DB", tooltip: "EPA/DB", group: "core" },
+      { key: "epa_per_play", label: "EPA/Play", tooltip: "EPA/Play", group: "core" },
+      { key: "rush_epa_per_play", label: "Rush EPA", tooltip: "Rush EPA", group: "rushing" },
+      { key: "cpoe", label: "CPOE", tooltip: "CPOE", group: "passing" },
+    ],
+    heatmapCols: new Set(["total_epa", "epa_per_db", "epa_per_play", "rush_epa_per_play", "cpoe"]),
+    defaultSort: "total_epa",
+    rankBy: "total_epa",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  fantasy: {
+    label: "Fantasy",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "fantasy_pts", label: "FPts", group: "core" },
+      { key: "passing_yards", label: "Pass Yds", group: "passing" },
+      { key: "touchdowns", label: "Pass TD", group: "passing" },
+      { key: "rush_yards", label: "Rush Yds", group: "rushing" },
+      { key: "rush_tds", label: "Rush TD", group: "rushing" },
+      { key: "interceptions", label: "INT", group: "passing" },
+      { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "passing" },
+    ],
+    heatmapCols: new Set(["fantasy_pts"]),
+    defaultSort: "fantasy_pts",
+    rankBy: "fantasy_pts",
+    defaultHeatmap: false,
+    showRank: true,
+  },
+};
 
-const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
-const VALID_STANDARD_KEYS = new Set(STANDARD_COLUMNS.map((c) => c.key));
-
-type Tab = "advanced" | "standard";
+type QBTab = keyof typeof QB_TABS;
+const TAB_KEYS = Object.keys(QB_TABS) as QBTab[];
 type SortDir = "asc" | "desc";
+
+// PFR qualification: 14 attempts per team game
+const PFR_ATT_PER_GAME = 14;
 
 // Header background tints for column groups
 const GROUP_COLORS: Record<string, string> = {
@@ -95,19 +162,11 @@ function getVal(qb: QBSeasonStat, key: string): number {
   }
 }
 
-// Columns that receive percentile-based conditional formatting
-const HEATMAP_COLS_ADVANCED = new Set([
-  "epa_per_play", "epa_per_db", "cpoe", "success_rate",
-  "any_a", "td_int_ratio", "adot", "rush_epa_per_play",
-]);
-const HEATMAP_COLS_STANDARD = new Set([
-  "completion_pct", "ypa", "passer_rating", "td_int_ratio",
-]);
+// Inverted heatmap columns (lower = better)
+const INVERTED_COLS = new Set(["int_pct", "sack_pct"]);
 
-// Format a raw numeric value (used for NFL AVG row where there's no QB object)
-// Note: This duplicates formatting logic from formatVal(). If formatVal's
-// formatting rules change, update this function too.
-function formatAvg(key: string, val: number): string {
+// Shared stat formatting (used by both formatVal and NFL AVG row)
+function formatStat(key: string, val: number): string {
   if (val == null || isNaN(val)) return "\u2014";
   switch (key) {
     case "epa_per_play":
@@ -117,11 +176,16 @@ function formatAvg(key: string, val: number): string {
     case "ypa":
     case "any_a":
     case "rush_epa_per_play":
+    case "total_epa":
       return val.toFixed(2);
     case "success_rate":
       return (val * 100).toFixed(1) + "%";
     case "completion_pct":
     case "passer_rating":
+    case "td_pct":
+    case "int_pct":
+    case "sack_pct":
+    case "scramble_pct":
       return val.toFixed(1);
     case "td_int_ratio":
       return val === Infinity ? "\u221E" : val.toFixed(1) + ":1";
@@ -142,13 +206,17 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   // Read URL params with validation
   const urlTab = searchParams.get("tab");
-  const initialTab: Tab = urlTab === "standard" ? "standard" : "advanced";
+  // Backwards compat: map old tab values to new ones
+  const TAB_MIGRATION: Record<string, QBTab> = { advanced: "overview", standard: "passing" };
+  const resolvedTab = TAB_MIGRATION[urlTab ?? ""] ?? urlTab;
+  const initialTab: QBTab = TAB_KEYS.includes(resolvedTab as QBTab) ? (resolvedTab as QBTab) : "overview";
 
   const urlSort = searchParams.get("sort");
+  const tabConfig = QB_TABS[initialTab];
+  const validKeys = new Set(tabConfig.columns.map((c) => c.key));
   const initialSortKey = (() => {
-    if (!urlSort) return initialTab === "advanced" ? "epa_per_play" : "passing_yards";
-    const validKeys = initialTab === "advanced" ? VALID_ADVANCED_KEYS : VALID_STANDARD_KEYS;
-    return validKeys.has(urlSort) ? urlSort : (initialTab === "advanced" ? "epa_per_play" : "passing_yards");
+    if (!urlSort) return tabConfig.defaultSort;
+    return validKeys.has(urlSort) ? urlSort : tabConfig.defaultSort;
   })();
 
   const urlDir = searchParams.get("dir");
@@ -156,48 +224,58 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   const urlSearch = searchParams.get("q") || "";
 
+  const pfrMinAttempts = Math.round(PFR_ATT_PER_GAME * throughWeek);
+  const urlQualified = searchParams.get("qualified");
+  const initialQualified = urlQualified !== "0";
+
   const urlMin = searchParams.get("min");
-  const computedDefaultMin = Math.max(50, Math.round(200 * (throughWeek / 18)));
+  const computedDefaultMin = initialQualified ? pfrMinAttempts : Math.max(50, Math.round(200 * (throughWeek / 18)));
   const initialMin = (() => {
+    if (initialQualified) return pfrMinAttempts;
     if (!urlMin) return computedDefaultMin;
     const parsed = parseInt(urlMin, 10);
     return isNaN(parsed) || parsed < 0 ? computedDefaultMin : parsed;
   })();
 
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<QBTab>(initialTab);
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
   const [sortDir, setSortDir] = useState<SortDir>(initialSortDir);
   const [search, setSearch] = useState(urlSearch);
   const [minDropbacks, setMinDropbacks] = useState(initialMin);
+  const [qualified, setQualified] = useState(initialQualified);
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number }) => {
+    (overrides: { tab?: QBTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean }) => {
       const params = new URLSearchParams(searchParams.toString());
       // Remove our managed keys, then re-add non-defaults
-      ["tab", "sort", "dir", "q", "min"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "qualified"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
-      const defaultSort = newTab === "advanced" ? "epa_per_play" : "passing_yards";
+      const defaultSort = QB_TABS[newTab].defaultSort;
       const newSort = overrides.sort ?? sortKey;
       const newDir = overrides.dir ?? sortDir;
       const newQ = overrides.q ?? search;
+      const newQualified = overrides.qualified ?? qualified;
       const newMin = overrides.min ?? minDropbacks;
 
-      if (newTab !== "advanced") params.set("tab", newTab);
+      if (newTab !== "overview") params.set("tab", newTab);
       if (newSort !== defaultSort) params.set("sort", newSort);
       if (newDir !== "desc") params.set("dir", newDir);
       if (newQ) params.set("q", newQ);
-      if (newMin !== computedDefaultMin) params.set("min", String(newMin));
+      if (!newQualified) {
+        params.set("qualified", "0");
+        if (newMin !== pfrMinAttempts) params.set("min", String(newMin));
+      }
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minDropbacks, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minDropbacks, qualified, pfrMinAttempts, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number }) => {
+    (overrides: { tab?: QBTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -215,20 +293,22 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     [buildParams, router]
   );
 
-  const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const activeTabConfig = QB_TABS[tab];
+  const columns = activeTabConfig.columns;
+  const [showHeatmap, setShowHeatmap] = useState(activeTabConfig.defaultHeatmap);
   const [archFilter, setArchFilter] = useState("");
   const [scoringFormat, setScoringFormat] = useState<ScoringFormat>("ppr");
 
-  const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
+  const heatmapCols = activeTabConfig.heatmapCols;
 
-  // When switching tabs, reset sort to a sensible default for that tab
-  function switchTab(newTab: Tab) {
+  // When switching tabs, reset sort to tab default and revalidate
+  function switchTab(newTab: QBTab) {
+    const cfg = QB_TABS[newTab];
     setTab(newTab);
-    const newSort = newTab === "advanced" ? "epa_per_play" : "passing_yards";
-    setSortKey(newSort);
+    setSortKey(cfg.defaultSort);
     setSortDir("desc");
-    pushURL({ tab: newTab, sort: newSort, dir: "desc" });
+    setShowHeatmap(cfg.defaultHeatmap);
+    pushURL({ tab: newTab, sort: cfg.defaultSort, dir: "desc" });
   }
 
   // Compute archetype for each QB based on percentiles against ALL QBs (not filtered)
@@ -272,7 +352,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   );
 
   const filtered = useMemo(() => {
-    let result = data.filter((qb) => qb.dropbacks >= minDropbacks);
+    let result = data.filter((qb) => qb.attempts >= minDropbacks);
     if (search) {
       const term = search.toLowerCase();
       result = result.filter((qb) => qb.player_name.toLowerCase().includes(term));
@@ -292,6 +372,24 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     });
     return result;
   }, [data, sortKey, sortDir, search, minDropbacks, archFilter, archetypeMap]);
+
+  // Position rank: fixed by tab's rankBy stat, independent of user sort
+  const rankMap = useMemo(() => {
+    const rankByKey = activeTabConfig.rankBy;
+    const ranked = [...filtered].sort((a, b) => {
+      const aVal = getVal(a, rankByKey);
+      const bVal = getVal(b, rankByKey);
+      const aNull = aVal == null || Number.isNaN(aVal);
+      const bNull = bVal == null || Number.isNaN(bVal);
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      return bVal - aVal; // Always desc for rank
+    });
+    const map: Record<string, number> = {};
+    ranked.forEach((qb, i) => { map[qb.player_id] = i + 1; });
+    return map;
+  }, [filtered, activeTabConfig.rankBy]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -331,35 +429,9 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   function formatVal(key: string, qb: QBSeasonStat): string {
     const val = getVal(qb, key);
     if (val == null || (typeof val === "number" && Number.isNaN(val))) return "\u2014";
-    const n = val;
-    switch (key) {
-      case "epa_per_play":
-      case "epa_per_db":
-      case "cpoe":
-      case "adot":
-      case "ypa":
-      case "any_a":
-      case "rush_epa_per_play":
-        return n.toFixed(2);
-      case "completion_pct":
-        return n.toFixed(1);
-      case "success_rate":
-        return (n * 100).toFixed(1) + "%";
-      case "passer_rating":
-        return n.toFixed(1);
-      case "yards_per_game":
-      case "tds_per_game":
-        return n.toFixed(1);
-      case "total_tds":
-        return n.toString();
-      case "td_int_ratio":
-        if (!Number.isFinite(n)) return `${qb.touchdowns}:0`;
-        return n.toFixed(1) + ":1";
-      case "fantasy_pts":
-        return n.toFixed(1);
-      default:
-        return Number.isInteger(n) ? n.toString() : n.toFixed(1);
-    }
+    // Special case for td_int_ratio with infinity
+    if (key === "td_int_ratio" && !Number.isFinite(val)) return `${qb.touchdowns}:0`;
+    return formatStat(key, val);
   }
 
   function epaColor(val: number): string {
@@ -367,35 +439,31 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   }
 
   const isEpaCol = (key: string) =>
-    key === "epa_per_play" || key === "epa_per_db" || key === "rush_epa_per_play";
+    key === "epa_per_play" || key === "epa_per_db" || key === "rush_epa_per_play" || key === "total_epa";
 
   return (
     <div>
       {/* Tab bar + Controls */}
       <div className="flex flex-col gap-4 mb-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Tabs */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            <button
-              onClick={() => switchTab("advanced")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === "advanced"
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Advanced
-            </button>
-            <button
-              onClick={() => switchTab("standard")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === "standard"
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Standard
-            </button>
+          {/* Tabs — scrollable on mobile */}
+          <div className="relative">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide" style={{ scrollSnapType: "x mandatory" }}>
+              {TAB_KEYS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => switchTab(t)}
+                  style={{ scrollSnapAlign: "start" }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors ${
+                    tab === t
+                      ? "bg-navy text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {QB_TABS[t].label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Search + Slider */}
@@ -411,22 +479,48 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
               className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-navy/20 w-full sm:w-64"
             />
             <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-500 whitespace-nowrap">
-                Min dropbacks: <span className="font-semibold text-navy">{minDropbacks}</span>
+              <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={qualified}
+                  onChange={(e) => {
+                    const isQ = e.target.checked;
+                    setQualified(isQ);
+                    if (isQ) {
+                      setMinDropbacks(pfrMinAttempts);
+                      pushURL({ qualified: true, min: pfrMinAttempts });
+                    } else {
+                      pushURL({ qualified: false });
+                    }
+                  }}
+                  className="rounded border-gray-300 text-navy focus:ring-navy/20"
+                />
+                PFR Qualified
               </label>
-              <input
-                type="range"
-                min={50}
-                max={500}
-                step={10}
-                value={minDropbacks}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setMinDropbacks(val);
-                  replaceURLDebounced({ min: val });
-                }}
-                className="w-full sm:w-32"
-              />
+              {qualified ? (
+                <span className="text-xs font-medium text-navy bg-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {pfrMinAttempts}+ att
+                </span>
+              ) : (
+                <>
+                  <label className="text-sm text-gray-500 whitespace-nowrap">
+                    Min att: <span className="font-semibold text-navy">{minDropbacks}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={10}
+                    max={500}
+                    step={10}
+                    value={minDropbacks}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setMinDropbacks(val);
+                      replaceURLDebounced({ min: val });
+                    }}
+                    className="w-full sm:w-32"
+                  />
+                </>
+              )}
             </div>
             <select
               value={archFilter}
@@ -471,8 +565,8 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-8 sticky left-0 z-20">#</th>
-              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky left-8 z-20">Player</th>
+              {activeTabConfig.showRank && <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-14 sticky left-0 z-20">Rank</th>}
+              <th className={`bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-20`}>Player</th>
               <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold">Team</th>
               {columns.map((col) => (
                 <th
@@ -527,8 +621,8 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
                   const avgRow = showAvgBefore ? (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
@@ -538,7 +632,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, averages[col.key])}
+                          {formatStat(col.key, averages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -550,8 +644,12 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                       <tr
                         className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors"
                       >
-                        <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                        <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
+                        {activeTabConfig.showRank && (
+                          <td className="px-2 py-2 text-gray-400 font-bold tabular-nums text-xs w-14 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50 font-mono">
+                            QB{rankMap[qb.player_id] ?? idx + 1}
+                          </td>
+                        )}
+                        <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10 bg-white group-hover:bg-gray-50/50`}>
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
                             <Link
@@ -570,15 +668,17 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                         <td className="px-2 py-2 text-xs">
                           <Link
                             href={`/team/${qb.team_id}`}
-                            className="text-gray-500 hover:text-navy hover:underline transition-colors"
+                            className="text-gray-500 hover:text-navy hover:underline transition-colors inline-flex items-center gap-1"
                           >
+                            <img src={getTeamLogo(qb.team_id)} width={20} height={20} alt={qb.team_id} loading="eager" className="inline-block" />
                             {qb.team_id}
                           </Link>
                         </td>
                         {columns.map((col) => {
                           const val = getVal(qb, col.key);
                           const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
-                          const pct = isHeatmapCol ? getHeatmapPercentile(sortedByCol[col.key] || [], val) : -1;
+                          let pct = isHeatmapCol ? getHeatmapPercentile(sortedByCol[col.key] || [], val) : -1;
+                          if (isHeatmapCol && INVERTED_COLS.has(col.key)) pct = 100 - pct;
                           const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
 
                           const cellClass = isHeatmapCol
@@ -606,8 +706,8 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                   if (!belongsAfterLast) return null;
                   return (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
@@ -617,7 +717,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, averages[col.key])}
+                          {formatStat(col.key, averages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -630,7 +730,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
       </div>
 
       <p className="mt-2 text-xs text-gray-400">
-        Showing {filtered.length} of {data.length} quarterbacks with &ge;{minDropbacks} dropbacks
+        Showing {filtered.length} of {data.length} quarterbacks with &ge;{minDropbacks} attempts{qualified && " (PFR qualified)"}
       </p>
 
       <div className="mt-4 text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-3">

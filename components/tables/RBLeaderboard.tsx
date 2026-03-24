@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { RBSeasonStat } from "@/lib/types";
-import { getTeamColor } from "@/lib/data/teams";
+import { getTeamColor, getTeamLogo } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
@@ -25,55 +25,136 @@ type ColumnDef = {
   tooltip?: string;
 };
 
-const ADVANCED_COLUMNS: ColumnDef[] = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "fpts", label: "FPts", group: "core" },
-  { key: "epa_per_carry", label: "EPA/Car", tooltip: "EPA/Car", group: "core" },
-  { key: "success_rate", label: "Success%", tooltip: "Success%", group: "efficiency" },
-  { key: "stuff_rate", label: "Stuff%", tooltip: "Stuff%", group: "efficiency" },
-  { key: "explosive_rate", label: "Explosive%", tooltip: "Explosive%", group: "efficiency" },
-  { key: "carries_per_game", label: "Car/G", group: "efficiency" },
-];
+type TabConfig = {
+  label: string;
+  columns: ColumnDef[];
+  heatmapCols: Set<string>;
+  defaultSort: string;
+  rankBy: string;
+  defaultHeatmap: boolean;
+  showRank: boolean;
+};
 
-const STANDARD_COLUMNS: ColumnDef[] = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "fpts", label: "FPts", group: "core" },
-  { key: "carries", label: "Carries", group: "rushing" },
-  { key: "rushing_yards", label: "Yards", group: "rushing" },
-  { key: "yards_per_carry", label: "YPC", group: "rushing" },
-  { key: "rushing_tds", label: "TD", group: "rushing" },
-  { key: "yards_per_game", label: "Yds/G", group: "rushing" },
-  { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "rushing" },
-];
+const RB_TABS: Record<string, TabConfig> = {
+  overview: {
+    label: "Overview",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "fantasy_pts", label: "FPts", group: "core" },
+      { key: "epa_per_carry", label: "EPA/Car", tooltip: "EPA/Car", group: "core" },
+      { key: "success_rate", label: "Success%", tooltip: "Success%", group: "efficiency" },
+      { key: "stuff_rate", label: "Stuff%", tooltip: "Stuff%", group: "efficiency" },
+      { key: "explosive_rate", label: "Explosive%", tooltip: "Explosive%", group: "efficiency" },
+      { key: "yards_per_carry", label: "YPC", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["epa_per_carry", "success_rate", "stuff_rate", "explosive_rate", "yards_per_carry"]),
+    defaultSort: "epa_per_carry",
+    rankBy: "epa_per_carry",
+    defaultHeatmap: true,
+    showRank: true,
+  },
+  rushing: {
+    label: "Rushing",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "carries", label: "Car", group: "rushing" },
+      { key: "rushing_yards", label: "Yds", group: "rushing" },
+      { key: "yards_per_game", label: "Yds/G", group: "rushing" },
+      { key: "yards_per_carry", label: "YPC", group: "rushing" },
+      { key: "rushing_tds", label: "TD", group: "rushing" },
+      { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "rushing" },
+    ],
+    heatmapCols: new Set(["yards_per_carry"]),
+    defaultSort: "rushing_yards",
+    rankBy: "rushing_yards",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  epa: {
+    label: "EPA",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "total_rushing_epa", label: "Total EPA", tooltip: "Total EPA", group: "core" },
+      { key: "epa_per_carry", label: "EPA/Car", tooltip: "EPA/Car", group: "core" },
+      { key: "success_rate", label: "Success%", tooltip: "Success%", group: "efficiency" },
+      { key: "stuff_rate", label: "Stuff%", tooltip: "Stuff%", group: "efficiency" },
+      { key: "explosive_rate", label: "Explosive%", tooltip: "Explosive%", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["total_rushing_epa", "epa_per_carry", "success_rate", "stuff_rate", "explosive_rate"]),
+    defaultSort: "total_rushing_epa",
+    rankBy: "total_rushing_epa",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  fantasy: {
+    label: "Fantasy",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "fantasy_pts", label: "PPR", group: "core" },
+      { key: "half_pts", label: "Half", group: "core" },
+      { key: "std_pts", label: "Std", group: "core" },
+      { key: "carries", label: "Car", group: "rushing" },
+      { key: "rushing_yards", label: "Rush Yds", group: "rushing" },
+      { key: "rushing_tds", label: "Rush TD", group: "rushing" },
+      { key: "receptions", label: "Rec", group: "receiving" },
+      { key: "receiving_yards_display", label: "Rec Yds", group: "receiving" },
+      { key: "receiving_tds_display", label: "Rec TD", group: "receiving" },
+      { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "rushing" },
+    ],
+    heatmapCols: new Set(["fantasy_pts"]),
+    defaultSort: "fantasy_pts",
+    rankBy: "fantasy_pts",
+    defaultHeatmap: false,
+    showRank: true,
+  },
+};
 
-const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
-const VALID_STANDARD_KEYS = new Set(STANDARD_COLUMNS.map((c) => c.key));
-
-type Tab = "advanced" | "standard";
+type RBTab = keyof typeof RB_TABS;
+const TAB_KEYS = Object.keys(RB_TABS) as RBTab[];
 type SortDir = "asc" | "desc";
+
+// PFR qualification: 6.25 carries per team game
+const PFR_CAR_PER_GAME = 6.25;
 
 // Header background tints for column groups
 const GROUP_COLORS: Record<string, string> = {
   core: "bg-navy",
   rushing: "bg-navy/[0.92]",
+  receiving: "bg-navy/[0.85]",
   efficiency: "bg-navy/[0.78]",
 };
 
 function getVal(rb: RBSeasonStat, key: string, scoringFmt?: ScoringFormat): number {
+  const fpts = (fmt: ScoringFormat) => rbFantasyPoints({
+    rushing_yards: rb.rushing_yards,
+    rushing_tds: rb.rushing_tds,
+    receiving_yards: rb.receiving_yards,
+    receiving_tds: rb.receiving_tds,
+    receptions: rb.receptions,
+    fumbles_lost: rb.fumbles_lost,
+  }, fmt);
   switch (key) {
     case "yards_per_game":
       return rb.games ? rb.rushing_yards / rb.games : NaN;
     case "carries_per_game":
       return rb.games ? rb.carries / rb.games : NaN;
-    case "fpts":
-      return rbFantasyPoints({
-        rushing_yards: rb.rushing_yards,
-        rushing_tds: rb.rushing_tds,
-        receiving_yards: rb.receiving_yards,
-        receiving_tds: rb.receiving_tds,
-        receptions: rb.receptions,
-        fumbles_lost: rb.fumbles_lost,
-      }, scoringFmt ?? "ppr");
+    case "fantasy_pts":
+      return fpts(scoringFmt ?? "ppr");
+    case "half_pts":
+      return fpts("half");
+    case "std_pts":
+      return fpts("std");
+    case "total_touches":
+      return rb.total_touches ?? (rb.carries + rb.receptions);
+    case "touches_per_game":
+      if (rb.touches_per_game != null) return rb.touches_per_game;
+      return rb.games ? (rb.carries + rb.receptions) / rb.games : NaN;
+    case "total_rushing_epa":
+      return rb.total_rushing_epa ?? NaN;
+    case "receiving_yards_display":
+      return rb.receiving_yards ?? NaN;
+    case "receiving_tds_display":
+      return rb.receiving_tds ?? NaN;
     default: {
       const val = rb[key as keyof RBSeasonStat] as number;
       return val ?? NaN;
@@ -81,23 +162,16 @@ function getVal(rb: RBSeasonStat, key: string, scoringFmt?: ScoringFormat): numb
   }
 }
 
-// Columns that receive percentile-based conditional formatting
-const HEATMAP_COLS_ADVANCED = new Set([
-  "epa_per_carry", "success_rate", "stuff_rate", "explosive_rate",
-]);
-const HEATMAP_COLS_STANDARD = new Set([
-  "yards_per_carry",
-]);
-
-// For stuff_rate, lower is better
+// Inverted heatmap columns (lower = better)
 const INVERTED_COLS = new Set(["stuff_rate"]);
 
-function formatVal(key: string, rb: RBSeasonStat, scoringFmt?: ScoringFormat): string {
-  const val = getVal(rb, key, scoringFmt);
+// Shared stat formatting (used by both player rows and NFL AVG row)
+function formatStat(key: string, val: number): string {
   if (val == null || isNaN(val)) return "\u2014";
   switch (key) {
     case "epa_per_carry":
     case "yards_per_carry":
+    case "total_rushing_epa":
       return val.toFixed(2);
     case "success_rate":
     case "stuff_rate":
@@ -105,29 +179,11 @@ function formatVal(key: string, rb: RBSeasonStat, scoringFmt?: ScoringFormat): s
       return (val * 100).toFixed(1) + "%";
     case "yards_per_game":
     case "carries_per_game":
+    case "touches_per_game":
       return val.toFixed(1);
-    case "fpts":
-      return val.toFixed(1);
-    default:
-      return Number.isInteger(val) ? val.toString() : val.toFixed(1);
-  }
-}
-
-// Format a raw numeric value (used for NFL AVG row where there's no RB object)
-function formatAvg(key: string, val: number): string {
-  if (val == null || isNaN(val)) return "\u2014";
-  switch (key) {
-    case "epa_per_carry":
-    case "yards_per_carry":
-      return val.toFixed(2);
-    case "success_rate":
-    case "stuff_rate":
-    case "explosive_rate":
-      return (val * 100).toFixed(1) + "%";
-    case "yards_per_game":
-    case "carries_per_game":
-      return val.toFixed(1);
-    case "fpts":
+    case "fantasy_pts":
+    case "half_pts":
+    case "std_pts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -141,13 +197,16 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   // Read URL params with validation
   const urlTab = searchParams.get("tab");
-  const initialTab: Tab = urlTab === "standard" ? "standard" : "advanced";
+  const TAB_MIGRATION: Record<string, RBTab> = { advanced: "overview", standard: "rushing" };
+  const resolvedTab = TAB_MIGRATION[urlTab ?? ""] ?? urlTab;
+  const initialTab: RBTab = TAB_KEYS.includes(resolvedTab as RBTab) ? (resolvedTab as RBTab) : "overview";
 
   const urlSort = searchParams.get("sort");
+  const tabConfig = RB_TABS[initialTab];
+  const validKeys = new Set(tabConfig.columns.map((c) => c.key));
   const initialSortKey = (() => {
-    if (!urlSort) return initialTab === "advanced" ? "epa_per_carry" : "rushing_yards";
-    const validKeys = initialTab === "advanced" ? VALID_ADVANCED_KEYS : VALID_STANDARD_KEYS;
-    return validKeys.has(urlSort) ? urlSort : (initialTab === "advanced" ? "epa_per_carry" : "rushing_yards");
+    if (!urlSort) return tabConfig.defaultSort;
+    return validKeys.has(urlSort) ? urlSort : tabConfig.defaultSort;
   })();
 
   const urlDir = searchParams.get("dir");
@@ -155,9 +214,14 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   const urlSearch = searchParams.get("q") || "";
 
-  const computedDefaultMin = Math.max(20, Math.round(100 * (throughWeek / 18)));
+  const pfrMinCarries = Math.round(PFR_CAR_PER_GAME * throughWeek);
+  const urlQualified = searchParams.get("qualified");
+  const initialQualified = urlQualified !== "0";
+
   const urlMin = searchParams.get("min");
+  const computedDefaultMin = initialQualified ? pfrMinCarries : Math.max(20, Math.round(100 * (throughWeek / 18)));
   const initialMin = (() => {
+    if (initialQualified) return pfrMinCarries;
     if (!urlMin) return computedDefaultMin;
     const parsed = parseInt(urlMin, 10);
     return isNaN(parsed) || parsed < 0 ? computedDefaultMin : parsed;
@@ -168,11 +232,12 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const urlScoring = searchParams.get("scoring");
   const initialScoring: ScoringFormat = urlScoring === "half" ? "half" : urlScoring === "std" ? "std" : "ppr";
 
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<RBTab>(initialTab);
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
   const [sortDir, setSortDir] = useState<SortDir>(initialSortDir);
   const [search, setSearch] = useState(urlSearch);
   const [minCarries, setMinCarries] = useState(initialMin);
+  const [qualified, setQualified] = useState(initialQualified);
   const [teamFilter, setTeamFilter] = useState(urlTeam);
   const [archFilter, setArchFilter] = useState(urlArch);
   const [scoringFormat, setScoringFormat] = useState<ScoringFormat>(initialScoring);
@@ -185,25 +250,29 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
   // Build URL from current state, omitting defaults
   const buildParams = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; team?: string; arch?: string; scoring?: ScoringFormat }) => {
+    (overrides: { tab?: RBTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean; team?: string; arch?: string; scoring?: ScoringFormat }) => {
       const params = new URLSearchParams(searchParams.toString());
-      ["tab", "sort", "dir", "q", "min", "team", "arch", "scoring"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "qualified", "team", "arch", "scoring"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
-      const defaultSort = newTab === "advanced" ? "epa_per_carry" : "rushing_yards";
+      const defaultSort = RB_TABS[newTab].defaultSort;
       const newSort = overrides.sort ?? sortKey;
       const newDir = overrides.dir ?? sortDir;
       const newQ = overrides.q ?? search;
+      const newQualified = overrides.qualified ?? qualified;
       const newMin = overrides.min ?? minCarries;
       const newTeam = overrides.team ?? teamFilter;
       const newArch = overrides.arch ?? archFilter;
       const newScoring = overrides.scoring ?? scoringFormat;
 
-      if (newTab !== "advanced") params.set("tab", newTab);
+      if (newTab !== "overview") params.set("tab", newTab);
       if (newSort !== defaultSort) params.set("sort", newSort);
       if (newDir !== "desc") params.set("dir", newDir);
       if (newQ) params.set("q", newQ);
-      if (newMin !== computedDefaultMin) params.set("min", String(newMin));
+      if (!newQualified) {
+        params.set("qualified", "0");
+        if (newMin !== pfrMinCarries) params.set("min", String(newMin));
+      }
       if (newTeam) params.set("team", newTeam);
       if (newArch) params.set("arch", newArch);
       if (newScoring !== "ppr") params.set("scoring", newScoring);
@@ -211,11 +280,11 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minCarries, teamFilter, archFilter, scoringFormat, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minCarries, qualified, pfrMinCarries, teamFilter, archFilter, scoringFormat, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; team?: string; arch?: string; scoring?: ScoringFormat }) => {
+    (overrides: { tab?: RBTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean; team?: string; arch?: string; scoring?: ScoringFormat }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -233,18 +302,20 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     [buildParams, router]
   );
 
-  const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const activeTabConfig = RB_TABS[tab];
+  const columns = activeTabConfig.columns;
+  const [showHeatmap, setShowHeatmap] = useState(activeTabConfig.defaultHeatmap);
 
-  const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
+  const heatmapCols = activeTabConfig.heatmapCols;
 
-  // When switching tabs, reset sort to a sensible default for that tab
-  function switchTab(newTab: Tab) {
+  // When switching tabs, reset sort to tab default and revalidate
+  function switchTab(newTab: RBTab) {
+    const cfg = RB_TABS[newTab];
     setTab(newTab);
-    const newSort = newTab === "advanced" ? "epa_per_carry" : "rushing_yards";
-    setSortKey(newSort);
+    setSortKey(cfg.defaultSort);
     setSortDir("desc");
-    pushURL({ tab: newTab, sort: newSort, dir: "desc" });
+    setShowHeatmap(cfg.defaultHeatmap);
+    pushURL({ tab: newTab, sort: cfg.defaultSort, dir: "desc" });
   }
 
   // Compute archetype for each RB
@@ -313,6 +384,24 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return result;
   }, [data, sortKey, sortDir, search, minCarries, teamFilter, archFilter, archetypeMap, scoringFormat]);
 
+  // Position rank: fixed by tab's rankBy stat, independent of user sort
+  const rankMap = useMemo(() => {
+    const rankByKey = activeTabConfig.rankBy;
+    const ranked = [...filtered].sort((a, b) => {
+      const aVal = getVal(a, rankByKey, scoringFormat);
+      const bVal = getVal(b, rankByKey, scoringFormat);
+      const aNull = aVal == null || Number.isNaN(aVal);
+      const bNull = bVal == null || Number.isNaN(bVal);
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
+      return bVal - aVal; // Always desc for rank
+    });
+    const map: Record<string, number> = {};
+    ranked.forEach((rb, i) => { map[rb.player_id] = i + 1; });
+    return map;
+  }, [filtered, activeTabConfig.rankBy, scoringFormat]);
+
   // Heatmap percentiles use the min-carries-only pool (ignoring team/archetype filters)
   const heatmapPool = useMemo(() => data.filter((rb) => rb.carries >= minCarries), [data, minCarries]);
 
@@ -370,7 +459,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
   }
 
-  const isEpaCol = (key: string) => key === "epa_per_carry";
+  const isEpaCol = (key: string) => key === "epa_per_carry" || key === "total_rushing_epa";
 
   // suppress unused variable warning
   void season;
@@ -379,49 +468,28 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     <div>
       {/* Tab bar + Controls */}
       <div className="flex flex-col gap-4 mb-4">
-        {/* Row 1: Tabs */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            <button
-              onClick={() => switchTab("advanced")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === "advanced"
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Advanced
-            </button>
-            <button
-              onClick={() => switchTab("standard")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === "standard"
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Standard
-            </button>
-          </div>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => { setScoringFormat(val); pushURL({ scoring: val }); }}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  scoringFormat === val
-                    ? "bg-navy text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2: Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Tabs — scrollable on mobile */}
+          <div className="relative">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide" style={{ scrollSnapType: "x mandatory" }}>
+              {TAB_KEYS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => switchTab(t)}
+                  style={{ scrollSnapAlign: "start" }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors ${
+                    tab === t
+                      ? "bg-navy text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {RB_TABS[t].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search + Slider */}
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
               type="text"
@@ -446,6 +514,50 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={qualified}
+                  onChange={(e) => {
+                    const isQ = e.target.checked;
+                    setQualified(isQ);
+                    if (isQ) {
+                      setMinCarries(pfrMinCarries);
+                      pushURL({ qualified: true, min: pfrMinCarries });
+                    } else {
+                      pushURL({ qualified: false });
+                    }
+                  }}
+                  className="rounded border-gray-300 text-navy focus:ring-navy/20"
+                />
+                PFR Qualified
+              </label>
+              {qualified ? (
+                <span className="text-xs font-medium text-navy bg-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {pfrMinCarries}+ car
+                </span>
+              ) : (
+                <>
+                  <label className="text-sm text-gray-500 whitespace-nowrap">
+                    Min carries: <span className="font-semibold text-navy">{minCarries}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={10}
+                    max={300}
+                    step={10}
+                    value={minCarries}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setMinCarries(val);
+                      replaceURLDebounced({ min: val });
+                    }}
+                    className="w-full sm:w-32"
+                  />
+                </>
+              )}
+            </div>
             <select
               value={archFilter}
               onChange={(e) => { setArchFilter(e.target.value); pushURL({ arch: e.target.value }); }}
@@ -456,23 +568,20 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                 <option key={a} value={a}>{a}</option>
               ))}
             </select>
-            <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-500 whitespace-nowrap">
-                Min carries: <span className="font-semibold text-navy">{minCarries}</span>
-              </label>
-              <input
-                type="range"
-                min={10}
-                max={300}
-                step={10}
-                value={minCarries}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setMinCarries(val);
-                  replaceURLDebounced({ min: val });
-                }}
-                className="w-full sm:w-32"
-              />
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => { setScoringFormat(val); pushURL({ scoring: val }); }}
+                  className={`px-2 py-1 text-xs font-medium transition-colors ${
+                    scoringFormat === val
+                      ? "bg-navy text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
               <input
@@ -492,8 +601,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-8 sticky left-0 z-20">#</th>
-              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky left-8 z-20">Player</th>
+              {activeTabConfig.showRank && <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-14 sticky left-0 z-20">Rank</th>}
+              <th className={`bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-20`}>Player</th>
               <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold">Team</th>
               {columns.map((col) => (
                 <th
@@ -548,8 +657,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                   // Team AVG row (only when team filter active, shown once before first player)
                   const teamAvgRow = (showHeatmap && teamFilter && idx === 0) ? (
                     <tr key="team-avg" className="border-t border-blue-300">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#eff6ff" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#eff6ff" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 700, fontStyle: "italic" }}>
                         {teamFilter} AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#eff6ff", color: "#1e40af" }}>&mdash;</td>
@@ -559,7 +668,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 600, borderBottom: "2px solid #3b82f6" }}
                         >
-                          {formatAvg(col.key, teamAverages[col.key])}
+                          {formatStat(col.key, teamAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -567,8 +676,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
                   const avgRow = showAvgBefore ? (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
@@ -578,7 +687,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, nflAverages[col.key])}
+                          {formatStat(col.key, nflAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -589,8 +698,12 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                       {teamAvgRow}
                       {avgRow}
                       <tr className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                        <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
+                        {activeTabConfig.showRank && (
+                        <td className="px-2 py-2 text-gray-400 font-bold tabular-nums text-xs w-14 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50 font-mono">
+                          RB{rankMap[rb.player_id] ?? idx + 1}
+                        </td>
+                        )}
+                        <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10 bg-white group-hover:bg-gray-50/50`}>
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(rb.team_id) }} />
                             <Link
@@ -610,17 +723,18 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                         <td className="px-2 py-2 text-xs">
                           <Link
                             href={`/team/${rb.team_id}`}
-                            className="text-gray-500 hover:text-navy hover:underline transition-colors"
+                            className="text-gray-500 hover:text-navy hover:underline transition-colors inline-flex items-center gap-1"
                           >
+                            <img src={getTeamLogo(rb.team_id)} width={20} height={20} alt={rb.team_id} loading="eager" className="inline-block" />
                             {rb.team_id}
                           </Link>
                         </td>
                         {columns.map((col) => {
                           const val = getVal(rb, col.key, scoringFormat);
                           const isHeatmapCol = showHeatmap && heatmapCols.has(col.key);
-                          const pct = isHeatmapCol ? getHeatmapPercentile(sortedByCol[col.key] || [], val) : -1;
-                          const inverted = INVERTED_COLS.has(col.key);
-                          const heatStyle = isHeatmapCol ? getHeatmapStyle(pct, inverted) : {};
+                          let pct = isHeatmapCol ? getHeatmapPercentile(sortedByCol[col.key] || [], val) : -1;
+                          if (isHeatmapCol && INVERTED_COLS.has(col.key)) pct = 100 - pct;
+                          const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
 
                           const cellClass = isHeatmapCol
                             ? "px-2 py-2 text-right tabular-nums"
@@ -630,7 +744,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
                           return (
                             <td key={col.key} className={cellClass} style={heatStyle}>
-                              {formatVal(col.key, rb, scoringFormat)}
+                              {formatStat(col.key, getVal(rb, col.key, scoringFormat))}
                             </td>
                           );
                         })}
@@ -647,8 +761,8 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                   if (!belongsAfterLast) return null;
                   return (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
@@ -658,7 +772,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, nflAverages[col.key])}
+                          {formatStat(col.key, nflAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -671,7 +785,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
       </div>
 
       <p className="mt-2 text-xs text-gray-400">
-        Showing {filtered.length} of {data.length} rushers with &ge;{minCarries} carries
+        Showing {filtered.length} of {data.length} rushers with &ge;{minCarries} carries{qualified && " (PFR qualified)"}
         {teamFilter ? ` (${teamFilter})` : ""}
       </p>
 

@@ -23,6 +23,7 @@ def make_plays(**overrides):
         'receiving_yards': 10.0,
         'pass_touchdown': 0,
         'epa': 0.5,
+        'cp': 0.65,
         'yards_after_catch': 5.0,
         'air_yards': 5.0,
         'success': 1,
@@ -297,6 +298,7 @@ class TestOutputColumns:
             'epa_per_target', 'yac', 'yac_per_reception',
             'air_yards', 'air_yards_per_target', 'target_share',
             'fumbles', 'fumbles_lost',
+            'air_yards_share', 'croe', 'receiving_success_rate', 'total_receiving_epa',
         ]
         for col in expected:
             assert col in result.columns, f"Missing column: {col}"

@@ -8,6 +8,8 @@ const RB_NUMERIC_FIELDS = [
   "success_rate",
   "stuff_rate",
   "explosive_rate",
+  "touches_per_game",
+  "total_rushing_epa",
 ];
 
 export async function getRBSeasonStats(

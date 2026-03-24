@@ -85,19 +85,27 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
           )}
         </div>
 
-        {/* Season selector */}
-        <Suspense
-          fallback={
-            <select
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-md bg-white text-navy font-medium"
-              disabled
-            >
-              <option>{season} Season</option>
-            </select>
-          }
-        >
-          <SeasonSelector seasons={seasons} season={season} />
-        </Suspense>
+        {/* Actions */}
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/compare?p1=${player.slug}`}
+            className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
+          >
+            Compare
+          </Link>
+          <Suspense
+            fallback={
+              <select
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded-md bg-white text-navy font-medium"
+                disabled
+              >
+                <option>{season} Season</option>
+              </select>
+            }
+          >
+            <SeasonSelector seasons={seasons} season={season} />
+          </Suspense>
+        </div>
       </div>
     </div>
   );

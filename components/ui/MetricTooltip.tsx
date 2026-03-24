@@ -58,6 +58,24 @@ const METRIC_DEFINITIONS: Record<string, string> = {
     "Percentage of carries stopped at or behind the line of scrimmage (\u22640 yards). Lower is better.",
   "Explosive%":
     "Percentage of carries that gain 10+ yards. Higher is better \u2014 measures big-play ability on the ground.",
+  CROE: "Catch Rate Over Expected \u2014 actual catch rate minus the expected catch rate based on throw difficulty. Positive = catches more than expected. A better version of raw Catch%.",
+  "TD%":
+    "Touchdown percentage \u2014 passing TDs \u00f7 pass attempts \u00d7 100. What percentage of throws go for scores.",
+  "INT%":
+    "Interception percentage \u2014 INTs \u00f7 pass attempts \u00d7 100. Lower is better.",
+  "SK%":
+    "Sack percentage \u2014 sacks \u00f7 (attempts + sacks) \u00d7 100. Measures how often a QB is sacked. Lower is better.",
+  "SCR%":
+    "Scramble percentage \u2014 scrambles \u00f7 dropbacks \u00d7 100. How often a QB takes off running instead of throwing.",
+  "AY%":
+    "Air Yards Share \u2014 percentage of team\u2019s total air yards belonging to this receiver. Measures target quality, not just volume.",
+  "Recv SR%":
+    "Receiving Success Rate \u2014 percentage of targets that produce positive EPA. Measures how often a receiver\u2019s plays move the chains.",
+  "Total EPA":
+    "Total Expected Points Added \u2014 the raw sum of EPA across all plays. Volume-based: more plays = higher total. Measures overall impact, not per-play efficiency.",
+  TCH: "Total touches \u2014 carries + receptions. Measures overall involvement in the offense.",
+  "TCH/G":
+    "Touches per game \u2014 (carries + receptions) \u00f7 games played. Measures per-game workload.",
 };
 
 interface MetricTooltipProps {

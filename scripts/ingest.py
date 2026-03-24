@@ -75,7 +75,7 @@ REQUIRED_PBP_COLS = [
     'posteam', 'defteam', 'pass_attempt', 'rush_attempt', 'qb_dropback',
     'passer_player_id', 'passer_player_name', 'rusher_player_id', 'rusher_player_name',
     'complete_pass', 'sack', 'qb_scramble', 'air_yards', 'yards_gained',
-    'cpoe', 'passing_yards', 'pass_touchdown', 'interception',
+    'cpoe', 'cp', 'passing_yards', 'pass_touchdown', 'interception',
     'rush_touchdown', 'rushing_yards', 'game_id', 'season', 'week',
     'home_team', 'away_team', 'result',
     'fumble', 'fumble_lost', 'fumbled_1_player_id',
@@ -467,6 +467,22 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # Convert sack_yards_lost to positive int for display (e.g., -150 → 150)
     qb_stats['sack_yards_lost'] = qb_stats['sack_yards_lost'].fillna(0).abs().astype(int)
 
+    # --- New rate stats (leaderboard overhaul 2026-03-24) ---
+    qb_stats['td_pct'] = qb_stats.apply(
+        lambda r: r['touchdowns'] / r['attempts'] * 100 if r['attempts'] > 0 else None, axis=1
+    )
+    qb_stats['int_pct'] = qb_stats.apply(
+        lambda r: r['interceptions'] / r['attempts'] * 100 if r['attempts'] > 0 else None, axis=1
+    )
+    qb_stats['sack_pct'] = qb_stats.apply(
+        lambda r: r['sacks'] / (r['attempts'] + r['sacks']) * 100 if (r['attempts'] + r['sacks']) > 0 else None, axis=1
+    )
+    qb_stats['scramble_pct'] = qb_stats.apply(
+        lambda r: r['scrambles'] / r['dropbacks'] * 100 if r['dropbacks'] > 0 else None, axis=1
+    )
+    # Total EPA: sum of EPA on all dropbacks (use existing dropback_epa_sum, computed with .sum())
+    qb_stats['total_epa'] = qb_stats['dropback_epa_sum']
+
     # Select final columns
     cols = [
         'player_id', 'player_name', 'team_id', 'season', 'games',
@@ -475,6 +491,7 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
         'touchdowns', 'interceptions', 'sacks', 'sack_yards_lost', 'adot', 'ypa', 'passer_rating',
         'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
         'fumbles', 'fumbles_lost',
+        'td_pct', 'int_pct', 'sack_pct', 'scramble_pct', 'total_epa',
     ]
     result = qb_stats[cols].copy()
 
@@ -626,6 +643,7 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
         rushing_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
         rushing_tds=('rush_touchdown', 'sum'),
         epa_per_carry=('epa', 'mean'),
+        total_rushing_epa=('epa', lambda s: s.dropna().sum()),
         success_rate=('success', lambda x: x.dropna().mean()),
         stuff_rate=('yards_gained', lambda x: (x <= 0).mean()),
         explosive_rate=('yards_gained', lambda x: (x >= 10).mean()),
@@ -684,6 +702,12 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     rb['receiving_yards'] = rb['receiving_yards'].fillna(0).astype(int)
     rb['receiving_tds'] = rb['receiving_tds'].fillna(0).astype(int)
 
+    # Derived touch stats (leaderboard overhaul 2026-03-24)
+    rb['total_touches'] = rb['carries'] + rb['receptions']
+    rb['touches_per_game'] = rb.apply(
+        lambda r: r['total_touches'] / r['games'] if r['games'] > 0 else float('nan'), axis=1
+    )
+
     # Convert types
     rb['season'] = season
     rb['rushing_yards'] = rb['rushing_yards'].fillna(0).astype(int)
@@ -697,6 +721,7 @@ def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
         'epa_per_carry', 'success_rate', 'stuff_rate', 'explosive_rate',
         'fumbles', 'fumbles_lost',
         'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'total_touches', 'touches_per_game', 'total_rushing_epa',
     ]
     result = rb[cols].copy()
 
@@ -1013,6 +1038,49 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     if not bad_route.empty:
         log.warning("route_participation_rate > 1.0 for %d players: %s", len(bad_route), bad_route['player_name'].tolist()[:5])
 
+    # --- New receiver stats (leaderboard overhaul 2026-03-24) ---
+
+    # AY% (Air Yards Share): player air_yards / team total air_yards (primary team)
+    team_total_air_yards = target_plays.groupby('posteam')['air_yards'].apply(
+        lambda x: x.dropna().sum()
+    ).to_dict()
+    # Use primary-team air yards only (same logic as target_share)
+    player_team_air_yards = target_plays.groupby(['receiver_player_id', 'posteam'])['air_yards'].apply(
+        lambda x: x.dropna().sum()
+    ).reset_index(name='primary_air_yards')
+    player_team_air_yards.columns = ['player_id', 'team_id', 'primary_air_yards']
+    rec = rec.merge(player_team_air_yards, on=['player_id', 'team_id'], how='left')
+    rec['air_yards_share'] = rec.apply(
+        lambda r: r['primary_air_yards'] / team_total_air_yards.get(r['team_id'], 1)
+        if pd.notna(r.get('primary_air_yards')) and team_total_air_yards.get(r['team_id'], 0) > 0 else float('nan'), axis=1
+    )
+    rec.drop(columns=['primary_air_yards'], inplace=True)
+
+    # CROE (Catch Rate Over Expected): catch_rate - mean(cp) per receiver
+    # NULL if <50% of targets have valid cp (avoids volatile estimates)
+    cp_stats = target_plays.groupby('receiver_player_id').agg(
+        expected_catch_rate=('cp', lambda x: x.dropna().mean() if x.notna().mean() >= 0.5 else float('nan')),
+        cp_coverage=('cp', lambda x: x.notna().mean()),
+    ).reset_index().rename(columns={'receiver_player_id': 'player_id'})
+    low_cp = cp_stats[cp_stats['cp_coverage'] < 0.8]
+    if not low_cp.empty:
+        log.warning("%d receivers have >20%% targets missing cp values", len(low_cp))
+    rec = rec.merge(cp_stats[['player_id', 'expected_catch_rate']], on='player_id', how='left')
+    rec['croe'] = rec['catch_rate'] - rec['expected_catch_rate']
+    rec.drop(columns=['expected_catch_rate'], inplace=True)
+
+    # Receiving Success Rate: mean(success) on target plays (success is binary 0/1, 1 when EPA > 0)
+    recv_sr = target_plays.groupby('receiver_player_id')['success'].apply(
+        lambda x: x.dropna().mean()
+    ).reset_index(name='receiving_success_rate').rename(columns={'receiver_player_id': 'player_id'})
+    rec = rec.merge(recv_sr, on='player_id', how='left')
+
+    # Total Receiving EPA: sum of EPA on all target plays
+    total_recv_epa = target_plays.groupby('receiver_player_id')['epa'].apply(
+        lambda x: x.dropna().sum()
+    ).reset_index(name='total_receiving_epa').rename(columns={'receiver_player_id': 'player_id'})
+    rec = rec.merge(total_recv_epa, on='player_id', how='left')
+
     # Select final columns
     cols = [
         'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
@@ -1023,6 +1091,7 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
         'routes_run', 'yards_per_route_run', 'targets_per_route_run',
         'total_snaps', 'snap_share', 'route_participation_rate',
         'fumbles', 'fumbles_lost',
+        'air_yards_share', 'croe', 'receiving_success_rate', 'total_receiving_epa',
     ]
     return rec[cols]
 
@@ -1209,6 +1278,7 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
         'touchdowns', 'interceptions', 'sacks', 'sack_yards_lost', 'adot', 'ypa', 'passer_rating',
         'any_a', 'rush_attempts', 'rush_yards', 'rush_tds', 'rush_epa_per_play',
         'fumbles', 'fumbles_lost',
+        'td_pct', 'int_pct', 'sack_pct', 'scramble_pct', 'total_epa',
     ]
     # Replace NaN with None for SQL NULL
     clean_df = df[cols].where(df[cols].notna(), None)
@@ -1234,6 +1304,22 @@ def ensure_team_season_stats_columns(conn):
             cur.execute(f"ALTER TABLE team_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
     conn.commit()
     log.info("Ensured team_season_stats has takeaways/giveaways/turnover_diff columns")
+
+
+def ensure_qb_season_stats_columns(conn):
+    """Add new columns to qb_season_stats (idempotent). NOT inside @retry.
+    QB table created via schema.sql — this adds columns from leaderboard overhaul."""
+    with conn.cursor() as cur:
+        for col, typ in [
+            ('td_pct', 'NUMERIC'),
+            ('int_pct', 'NUMERIC'),
+            ('sack_pct', 'NUMERIC'),
+            ('scramble_pct', 'NUMERIC'),
+            ('total_epa', 'NUMERIC'),
+        ]:
+            cur.execute(f"ALTER TABLE qb_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
+    conn.commit()
+    log.info("Ensured qb_season_stats has new rate/EPA columns")
 
 
 def ensure_rb_gap_tables(conn):
@@ -1357,9 +1443,10 @@ def ensure_receiver_stats_table(conn):
             CREATE INDEX IF NOT EXISTS idx_receiver_player ON receiver_season_stats(player_id);
             CREATE INDEX IF NOT EXISTS idx_receiver_team ON receiver_season_stats(team_id, season);
         """)
-        # Add route columns (idempotent for existing tables)
+        # Add route columns + leaderboard overhaul columns (idempotent for existing tables)
         for col, typ in [('routes_run', 'INTEGER'), ('yards_per_route_run', 'NUMERIC'), ('targets_per_route_run', 'NUMERIC'),
-                         ('total_snaps', 'INTEGER'), ('snap_share', 'NUMERIC'), ('route_participation_rate', 'NUMERIC')]:
+                         ('total_snaps', 'INTEGER'), ('snap_share', 'NUMERIC'), ('route_participation_rate', 'NUMERIC'),
+                         ('air_yards_share', 'NUMERIC'), ('croe', 'NUMERIC'), ('receiving_success_rate', 'NUMERIC'), ('total_receiving_epa', 'NUMERIC')]:
             cur.execute(f"ALTER TABLE receiver_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
         # RLS (wrapped in exception blocks for idempotent re-runs)
         cur.execute("""
@@ -1393,6 +1480,7 @@ def upsert_receiver_stats(conn, df: pd.DataFrame):
         'routes_run', 'yards_per_route_run', 'targets_per_route_run',
         'total_snaps', 'snap_share', 'route_participation_rate',
         'fumbles', 'fumbles_lost',
+        'air_yards_share', 'croe', 'receiving_success_rate', 'total_receiving_epa',
     ]
     clean_df = df[cols].where(df[cols].notna(), None)
     rows = [tuple(r) for _, r in clean_df.iterrows()]
@@ -1437,7 +1525,8 @@ def ensure_rb_season_stats_table(conn):
             CREATE INDEX IF NOT EXISTS idx_rb_season ON rb_season_stats(season);
             CREATE INDEX IF NOT EXISTS idx_rb_team ON rb_season_stats(team_id, season);
         """)
-        for col, typ in [('targets', 'INTEGER'), ('receptions', 'INTEGER'), ('receiving_yards', 'INTEGER'), ('receiving_tds', 'INTEGER')]:
+        for col, typ in [('targets', 'INTEGER'), ('receptions', 'INTEGER'), ('receiving_yards', 'INTEGER'), ('receiving_tds', 'INTEGER'),
+                         ('total_touches', 'INTEGER'), ('touches_per_game', 'NUMERIC'), ('total_rushing_epa', 'NUMERIC')]:
             cur.execute(f"ALTER TABLE rb_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
         cur.execute("""
             DO $$ BEGIN
@@ -1468,6 +1557,7 @@ def upsert_rb_season_stats(conn, df: pd.DataFrame):
         'epa_per_carry', 'success_rate', 'stuff_rate', 'explosive_rate',
         'fumbles', 'fumbles_lost',
         'targets', 'receptions', 'receiving_yards', 'receiving_tds',
+        'total_touches', 'touches_per_game', 'total_rushing_epa',
     ]
     clean_df = df[cols].where(df[cols].notna(), None)
     rows = [tuple(r) for _, r in clean_df.iterrows()]
@@ -2744,6 +2834,7 @@ def process_season(season: int, conn, dry_run: bool = False):
         return
 
     ensure_team_season_stats_columns(conn)
+    ensure_qb_season_stats_columns(conn)
     ensure_rb_gap_tables(conn)
     ensure_rb_gap_weekly_tables(conn)
     ensure_def_gap_tables(conn)

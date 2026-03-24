@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
   revalidatePath("/run-gaps");
   revalidatePath("/receivers");
   revalidatePath("/rushing");
+  revalidatePath("/compare");
   revalidatePath("/player", "layout");
   revalidatePath("/team", "layout");
 

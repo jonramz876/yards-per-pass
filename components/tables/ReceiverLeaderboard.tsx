@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import type { ReceiverSeasonStat } from "@/lib/types";
-import { getTeamColor } from "@/lib/data/teams";
+import { getTeamColor, getTeamLogo } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
@@ -25,41 +25,100 @@ type ColumnDef = {
   tooltip?: string;
 };
 
-const ADVANCED_COLUMNS: ColumnDef[] = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "fantasy_pts", label: "FPts", group: "core" },
-  { key: "epa_per_target", label: "EPA/Tgt", tooltip: "EPA/Tgt", group: "core" },
-  { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
-  { key: "yards_per_target", label: "Y/Tgt", group: "receiving" },
-  { key: "air_yards_per_target", label: "ADOT", tooltip: "ADOT", group: "receiving" },
-  { key: "yac_per_reception", label: "YAC/Rec", group: "receiving" },
-  { key: "target_share", label: "Tgt Share", tooltip: "Tgt Share", group: "efficiency" },
-  { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
-  { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
-  { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
-  { key: "route_participation_rate", label: "Route%", tooltip: "Route%", group: "efficiency" },
-];
+type TabConfig = {
+  label: string;
+  columns: ColumnDef[];
+  heatmapCols: Set<string>;
+  defaultSort: string;
+  rankBy: string;
+  defaultHeatmap: boolean;
+  showRank: boolean;
+};
 
-const STANDARD_COLUMNS: ColumnDef[] = [
-  { key: "games", label: "GP", group: "core" },
-  { key: "targets", label: "Tgt", group: "receiving" },
-  { key: "receptions", label: "Rec", group: "receiving" },
-  { key: "receiving_yards", label: "Yards", group: "receiving" },
-  { key: "yards_per_game", label: "Yds/G", group: "receiving" },
-  { key: "receiving_tds", label: "TD", group: "receiving" },
-  { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
-  { key: "routes_run", label: "Routes", group: "receiving" },
-  { key: "total_snaps", label: "Snaps", group: "receiving" },
-  { key: "fantasy_pts", label: "FPts", group: "receiving" },
-  { key: "yards_per_reception", label: "YPR", tooltip: "YPR", group: "efficiency" },
-  { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
-];
+const REC_TABS: Record<string, TabConfig> = {
+  overview: {
+    label: "Overview",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "fantasy_pts", label: "FPts", group: "core" },
+      { key: "epa_per_target", label: "EPA/Tgt", tooltip: "EPA/Tgt", group: "core" },
+      { key: "croe", label: "CROE", tooltip: "CROE", group: "efficiency" },
+      { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
+      { key: "air_yards_per_target", label: "aDOT", tooltip: "ADOT", group: "receiving" },
+      { key: "yac_per_reception", label: "YAC/Rec", group: "receiving" },
+      { key: "target_share", label: "Tgt Share", tooltip: "Tgt Share", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["epa_per_target", "croe", "yards_per_route_run", "air_yards_per_target", "yac_per_reception", "target_share"]),
+    defaultSort: "epa_per_target",
+    rankBy: "epa_per_target",
+    defaultHeatmap: true,
+    showRank: true,
+  },
+  receiving: {
+    label: "Receiving",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "targets", label: "Tgt", group: "receiving" },
+      { key: "receptions", label: "Rec", group: "receiving" },
+      { key: "receiving_yards", label: "Yds", group: "receiving" },
+      { key: "yards_per_game", label: "Yds/G", group: "receiving" },
+      { key: "receiving_tds", label: "TD", group: "receiving" },
+      { key: "catch_rate", label: "Catch%", tooltip: "Catch%", group: "receiving" },
+      { key: "yards_per_reception", label: "YPR", tooltip: "YPR", group: "efficiency" },
+      { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["catch_rate", "yards_per_reception"]),
+    defaultSort: "receiving_yards",
+    rankBy: "receiving_yards",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  efficiency: {
+    label: "Efficiency",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
+      { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
+      { key: "croe", label: "CROE", tooltip: "CROE", group: "efficiency" },
+      { key: "receiving_success_rate", label: "Recv SR%", tooltip: "Success%", group: "efficiency" },
+      { key: "air_yards_share", label: "AY%", tooltip: "AY%", group: "efficiency" },
+      { key: "total_receiving_epa", label: "Total EPA", tooltip: "Total EPA", group: "core" },
+      { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
+      { key: "route_participation_rate", label: "Route%", tooltip: "Route%", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["yards_per_route_run", "targets_per_route_run", "croe", "receiving_success_rate", "air_yards_share", "total_receiving_epa", "snap_share", "route_participation_rate"]),
+    defaultSort: "yards_per_route_run",
+    rankBy: "yards_per_route_run",
+    defaultHeatmap: false,
+    showRank: false,
+  },
+  fantasy: {
+    label: "Fantasy",
+    columns: [
+      { key: "games", label: "GP", group: "core" },
+      { key: "fantasy_pts", label: "PPR", group: "core" },
+      { key: "half_pts", label: "Half", group: "core" },
+      { key: "std_pts", label: "Std", group: "core" },
+      { key: "targets", label: "Tgt", group: "receiving" },
+      { key: "receptions", label: "Rec", group: "receiving" },
+      { key: "receiving_yards", label: "Yds", group: "receiving" },
+      { key: "receiving_tds", label: "TD", group: "receiving" },
+      { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
+    ],
+    heatmapCols: new Set(["fantasy_pts"]),
+    defaultSort: "fantasy_pts",
+    rankBy: "fantasy_pts",
+    defaultHeatmap: false,
+    showRank: true,
+  },
+};
 
-const VALID_ADVANCED_KEYS = new Set(ADVANCED_COLUMNS.map((c) => c.key));
-const VALID_STANDARD_KEYS = new Set(STANDARD_COLUMNS.map((c) => c.key));
-
-type Tab = "advanced" | "standard";
+type RecTab = keyof typeof REC_TABS;
+const TAB_KEYS = Object.keys(REC_TABS) as RecTab[];
 type SortDir = "asc" | "desc";
+
+// PFR qualification: 1.875 targets per team game
+const PFR_TGT_PER_GAME = 1.875;
 
 // Header background tints for column groups
 const GROUP_COLORS: Record<string, string> = {
@@ -69,16 +128,29 @@ const GROUP_COLORS: Record<string, string> = {
 };
 
 function getVal(rec: ReceiverSeasonStat, key: string, scoringFmt?: ScoringFormat): number {
+  const fpts = (fmt: ScoringFormat) => wrFantasyPoints({
+    receiving_yards: rec.receiving_yards,
+    receiving_tds: rec.receiving_tds,
+    receptions: rec.receptions,
+    fumbles_lost: rec.fumbles_lost,
+  }, fmt);
   switch (key) {
     case "yards_per_game":
       return rec.games ? rec.receiving_yards / rec.games : NaN;
     case "fantasy_pts":
-      return wrFantasyPoints({
-        receiving_yards: rec.receiving_yards,
-        receiving_tds: rec.receiving_tds,
-        receptions: rec.receptions,
-        fumbles_lost: rec.fumbles_lost,
-      }, scoringFmt ?? "ppr");
+      return fpts(scoringFmt ?? "ppr");
+    case "half_pts":
+      return fpts("half");
+    case "std_pts":
+      return fpts("std");
+    case "croe":
+      return rec.croe ?? NaN;
+    case "air_yards_share":
+      return rec.air_yards_share ?? NaN;
+    case "receiving_success_rate":
+      return rec.receiving_success_rate ?? NaN;
+    case "total_receiving_epa":
+      return rec.total_receiving_epa ?? NaN;
     default: {
       const val = rec[key as keyof ReceiverSeasonStat] as number;
       return val ?? NaN;
@@ -86,19 +158,8 @@ function getVal(rec: ReceiverSeasonStat, key: string, scoringFmt?: ScoringFormat
   }
 }
 
-// Columns that receive percentile-based conditional formatting
-const HEATMAP_COLS_ADVANCED = new Set([
-  "epa_per_target", "catch_rate", "yards_per_target",
-  "air_yards_per_target", "yac_per_reception", "target_share",
-  "yards_per_route_run", "targets_per_route_run",
-  "snap_share", "route_participation_rate",
-]);
-const HEATMAP_COLS_STANDARD = new Set([
-  "catch_rate", "yards_per_reception",
-]);
-
-function formatVal(key: string, rec: ReceiverSeasonStat, scoringFmt?: ScoringFormat): string {
-  const val = getVal(rec, key, scoringFmt);
+// Shared stat formatting (used by both player rows and NFL AVG row)
+function formatStat(key: string, val: number): string {
   if (val == null || isNaN(val)) return "\u2014";
   switch (key) {
     case "epa_per_target":
@@ -108,41 +169,25 @@ function formatVal(key: string, rec: ReceiverSeasonStat, scoringFmt?: ScoringFor
     case "yards_per_route_run":
     case "targets_per_route_run":
       return val.toFixed(2);
+    case "croe": {
+      const pct = (val * 100).toFixed(1);
+      return (val >= 0 ? "+" : "") + pct + "%";
+    }
     case "catch_rate":
     case "target_share":
     case "snap_share":
     case "route_participation_rate":
+    case "air_yards_share":
+    case "receiving_success_rate":
       return (val * 100).toFixed(1) + "%";
-    case "yards_per_reception":
-    case "yards_per_game":
-      return val.toFixed(1);
-    case "fantasy_pts":
-      return val.toFixed(1);
-    default:
-      return Number.isInteger(val) ? val.toString() : val.toFixed(1);
-  }
-}
-
-// Format a raw numeric value (used for NFL AVG row where there's no receiver object)
-function formatAvg(key: string, val: number): string {
-  if (val == null || isNaN(val)) return "\u2014";
-  switch (key) {
-    case "epa_per_target":
-    case "yards_per_target":
-    case "yac_per_reception":
-    case "air_yards_per_target":
-    case "yards_per_route_run":
-    case "targets_per_route_run":
+    case "total_receiving_epa":
       return val.toFixed(2);
-    case "catch_rate":
-    case "target_share":
-    case "snap_share":
-    case "route_participation_rate":
-      return (val * 100).toFixed(1) + "%";
     case "yards_per_reception":
     case "yards_per_game":
       return val.toFixed(1);
     case "fantasy_pts":
+    case "half_pts":
+    case "std_pts":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -156,13 +201,16 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   // Read URL params with validation
   const urlTab = searchParams.get("tab");
-  const initialTab: Tab = urlTab === "standard" ? "standard" : "advanced";
+  const TAB_MIGRATION: Record<string, RecTab> = { advanced: "overview", standard: "receiving" };
+  const resolvedTab = TAB_MIGRATION[urlTab ?? ""] ?? urlTab;
+  const initialTab: RecTab = TAB_KEYS.includes(resolvedTab as RecTab) ? (resolvedTab as RecTab) : "overview";
 
   const urlSort = searchParams.get("sort");
+  const tabConfig = REC_TABS[initialTab];
+  const validKeys = new Set(tabConfig.columns.map((c) => c.key));
   const initialSortKey = (() => {
-    if (!urlSort) return initialTab === "advanced" ? "epa_per_target" : "receiving_yards";
-    const validKeys = initialTab === "advanced" ? VALID_ADVANCED_KEYS : VALID_STANDARD_KEYS;
-    return validKeys.has(urlSort) ? urlSort : (initialTab === "advanced" ? "epa_per_target" : "receiving_yards");
+    if (!urlSort) return tabConfig.defaultSort;
+    return validKeys.has(urlSort) ? urlSort : tabConfig.defaultSort;
   })();
 
   const urlDir = searchParams.get("dir");
@@ -170,9 +218,14 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   const urlSearch = searchParams.get("q") || "";
 
-  const computedDefaultMin = Math.max(50, Math.round(300 * (throughWeek / 18)));
+  const pfrMinTargets = Math.round(PFR_TGT_PER_GAME * throughWeek);
+  const urlQualified = searchParams.get("qualified");
+  const initialQualified = urlQualified !== "0";
+
   const urlMin = searchParams.get("min");
+  const computedDefaultMin = initialQualified ? pfrMinTargets : Math.max(10, Math.round(100 * (throughWeek / 18)));
   const initialMin = (() => {
+    if (initialQualified) return pfrMinTargets;
     if (!urlMin) return computedDefaultMin;
     const parsed = parseInt(urlMin, 10);
     return isNaN(parsed) || parsed < 0 ? computedDefaultMin : parsed;
@@ -181,11 +234,12 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   const urlPos = searchParams.get("pos") || "";
   const urlTeam = searchParams.get("team") || "";
 
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<RecTab>(initialTab);
   const [sortKey, setSortKey] = useState<string>(initialSortKey);
   const [sortDir, setSortDir] = useState<SortDir>(initialSortDir);
   const [search, setSearch] = useState(urlSearch);
-  const [minRoutes, setMinRoutes] = useState(initialMin);
+  const [minTargets, setMinTargets] = useState(initialMin);
+  const [qualified, setQualified] = useState(initialQualified);
   const [posFilter, setPosFilter] = useState(urlPos);
   const [teamFilter, setTeamFilter] = useState(urlTeam);
 
@@ -197,36 +251,40 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; q?: string; min?: number; pos?: string; team?: string }) => {
+    (overrides: { tab?: RecTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean; pos?: string; team?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
       // Remove our managed keys, then re-add non-defaults
-      ["tab", "sort", "dir", "q", "min", "pos", "team"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "qualified", "pos", "team"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
-      const defaultSort = newTab === "advanced" ? "epa_per_target" : "receiving_yards";
+      const defaultSort = REC_TABS[newTab].defaultSort;
       const newSort = overrides.sort ?? sortKey;
       const newDir = overrides.dir ?? sortDir;
       const newQ = overrides.q ?? search;
-      const newMin = overrides.min ?? minRoutes;
+      const newQualified = overrides.qualified ?? qualified;
+      const newMin = overrides.min ?? minTargets;
       const newPos = overrides.pos ?? posFilter;
       const newTeam = overrides.team ?? teamFilter;
 
-      if (newTab !== "advanced") params.set("tab", newTab);
+      if (newTab !== "overview") params.set("tab", newTab);
       if (newSort !== defaultSort) params.set("sort", newSort);
       if (newDir !== "desc") params.set("dir", newDir);
       if (newQ) params.set("q", newQ);
-      if (newMin !== computedDefaultMin) params.set("min", String(newMin));
+      if (!newQualified) {
+        params.set("qualified", "0");
+        if (newMin !== pfrMinTargets) params.set("min", String(newMin));
+      }
       if (newPos) params.set("pos", newPos);
       if (newTeam) params.set("team", newTeam);
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minRoutes, posFilter, teamFilter, computedDefaultMin, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minTargets, qualified, pfrMinTargets, posFilter, teamFilter, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: Tab; sort?: string; dir?: SortDir; min?: number; pos?: string; team?: string }) => {
+    (overrides: { tab?: RecTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean; pos?: string; team?: string }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -244,20 +302,22 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     [buildParams, router]
   );
 
-  const columns = tab === "advanced" ? ADVANCED_COLUMNS : STANDARD_COLUMNS;
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const activeTabConfig = REC_TABS[tab];
+  const columns = activeTabConfig.columns;
+  const [showHeatmap, setShowHeatmap] = useState(activeTabConfig.defaultHeatmap);
   const [archFilter, setArchFilter] = useState("");
   const [scoringFormat, setScoringFormat] = useState<ScoringFormat>("ppr");
 
-  const heatmapCols = tab === "advanced" ? HEATMAP_COLS_ADVANCED : HEATMAP_COLS_STANDARD;
+  const heatmapCols = activeTabConfig.heatmapCols;
 
-  // When switching tabs, reset sort to a sensible default for that tab
-  function switchTab(newTab: Tab) {
+  // When switching tabs, reset sort to tab default and revalidate
+  function switchTab(newTab: RecTab) {
+    const cfg = REC_TABS[newTab];
     setTab(newTab);
-    const newSort = newTab === "advanced" ? "epa_per_target" : "receiving_yards";
-    setSortKey(newSort);
+    setSortKey(cfg.defaultSort);
     setSortDir("desc");
-    pushURL({ tab: newTab, sort: newSort, dir: "desc" });
+    setShowHeatmap(cfg.defaultHeatmap);
+    pushURL({ tab: newTab, sort: cfg.defaultSort, dir: "desc" });
   }
 
   // Compute archetype for each receiver — TEs get their own pool and classifier
@@ -308,7 +368,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   );
 
   const filtered = useMemo(() => {
-    let result = data.filter((rec) => rec.routes_run >= minRoutes);
+    let result = data.filter((rec) => rec.targets >= minTargets);
     if (posFilter) {
       result = result.filter((rec) => rec.position === posFilter);
     }
@@ -333,7 +393,33 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
     });
     return result;
-  }, [data, sortKey, sortDir, search, minRoutes, posFilter, teamFilter, archFilter, archetypeMap, scoringFormat]);
+  }, [data, sortKey, sortDir, search, minTargets, posFilter, teamFilter, archFilter, archetypeMap, scoringFormat]);
+
+  // Position rank: fixed by tab's rankBy stat, independent of user sort
+  const rankMap = useMemo(() => {
+    const rankByKey = activeTabConfig.rankBy;
+    const byPos: Record<string, ReceiverSeasonStat[]> = {};
+    for (const rec of filtered) {
+      const pos = rec.position;
+      if (!byPos[pos]) byPos[pos] = [];
+      byPos[pos].push(rec);
+    }
+    const map: Record<string, { rank: number; pos: string }> = {};
+    for (const [pos, players] of Object.entries(byPos)) {
+      const ranked = [...players].sort((a, b) => {
+        const aVal = getVal(a, rankByKey, scoringFormat);
+        const bVal = getVal(b, rankByKey, scoringFormat);
+        const aNull = aVal == null || Number.isNaN(aVal);
+        const bNull = bVal == null || Number.isNaN(bVal);
+        if (aNull && bNull) return 0;
+        if (aNull) return 1;
+        if (bNull) return -1;
+        return bVal - aVal; // Always desc for rank
+      });
+      ranked.forEach((r, i) => { map[r.player_id] = { rank: i + 1, pos }; });
+    }
+    return map;
+  }, [filtered, activeTabConfig.rankBy, scoringFormat]);
 
   const sortedByCol = useMemo(() => {
     if (!showHeatmap) return {};
@@ -349,7 +435,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   // NFL-wide averages (always from full dataset, ignoring team/position filters)
   const nflAverages = useMemo(() => {
     if (!showHeatmap) return {};
-    const pool = data.filter((rec) => rec.routes_run >= minRoutes);
+    const pool = data.filter((rec) => rec.targets >= minTargets);
     const avgs: Record<string, number> = {};
     for (const col of columns) {
       const values = pool.map((rec) => getVal(rec, col.key, scoringFormat)).filter((v) => !isNaN(v));
@@ -358,7 +444,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
         : NaN;
     }
     return avgs;
-  }, [data, minRoutes, columns, showHeatmap, scoringFormat]);
+  }, [data, minTargets, columns, showHeatmap, scoringFormat]);
 
   // Team averages (only shown when team filter is active)
   const teamAverages = useMemo(() => {
@@ -389,7 +475,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
   }
 
-  const isEpaCol = (key: string) => key === "epa_per_target";
+  const isEpaCol = (key: string) => key === "epa_per_target" || key === "total_receiving_epa";
 
   // suppress unused variable warning — season reserved for future footnotes
   void season;
@@ -398,49 +484,28 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     <div>
       {/* Tab bar + Controls */}
       <div className="flex flex-col gap-4 mb-4">
-        {/* Row 1: Tabs + PPR toggle */}
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            <button
-              onClick={() => switchTab("advanced")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === "advanced"
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Advanced
-            </button>
-            <button
-              onClick={() => switchTab("standard")}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                tab === "standard"
-                  ? "bg-navy text-white"
-                  : "bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Standard
-            </button>
-          </div>
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
-            {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setScoringFormat(val)}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  scoringFormat === val
-                    ? "bg-navy text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Row 2: Filters */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Tabs — scrollable on mobile */}
+          <div className="relative">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide" style={{ scrollSnapType: "x mandatory" }}>
+              {TAB_KEYS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => switchTab(t)}
+                  style={{ scrollSnapAlign: "start" }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md whitespace-nowrap transition-colors ${
+                    tab === t
+                      ? "bg-navy text-white"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {REC_TABS[t].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Search + Slider */}
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             <input
               type="text"
@@ -489,22 +554,63 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
               ))}
             </select>
             <div className="flex items-center gap-3">
-              <label className="text-sm text-gray-500 whitespace-nowrap">
-                Min routes: <span className="font-semibold text-navy">{minRoutes}</span>
+              <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={qualified}
+                  onChange={(e) => {
+                    const isQ = e.target.checked;
+                    setQualified(isQ);
+                    if (isQ) {
+                      setMinTargets(pfrMinTargets);
+                      pushURL({ qualified: true, min: pfrMinTargets });
+                    } else {
+                      pushURL({ qualified: false });
+                    }
+                  }}
+                  className="rounded border-gray-300 text-navy focus:ring-navy/20"
+                />
+                PFR Qualified
               </label>
-              <input
-                type="range"
-                min={50}
-                max={700}
-                step={25}
-                value={minRoutes}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setMinRoutes(val);
-                  replaceURLDebounced({ min: val });
-                }}
-                className="w-full sm:w-32"
-              />
+              {qualified ? (
+                <span className="text-xs font-medium text-navy bg-navy/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {pfrMinTargets}+ tgt
+                </span>
+              ) : (
+                <>
+                  <label className="text-sm text-gray-500 whitespace-nowrap">
+                    Min tgt: <span className="font-semibold text-navy">{minTargets}</span>
+                  </label>
+                  <input
+                    type="range"
+                    min={5}
+                    max={200}
+                    step={5}
+                    value={minTargets}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setMinTargets(val);
+                      replaceURLDebounced({ min: val });
+                    }}
+                    className="w-full sm:w-32"
+                  />
+                </>
+              )}
+            </div>
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {([["ppr", "PPR"], ["half", "Half"], ["std", "Std"]] as const).map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setScoringFormat(val)}
+                  className={`px-2 py-1 text-xs font-medium transition-colors ${
+                    scoringFormat === val
+                      ? "bg-navy text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-500 whitespace-nowrap cursor-pointer select-none">
               <input
@@ -520,12 +626,12 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       </div>
 
       {/* Table */}
-      <div className="border border-gray-200 rounded-md overflow-x-auto max-w-full">
+      <div className="border border-gray-200 rounded-md overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-8 sticky left-0 z-20">#</th>
-              <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky left-8 z-20">Player</th>
+              {activeTabConfig.showRank && <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-14 sticky left-0 z-20">Rank</th>}
+              <th className={`bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-20`}>Player</th>
               <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold">Team</th>
               {columns.map((col) => (
                 <th
@@ -547,7 +653,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 3} className="text-center py-12 text-gray-500">
+                <td colSpan={columns.length + (activeTabConfig.showRank ? 3 : 2)} className="text-center py-12 text-gray-500">
                   {search ? "No players match your search." : "No data available."}
                 </td>
               </tr>
@@ -580,8 +686,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                   // Team AVG row (only when team filter active, shown once before first player)
                   const teamAvgRow = (showHeatmap && teamFilter && idx === 0) ? (
                     <tr key="team-avg" className="border-t border-blue-300">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#eff6ff" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#eff6ff" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 700, fontStyle: "italic" }}>
                         {teamFilter} AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#eff6ff", color: "#1e40af" }}>&mdash;</td>
@@ -591,7 +697,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#eff6ff", color: "#1e40af", fontWeight: 600, borderBottom: "2px solid #3b82f6" }}
                         >
-                          {formatAvg(col.key, teamAverages[col.key])}
+                          {formatStat(col.key, teamAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -599,8 +705,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
                   const avgRow = showAvgBefore ? (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
@@ -610,7 +716,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, nflAverages[col.key])}
+                          {formatStat(col.key, nflAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -621,8 +727,12 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                       {teamAvgRow}
                       {avgRow}
                       <tr className="group border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
-                        <td className="px-2 py-2 text-gray-400 font-bold tabular-nums w-8 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50">{idx + 1}</td>
-                        <td className="px-2 py-2 sticky left-8 z-10 bg-white group-hover:bg-gray-50/50">
+                        {activeTabConfig.showRank && (
+                        <td className="px-2 py-2 text-gray-400 font-bold tabular-nums text-xs w-14 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50 font-mono">
+                          {rankMap[rec.player_id] ? `${rankMap[rec.player_id].pos}${rankMap[rec.player_id].rank}` : idx + 1}
+                        </td>
+                        )}
+                        <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10 bg-white group-hover:bg-gray-50/50`}>
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(rec.team_id) }} />
                             <Link
@@ -636,14 +746,14 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                                 {archetypeMap[rec.player_id].icon}
                               </span>
                             )}
-                            <span className="text-[10px] text-gray-400 ml-1">{rec.position}</span>
                           </div>
                         </td>
                         <td className="px-2 py-2 text-xs">
                           <Link
                             href={`/team/${rec.team_id}`}
-                            className="text-gray-500 hover:text-navy hover:underline transition-colors"
+                            className="text-gray-500 hover:text-navy hover:underline transition-colors inline-flex items-center gap-1"
                           >
+                            <img src={getTeamLogo(rec.team_id)} width={20} height={20} alt={rec.team_id} loading="eager" className="inline-block" />
                             {rec.team_id}
                           </Link>
                         </td>
@@ -661,7 +771,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
                           return (
                             <td key={col.key} className={cellClass} style={heatStyle}>
-                              {formatVal(col.key, rec, scoringFormat)}
+                              {formatStat(col.key, val)}
                             </td>
                           );
                         })}
@@ -678,8 +788,8 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                   if (!belongsAfterLast) return null;
                   return (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>
-                      <td className="px-2 py-2 sticky left-8 z-10" style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
                       <td className="px-2 py-2" style={{ background: "#fef3c7", color: "#92400e" }}>&mdash;</td>
@@ -689,7 +799,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           className="px-2 py-2 text-right tabular-nums"
                           style={{ background: "#fef3c7", color: "#92400e", fontWeight: 600, borderBottom: "2px solid #f59e0b" }}
                         >
-                          {formatAvg(col.key, nflAverages[col.key])}
+                          {formatStat(col.key, nflAverages[col.key])}
                         </td>
                       ))}
                     </tr>
@@ -702,7 +812,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       </div>
 
       <p className="mt-2 text-xs text-gray-400">
-        Showing {filtered.length} of {data.length} receivers with &ge;{minRoutes} routes
+        Showing {filtered.length} of {data.length} receivers with &ge;{minTargets} targets{qualified && " (PFR qualified)"}
         {posFilter ? ` (${posFilter} only)` : ""}{teamFilter ? ` (${teamFilter})` : ""}
       </p>
 

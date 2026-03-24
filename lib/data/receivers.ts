@@ -17,6 +17,10 @@ const RECEIVER_NUMERIC_FIELDS = [
   "total_snaps",
   "snap_share",
   "route_participation_rate",
+  "air_yards_share",
+  "croe",
+  "receiving_success_rate",
+  "total_receiving_epa",
 ];
 
 export async function getReceiverStats(
