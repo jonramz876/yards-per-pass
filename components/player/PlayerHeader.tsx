@@ -93,6 +93,14 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
           >
             Compare
           </Link>
+          <a
+            href={`/api/stat-card/${player.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
+          >
+            Share Card
+          </a>
           <Suspense
             fallback={
               <select
