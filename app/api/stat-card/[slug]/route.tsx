@@ -132,6 +132,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { slug: string } }
 ) {
+  try {
   const fontData = await interBold;
   const season = 2025;
 
@@ -352,4 +353,8 @@ export async function GET(
       },
     }
   );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(`Error generating stat card: ${message}`, { status: 500 });
+  }
 }
