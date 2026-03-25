@@ -2,7 +2,7 @@
 import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
-import { createServerClient } from "@/lib/supabase/server";
+// Use direct fetch instead of createServerClient (OG image context doesn't support it)
 
 export const runtime = "nodejs";
 export const alt = "Player Stat Card — Yards Per Pass";
@@ -99,10 +99,16 @@ export default async function Image({ params }: { params: { slug: string } }) {
   const isQB = player.position === "QB";
   const isRB = player.position === "RB" || player.position === "FB";
 
-  // Single-row query (fast, no pool fetch)
-  const supabase = createServerClient();
+  // Direct REST fetch (createServerClient doesn't work in OG image context)
   const table = isQB ? "qb_season_stats" : isRB ? "rb_season_stats" : "receiver_season_stats";
-  const { data: row } = await supabase.from(table).select("*").eq("player_id", player.player_id).eq("season", 2025).single();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/${table}?player_id=eq.${player.player_id}&season=eq.2025&select=*&limit=1`,
+    { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+  );
+  const rows = await res.json();
+  const row = rows?.[0] ?? null;
   const s = (row || {}) as Record<string, unknown>;
   const n = (k: string): number => { const v = s[k]; return typeof v === "number" ? v : NaN; };
 
