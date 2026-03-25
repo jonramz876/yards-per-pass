@@ -222,7 +222,9 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   const urlSearch = searchParams.get("q") || "";
 
-  const pfrMinTargets = Math.round(PFR_TGT_PER_GAME * throughWeek);
+  // PFR uses team games (17), not weeks — throughWeek can be 18 (bye week)
+  const teamGames = Math.min(throughWeek, 17);
+  const pfrMinTargets = Math.round(PFR_TGT_PER_GAME * teamGames);
   const urlQualified = searchParams.get("qualified");
   const initialQualified = urlQualified !== "0";
 
