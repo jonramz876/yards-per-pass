@@ -1,12 +1,8 @@
 // app/card/[slug]/opengraph-image.tsx — stat card as OG image
 import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
-import { getQBStats } from "@/lib/data/queries";
-import { getReceiverStats } from "@/lib/data/receivers";
-import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getTeam } from "@/lib/data/teams";
-import { computePercentile, computeRank } from "@/lib/stats/percentiles";
-import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
+import { createServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 export const alt = "Player Stat Card — Yards Per Pass";
@@ -48,43 +44,7 @@ function dataPath(values: number[]): string {
 // --- Position-specific configs ---
 type StatDisplay = { label: string; value: string; rank: string };
 
-function getQBRadarVal(qb: QBSeasonStat, key: string): number {
-  switch (key) {
-    case "epa_per_db": return qb.epa_per_db ?? NaN;
-    case "cpoe": return qb.cpoe ?? NaN;
-    case "dropbacks_game": return qb.games ? qb.dropbacks / qb.games : NaN;
-    case "adot": return qb.adot ?? NaN;
-    case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
-    case "success_rate": return qb.success_rate ?? NaN;
-    default: return NaN;
-  }
-}
-
-function getWRRadarVal(rec: ReceiverSeasonStat, key: string): number {
-  switch (key) {
-    case "targets_game": return rec.games ? rec.targets / rec.games : NaN;
-    case "epa_per_target": return rec.epa_per_target ?? NaN;
-    case "croe": return rec.croe ?? NaN;
-    case "air_yards_per_target": return rec.air_yards_per_target ?? NaN;
-    case "yac_per_reception": return rec.yac_per_reception ?? NaN;
-    case "yards_per_route_run": return rec.yards_per_route_run ?? NaN;
-    default: return NaN;
-  }
-}
-
-function getRBRadarVal(rb: RBSeasonStat, key: string): number {
-  switch (key) {
-    case "carries_game": return rb.games ? rb.carries / rb.games : NaN;
-    case "epa_per_carry": return rb.epa_per_carry ?? NaN;
-    case "stuff_avoid": return rb.stuff_rate != null ? 1 - rb.stuff_rate : NaN;
-    case "explosive_rate": return rb.explosive_rate ?? NaN;
-    case "targets_game": return rb.games ? rb.targets / rb.games : NaN;
-    case "success_rate": return rb.success_rate ?? NaN;
-    default: return NaN;
-  }
-}
-
-const QB_RADAR_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"];
+// Radar keys removed — using approximate ranges instead of percentile pools for speed
 const QB_RADAR_LABELS = ["EPA/DB", "CPOE", "DB/G", "aDOT", "INT Rate", "Success%"];
 const QB_DISPLAY_STATS = [
   { key: "epa_per_db", label: "EPA/DB", fmt: (v: number) => v.toFixed(2) },
@@ -146,80 +106,70 @@ export default async function Image({ params }: { params: { slug: string } }) {
   const isQB = player.position === "QB";
   const isRB = player.position === "RB" || player.position === "FB";
 
-  // Fetch position pool + find player's stats
-  let radarValues: number[] = [];
-  let displayStats: StatDisplay[] = [];
-  let radarLabels: string[] = [];
+  // Fetch just this player's stats (single row, fast query)
+  const supabase = createServerClient();
+  const table = isQB ? "qb_season_stats" : isRB ? "rb_season_stats" : "receiver_season_stats";
+  const { data: statsRow } = await supabase
+    .from(table)
+    .select("*")
+    .eq("player_id", player.player_id)
+    .eq("season", season)
+    .single();
+
+  if (!statsRow) {
+    return new ImageResponse(
+      (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a", color: "#fff", fontSize: 32, fontFamily: "Inter" }}>No stats found for {player.player_name}</div>),
+      { ...size, fonts: [{ name: "Inter", data: fontData, style: "normal" as const, weight: 800 }] }
+    );
+  }
+
+  const s = statsRow as Record<string, unknown>;
+  const num = (key: string): number => { const v = s[key]; return typeof v === "number" ? v : NaN; };
+
+  let radarLabels: string[];
+  let radarValues: number[]; // Use raw 0-100 scale approximations instead of percentiles
+  let displayStats: StatDisplay[];
 
   if (isQB) {
-    const pool = await getQBStats(season);
-    const me = pool.find((q) => q.player_id === player.player_id);
-    if (!me) return new Response("No stats for this player", { status: 404 });
-
     radarLabels = QB_RADAR_LABELS;
-    const qualPool = pool.filter((q) => q.dropbacks >= 100);
-    radarValues = QB_RADAR_KEYS.map((k) => {
-      const sorted = qualPool.map((q) => getQBRadarVal(q, k)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-      return computePercentile(sorted, getQBRadarVal(me, k));
-    });
-
-    displayStats = QB_DISPLAY_STATS.map((s) => {
-      const val = (me as unknown as Record<string, unknown>)[s.key];
-      const v = typeof val === "number" ? val : NaN;
-      const poolVals = qualPool.map((q) => {
-        const pv = (q as unknown as Record<string, unknown>)[s.key];
-        return typeof pv === "number" ? pv : NaN;
-      }).filter((x) => !isNaN(x));
-      const rank = computeRank(poolVals, v);
-      return { label: s.label, value: isNaN(v) ? "—" : s.fmt(v), rank: isNaN(v) ? "" : `QB${rank}` };
-    });
+    // Approximate percentiles using reasonable league ranges
+    radarValues = [
+      Math.min(100, Math.max(0, (num("epa_per_db") + 0.2) / 0.5 * 100)),  // EPA/DB: -0.2 to 0.3
+      Math.min(100, Math.max(0, (num("cpoe") + 5) / 12 * 100)),            // CPOE: -5 to 7
+      Math.min(100, Math.max(0, (num("dropbacks") / Math.max(num("games"), 1) - 20) / 20 * 100)), // DB/G: 20-40
+      Math.min(100, Math.max(0, (num("adot") - 5) / 8 * 100)),             // aDOT: 5-13
+      Math.min(100, Math.max(0, (1 - num("int_pct") / 100 * 4) * 100)),    // INT Rate (inverted)
+      Math.min(100, Math.max(0, ((num("success_rate") || 0) - 0.3) / 0.25 * 100)), // Success: 30-55%
+    ];
+    displayStats = QB_DISPLAY_STATS.map((ds) => ({
+      label: ds.label, value: isNaN(num(ds.key)) ? "—" : ds.fmt(num(ds.key)), rank: "",
+    }));
   } else if (isRB) {
-    const pool = await getRBSeasonStats(season);
-    const me = pool.find((r) => r.player_id === player.player_id);
-    if (!me) return new Response("No stats for this player", { status: 404 });
-
     radarLabels = RB_RADAR_LABELS;
-    const qualPool = pool.filter((r) => r.carries >= 50);
-    radarValues = RB_RADAR_KEYS.map((k) => {
-      const sorted = qualPool.map((r) => getRBRadarVal(r, k)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-      return computePercentile(sorted, getRBRadarVal(me, k));
-    });
-
-    displayStats = RB_DISPLAY_STATS.map((s) => {
-      const val = (me as unknown as Record<string, unknown>)[s.key];
-      const v = typeof val === "number" ? val : NaN;
-      const poolVals = qualPool.map((r) => {
-        const pv = (r as unknown as Record<string, unknown>)[s.key];
-        return typeof pv === "number" ? pv : NaN;
-      }).filter((x) => !isNaN(x));
-      const rank = computeRank(poolVals, v);
-      return { label: s.label, value: isNaN(v) ? "—" : s.fmt(v), rank: isNaN(v) ? "" : `RB${rank}` };
-    });
+    radarValues = [
+      Math.min(100, Math.max(0, (num("carries") / Math.max(num("games"), 1) - 5) / 15 * 100)),
+      Math.min(100, Math.max(0, (num("epa_per_carry") + 0.15) / 0.35 * 100)),
+      Math.min(100, Math.max(0, (1 - (num("stuff_rate") || 0.2)) / 0.3 * 100)),
+      Math.min(100, Math.max(0, ((num("explosive_rate") || 0) - 0.05) / 0.15 * 100)),
+      Math.min(100, Math.max(0, ((num("targets") || 0) / Math.max(num("games"), 1)) / 5 * 100)),
+      Math.min(100, Math.max(0, ((num("success_rate") || 0) - 0.3) / 0.25 * 100)),
+    ];
+    displayStats = RB_DISPLAY_STATS.map((ds) => ({
+      label: ds.label, value: isNaN(num(ds.key)) ? "—" : ds.fmt(num(ds.key)), rank: "",
+    }));
   } else {
-    // WR/TE
-    const pool = await getReceiverStats(season);
-    const me = pool.find((r) => r.player_id === player.player_id);
-    if (!me) return new Response("No stats for this player", { status: 404 });
-
-    const pos = me.position;
     radarLabels = WR_RADAR_LABELS;
-    const minRoutes = pos === "TE" ? 100 : 200;
-    const qualPool = pool.filter((r) => r.position === pos && r.routes_run >= minRoutes);
-    radarValues = WR_RADAR_KEYS.map((k) => {
-      const sorted = qualPool.map((r) => getWRRadarVal(r, k)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-      return computePercentile(sorted, getWRRadarVal(me, k));
-    });
-
-    displayStats = WR_DISPLAY_STATS.map((s) => {
-      const val = (me as unknown as Record<string, unknown>)[s.key];
-      const v = typeof val === "number" ? val : NaN;
-      const poolVals = qualPool.map((r) => {
-        const pv = (r as unknown as Record<string, unknown>)[s.key];
-        return typeof pv === "number" ? pv : NaN;
-      }).filter((x) => !isNaN(x));
-      const rank = computeRank(poolVals, v);
-      return { label: s.label, value: isNaN(v) ? "—" : s.fmt(v), rank: isNaN(v) ? "" : `${pos}${rank}` };
-    });
+    radarValues = [
+      Math.min(100, Math.max(0, (num("targets") / Math.max(num("games"), 1) - 2) / 8 * 100)),
+      Math.min(100, Math.max(0, (num("epa_per_target") + 0.1) / 0.4 * 100)),
+      Math.min(100, Math.max(0, ((num("croe") || 0) + 0.1) / 0.2 * 100)),
+      Math.min(100, Math.max(0, (num("air_yards_per_target") - 5) / 10 * 100)),
+      Math.min(100, Math.max(0, ((num("yac_per_reception") || 0) - 2) / 8 * 100)),
+      Math.min(100, Math.max(0, ((num("yards_per_route_run") || 0) - 0.5) / 2.5 * 100)),
+    ];
+    displayStats = WR_DISPLAY_STATS.map((ds) => ({
+      label: ds.label, value: isNaN(num(ds.key)) ? "—" : ds.fmt(num(ds.key)), rank: "",
+    }));
   }
 
   // Build radar path strings (Satori requires <path>, not <polygon>)
