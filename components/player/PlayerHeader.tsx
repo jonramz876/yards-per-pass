@@ -93,14 +93,21 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
           >
             Compare
           </Link>
-          <a
-            href={`/card/${player.slug}/opengraph-image`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={async () => {
+              const el = document.getElementById("share-card-target");
+              if (!el) return;
+              const html2canvas = (await import("html2canvas")).default;
+              const canvas = await html2canvas(el, { backgroundColor: "#ffffff", scale: 2 });
+              const link = document.createElement("a");
+              link.download = `${player.slug}-stat-card.png`;
+              link.href = canvas.toDataURL("image/png");
+              link.click();
+            }}
             className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
           >
             Share Card
-          </a>
+          </button>
           <Suspense
             fallback={
               <select

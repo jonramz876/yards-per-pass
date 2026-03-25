@@ -212,7 +212,11 @@ export default function PlayerPageContent({
       </div>
 
       {/* Tab content */}
-      {activeTab === "overview" ? renderOverview() : activeTab === "field-map" ? renderFieldMap() : renderGameLog()}
+      {activeTab === "overview" ? (
+        <div id="share-card-target">
+          {renderOverview()}
+        </div>
+      ) : activeTab === "field-map" ? renderFieldMap() : renderGameLog()}
     </>
   );
 }
