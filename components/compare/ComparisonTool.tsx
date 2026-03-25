@@ -39,6 +39,12 @@ const RB_KEYS = ["carries_game", "epa_per_carry", "stuff_avoid", "explosive_rate
 type CompStat = { label: string; key: string; format: (v: number) => string; higherBetter: boolean };
 
 const QB_COMP_STATS: CompStat[] = [
+  // Radar axes
+  { label: "EPA/DB", key: "epa_per_db", format: (v) => v.toFixed(2), higherBetter: true },
+  { label: "CPOE", key: "cpoe", format: (v) => (v >= 0 ? "+" : "") + v.toFixed(1), higherBetter: true },
+  { label: "aDOT", key: "adot", format: (v) => v.toFixed(1), higherBetter: true },
+  { label: "Success%", key: "success_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
+  // Volume + efficiency
   { label: "Pass Yds", key: "passing_yards", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Pass TD", key: "touchdowns", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "INT", key: "interceptions", format: (v) => v.toFixed(0), higherBetter: false },
@@ -54,6 +60,13 @@ const QB_COMP_STATS: CompStat[] = [
 ];
 
 const WR_COMP_STATS: CompStat[] = [
+  // Radar axes
+  { label: "EPA/Tgt", key: "epa_per_target", format: (v) => v.toFixed(2), higherBetter: true },
+  { label: "CROE", key: "croe", format: (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%", higherBetter: true },
+  { label: "aDOT", key: "air_yards_per_target", format: (v) => v.toFixed(1), higherBetter: true },
+  { label: "YAC/Rec", key: "yac_per_reception", format: (v) => v.toFixed(1), higherBetter: true },
+  { label: "YPRR", key: "yards_per_route_run", format: (v) => v.toFixed(2), higherBetter: true },
+  // Volume + rates
   { label: "Targets", key: "targets", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Receptions", key: "receptions", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Yards", key: "receiving_yards", format: (v) => v.toFixed(0), higherBetter: true },
@@ -61,18 +74,21 @@ const WR_COMP_STATS: CompStat[] = [
   { label: "Catch%", key: "catch_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
   { label: "Tgt Share", key: "target_share", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
   { label: "AY%", key: "air_yards_share", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  { label: "YPRR", key: "yards_per_route_run", format: (v) => v.toFixed(2), higherBetter: true },
   { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
 ];
 
 const RB_COMP_STATS: CompStat[] = [
+  // Radar axes
+  { label: "EPA/Car", key: "epa_per_carry", format: (v) => v.toFixed(2), higherBetter: true },
+  { label: "Success%", key: "success_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
+  { label: "Stuff%", key: "stuff_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: false },
+  { label: "Explosive%", key: "explosive_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
+  // Volume + efficiency
   { label: "Carries", key: "carries", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Rush Yds", key: "rushing_yards", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Rush TD", key: "rushing_tds", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "YPC", key: "yards_per_carry", format: (v) => v.toFixed(1), higherBetter: true },
   { label: "TCH", key: "total_touches", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Stuff%", key: "stuff_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: false },
-  { label: "Explosive%", key: "explosive_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
   { label: "Total EPA", key: "total_rushing_epa", format: (v) => v.toFixed(1), higherBetter: true },
   { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
 ];
