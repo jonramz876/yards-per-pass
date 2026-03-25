@@ -102,15 +102,12 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
               try {
                 btn.textContent = "Generating...";
                 btn.disabled = true;
-                // @ts-expect-error no types for dom-to-image-more
-                const domtoimage = await import("dom-to-image-more");
-                const blob = await domtoimage.toBlob(el, { bgcolor: "#ffffff", scale: 2 });
-                const url = URL.createObjectURL(blob);
+                const { domToPng } = await import("modern-screenshot");
+                const dataUrl = await domToPng(el, { scale: 2, backgroundColor: "#ffffff" });
                 const link = document.createElement("a");
                 link.download = `${player.slug}-stat-card.png`;
-                link.href = url;
+                link.href = dataUrl;
                 link.click();
-                URL.revokeObjectURL(url);
               } catch (err) {
                 alert("Error generating card: " + (err instanceof Error ? err.message : String(err)));
               } finally {
