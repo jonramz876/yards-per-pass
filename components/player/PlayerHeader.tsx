@@ -1,7 +1,7 @@
 // components/player/PlayerHeader.tsx
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -44,34 +44,6 @@ function SeasonSelector({ seasons, season }: { seasons: number[]; season: number
         </option>
       ))}
     </select>
-  );
-}
-
-function ShareCardButton({ playerName, slug }: { playerName: string; slug: string }) {
-  const [label, setLabel] = useState("Share Card");
-
-  async function handleClick() {
-    const url = `${window.location.origin}/card/${slug}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: `${playerName} Stat Card`, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setLabel("Copied!");
-      setTimeout(() => setLabel("Share Card"), 2000);
-    } catch {
-      // User cancelled share or clipboard failed — ignore
-    }
-  }
-
-  return (
-    <button
-      onClick={handleClick}
-      className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
-    >
-      {label}
-    </button>
   );
 }
 
@@ -121,7 +93,12 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
           >
             Compare
           </Link>
-          <ShareCardButton playerName={player.player_name} slug={player.slug} />
+          <Link
+            href={`/card/${player.slug}`}
+            className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
+          >
+            Share Card
+          </Link>
           <Suspense
             fallback={
               <select
