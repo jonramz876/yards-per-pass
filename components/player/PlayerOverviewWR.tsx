@@ -102,15 +102,14 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId, 
   const isTE = stats.position === "TE";
 
   // For TEs, compute percentiles against TE-only pool; for WRs, against WR-only pool
-  // Filter to qualified players by routes run (better than targets — measures opportunity not results)
-  const MIN_ROUTES_WR = 200;
-  const MIN_ROUTES_TE = 100;
+  // PFR qualified pool for percentiles
+  // PFR qualified: 32+ targets (1.875 tgt/game × 17)
+  const PFR_MIN_TARGETS = 32;
   const positionPool = useMemo(
     () => {
-      const minRoutes = isTE ? MIN_ROUTES_TE : MIN_ROUTES_WR;
       return allReceivers
         .filter((r) => isTE ? r.position === "TE" : r.position === "WR")
-        .filter((r) => r.routes_run >= minRoutes);
+        .filter((r) => r.targets >= PFR_MIN_TARGETS);
     },
     [allReceivers, isTE]
   );
@@ -154,24 +153,17 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId, 
     [stats, positionPool]
   );
 
-  const minRoutes = isTE ? MIN_ROUTES_TE : MIN_ROUTES_WR;
-  const meetsThreshold = stats.routes_run >= minRoutes;
-
-  if (!meetsThreshold) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
-        <p className="text-gray-400 text-sm mb-1">Not enough data to qualify</p>
-        <p className="text-gray-300 text-xs">
-          {stats.routes_run} routes run — minimum {minRoutes} required for {isTE ? "TE" : "WR"} rankings
-        </p>
-      </div>
-    );
-  }
+  const meetsThreshold = stats.targets >= PFR_MIN_TARGETS;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left column: Radar + chips */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
+        {!meetsThreshold && (
+          <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+            {stats.targets} targets — below PFR minimum of {PFR_MIN_TARGETS}. Stats shown but not PFR-qualified.
+          </div>
+        )}
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
           Performance Profile
         </h3>
@@ -179,7 +171,7 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId, 
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-3">
-          Percentiles vs. {total} {isTE ? "TEs" : "WRs"} ({isTE ? "100" : "200"}+ routes) &middot; {season}
+          Percentiles vs. {total} PFR-qualified {isTE ? "TEs" : "WRs"} ({PFR_MIN_TARGETS}+ tgt) &middot; {season}
         </p>
 
         {archetype && (

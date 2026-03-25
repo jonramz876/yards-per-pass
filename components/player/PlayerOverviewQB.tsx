@@ -141,24 +141,19 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId, topRec
     [stats, allQBs]
   );
 
-  const MIN_DROPBACKS = 100;
-  const meetsThreshold = stats.dropbacks >= MIN_DROPBACKS;
-
-  if (!meetsThreshold) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
-        <p className="text-gray-400 text-sm mb-1">Not enough data to qualify</p>
-        <p className="text-gray-300 text-xs">
-          {stats.dropbacks} dropbacks — minimum {MIN_DROPBACKS} required for QB rankings
-        </p>
-      </div>
-    );
-  }
+  // PFR qualified: 14 att/game × 17 = 238 attempts
+  const PFR_MIN_ATT = 238;
+  const meetsThreshold = stats.attempts >= PFR_MIN_ATT;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left column: Radar + chips */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
+        {!meetsThreshold && (
+          <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+            {stats.attempts} attempts — below PFR minimum of {PFR_MIN_ATT}. Stats shown but not PFR-qualified.
+          </div>
+        )}
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
           Performance Profile
         </h3>
@@ -166,7 +161,7 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId, topRec
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-3">
-          Percentiles vs. {total} QBs (100+ dropbacks) &middot; {season}
+          Percentiles vs. {total} PFR-qualified QBs ({PFR_MIN_ATT}+ att) &middot; {season}
         </p>
 
         {archetype && (
@@ -215,7 +210,7 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId, topRec
             vs. League Average
           </h3>
           <p className="text-[9px] text-gray-300 mb-4">
-            100+ dropbacks · {total} QBs
+            {PFR_MIN_ATT}+ att &middot; {total} QBs
           </p>
           {barData.map((bar) => (
             <div key={bar.key} className="flex items-center gap-2 mb-3.5">

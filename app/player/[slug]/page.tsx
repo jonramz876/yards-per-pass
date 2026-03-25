@@ -104,8 +104,8 @@ export default async function PlayerPage({
       const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
       seasonStats = playerSeason;
       weeklyStats = weekly;
-      // Filter percentile pool to qualified QBs (100+ dropbacks) to avoid backup QB noise
-      allPlayers = allQBs.filter((qb) => qb.dropbacks >= 100);
+      // PFR qualified: 14 att/team game × 17 = 238 attempts
+      allPlayers = allQBs.filter((qb) => qb.attempts >= 238);
       crossLinkReceivers = teamReceivers;
       passLocationStats = passLocStats;
     } else if (player.position === "WR" || player.position === "TE") {
@@ -117,7 +117,8 @@ export default async function PlayerPage({
       const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
       seasonStats = playerSeason;
       weeklyStats = weekly;
-      allPlayers = allReceivers;
+      // PFR qualified: 1.875 tgt/team game × 17 = 32 targets
+      allPlayers = allReceivers.filter((r) => r.targets >= 32);
       crossLinkQB = teamQB;
     } else if (player.position === "RB") {
       const [weekly, allRBWeekly] = await Promise.all([

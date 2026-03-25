@@ -174,7 +174,8 @@ export default function PlayerOverviewRB({
   // Aggregate this player's weekly data
   const playerAgg = useMemo(() => aggregateWeekly(weeklyStats), [weeklyStats]);
 
-  // Build league pool: aggregate all RBs, min 30 carries
+  // Build league pool: aggregate all RBs, PFR qualified (106+ carries)
+  const PFR_MIN_CARRIES = 106;
   const leaguePool = useMemo(() => {
     const byPlayer = new Map<string, RBWeeklyStat[]>();
     for (const r of allRBWeekly) {
@@ -185,7 +186,7 @@ export default function PlayerOverviewRB({
     const pool: AggregatedRB[] = [];
     byPlayer.forEach((rows) => {
       const agg = aggregateWeekly(rows);
-      if (agg.carries >= 30) pool.push(agg);
+      if (agg.carries >= PFR_MIN_CARRIES) pool.push(agg);
     });
     return pool;
   }, [allRBWeekly]);
@@ -231,24 +232,17 @@ export default function PlayerOverviewRB({
     [playerAgg, leaguePool]
   );
 
-  const MIN_CARRIES = 30;
-  const notEnoughData = playerAgg.carries < MIN_CARRIES;
-
-  if (notEnoughData) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
-        <p className="text-gray-400 text-sm mb-1">Not enough data to qualify</p>
-        <p className="text-gray-300 text-xs">
-          {playerAgg.carries} carries — minimum {MIN_CARRIES} required for RB rankings
-        </p>
-      </div>
-    );
-  }
+  const meetsThreshold = playerAgg.carries >= PFR_MIN_CARRIES;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left column: Radar + chips */}
       <div className="rounded-xl border border-gray-200 bg-white p-6">
+        {!meetsThreshold && (
+          <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+            {playerAgg.carries} carries — below PFR minimum of {PFR_MIN_CARRIES}. Stats shown but not PFR-qualified.
+          </div>
+        )}
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
           Performance Profile
         </h3>
@@ -256,7 +250,7 @@ export default function PlayerOverviewRB({
           <RadarChart values={radarValues} color={teamColor} axes={RADAR_AXES} />
         </div>
         <p className="text-[10px] text-gray-400 text-center mb-3">
-          Percentiles vs. {total} RBs (30+ carries) &middot; {season}
+          Percentiles vs. {total} PFR-qualified RBs ({PFR_MIN_CARRIES}+ car) &middot; {season}
         </p>
 
         {archetype && (
@@ -304,7 +298,7 @@ export default function PlayerOverviewRB({
               vs. League Average
             </h3>
             <p className="text-[9px] text-gray-300 mb-4">
-              30+ carries · {total} RBs
+              {PFR_MIN_CARRIES}+ car &middot; {total} RBs
             </p>
             {barData.map((bar) => (
               <div key={bar.key} className="flex items-center gap-2 mb-3.5">
