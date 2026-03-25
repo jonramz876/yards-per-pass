@@ -2,7 +2,7 @@
 import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
-import { createServerClient } from "@/lib/supabase/server";
+// No createServerClient — crashes in OG image context on Vercel
 
 export const runtime = "nodejs";
 export const alt = "Player Stat Card — Yards Per Pass";
@@ -80,9 +80,18 @@ export default async function Image({ params }: { params: { slug: string } }) {
 
   if (player) {
     try {
-      const sb = createServerClient();
       const tbl = isQB ? "qb_season_stats" : isRB ? "rb_season_stats" : "receiver_season_stats";
-      const {data} = await sb.from(tbl).select("*").eq("player_id",player.player_id).eq("season",2025).single();
+      const sbUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const sbKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
+      const resp = await fetch(
+        `${sbUrl}/rest/v1/${tbl}?player_id=eq.${player.player_id}&season=eq.2025&select=*&limit=1`,
+        { headers: { apikey: sbKey!, Authorization: `Bearer ${sbKey}` }, signal: ctrl.signal }
+      );
+      clearTimeout(timer);
+      const arr = await resp.json();
+      const data = arr?.[0] ?? null;
       if (data) {
         const s = data as Record<string,unknown>;
         const n = (k:string):number => {const v=s[k]; return typeof v==="number"?v:NaN;};
