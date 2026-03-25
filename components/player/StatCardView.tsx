@@ -16,10 +16,10 @@ interface StatCardViewProps {
 }
 
 // --- Radar chart geometry (matches RadarChart.tsx / stat-card route) ---
-const CX = 130;
-const CY = 120;
-const R_OUTER = 90;
-const R_MID = 45;
+const CX = 160;
+const CY = 150;
+const R_OUTER = 120;
+const R_MID = 60;
 
 function hexPoint(radius: number, index: number): [number, number] {
   const angle = -Math.PI / 2 + (index * Math.PI) / 3;
@@ -40,12 +40,12 @@ function dataPathD(values: number[]): string {
 }
 
 const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: "start" | "middle" | "end" }> = [
-  { x: 130, y: 12, anchor: "middle" },
-  { x: 232, y: 64, anchor: "start" },
-  { x: 232, y: 184, anchor: "start" },
-  { x: 130, y: 234, anchor: "middle" },
-  { x: 28, y: 184, anchor: "end" },
-  { x: 28, y: 64, anchor: "end" },
+  { x: 160, y: 10, anchor: "middle" },
+  { x: 295, y: 78, anchor: "start" },
+  { x: 295, y: 230, anchor: "start" },
+  { x: 160, y: 296, anchor: "middle" },
+  { x: 25, y: 230, anchor: "end" },
+  { x: 25, y: 78, anchor: "end" },
 ];
 
 export default function StatCardView({
@@ -70,7 +70,7 @@ export default function StatCardView({
   return (
     <div
       style={{
-        width: 600,
+        width: 900,
         height: 315,
         backgroundColor: "#ffffff",
         fontFamily: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif",
@@ -87,15 +87,15 @@ export default function StatCardView({
       {/* Top: Player name + info */}
       <div
         style={{
-          padding: "8px 16px 4px",
+          padding: "12px 24px 6px",
           display: "flex",
           alignItems: "baseline",
-          gap: 8,
+          gap: 12,
         }}
       >
         <span
           style={{
-            fontSize: 20,
+            fontSize: 32,
             fontWeight: 800,
             color: "#0f172a",
             lineHeight: 1.2,
@@ -103,7 +103,7 @@ export default function StatCardView({
         >
           {playerName}
         </span>
-        <span style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>
+        <span style={{ fontSize: 16, color: "#64748b", fontWeight: 500 }}>
           {position} &middot; {teamName} &middot; {season} Season
         </span>
       </div>
@@ -118,7 +118,7 @@ export default function StatCardView({
       >
         {/* Left: Radar chart */}
         <div style={{ width: 260, flexShrink: 0 }}>
-          <svg viewBox="0 0 260 245" width={260} height={200}>
+          <svg viewBox="0 0 320 310" width={320} height={280}>
             {/* Outer ring */}
             <path d={outerPath} fill="none" stroke="#e2e8f0" strokeWidth={1} />
             {/* 50th pctile ring */}
@@ -143,7 +143,7 @@ export default function StatCardView({
                 x={LABEL_POSITIONS[i].x}
                 y={LABEL_POSITIONS[i].y}
                 textAnchor={LABEL_POSITIONS[i].anchor}
-                fontSize={10}
+                fontSize={13}
                 fill="#475569"
                 fontWeight={600}
               >
@@ -155,7 +155,7 @@ export default function StatCardView({
 
         {/* Right: Vs League Average bars */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 4, paddingTop: 4 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" as const, letterSpacing: 0.5, marginBottom: 4 }}>
             vs. League Average
           </div>
           {barStats.map((bar) => {
@@ -165,7 +165,7 @@ export default function StatCardView({
             const barW = Math.min(Math.abs(bar.pct), 45);
             return (
               <div key={bar.label} style={{ display: "flex", alignItems: "center", gap: 4, height: 22 }}>
-                <div style={{ width: 42, fontSize: 9, color: "#64748b", fontWeight: 600, textAlign: "right" as const }}>
+                <div style={{ width: 60, fontSize: 13, color: "#64748b", fontWeight: 600, textAlign: "right" as const }}>
                   {bar.label}
                 </div>
                 <div
@@ -204,8 +204,8 @@ export default function StatCardView({
                   />
                 </div>
                 <div style={{ width: 68, textAlign: "right" as const }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#0f172a" }}>{bar.value}</span>
-                  <span style={{ fontSize: 8, fontWeight: 600, color: barColor, marginLeft: 3 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>{bar.value}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: barColor, marginLeft: 4 }}>
                     {bar.delta >= 0 ? "+" : ""}{bar.delta.toFixed(1)}
                   </span>
                 </div>
@@ -236,13 +236,13 @@ export default function StatCardView({
               textAlign: "center" as const,
             }}
           >
-            <div style={{ fontSize: 8, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 0.3 }}>
               {chip.label}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", lineHeight: 1.3 }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", lineHeight: 1.3 }}>
               {chip.value}
             </div>
-            <div style={{ fontSize: 7, color: "#94a3b8", fontWeight: 500 }}>
+            <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 500 }}>
               {chip.rank}
             </div>
           </div>
@@ -263,10 +263,10 @@ export default function StatCardView({
           borderTop: "1px solid #f1f5f9",
         }}
       >
-        <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#94a3b8" }}>
           {branding}
         </span>
-        <span style={{ fontSize: 8, color: "#cbd5e1" }}>
+        <span style={{ fontSize: 11, color: "#cbd5e1" }}>
           Data: nflverse play-by-play
         </span>
       </div>
