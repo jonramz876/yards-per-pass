@@ -102,30 +102,15 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
               try {
                 btn.textContent = "Generating...";
                 btn.disabled = true;
-                // html2canvas doesn't support oklch() colors (Tailwind v4)
-                // Force all computed oklch colors to rgb before capture
-                const overrides: { el: HTMLElement; prop: string; old: string }[] = [];
-                el.querySelectorAll("*").forEach((node) => {
-                  const s = getComputedStyle(node as HTMLElement);
-                  ["color", "backgroundColor", "borderColor", "borderTopColor", "borderBottomColor", "borderLeftColor", "borderRightColor"].forEach((prop) => {
-                    const val = s.getPropertyValue(prop);
-                    if (val && val.includes("oklch")) {
-                      const htmlEl = node as HTMLElement;
-                      overrides.push({ el: htmlEl, prop, old: htmlEl.style.getPropertyValue(prop) });
-                      // Create temp canvas to resolve color
-                      const ctx = document.createElement("canvas").getContext("2d");
-                      if (ctx) { ctx.fillStyle = val; htmlEl.style.setProperty(prop, ctx.fillStyle); }
-                    }
-                  });
-                });
-                const html2canvas = (await import("html2canvas")).default;
-                const canvas = await html2canvas(el, { backgroundColor: "#ffffff", scale: 2, useCORS: true });
-                // Restore original styles
-                overrides.forEach(({ el: e, prop, old }) => old ? e.style.setProperty(prop, old) : e.style.removeProperty(prop));
+                // @ts-expect-error no types for dom-to-image-more
+                const domtoimage = await import("dom-to-image-more");
+                const blob = await domtoimage.toBlob(el, { bgcolor: "#ffffff", scale: 2 });
+                const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.download = `${player.slug}-stat-card.png`;
-                link.href = canvas.toDataURL("image/png");
+                link.href = url;
                 link.click();
+                URL.revokeObjectURL(url);
               } catch (err) {
                 alert("Error generating card: " + (err instanceof Error ? err.message : String(err)));
               } finally {
