@@ -24,7 +24,7 @@ export const NFL_TEAMS: Team[] = [
   { id: 'JAX', name: 'Jacksonville Jaguars', abbreviation: 'JAX', division: 'AFC South', conference: 'AFC', primaryColor: '#006778', secondaryColor: '#9F792C', logo: teamLogo('jax') },
   { id: 'KC', name: 'Kansas City Chiefs', abbreviation: 'KC', division: 'AFC West', conference: 'AFC', primaryColor: '#E31837', secondaryColor: '#FFB81C', logo: teamLogo('kc') },
   { id: 'LAC', name: 'Los Angeles Chargers', abbreviation: 'LAC', division: 'AFC West', conference: 'AFC', primaryColor: '#0080C6', secondaryColor: '#FFC20E', logo: teamLogo('lac') },
-  { id: 'LAR', name: 'Los Angeles Rams', abbreviation: 'LAR', division: 'NFC West', conference: 'NFC', primaryColor: '#003594', secondaryColor: '#FFA300', logo: teamLogo('lar') },
+  { id: 'LA', name: 'Los Angeles Rams', abbreviation: 'LA', division: 'NFC West', conference: 'NFC', primaryColor: '#003594', secondaryColor: '#FFA300', logo: teamLogo('la') },
   { id: 'LV', name: 'Las Vegas Raiders', abbreviation: 'LV', division: 'AFC West', conference: 'AFC', primaryColor: '#000000', secondaryColor: '#A5ACAF', logo: teamLogo('lv') },
   { id: 'MIA', name: 'Miami Dolphins', abbreviation: 'MIA', division: 'AFC East', conference: 'AFC', primaryColor: '#008E97', secondaryColor: '#FC4C02', logo: teamLogo('mia') },
   { id: 'MIN', name: 'Minnesota Vikings', abbreviation: 'MIN', division: 'NFC North', conference: 'NFC', primaryColor: '#4F2683', secondaryColor: '#FFC62F', logo: teamLogo('min') },
