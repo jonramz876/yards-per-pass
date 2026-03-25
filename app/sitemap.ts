@@ -38,5 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...teamPages, ...playerPages];
+  const cardPages: MetadataRoute.Sitemap = players.map((p) => ({
+    url: `${base}/card/${p.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.5,
+  }));
+
+  return [...staticPages, ...teamPages, ...playerPages, ...cardPages];
 }

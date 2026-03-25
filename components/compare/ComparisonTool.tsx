@@ -135,7 +135,7 @@ function getStatVal(player: QBSeasonStat | ReceiverSeasonStat | RBSeasonStat, ke
   return typeof v === "number" ? v : NaN;
 }
 
-export default function ComparisonTool({ qbs, receivers, rbs }: ComparisonToolProps) {
+export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceivers, rbs: serverRBs }: ComparisonToolProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -143,6 +143,16 @@ export default function ComparisonTool({ qbs, receivers, rbs }: ComparisonToolPr
   const [player1, setPlayer1] = useState<SelectedPlayer | null>(null);
   const [player2, setPlayer2] = useState<SelectedPlayer | null>(null);
   const initializedRef = useRef(false);
+
+  // Lazy-loaded data (fetched client-side when server didn't provide the needed position)
+  const [lazyQBs, setLazyQBs] = useState<QBSeasonStat[]>([]);
+  const [lazyReceivers, setLazyReceivers] = useState<ReceiverSeasonStat[]>([]);
+  const [lazyRBs, setLazyRBs] = useState<RBSeasonStat[]>([]);
+
+  // Use server data if available, otherwise lazy-loaded
+  const qbs = serverQBs.length > 0 ? serverQBs : lazyQBs;
+  const receivers = serverReceivers.length > 0 ? serverReceivers : lazyReceivers;
+  const rbs = serverRBs.length > 0 ? serverRBs : lazyRBs;
 
   // Restore players from URL params on mount
   useEffect(() => {
@@ -166,6 +176,24 @@ export default function ComparisonTool({ qbs, receivers, rbs }: ComparisonToolPr
         if (p2Data) setPlayer2(p2Data as SelectedPlayer);
       });
   }, [searchParams]);
+
+  // Lazy-fetch position data when server didn't provide it
+  useEffect(() => {
+    if (!player1) return;
+    const pos = player1.position === "FB" ? "RB" : player1.position;
+    const supabase = getSupabaseClient();
+
+    if (pos === "QB" && qbs.length === 0) {
+      supabase.from("qb_season_stats").select("*").eq("season", 2025)
+        .then(({ data }) => { if (data) setLazyQBs(data as unknown as QBSeasonStat[]); });
+    } else if ((pos === "WR" || pos === "TE") && receivers.length === 0) {
+      supabase.from("receiver_season_stats").select("*").eq("season", 2025)
+        .then(({ data }) => { if (data) setLazyReceivers(data as unknown as ReceiverSeasonStat[]); });
+    } else if (pos === "RB" && rbs.length === 0) {
+      supabase.from("rb_season_stats").select("*").eq("season", 2025)
+        .then(({ data }) => { if (data) setLazyRBs(data as unknown as RBSeasonStat[]); });
+    }
+  }, [player1, qbs.length, receivers.length, rbs.length]);
 
   // Determine position from first player (normalize FB → RB for pool selection)
   const rawPosition = player1?.position || null;
