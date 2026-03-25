@@ -52,6 +52,7 @@ const QB_COMP_STATS: CompStat[] = [
   { label: "Rating", key: "passer_rating", format: (v) => v.toFixed(1), higherBetter: true },
   { label: "TD%", key: "td_pct", format: (v) => v.toFixed(1), higherBetter: true },
   { label: "INT%", key: "int_pct", format: (v) => v.toFixed(1), higherBetter: false },
+  { label: "SK%", key: "sack_pct", format: (v) => v.toFixed(1), higherBetter: false },
   { label: "Total EPA", key: "total_epa", format: (v) => v.toFixed(1), higherBetter: true },
   { label: "Rush Yds", key: "rush_yards", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Rush TD", key: "rush_tds", format: (v) => v.toFixed(0), higherBetter: true },
@@ -301,7 +302,7 @@ export default function ComparisonTool({ qbs, receivers, rbs }: ComparisonToolPr
           </div>
 
           {/* Stat Comparison Table */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="border border-gray-200 rounded-lg overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">

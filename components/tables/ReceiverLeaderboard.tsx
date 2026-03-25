@@ -99,13 +99,14 @@ const REC_TABS: Record<string, TabConfig> = {
       { key: "fantasy_pts", label: "PPR", group: "core" },
       { key: "half_pts", label: "Half", group: "core" },
       { key: "std_pts", label: "Std", group: "core" },
+      { key: "pts_per_game", label: "Pts/G", group: "core" },
       { key: "targets", label: "Tgt", group: "receiving" },
       { key: "receptions", label: "Rec", group: "receiving" },
       { key: "receiving_yards", label: "Yds", group: "receiving" },
       { key: "receiving_tds", label: "TD", group: "receiving" },
       { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "efficiency" },
     ],
-    heatmapCols: new Set(["fantasy_pts"]),
+    heatmapCols: new Set(["fantasy_pts", "pts_per_game"]),
     defaultSort: "fantasy_pts",
     rankBy: "fantasy_pts",
     defaultHeatmap: false,
@@ -143,6 +144,8 @@ function getVal(rec: ReceiverSeasonStat, key: string, scoringFmt?: ScoringFormat
       return fpts("half");
     case "std_pts":
       return fpts("std");
+    case "pts_per_game":
+      return rec.games ? fpts(scoringFmt ?? "ppr") / rec.games : NaN;
     case "croe":
       return rec.croe ?? NaN;
     case "air_yards_share":
@@ -188,6 +191,7 @@ function formatStat(key: string, val: number): string {
     case "fantasy_pts":
     case "half_pts":
     case "std_pts":
+    case "pts_per_game":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);

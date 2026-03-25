@@ -111,6 +111,7 @@ const QB_TABS: Record<string, TabConfig> = {
     columns: [
       { key: "games", label: "GP", group: "core" },
       { key: "fantasy_pts", label: "FPts", group: "core" },
+      { key: "pts_per_game", label: "Pts/G", group: "core" },
       { key: "passing_yards", label: "Pass Yds", group: "passing" },
       { key: "touchdowns", label: "Pass TD", group: "passing" },
       { key: "rush_yards", label: "Rush Yds", group: "rushing" },
@@ -118,7 +119,7 @@ const QB_TABS: Record<string, TabConfig> = {
       { key: "interceptions", label: "INT", group: "passing" },
       { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "passing" },
     ],
-    heatmapCols: new Set(["fantasy_pts"]),
+    heatmapCols: new Set(["fantasy_pts", "pts_per_game"]),
     defaultSort: "fantasy_pts",
     rankBy: "fantasy_pts",
     defaultHeatmap: false,
@@ -155,6 +156,10 @@ function getVal(qb: QBSeasonStat, key: string): number {
       rush_tds: qb.rush_tds,
       fumbles_lost: qb.fumbles_lost,
     });
+    case "pts_per_game": {
+      const fpts = qbFantasyPoints({ passing_yards: qb.passing_yards, touchdowns: qb.touchdowns, interceptions: qb.interceptions, rush_yards: qb.rush_yards, rush_tds: qb.rush_tds, fumbles_lost: qb.fumbles_lost });
+      return qb.games ? fpts / qb.games : NaN;
+    }
     default: {
       const val = qb[key as keyof QBSeasonStat] as number;
       return val ?? NaN;
@@ -193,6 +198,7 @@ function formatStat(key: string, val: number): string {
     case "tds_per_game":
       return val.toFixed(1);
     case "fantasy_pts":
+    case "pts_per_game":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);

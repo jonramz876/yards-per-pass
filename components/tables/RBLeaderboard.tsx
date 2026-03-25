@@ -93,6 +93,7 @@ const RB_TABS: Record<string, TabConfig> = {
       { key: "fantasy_pts", label: "PPR", group: "core" },
       { key: "half_pts", label: "Half", group: "core" },
       { key: "std_pts", label: "Std", group: "core" },
+      { key: "pts_per_game", label: "Pts/G", group: "core" },
       { key: "carries", label: "Car", group: "rushing" },
       { key: "rushing_yards", label: "Rush Yds", group: "rushing" },
       { key: "rushing_tds", label: "Rush TD", group: "rushing" },
@@ -101,7 +102,7 @@ const RB_TABS: Record<string, TabConfig> = {
       { key: "receiving_tds_display", label: "Rec TD", group: "receiving" },
       { key: "fumbles_lost", label: "FL", tooltip: "FL", group: "rushing" },
     ],
-    heatmapCols: new Set(["fantasy_pts"]),
+    heatmapCols: new Set(["fantasy_pts", "pts_per_game"]),
     defaultSort: "fantasy_pts",
     rankBy: "fantasy_pts",
     defaultHeatmap: false,
@@ -144,6 +145,8 @@ function getVal(rb: RBSeasonStat, key: string, scoringFmt?: ScoringFormat): numb
       return fpts("half");
     case "std_pts":
       return fpts("std");
+    case "pts_per_game":
+      return rb.games ? fpts(scoringFmt ?? "ppr") / rb.games : NaN;
     case "total_touches":
       return rb.total_touches ?? (rb.carries + rb.receptions);
     case "touches_per_game":
@@ -184,6 +187,7 @@ function formatStat(key: string, val: number): string {
     case "fantasy_pts":
     case "half_pts":
     case "std_pts":
+    case "pts_per_game":
       return val.toFixed(1);
     default:
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
