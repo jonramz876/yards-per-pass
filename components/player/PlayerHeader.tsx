@@ -1,7 +1,7 @@
 // components/player/PlayerHeader.tsx
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
@@ -44,6 +44,34 @@ function SeasonSelector({ seasons, season }: { seasons: number[]; season: number
         </option>
       ))}
     </select>
+  );
+}
+
+function ShareCardButton({ playerName, slug }: { playerName: string; slug: string }) {
+  const [label, setLabel] = useState("Share Card");
+
+  async function handleClick() {
+    const url = `${window.location.origin}/card/${slug}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${playerName} Stat Card`, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setLabel("Copied!");
+      setTimeout(() => setLabel("Share Card"), 2000);
+    } catch {
+      // User cancelled share or clipboard failed — ignore
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
+    >
+      {label}
+    </button>
   );
 }
 
@@ -93,42 +121,7 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
           >
             Compare
           </Link>
-          <button
-            id="share-card-btn"
-            onClick={async () => {
-              const btn = document.getElementById("share-card-btn") as HTMLButtonElement;
-              const el = document.getElementById("share-card-target");
-              if (!el) { alert("Switch to the Overview tab first"); return; }
-              try {
-                btn.textContent = "Generating...";
-                btn.disabled = true;
-                const html2canvas = (await import("html2canvas-pro")).default;
-                const canvas = await html2canvas(el, {
-                  backgroundColor: "#ffffff",
-                  scale: 2,
-                  useCORS: true,
-                  logging: false,
-                });
-                canvas.toBlob((blob: Blob | null) => {
-                  if (!blob) { alert("Failed to generate image"); return; }
-                  const url = URL.createObjectURL(blob);
-                  const link = document.createElement("a");
-                  link.download = `${player.slug}-stat-card.png`;
-                  link.href = url;
-                  link.click();
-                  URL.revokeObjectURL(url);
-                }, "image/png");
-              } catch (err) {
-                alert("Error generating card: " + (err instanceof Error ? err.message : String(err)));
-              } finally {
-                btn.textContent = "Share Card";
-                btn.disabled = false;
-              }
-            }}
-            className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
-          >
-            Share Card
-          </button>
+          <ShareCardButton playerName={player.player_name} slug={player.slug} />
           <Suspense
             fallback={
               <select
