@@ -205,14 +205,36 @@ export default async function Image({ params }: { params: { slug: string } }) {
             </svg>
           </div>
 
-          {/* Stats column — no .map(), all explicit for Satori safety */}
+          {/* Stats column */}
           <div style={{ display: "flex", flexDirection: "column", flex: 1, justifyContent: "center", marginLeft: 40 }}>
-            {stats.map((st, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
-                <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{st.label}</div>
-                <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{st.value}</div>
-              </div>
-            ))}
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[0]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[0]?.value || ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[1]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[1]?.value || ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[2]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[2]?.value || ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[3]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[3]?.value || ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[4]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[4]?.value || ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[5]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[5]?.value || ""}</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", padding: "7px 0", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ display: "flex", width: 100, fontSize: 14, color: "#64748b", fontWeight: 600 }}>{stats[6]?.label || ""}</div>
+              <div style={{ display: "flex", flex: 1, fontSize: 24, fontWeight: 800, color: "#0f172a" }}>{stats[6]?.value || ""}</div>
+            </div>
           </div>
         </div>
 
