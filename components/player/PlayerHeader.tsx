@@ -102,12 +102,22 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
               try {
                 btn.textContent = "Generating...";
                 btn.disabled = true;
-                const { domToPng } = await import("modern-screenshot");
-                const dataUrl = await domToPng(el, { scale: 2, backgroundColor: "#ffffff" });
-                const link = document.createElement("a");
-                link.download = `${player.slug}-stat-card.png`;
-                link.href = dataUrl;
-                link.click();
+                const html2canvas = (await import("html2canvas-pro")).default;
+                const canvas = await html2canvas(el, {
+                  backgroundColor: "#ffffff",
+                  scale: 2,
+                  useCORS: true,
+                  logging: false,
+                });
+                canvas.toBlob((blob: Blob | null) => {
+                  if (!blob) { alert("Failed to generate image"); return; }
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.download = `${player.slug}-stat-card.png`;
+                  link.href = url;
+                  link.click();
+                  URL.revokeObjectURL(url);
+                }, "image/png");
               } catch (err) {
                 alert("Error generating card: " + (err instanceof Error ? err.message : String(err)));
               } finally {
