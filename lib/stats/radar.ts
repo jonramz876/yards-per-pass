@@ -27,7 +27,15 @@ export function getQBRadarVal(qb: QBSeasonStat, key: string): number {
     case "adot": return qb.adot ?? NaN;
     case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
     case "success_rate": return qb.success_rate ?? NaN;
-    case "rush_epa": return qb.rush_epa_per_play ?? NaN;
+    case "rush_epa": {
+      // Regress toward 0 (league avg) for low-volume rushers to prevent small-sample noise
+      const raw = qb.rush_epa_per_play ?? NaN;
+      if (isNaN(raw)) return NaN;
+      const MIN_RUSH = 50;
+      const ratio = Math.min(qb.rush_attempts / MIN_RUSH, 1);
+      const weight = ratio * ratio; // squared: 25 att = 25%, 35 att = 49%, 50+ att = 100%
+      return raw * weight;
+    }
     default: return NaN;
   }
 }

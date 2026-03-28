@@ -12,15 +12,15 @@ describe("classifyQB", () => {
   });
 
   it("returns Dual Threat for elite rusher with strong passing", () => {
-    // rush >= 80, eff >= 60, above60 >= 4
-    const result = classifyQB([70, 65, 70, 65, 50, 60, 85]);
+    // rush >= 80, eff >= 55, above60 >= 4
+    const result = classifyQB([60, 65, 70, 65, 50, 60, 85]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Dual Threat");
   });
 
   it("returns Mobile Playmaker for good rusher with passing volume", () => {
-    // rush >= 65, eff >= 60, vol >= 55
-    const result = classifyQB([65, 50, 60, 50, 50, 50, 70]);
+    // rush >= 65, eff >= 55, vol >= 50
+    const result = classifyQB([58, 50, 55, 50, 50, 50, 70]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Mobile Playmaker");
   });
@@ -70,9 +70,9 @@ describe("classifyQB", () => {
     expect(result!.label).toBe("Playmaker");
   });
 
-  it("returns Sniper for high depth + ball security + low rush", () => {
-    // depth >= 65, ballSec >= 65, rush < 75
-    const result = classifyQB([40, 40, 40, 70, 70, 40, 20]);
+  it("returns Sniper for high depth + ball security + adequate accuracy + low rush", () => {
+    // depth >= 65, ballSec >= 65, acc >= 40, rush < 75
+    const result = classifyQB([40, 45, 40, 70, 70, 40, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Sniper");
   });
