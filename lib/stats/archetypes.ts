@@ -19,14 +19,14 @@ export function classifyQB(percentiles: number[]): Archetype | null {
   // Dual Threat — elite rusher who also produces through the air
   if (rush >= 80 && eff >= 55 && above60 >= 4) return {
     label: "Dual Threat",
-    icon: "\u26A1",
+    icon: "\u{1F500}",
     description: "Elite rushing QB who also produces through the air \u2014 a true dual-threat weapon.",
     glossaryAnchor: "dual-threat",
   };
   // Mobile Playmaker — dangerous in and out of the pocket
   if (rush >= 65 && eff >= 55 && vol >= 50) return {
     label: "Mobile Playmaker",
-    icon: "\uD83C\uDF00",
+    icon: "\u{1F3C3}",
     description: "Extends plays and creates with his legs. Dangerous in and out of the pocket.",
     glossaryAnchor: "mobile-playmaker",
   };
@@ -49,14 +49,14 @@ export function classifyQB(percentiles: number[]): Archetype | null {
   // Gunslinger — pushes deep, takes risks
   if (depth >= 65 && vol >= 55 && ballSec <= 45) return {
     label: "Gunslinger",
-    icon: "\u{1F52B}",
+    icon: "\u{1F3B0}",
     description: "Pushes the ball downfield with aggression, trading turnovers for big plays.",
     glossaryAnchor: "gunslinger",
   };
   // Surgeon — precise and consistent
   if (acc >= 70 && cons >= 65 && eff >= 55) return {
     label: "Surgeon",
-    icon: "\u{1FA78}",
+    icon: "\u2702\uFE0F",
     description: "Picks apart defenses with precision and consistency, rarely forcing throws.",
     glossaryAnchor: "surgeon",
   };
@@ -91,7 +91,7 @@ export function classifyQB(percentiles: number[]): Archetype | null {
   // Improviser — high efficiency with low accuracy (makes plays outside structure)
   if (eff >= 65 && above60 >= 3 && acc <= 50) return {
     label: "Improviser",
-    icon: "\u{1F300}",
+    icon: "\u{1F3AD}",
     description: "Creates plays outside of structure \u2014 high efficiency despite inconsistent accuracy.",
     glossaryAnchor: "improviser",
   };
