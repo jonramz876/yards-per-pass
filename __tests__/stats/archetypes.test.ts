@@ -107,18 +107,32 @@ describe("classifyWR", () => {
     expect(classifyWR([20, 20, 20, 20, 20, 20])).toBeNull();
   });
 
-  it("returns YAC Monster for high YAC + low downfield", () => {
-    // yac >= 75, downfield <= 50
-    const result = classifyWR([50, 50, 50, 40, 80, 50]);
+  it("returns Alpha WR1 via volume path (3+ axes 70, vol >= 80, above60 >= 4)", () => {
+    // Chase-like: high volume, 3 axes at 70+, 1 below 30 allowed
+    const result = classifyWR([99, 51, 64, 21, 81, 86]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Alpha WR1");
+  });
+
+  it("returns YAC Monster for high YAC + low downfield + moderate volume", () => {
+    // yac >= 75, downfield <= 40, vol <= 75
+    const result = classifyWR([50, 50, 50, 30, 80, 50]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("YAC Monster");
   });
 
-  it("returns Target Magnet for very high volume", () => {
-    // vol >= 80 (and not matching earlier patterns)
-    const result = classifyWR([85, 40, 40, 40, 40, 40]);
+  it("returns Target Magnet for very high volume with 2+ axes at 60", () => {
+    // vol >= 80, above60 >= 2
+    const result = classifyWR([85, 40, 40, 40, 40, 65]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Target Magnet");
+  });
+
+  it("returns Route Technician for high YPRR + volume", () => {
+    // cons >= 70, vol >= 55, above60 >= 3
+    const result = classifyWR([60, 65, 60, 50, 50, 75]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Route Technician");
   });
 
   it("returns Contested Catch WR for high downfield + catch rate", () => {

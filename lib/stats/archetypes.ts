@@ -105,9 +105,16 @@ export function classifyWR(percentiles: number[]): Archetype | null {
   const above70 = percentiles.filter(p => p >= 70).length;
   const above60 = percentiles.filter(p => p >= 60).length;
 
-  // Alpha WR1 — elite across the board, no major weakness
+  // Alpha WR1 — elite across the board (loosened: allow 1 weak axis for high-volume stars)
   const wrBelow30 = percentiles.filter(p => p < 30).length;
   if (above70 >= 4 && vol >= 65 && wrBelow30 === 0) return {
+    label: "Alpha WR1",
+    icon: "\u{2B50}",
+    description: "Dominates target share and production \u2014 a true number-one receiver.",
+    glossaryAnchor: "alpha-wr1",
+  };
+  // Alpha WR1 (volume path) — high-volume WR1 with 3+ elite axes
+  if (above70 >= 3 && vol >= 80 && wrBelow30 <= 1 && above60 >= 4) return {
     label: "Alpha WR1",
     icon: "\u{2B50}",
     description: "Dominates target share and production \u2014 a true number-one receiver.",
@@ -120,15 +127,15 @@ export function classifyWR(percentiles: number[]): Archetype | null {
     description: "Wins downfield and at the catch point \u2014 high ADOT with a high catch rate.",
     glossaryAnchor: "contested-catch-wr",
   };
-  // YAC Monster — elite after the catch
-  if (yac >= 75 && downfield <= 50) return {
+  // YAC Monster — elite after the catch (exclude high-volume WR1s — they belong above)
+  if (yac >= 75 && downfield <= 40 && vol <= 75) return {
     label: "YAC Monster",
     icon: "\u26A1",
     description: "Dangerous after the catch, turning short throws into big gains.",
     glossaryAnchor: "yac-monster",
   };
-  // Target Magnet — commands a huge target share (eff threshold low — volume dominance matters)
-  if (vol >= 80) return {
+  // Target Magnet — commands a huge target share with some production
+  if (vol >= 80 && above60 >= 2) return {
     label: "Target Magnet",
     icon: "\u{1F9F2}",
     description: "Commands an elite target share \u2014 the offense runs through this receiver.",
@@ -140,6 +147,13 @@ export function classifyWR(percentiles: number[]): Archetype | null {
     icon: "\u{1F680}",
     description: "Stretches the field vertically, trading catch rate for chunk plays.",
     glossaryAnchor: "field-stretcher",
+  };
+  // Route Technician — high YPRR with solid volume
+  if (cons >= 70 && vol >= 55 && above60 >= 3) return {
+    label: "Route Technician",
+    icon: "\u{1F4D0}",
+    description: "Wins with precision route-running, generating consistent production per route.",
+    glossaryAnchor: "route-technician",
   };
   // Possession Receiver — reliable short-area target
   if (catch_ >= 70 && cons >= 60 && downfield <= 45) return {
@@ -168,6 +182,13 @@ export function classifyWR(percentiles: number[]): Archetype | null {
     icon: "\u{1F3C6}",
     description: "Creates big plays through a combination of efficiency and after-catch ability.",
     glossaryAnchor: "playmaker-wr",
+  };
+  // YAC Monster (fallback) — high YAC without volume restriction for lower-profile WRs
+  if (yac >= 80 && downfield <= 50) return {
+    label: "YAC Monster",
+    icon: "\u26A1",
+    description: "Dangerous after the catch, turning short throws into big gains.",
+    glossaryAnchor: "yac-monster",
   };
   // No match
   return null;

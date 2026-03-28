@@ -240,6 +240,8 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Commands an elite target share. Defined by Tgt/Game \u2265 80th percentile. The offense runs through this receiver regardless of per-target efficiency." },
   { term: "Field Stretcher (WR Archetype)", id: "field-stretcher",
     definition: "Stretches the field vertically. Defined by aDOT \u2265 75th and Catch% \u2264 50th. Trades catch rate for chunk plays." },
+  { term: "Route Technician (WR Archetype)", id: "route-technician",
+    definition: "Wins with precision route-running, generating consistent production per route. Defined by YPRR \u2265 70th, Tgt/G \u2265 55th, and 3+ axes \u2265 60th." },
   { term: "Possession Receiver (WR Archetype)", id: "possession-receiver",
     definition: "Reliable hands and route precision. Defined by Catch% \u2265 70th, YPRR \u2265 60th, and aDOT \u2264 45th." },
   { term: "Deep Threat (WR Archetype)", id: "deep-threat",
