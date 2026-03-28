@@ -5,10 +5,11 @@ import { useMemo } from "react";
 import Link from "next/link";
 import type { RBWeeklyStat } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
-import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
+import { computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 import { classifyRB } from "@/lib/stats/archetypes";
 import { rbFantasyPoints } from "@/lib/stats/fantasy";
+import { RB_RADAR_AXES, RB_RADAR_KEYS, RB_RADAR_LABELS, getRBRadarVal, computeRadarValues } from "@/lib/stats/radar";
 
 interface PlayerOverviewRBProps {
   weeklyStats: RBWeeklyStat[];
@@ -36,32 +37,9 @@ interface AggregatedRB {
   fumbles_lost: number;
 }
 
-const RADAR_AXES = [
-  { label: "Car/Game" },
-  { label: "EPA/Car" },
-  { label: "Stuff Avoid" },
-  { label: "Explosive%" },
-  { label: "Tgt/Game" },
-  { label: "Success%" },
-];
-
-const RADAR_KEYS = [
-  "carries_game",      // Volume — Carries/Game
-  "epa_per_carry",     // Efficiency — EPA/Carry
-  "stuff_avoidance",   // Power — 1 - stuff_rate
-  "explosive_rate",    // Explosiveness
-  "targets_game",      // Receiving — Targets/Game
-  "success_rate",      // Consistency
-] as const;
-
-const RADAR_LABELS: Record<string, string> = {
-  carries_game: "Car/G",
-  epa_per_carry: "EPA/Car",
-  stuff_avoidance: "Stuff Avoid%",
-  explosive_rate: "Explosive%",
-  targets_game: "Tgt/G",
-  success_rate: "Success%",
-};
+const RADAR_AXES = RB_RADAR_AXES;
+const RADAR_KEYS = RB_RADAR_KEYS;
+const RADAR_LABELS = RB_RADAR_LABELS;
 
 const BAR_STATS = [
   { key: "rush_yards_game", label: "Yds/G" },
@@ -120,15 +98,7 @@ function aggregateWeekly(rows: RBWeeklyStat[]): AggregatedRB {
 }
 
 function getStatValue(agg: AggregatedRB, key: string): number {
-  switch (key) {
-    case "carries_game": return agg.games ? agg.carries / agg.games : NaN;
-    case "epa_per_carry": return agg.epa_per_carry;
-    case "stuff_avoidance": return !isNaN(agg.stuff_rate) ? 1 - agg.stuff_rate : NaN;
-    case "explosive_rate": return agg.explosive_rate;
-    case "targets_game": return agg.games ? agg.targets / agg.games : NaN;
-    case "success_rate": return agg.success_rate;
-    default: return NaN;
-  }
+  return getRBRadarVal(agg, key);
 }
 
 function getBarValue(agg: AggregatedRB, key: string): number {
@@ -194,14 +164,7 @@ export default function PlayerOverviewRB({
   const total = leaguePool.length;
 
   const radarValues = useMemo(
-    () =>
-      RADAR_KEYS.map((key) => {
-        const allVals = leaguePool
-          .map((p) => getStatValue(p, key))
-          .filter((v) => !isNaN(v))
-          .sort((a, b) => a - b);
-        return computePercentile(allVals, getStatValue(playerAgg, key));
-      }),
+    () => computeRadarValues(RADAR_KEYS, getRBRadarVal, playerAgg, leaguePool),
     [playerAgg, leaguePool]
   );
 

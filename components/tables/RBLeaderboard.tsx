@@ -10,6 +10,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyRB } from "@/lib/stats/archetypes";
 import { rbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
+import { formatStat } from "@/lib/stats/formatters";
 
 interface RBLeaderboardProps {
   data: RBSeasonStat[];
@@ -168,31 +169,6 @@ function getVal(rb: RBSeasonStat, key: string, scoringFmt?: ScoringFormat): numb
 // Inverted heatmap columns (lower = better)
 const INVERTED_COLS = new Set(["stuff_rate"]);
 
-// Shared stat formatting (used by both player rows and NFL AVG row)
-function formatStat(key: string, val: number): string {
-  if (val == null || isNaN(val)) return "\u2014";
-  switch (key) {
-    case "epa_per_carry":
-    case "yards_per_carry":
-    case "total_rushing_epa":
-      return val.toFixed(2);
-    case "success_rate":
-    case "stuff_rate":
-    case "explosive_rate":
-      return (val * 100).toFixed(1) + "%";
-    case "yards_per_game":
-    case "carries_per_game":
-    case "touches_per_game":
-      return val.toFixed(1);
-    case "fantasy_pts":
-    case "half_pts":
-    case "std_pts":
-    case "pts_per_game":
-      return val.toFixed(1);
-    default:
-      return Number.isInteger(val) ? val.toString() : val.toFixed(1);
-  }
-}
 
 export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} }: RBLeaderboardProps) {
   const searchParams = useSearchParams();

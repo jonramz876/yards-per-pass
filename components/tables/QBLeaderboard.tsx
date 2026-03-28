@@ -10,6 +10,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyQB } from "@/lib/stats/archetypes";
 import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
+import { formatStat } from "@/lib/stats/formatters";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -170,40 +171,6 @@ function getVal(qb: QBSeasonStat, key: string): number {
 // Inverted heatmap columns (lower = better)
 const INVERTED_COLS = new Set(["int_pct", "sack_pct"]);
 
-// Shared stat formatting (used by both formatVal and NFL AVG row)
-function formatStat(key: string, val: number): string {
-  if (val == null || isNaN(val)) return "\u2014";
-  switch (key) {
-    case "epa_per_play":
-    case "epa_per_db":
-    case "cpoe":
-    case "adot":
-    case "ypa":
-    case "any_a":
-    case "rush_epa_per_play":
-    case "total_epa":
-      return val.toFixed(2);
-    case "success_rate":
-      return (val * 100).toFixed(1) + "%";
-    case "completion_pct":
-    case "passer_rating":
-    case "td_pct":
-    case "int_pct":
-    case "sack_pct":
-    case "scramble_pct":
-      return val.toFixed(1);
-    case "td_int_ratio":
-      return val === Infinity ? "\u221E" : val.toFixed(1) + ":1";
-    case "yards_per_game":
-    case "tds_per_game":
-      return val.toFixed(1);
-    case "fantasy_pts":
-    case "pts_per_game":
-      return val.toFixed(1);
-    default:
-      return Number.isInteger(val) ? val.toString() : val.toFixed(1);
-  }
-}
 
 export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} }: QBLeaderboardProps) {
   const searchParams = useSearchParams();

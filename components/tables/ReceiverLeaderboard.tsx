@@ -10,6 +10,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
+import { formatStat } from "@/lib/stats/formatters";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -161,42 +162,6 @@ function getVal(rec: ReceiverSeasonStat, key: string, scoringFmt?: ScoringFormat
   }
 }
 
-// Shared stat formatting (used by both player rows and NFL AVG row)
-function formatStat(key: string, val: number): string {
-  if (val == null || isNaN(val)) return "\u2014";
-  switch (key) {
-    case "epa_per_target":
-    case "yards_per_target":
-    case "yac_per_reception":
-    case "air_yards_per_target":
-    case "yards_per_route_run":
-    case "targets_per_route_run":
-      return val.toFixed(2);
-    case "croe": {
-      const pct = (val * 100).toFixed(1);
-      return (val >= 0 ? "+" : "") + pct + "%";
-    }
-    case "catch_rate":
-    case "target_share":
-    case "snap_share":
-    case "route_participation_rate":
-    case "air_yards_share":
-    case "receiving_success_rate":
-      return (val * 100).toFixed(1) + "%";
-    case "total_receiving_epa":
-      return val.toFixed(2);
-    case "yards_per_reception":
-    case "yards_per_game":
-      return val.toFixed(1);
-    case "fantasy_pts":
-    case "half_pts":
-    case "std_pts":
-    case "pts_per_game":
-      return val.toFixed(1);
-    default:
-      return Number.isInteger(val) ? val.toString() : val.toFixed(1);
-  }
-}
 
 export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap = {} }: ReceiverLeaderboardProps) {
   const searchParams = useSearchParams();

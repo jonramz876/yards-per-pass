@@ -7,8 +7,31 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import { computePercentile } from "@/lib/stats/percentiles";
+import {
+  getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues,
+  QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
+} from "@/lib/stats/radar";
+import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";
+
+// Perceptual color distance (weighted Euclidean, green-sensitive)
+function colorDistance(hex1: string, hex2: string): number {
+  const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
+  const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
+  return Math.sqrt(2 * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + 3 * (b1 - b2) ** 2);
+}
+
+const CONTRAST_PALETTE = ["#dc2626", "#2563eb", "#16a34a", "#d97706", "#9333ea", "#0891b2"];
+const MIN_DISTANCE = 150;
+
+function ensureContrast(c1: string, c2: string): string {
+  if (colorDistance(c1, c2) >= MIN_DISTANCE) return c2;
+  for (const alt of CONTRAST_PALETTE) {
+    if (colorDistance(c1, alt) >= MIN_DISTANCE) return alt;
+  }
+  return CONTRAST_PALETTE[1]; // terminal fallback: blue
+}
 
 interface ComparisonToolProps {
   qbs: QBSeasonStat[];
@@ -17,26 +40,15 @@ interface ComparisonToolProps {
   season: number;
 }
 
-// Position-specific radar configurations
-const QB_AXES = [
-  { label: "EPA/DB" }, { label: "CPOE" }, { label: "DB/Game" },
-  { label: "aDOT" }, { label: "INT Rate" }, { label: "Success%" },
-];
-const QB_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"];
+const QB_AXES = QB_RADAR_AXES;
+const QB_KEYS = [...QB_RADAR_KEYS];
+const WR_AXES = WR_RADAR_AXES;
+const WR_KEYS = [...WR_RADAR_KEYS];
+const RB_AXES = RB_RADAR_AXES;
+const RB_KEYS = [...RB_RADAR_KEYS];
 
-const WR_AXES = [
-  { label: "Tgt/Game" }, { label: "EPA/Tgt" }, { label: "CROE" },
-  { label: "aDOT" }, { label: "YAC/Rec" }, { label: "YPRR" },
-];
-const WR_KEYS = ["targets_game", "epa_per_target", "croe", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"];
-
-const RB_AXES = [
-  { label: "Car/Game" }, { label: "EPA/Car" }, { label: "Stuff Avoid" },
-  { label: "Explosive%" }, { label: "Tgt/Game" }, { label: "Success%" },
-];
-const RB_KEYS = ["carries_game", "epa_per_carry", "stuff_avoid", "explosive_rate", "targets_game", "success_rate"];
-
-type CompStat = { label: string; key: string; format: (v: number) => string; higherBetter: boolean };
+type AnyPlayer = QBSeasonStat | ReceiverSeasonStat | RBSeasonStat;
+type CompStat = { label: string; key: string; format: (v: number) => string; higherBetter: boolean; getValue?: (p: AnyPlayer) => number };
 
 const QB_COMP_STATS: CompStat[] = [
   // Radar axes
@@ -57,6 +69,8 @@ const QB_COMP_STATS: CompStat[] = [
   { label: "Rush Yds", key: "rush_yards", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Rush TD", key: "rush_tds", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "SCR%", key: "scramble_pct", format: (v) => v.toFixed(1), higherBetter: true },
+  { label: "FPts", key: "fantasy_pts", format: (v) => v.toFixed(1), higherBetter: true,
+    getValue: (p) => qbFantasyPoints(p as QBSeasonStat) },
   { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
 ];
 
@@ -75,6 +89,8 @@ const WR_COMP_STATS: CompStat[] = [
   { label: "Catch%", key: "catch_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
   { label: "Tgt Share", key: "target_share", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
   { label: "AY%", key: "air_yards_share", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
+  { label: "FPts (PPR)", key: "fantasy_pts", format: (v) => v.toFixed(1), higherBetter: true,
+    getValue: (p) => wrFantasyPoints(p as ReceiverSeasonStat, "ppr") },
   { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
 ];
 
@@ -91,44 +107,11 @@ const RB_COMP_STATS: CompStat[] = [
   { label: "YPC", key: "yards_per_carry", format: (v) => v.toFixed(1), higherBetter: true },
   { label: "TCH", key: "total_touches", format: (v) => v.toFixed(0), higherBetter: true },
   { label: "Total EPA", key: "total_rushing_epa", format: (v) => v.toFixed(1), higherBetter: true },
+  { label: "FPts (PPR)", key: "fantasy_pts", format: (v) => v.toFixed(1), higherBetter: true,
+    getValue: (p) => rbFantasyPoints(p as RBSeasonStat, "ppr") },
   { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
 ];
 
-function getQBRadarVal(qb: QBSeasonStat, key: string): number {
-  switch (key) {
-    case "epa_per_db": return qb.epa_per_db ?? NaN;
-    case "cpoe": return qb.cpoe ?? NaN;
-    case "dropbacks_game": return qb.games ? qb.dropbacks / qb.games : NaN;
-    case "adot": return qb.adot ?? NaN;
-    case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
-    case "success_rate": return qb.success_rate ?? NaN;
-    default: return NaN;
-  }
-}
-
-function getWRRadarVal(rec: ReceiverSeasonStat, key: string): number {
-  switch (key) {
-    case "targets_game": return rec.games ? rec.targets / rec.games : NaN;
-    case "epa_per_target": return rec.epa_per_target ?? NaN;
-    case "croe": return rec.croe ?? NaN;
-    case "air_yards_per_target": return rec.air_yards_per_target ?? NaN;
-    case "yac_per_reception": return rec.yac_per_reception ?? NaN;
-    case "yards_per_route_run": return rec.yards_per_route_run ?? NaN;
-    default: return NaN;
-  }
-}
-
-function getRBRadarVal(rb: RBSeasonStat, key: string): number {
-  switch (key) {
-    case "carries_game": return rb.games ? rb.carries / rb.games : NaN;
-    case "epa_per_carry": return rb.epa_per_carry ?? NaN;
-    case "stuff_avoid": return rb.stuff_rate != null ? 1 - rb.stuff_rate : NaN;
-    case "explosive_rate": return rb.explosive_rate ?? NaN;
-    case "targets_game": return rb.games ? rb.targets / rb.games : NaN;
-    case "success_rate": return rb.success_rate ?? NaN;
-    default: return NaN;
-  }
-}
 
 function getStatVal(player: QBSeasonStat | ReceiverSeasonStat | RBSeasonStat, key: string): number {
   const v = (player as unknown as Record<string, unknown>)[key];
@@ -244,12 +227,10 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
     };
   }, [stats1, stats2, pool, radarKeys, getRadarVal]);
 
-  // Colors
+  // Colors — ensure sufficient perceptual contrast between the two players
   const color1 = player1 ? getTeamColor(player1.current_team_id) : "#1e3a5f";
-  const color2 = player2 ? getTeamColor(player2.current_team_id) : "#dc2626";
-  // If same team, use a contrasting color for player 2
-  const finalColor2 = (player1 && player2 && player1.current_team_id === player2.current_team_id)
-    ? "#dc2626" : color2;
+  const rawColor2 = player2 ? getTeamColor(player2.current_team_id) : "#dc2626";
+  const finalColor2 = ensureContrast(color1, rawColor2);
 
   // Update URL
   const updateURL = useCallback((p1: SelectedPlayer | null, p2: SelectedPlayer | null) => {
@@ -341,8 +322,8 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
               </thead>
               <tbody>
                 {compStats.map((stat) => {
-                  const v1 = getStatVal(stats1, stat.key);
-                  const v2 = getStatVal(stats2, stat.key);
+                  const v1 = stat.getValue ? stat.getValue(stats1) : getStatVal(stats1, stat.key);
+                  const v2 = stat.getValue ? stat.getValue(stats2) : getStatVal(stats2, stat.key);
                   const valid1 = !isNaN(v1);
                   const valid2 = !isNaN(v2);
                   let winner: 0 | 1 | 2 = 0;

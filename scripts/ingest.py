@@ -613,6 +613,173 @@ def aggregate_def_gap_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
                      'def_success_rate', 'def_stuff_rate', 'def_explosive_rate']]
 
 
+# ---------- Down x Distance Heatmap ----------
+
+DISTANCE_BINS = [(1, 2, '1-2'), (3, 4, '3-4'), (5, 7, '5-7'), (8, 10, '8-10')]
+DISTANCE_BIN_LABELS = ['1-2', '3-4', '5-7', '8-10', '11+']
+
+
+def map_distance_bin(ydstogo):
+    """Map yards-to-go to a distance bucket."""
+    if pd.isna(ydstogo):
+        return None
+    ydstogo = int(ydstogo)
+    for lo, hi, label in DISTANCE_BINS:
+        if lo <= ydstogo <= hi:
+            return label
+    return '11+' if ydstogo >= 11 else None
+
+
+def aggregate_team_down_distance_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate team rushing EPA by down x distance bin.
+
+    Includes NFL-average rows (team_id='NFL') for league context.
+    Excludes QB scrambles and kneeldowns.
+    """
+    cols_needed = ['down', 'ydstogo', 'rush_attempt', 'qb_scramble', 'play_type',
+                   'epa', 'yards_gained', 'posteam']
+    empty_cols = ['team_id', 'season', 'down', 'distance_bin', 'carries',
+                  'epa_per_carry', 'success_rate', 'yards_per_carry',
+                  'stuff_rate', 'explosive_rate']
+    for col in cols_needed:
+        if col not in plays.columns:
+            log.warning("Column '%s' missing — skipping down×distance stats", col)
+            return pd.DataFrame(columns=empty_cols)
+
+    rushes = plays[
+        (plays['rush_attempt'] == 1) &
+        (plays['qb_scramble'] != 1) &
+        (plays['play_type'] != 'qb_kneel') &
+        (plays['down'].notna()) &
+        (plays['ydstogo'].notna())
+    ].copy()
+
+    if rushes.empty:
+        return pd.DataFrame(columns=empty_cols)
+
+    rushes['distance_bin'] = rushes['ydstogo'].apply(map_distance_bin)
+    rushes = rushes[rushes['distance_bin'].notna()]
+    if rushes.empty:
+        return pd.DataFrame(columns=empty_cols)
+
+    def agg_group(df):
+        return pd.Series({
+            'carries': len(df),
+            'epa_per_carry': df['epa'].mean(),
+            'success_rate': (df['epa'] > 0).mean(),
+            'yards_per_carry': df['yards_gained'].mean(),
+            'stuff_rate': (df['yards_gained'] <= 0).mean(),
+            'explosive_rate': (df['yards_gained'] >= 10).mean(),
+        })
+
+    # Per-team aggregation
+    team_grouped = rushes.groupby(['posteam', 'down', 'distance_bin']).apply(
+        agg_group, include_groups=False
+    ).reset_index()
+    team_grouped = team_grouped.rename(columns={'posteam': 'team_id'})
+    team_grouped['season'] = season
+    team_grouped['down'] = team_grouped['down'].astype(int)
+
+    # NFL-average rows
+    nfl_grouped = rushes.groupby(['down', 'distance_bin']).apply(
+        agg_group, include_groups=False
+    ).reset_index()
+    nfl_grouped['team_id'] = 'NFL'
+    nfl_grouped['season'] = season
+    nfl_grouped['down'] = nfl_grouped['down'].astype(int)
+
+    result = pd.concat([team_grouped, nfl_grouped], ignore_index=True)
+    return result[empty_cols]
+
+
+# ---------- Situational Efficiency ----------
+
+TEAM_SITUATIONS = {
+    'all': lambda df: df,
+    'early_down': lambda df: df[df['down'].isin([1, 2])],
+    'short_yardage': lambda df: df[(df['down'].isin([3, 4])) & (df['ydstogo'] <= 2)],
+    'passing_down': lambda df: df[
+        ((df['down'] == 2) & (df['ydstogo'] >= 7)) |
+        ((df['down'] == 3) & (df['ydstogo'] >= 5))
+    ],
+    'redzone': lambda df: df[df['yardline_100'] <= 20],
+    'goalline': lambda df: df[df['yardline_100'] <= 5],
+    'late_close': lambda df: df[
+        (df['wp'] >= 0.25) & (df['wp'] <= 0.75) &
+        (df['game_seconds_remaining'] <= 900)
+    ],
+}
+
+
+def aggregate_team_situational_stats(plays: pd.DataFrame, season: int) -> pd.DataFrame:
+    """Aggregate team offensive EPA by game situation (pass+rush split).
+
+    Includes NFL-average rows (team_id='NFL') for league context.
+    """
+    cols_needed = ['play_type', 'epa', 'posteam', 'down', 'ydstogo',
+                   'yardline_100', 'wp', 'game_seconds_remaining']
+    empty_cols = ['team_id', 'season', 'situation', 'plays', 'epa_per_play',
+                  'success_rate', 'pass_rate', 'rush_epa_per_play',
+                  'pass_epa_per_play', 'rush_success_rate', 'pass_success_rate']
+    for col in cols_needed:
+        if col not in plays.columns:
+            log.warning("Column '%s' missing — skipping situational stats", col)
+            return pd.DataFrame(columns=empty_cols)
+
+    # Include pass and run plays (exclude kneeldowns for cleaner data)
+    off_plays = plays[
+        (plays['play_type'].isin(['pass', 'run'])) &
+        (plays['epa'].notna()) &
+        (plays['posteam'].notna())
+    ].copy()
+
+    if off_plays.empty:
+        return pd.DataFrame(columns=empty_cols)
+
+    rows = []
+
+    def compute_sit(df, team_id, situation):
+        if df.empty:
+            return None
+        n = len(df)
+        passes = df[df['play_type'] == 'pass']
+        rushes = df[df['play_type'] == 'run']
+        return {
+            'team_id': team_id,
+            'season': season,
+            'situation': situation,
+            'plays': n,
+            'epa_per_play': df['epa'].mean(),
+            'success_rate': (df['epa'] > 0).mean(),
+            'pass_rate': len(passes) / n if n > 0 else 0,
+            'rush_epa_per_play': rushes['epa'].mean() if len(rushes) > 0 else None,
+            'pass_epa_per_play': passes['epa'].mean() if len(passes) > 0 else None,
+            'rush_success_rate': (rushes['epa'] > 0).mean() if len(rushes) > 0 else None,
+            'pass_success_rate': (passes['epa'] > 0).mean() if len(passes) > 0 else None,
+        }
+
+    # Per-team, per-situation
+    for team_id in off_plays['posteam'].unique():
+        team_df = off_plays[off_plays['posteam'] == team_id]
+        for sit_name, sit_filter in TEAM_SITUATIONS.items():
+            sit_df = sit_filter(team_df)
+            row = compute_sit(sit_df, team_id, sit_name)
+            if row:
+                rows.append(row)
+
+    # NFL-average rows
+    for sit_name, sit_filter in TEAM_SITUATIONS.items():
+        sit_df = sit_filter(off_plays)
+        row = compute_sit(sit_df, 'NFL', sit_name)
+        if row:
+            rows.append(row)
+
+    if not rows:
+        return pd.DataFrame(columns=empty_cols)
+
+    return pd.DataFrame(rows)[empty_cols]
+
+
 def aggregate_rb_season_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
     """Aggregate RB/FB season rushing stats from filtered plays.
 
@@ -2449,6 +2616,119 @@ def upsert_qb_pass_location_stats(conn, df: pd.DataFrame):
     log.info("Upserted %d QB pass location stat rows", len(rows))
 
 
+# --- Down x Distance table ---
+
+def ensure_team_down_distance_table(conn):
+    """Create team_down_distance_stats table. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS team_down_distance_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                team_id TEXT NOT NULL,
+                season INT NOT NULL,
+                down INT NOT NULL,
+                distance_bin TEXT NOT NULL,
+                carries INT NOT NULL,
+                epa_per_carry NUMERIC,
+                success_rate NUMERIC,
+                yards_per_carry NUMERIC,
+                stuff_rate NUMERIC,
+                explosive_rate NUMERIC,
+                UNIQUE (team_id, season, down, distance_bin)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_dd_season_team ON team_down_distance_stats(season, team_id)")
+        cur.execute("""DO $$ BEGIN ALTER TABLE team_down_distance_stats ENABLE ROW LEVEL SECURITY; EXCEPTION WHEN others THEN NULL; END $$""")
+        cur.execute("""DO $$ BEGIN CREATE POLICY "public_read" ON team_down_distance_stats FOR SELECT USING (true); EXCEPTION WHEN duplicate_object THEN NULL; END $$""")
+    conn.commit()
+    log.info("Ensured team_down_distance_stats table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_team_down_distance_stats(conn, df: pd.DataFrame):
+    """Upsert team down×distance rushing stats."""
+    if df.empty:
+        log.info("No down×distance stats to upsert")
+        return
+
+    cols = ['team_id', 'season', 'down', 'distance_bin', 'carries',
+            'epa_per_carry', 'success_rate', 'yards_per_carry',
+            'stuff_rate', 'explosive_rate']
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}" for c in cols
+        if c not in ('team_id', 'season', 'down', 'distance_bin')
+    )
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"INSERT INTO team_down_distance_stats ({col_names}) VALUES %s "
+            f"ON CONFLICT (team_id, season, down, distance_bin) DO UPDATE SET {update_set}",
+            rows,
+        )
+    log.info("Upserted %d team down×distance rows", len(rows))
+
+
+# --- Situational Efficiency table ---
+
+def ensure_team_situational_table(conn):
+    """Create team_situational_stats table. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS team_situational_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                team_id TEXT NOT NULL,
+                season INT NOT NULL,
+                situation TEXT NOT NULL,
+                plays INT NOT NULL,
+                epa_per_play NUMERIC,
+                success_rate NUMERIC,
+                pass_rate NUMERIC,
+                rush_epa_per_play NUMERIC,
+                pass_epa_per_play NUMERIC,
+                rush_success_rate NUMERIC,
+                pass_success_rate NUMERIC,
+                UNIQUE (team_id, season, situation)
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sit_season_team ON team_situational_stats(season, team_id)")
+        cur.execute("""DO $$ BEGIN ALTER TABLE team_situational_stats ENABLE ROW LEVEL SECURITY; EXCEPTION WHEN others THEN NULL; END $$""")
+        cur.execute("""DO $$ BEGIN CREATE POLICY "public_read" ON team_situational_stats FOR SELECT USING (true); EXCEPTION WHEN duplicate_object THEN NULL; END $$""")
+    conn.commit()
+    log.info("Ensured team_situational_stats table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_team_situational_stats(conn, df: pd.DataFrame):
+    """Upsert team situational efficiency stats."""
+    if df.empty:
+        log.info("No situational stats to upsert")
+        return
+
+    cols = ['team_id', 'season', 'situation', 'plays', 'epa_per_play',
+            'success_rate', 'pass_rate', 'rush_epa_per_play',
+            'pass_epa_per_play', 'rush_success_rate', 'pass_success_rate']
+    clean_df = df[cols].where(df[cols].notna(), None)
+    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    col_names = ', '.join(cols)
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}" for c in cols
+        if c not in ('team_id', 'season', 'situation')
+    )
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"INSERT INTO team_situational_stats ({col_names}) VALUES %s "
+            f"ON CONFLICT (team_id, season, situation) DO UPDATE SET {update_set}",
+            rows,
+        )
+    log.info("Upserted %d team situational rows", len(rows))
+
+
 # --- Player slugs ---
 
 def ensure_player_slugs_table(conn):
@@ -2641,7 +2921,7 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
     log.info("Upserted %d player slug rows", len(rows))
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None):
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None, dd_team_ids: list = None, sit_team_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -2734,6 +3014,22 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale qb_pass_location_stats rows", cur.rowcount)
 
+        if dd_team_ids is not None and len(dd_team_ids) > 0:
+            cur.execute(
+                "DELETE FROM team_down_distance_stats WHERE season = %s AND team_id != ALL(%s)",
+                (season, dd_team_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale team_down_distance_stats rows", cur.rowcount)
+
+        if sit_team_ids is not None and len(sit_team_ids) > 0:
+            cur.execute(
+                "DELETE FROM team_situational_stats WHERE season = %s AND team_id != ALL(%s)",
+                (season, sit_team_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale team_situational_stats rows", cur.rowcount)
+
 
 @retry(max_retries=2, delay=3)
 def update_freshness(conn, season: int, through_week: int):
@@ -2811,6 +3107,8 @@ def process_season(season: int, conn, dry_run: bool = False):
     qb_weekly = aggregate_qb_weekly_stats(plays, roster, season)
     receiver_weekly = aggregate_receiver_weekly_stats(plays, roster, season, participation)
     rb_weekly = aggregate_rb_weekly_stats(plays, roster, season)
+    dd_stats = aggregate_team_down_distance_stats(plays, season)
+    sit_stats = aggregate_team_situational_stats(plays, season)
     through_week = int(plays['week'].max())
 
     validate_data(team_stats, qb_stats, receiver_stats)
@@ -2844,6 +3142,8 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_receiver_weekly_stats_table(conn)
     ensure_rb_weekly_stats_table(conn)
     ensure_qb_pass_location_tables(conn)
+    ensure_team_down_distance_table(conn)
+    ensure_team_situational_table(conn)
     ensure_player_slugs_table(conn)
 
     try:
@@ -2859,6 +3159,8 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_qb_weekly_stats(conn, qb_weekly)
         upsert_receiver_weekly_stats(conn, receiver_weekly)
         upsert_rb_weekly_stats(conn, rb_weekly)
+        upsert_team_down_distance_stats(conn, dd_stats)
+        upsert_team_situational_stats(conn, sit_stats)
         player_slugs_df = generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn)
         upsert_player_slugs(conn, player_slugs_df)
         cleanup_stale_rows(
@@ -2874,6 +3176,8 @@ def process_season(season: int, conn, dry_run: bool = False):
             receiver_weekly_player_ids=receiver_weekly['player_id'].unique().tolist() if not receiver_weekly.empty else [],
             rb_weekly_player_ids=rb_weekly['player_id'].unique().tolist() if not rb_weekly.empty else [],
             qb_pass_loc_player_ids=qb_pass_loc['player_id'].unique().tolist() if not qb_pass_loc.empty else [],
+            dd_team_ids=dd_stats['team_id'].unique().tolist() if not dd_stats.empty else [],
+            sit_team_ids=sit_stats['team_id'].unique().tolist() if not sit_stats.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()

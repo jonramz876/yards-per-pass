@@ -280,6 +280,17 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Maximizes limited touches. Defined by EPA/Car \u2265 65th, Explosive% \u2265 60th, and Car/Game \u2264 40th." },
   { term: "Bell Cow (RB Archetype)", id: "bell-cow",
     definition: "Dominates touches in the backfield. Defined by Car/Game \u2265 85th percentile. The clear lead back regardless of efficiency." },
+  // --- Down x Distance & Situational ---
+  { term: "Down & Distance Heatmap", id: "down-distance-heatmap",
+    definition: "A 4\u00d75 grid showing rushing efficiency by down (1st\u20134th) and distance bin (1\u20132, 3\u20134, 5\u20137, 8\u201310, 11+ yards). Color intensity reflects EPA per carry, success rate, or yards per carry. Cells with fewer than 5 carries are marked as low-sample." },
+  { term: "Early Downs", id: "early-downs",
+    definition: "1st and 2nd down plays. The broadest situational filter, capturing plays where the offense has the most flexibility in play-calling." },
+  { term: "Passing Down", id: "passing-down",
+    definition: "Situations where the defense expects a pass: 2nd down with 7+ yards to go, or 3rd down with 5+ yards to go. Rushing on passing downs often has higher EPA due to lighter boxes." },
+  { term: "Short Yardage", id: "short-yardage",
+    definition: "3rd or 4th down with 2 or fewer yards to go. High-leverage situations where teams often use heavy personnel and power rushing schemes." },
+  { term: "Late & Close", id: "late-close",
+    definition: "Plays in the 4th quarter (game_seconds_remaining \u2264 900) with win probability between 25% and 75%. Filters out garbage time to show how a team performs when the game is still competitive." },
 ];
 
 export default function GlossaryPage() {

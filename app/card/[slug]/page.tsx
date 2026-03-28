@@ -7,18 +7,16 @@ import { getQBStats } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal } from "@/lib/stats/percentiles";
-import { qbFantasyPoints } from "@/lib/stats/fantasy";
-import { wrFantasyPoints } from "@/lib/stats/fantasy";
-import { rbFantasyPoints } from "@/lib/stats/fantasy";
+import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
+import { getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues, QB_RADAR_KEYS, QB_RADAR_LABELS as QB_RL, WR_RADAR_KEYS, WR_RADAR_LABELS as WR_RL, RB_RADAR_KEYS, RB_RADAR_LABELS as RB_RL } from "@/lib/stats/radar";
 import type { QBSeasonStat, ReceiverSeasonStat, RBWeeklyStat } from "@/lib/types";
 import StatCardView from "@/components/player/StatCardView";
 import CardPageActions from "./CardPageActions";
 
 export const revalidate = 3600;
 
-// --- QB helpers (mirrors PlayerOverviewQB.tsx) ---
-const QB_RADAR_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"] as const;
-const QB_RADAR_LABELS = ["EPA/DB", "CPOE", "DB/G", "aDOT", "INT Rate", "Success%"];
+// --- QB helpers ---
+const QB_RADAR_LABELS = QB_RADAR_KEYS.map((k) => QB_RL[k]);
 const QB_BAR_STATS = [
   { key: "yards_per_game", label: "Yds/G" },
   { key: "tds_per_game", label: "TD/G" },
@@ -27,17 +25,6 @@ const QB_BAR_STATS = [
   { key: "fantasy_pts", label: "FPts" },
 ];
 
-function getQBRadarVal(qb: QBSeasonStat, key: string): number {
-  switch (key) {
-    case "epa_per_db": return qb.epa_per_db ?? NaN;
-    case "cpoe": return qb.cpoe ?? NaN;
-    case "dropbacks_game": return qb.games ? qb.dropbacks / qb.games : NaN;
-    case "adot": return qb.adot ?? NaN;
-    case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
-    case "success_rate": return qb.success_rate ?? NaN;
-    default: return NaN;
-  }
-}
 
 function getQBBarVal(qb: QBSeasonStat, key: string): number {
   switch (key) {
@@ -66,9 +53,8 @@ function formatQBChip(key: string, val: number): string {
   }
 }
 
-// --- WR/TE helpers (mirrors PlayerOverviewWR.tsx) ---
-const WR_RADAR_KEYS = ["targets_game", "epa_per_target", "croe", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"] as const;
-const WR_RADAR_LABELS = ["Tgt/G", "EPA/Tgt", "CROE", "aDOT", "YAC/Rec", "YPRR"];
+// --- WR/TE helpers ---
+const WR_RADAR_LABELS = WR_RADAR_KEYS.map((k) => WR_RL[k]);
 const WR_BAR_STATS: { key: string; label: string; pct: boolean }[] = [
   { key: "yards_per_game", label: "Yds/G", pct: false },
   { key: "tds_per_game", label: "TD/G", pct: false },
@@ -77,17 +63,6 @@ const WR_BAR_STATS: { key: string; label: string; pct: boolean }[] = [
   { key: "fantasy_pts", label: "FPts", pct: false },
 ];
 
-function getWRRadarVal(rec: ReceiverSeasonStat, key: string): number {
-  switch (key) {
-    case "targets_game": return rec.games ? rec.targets / rec.games : NaN;
-    case "epa_per_target": return rec.epa_per_target;
-    case "croe": return rec.croe ?? NaN;
-    case "air_yards_per_target": return rec.air_yards_per_target;
-    case "yac_per_reception": return rec.yac_per_reception;
-    case "yards_per_route_run": return rec.yards_per_route_run;
-    default: return NaN;
-  }
-}
 
 function getWRBarVal(rec: ReceiverSeasonStat, key: string): number {
   switch (key) {
@@ -116,7 +91,7 @@ function formatWRChip(key: string, val: number): string {
   }
 }
 
-// --- RB helpers (mirrors PlayerOverviewRB.tsx) ---
+// --- RB helpers ---
 interface AggregatedRB {
   player_id: string;
   games: number;
@@ -135,8 +110,7 @@ interface AggregatedRB {
   fumbles_lost: number;
 }
 
-const RB_RADAR_KEYS = ["carries_game", "epa_per_carry", "stuff_avoidance", "explosive_rate", "targets_game", "success_rate"] as const;
-const RB_RADAR_LABELS = ["Car/G", "EPA/Car", "Stuff Avoid%", "Explosive%", "Tgt/G", "Success%"];
+const RB_RADAR_LABELS = RB_RADAR_KEYS.map((k) => RB_RL[k]);
 const RB_BAR_STATS = [
   { key: "rush_yards_game", label: "Yds/G" },
   { key: "rush_tds_game", label: "TD/G" },
@@ -181,18 +155,6 @@ function aggregateRBWeekly(rows: RBWeeklyStat[]): AggregatedRB {
     yards_per_carry: ypcCount > 0 ? ypcSum / ypcCount : NaN,
     targets, receptions, receiving_yards: recYds, receiving_tds: recTds, fumbles_lost: fumblesLost,
   };
-}
-
-function getRBRadarVal(agg: AggregatedRB, key: string): number {
-  switch (key) {
-    case "carries_game": return agg.games ? agg.carries / agg.games : NaN;
-    case "epa_per_carry": return agg.epa_per_carry;
-    case "stuff_avoidance": return !isNaN(agg.stuff_rate) ? 1 - agg.stuff_rate : NaN;
-    case "explosive_rate": return agg.explosive_rate;
-    case "targets_game": return agg.games ? agg.targets / agg.games : NaN;
-    case "success_rate": return agg.success_rate;
-    default: return NaN;
-  }
 }
 
 function getRBBarVal(agg: AggregatedRB, key: string): number {
@@ -417,18 +379,20 @@ export default async function CardPage({
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
-      {/* The card */}
-      <StatCardView
-        playerName={player.player_name}
-        position={player.position}
-        teamName={teamName}
-        teamColor={teamColor}
-        season={season}
-        radarValues={radarValues}
-        radarLabels={radarLabels}
-        chipStats={chipStats}
-        barStats={barStats}
-      />
+      {/* The card — scrollable wrapper for mobile */}
+      <div style={{ maxWidth: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <StatCardView
+          playerName={player.player_name}
+          position={player.position}
+          teamName={teamName}
+          teamColor={teamColor}
+          season={season}
+          radarValues={radarValues}
+          radarLabels={radarLabels}
+          chipStats={chipStats}
+          barStats={barStats}
+        />
+      </div>
 
       {/* Actions below the card */}
       <CardPageActions slug={slug} />

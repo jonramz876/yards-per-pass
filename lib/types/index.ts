@@ -304,3 +304,30 @@ export interface QBPassLocationStat {
   cpoe: number | null;
   passer_rating: number | null;
 }
+
+export interface TeamDownDistanceStat {
+  team_id: string;
+  season: number;
+  down: number;
+  distance_bin: string;
+  carries: number;
+  epa_per_carry: number;
+  success_rate: number;
+  yards_per_carry: number;
+  stuff_rate: number;
+  explosive_rate: number;
+}
+
+export interface TeamSituationalStat {
+  team_id: string;
+  season: number;
+  situation: string;
+  plays: number;
+  epa_per_play: number;
+  success_rate: number;
+  pass_rate: number;
+  rush_epa_per_play: number;
+  pass_epa_per_play: number;
+  rush_success_rate: number;
+  pass_success_rate: number;
+}

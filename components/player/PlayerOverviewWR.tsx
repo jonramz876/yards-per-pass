@@ -5,10 +5,11 @@ import { useMemo } from "react";
 import Link from "next/link";
 import type { ReceiverSeasonStat, CrossLinkQB } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
-import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
+import { computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { wrFantasyPoints } from "@/lib/stats/fantasy";
+import { WR_RADAR_AXES, WR_RADAR_KEYS, WR_RADAR_LABELS, getWRRadarVal, computeRadarValues } from "@/lib/stats/radar";
 
 interface PlayerOverviewWRProps {
   stats: ReceiverSeasonStat;
@@ -18,32 +19,9 @@ interface PlayerOverviewWRProps {
   teamQBData?: CrossLinkQB;
 }
 
-const RADAR_AXES = [
-  { label: "Tgt/Game" },
-  { label: "EPA/Tgt" },
-  { label: "CROE" },
-  { label: "aDOT" },
-  { label: "YAC/Rec" },
-  { label: "YPRR" },
-];
-
-const RADAR_KEYS = [
-  "targets_game",          // Volume — Targets/Game
-  "epa_per_target",        // Efficiency — EPA/Target
-  "croe",                  // Quality — Catch Rate Over Expected (replaces Catch%)
-  "air_yards_per_target",  // Downfield — ADOT
-  "yac_per_reception",     // After Catch — YAC/Rec
-  "yards_per_route_run",   // Consistency — YPRR
-] as const;
-
-const RADAR_LABELS: Record<string, string> = {
-  targets_game: "Tgt/G",
-  epa_per_target: "EPA/Tgt",
-  croe: "CROE",
-  air_yards_per_target: "ADOT",
-  yac_per_reception: "YAC/Rec",
-  yards_per_route_run: "YPRR",
-};
+const RADAR_AXES = WR_RADAR_AXES;
+const RADAR_KEYS = WR_RADAR_KEYS;
+const RADAR_LABELS = WR_RADAR_LABELS;
 
 const BAR_STATS: { key: string; label: string; pct: boolean }[] = [
   { key: "yards_per_game", label: "Yds/G", pct: false },
@@ -55,17 +33,6 @@ const BAR_STATS: { key: string; label: string; pct: boolean }[] = [
   { key: "fantasy_pts", label: "FPts", pct: false },
 ];
 
-function getStatValue(rec: ReceiverSeasonStat, key: string): number {
-  switch (key) {
-    case "targets_game": return rec.games ? rec.targets / rec.games : NaN;
-    case "epa_per_target": return rec.epa_per_target;
-    case "croe": return rec.croe ?? NaN;
-    case "air_yards_per_target": return rec.air_yards_per_target;
-    case "yac_per_reception": return rec.yac_per_reception;
-    case "yards_per_route_run": return rec.yards_per_route_run;
-    default: return NaN;
-  }
-}
 
 function getBarValue(rec: ReceiverSeasonStat, key: string): number {
   switch (key) {
@@ -116,14 +83,7 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId, 
   const total = positionPool.length;
 
   const radarValues = useMemo(
-    () =>
-      RADAR_KEYS.map((key) => {
-        const allVals = positionPool
-          .map((r) => getStatValue(r, key))
-          .filter((v) => !isNaN(v))
-          .sort((a, b) => a - b);
-        return computePercentile(allVals, getStatValue(stats, key));
-      }),
+    () => computeRadarValues(RADAR_KEYS, getWRRadarVal, stats, positionPool),
     [stats, positionPool]
   );
 
@@ -132,8 +92,8 @@ export default function PlayerOverviewWR({ stats, allReceivers, season, teamId, 
   const chipData = useMemo(
     () =>
       RADAR_KEYS.map((key) => {
-        const val = getStatValue(stats, key);
-        const allVals = positionPool.map((r) => getStatValue(r, key)).filter((v) => !isNaN(v));
+        const val = getWRRadarVal(stats, key);
+        const allVals = positionPool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v));
         const rank = computeRank(allVals, val);
         return { key, val, rank };
       }),

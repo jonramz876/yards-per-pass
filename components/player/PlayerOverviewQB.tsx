@@ -5,10 +5,11 @@ import { useMemo } from "react";
 import Link from "next/link";
 import type { QBSeasonStat, CrossLinkReceiver } from "@/lib/types";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
-import { computePercentile, computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
+import { computeRank, ordinal, chipColor } from "@/lib/stats/percentiles";
 import RadarChart from "@/components/qb/RadarChart";
 import { classifyQB } from "@/lib/stats/archetypes";
 import { qbFantasyPoints } from "@/lib/stats/fantasy";
+import { QB_RADAR_AXES, QB_RADAR_KEYS, QB_RADAR_LABELS, getQBRadarVal, computeRadarValues } from "@/lib/stats/radar";
 
 interface PlayerOverviewQBProps {
   stats: QBSeasonStat;
@@ -18,33 +19,9 @@ interface PlayerOverviewQBProps {
   topReceivers?: CrossLinkReceiver[];
 }
 
-// Radar: 6 axes matching the spec
-const RADAR_AXES = [
-  { label: "EPA/DB" },
-  { label: "CPOE" },
-  { label: "DB/Game" },
-  { label: "aDOT" },
-  { label: "INT Rate" },
-  { label: "Success%" },
-];
-
-const RADAR_KEYS = [
-  "epa_per_db",     // Efficiency — EPA/Dropback
-  "cpoe",           // Accuracy — CPOE
-  "dropbacks_game", // Volume — dropbacks/game
-  "adot",           // Depth — aDOT
-  "inv_int_pct",    // Ball Security — inverse INT%
-  "success_rate",   // Consistency — Success Rate
-] as const;
-
-const RADAR_LABELS: Record<string, string> = {
-  epa_per_db: "EPA/DB",
-  cpoe: "CPOE",
-  dropbacks_game: "DB/G",
-  adot: "aDOT",
-  inv_int_pct: "INT Rate",
-  success_rate: "Success%",
-};
+const RADAR_AXES = QB_RADAR_AXES;
+const RADAR_KEYS = QB_RADAR_KEYS;
+const RADAR_LABELS = QB_RADAR_LABELS;
 
 const BAR_STATS = [
   { key: "yards_per_game", label: "Yds/G" },
@@ -54,18 +31,6 @@ const BAR_STATS = [
   { key: "fantasy_pts", label: "FPts" },
 ];
 
-function getStatValue(qb: QBSeasonStat, key: string): number {
-  switch (key) {
-    case "epa_per_db": return qb.epa_per_db ?? NaN;
-    case "cpoe": return qb.cpoe ?? NaN;
-    case "dropbacks_game": return qb.games ? qb.dropbacks / qb.games : NaN;
-    case "adot": return qb.adot ?? NaN;
-    case "inv_int_pct":
-      return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
-    case "success_rate": return qb.success_rate ?? NaN;
-    default: return NaN;
-  }
-}
 
 function getBarValue(qb: QBSeasonStat, key: string): number {
   switch (key) {
@@ -104,14 +69,7 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId, topRec
   const total = allQBs.length;
 
   const radarValues = useMemo(
-    () =>
-      RADAR_KEYS.map((key) => {
-        const allVals = allQBs
-          .map((q) => getStatValue(q, key))
-          .filter((v) => !isNaN(v))
-          .sort((a, b) => a - b);
-        return computePercentile(allVals, getStatValue(stats, key));
-      }),
+    () => computeRadarValues(RADAR_KEYS, getQBRadarVal, stats, allQBs),
     [stats, allQBs]
   );
 
@@ -120,8 +78,8 @@ export default function PlayerOverviewQB({ stats, allQBs, season, teamId, topRec
   const chipData = useMemo(
     () =>
       RADAR_KEYS.map((key) => {
-        const val = getStatValue(stats, key);
-        const allVals = allQBs.map((q) => getStatValue(q, key)).filter((v) => !isNaN(v));
+        const val = getQBRadarVal(stats, key);
+        const allVals = allQBs.map((q) => getQBRadarVal(q, key)).filter((v) => !isNaN(v));
         const rank = computeRank(allVals, val);
         return { key, val, rank };
       }),

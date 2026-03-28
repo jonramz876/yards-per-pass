@@ -10,6 +10,8 @@ import PassingSection from "@/components/team/PassingSection";
 import GroundGameSection from "@/components/team/GroundGameSection";
 import DefenseSection from "@/components/team/DefenseSection";
 import DivisionRivals from "@/components/team/DivisionRivals";
+import DownDistanceHeatmap from "@/components/team/DownDistanceHeatmap";
+import SituationalDashboard from "@/components/team/SituationalDashboard";
 
 interface TeamHubContentProps {
   team: Team;
@@ -55,6 +57,18 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           allTeamStats={data.allTeamStats}
           season={data.currentSeason}
           freshness={data.freshness}
+        />
+
+        <DownDistanceHeatmap
+          stats={data.downDistanceStats}
+          nflAvg={data.downDistanceNFL}
+          teamName={team.name}
+        />
+
+        <SituationalDashboard
+          teamStats={data.situationalStats}
+          allTeamStats={data.allSituationalStats}
+          teamName={team.name}
         />
 
         <DefenseSection
