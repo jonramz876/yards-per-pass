@@ -88,7 +88,7 @@ function textColor(bg: string): string {
   return lum > 0.6 ? "#0f172a" : "#ffffff";
 }
 
-export default function DownDistanceHeatmap({ stats, nflAvg, teamName }: DownDistanceHeatmapProps) {
+export default function DownDistanceHeatmap({ stats, nflAvg }: DownDistanceHeatmapProps) {
   const [metric, setMetric] = useState<Metric>("epa_per_carry");
   const currentMetric = METRICS.find((m) => m.key === metric)!;
 

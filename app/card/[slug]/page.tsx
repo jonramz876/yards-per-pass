@@ -8,7 +8,7 @@ import { getReceiverStats } from "@/lib/data/receivers";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal } from "@/lib/stats/percentiles";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
-import { getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues, QB_RADAR_KEYS, QB_RADAR_LABELS as QB_RL, WR_RADAR_KEYS, WR_RADAR_LABELS as WR_RL, RB_RADAR_KEYS, RB_RADAR_LABELS as RB_RL } from "@/lib/stats/radar";
+import { getQBRadarVal, getWRRadarVal, getRBRadarVal, QB_RADAR_KEYS, QB_RADAR_LABELS as QB_RL, WR_RADAR_KEYS, WR_RADAR_LABELS as WR_RL, RB_RADAR_KEYS, RB_RADAR_LABELS as RB_RL } from "@/lib/stats/radar";
 import type { QBSeasonStat, ReceiverSeasonStat, RBWeeklyStat } from "@/lib/types";
 import StatCardView from "@/components/player/StatCardView";
 import CardPageActions from "./CardPageActions";

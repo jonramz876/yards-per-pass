@@ -8,7 +8,7 @@ import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types
 import { getTeamColor } from "@/lib/data/teams";
 import { computePercentile } from "@/lib/stats/percentiles";
 import {
-  getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues,
+  getQBRadarVal, getWRRadarVal, getRBRadarVal,
   QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
 } from "@/lib/stats/radar";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";

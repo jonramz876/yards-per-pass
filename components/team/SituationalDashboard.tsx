@@ -112,7 +112,7 @@ function SplitBar({ rushEpa, passEpa }: { rushEpa: number; passEpa: number }) {
   );
 }
 
-export default function SituationalDashboard({ teamStats, allTeamStats, teamName }: SituationalDashboardProps) {
+export default function SituationalDashboard({ teamStats, allTeamStats }: SituationalDashboardProps) {
   if (teamStats.length === 0) return null;
 
   const statMap = new Map(teamStats.map((s) => [s.situation, s]));
