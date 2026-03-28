@@ -268,8 +268,8 @@ export default async function CardPage({
       const me = allQBs.find((q) => q.player_id === player.player_id);
       if (!me) notFound();
 
-      const PFR_MIN = 238;
-      const pool = allQBs.filter((q) => q.attempts >= PFR_MIN);
+      // Wider pool (100+ dropbacks) for stable archetype percentiles
+      const pool = allQBs.filter((q) => q.dropbacks >= 100);
       const total = pool.length;
 
       radarLabels = QB_RADAR_LABELS;
