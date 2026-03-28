@@ -12,7 +12,7 @@ describe("classifyQB", () => {
   });
 
   it("returns Dual Threat for elite rusher with strong passing", () => {
-    // rush >= 80, eff >= 55, above60 >= 4
+    // rush >= 80, eff >= 50, above60 >= 4
     const result = classifyQB([60, 65, 70, 65, 50, 60, 85]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Dual Threat");

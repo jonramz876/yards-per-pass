@@ -17,14 +17,14 @@ export function classifyQB(percentiles: number[]): Archetype | null {
   const above60 = percentiles.filter(p => p >= 60).length;
 
   // Dual Threat — elite rusher who also produces through the air
-  if (rush >= 80 && eff >= 55 && above60 >= 4) return {
+  if (rush >= 80 && eff >= 50 && above60 >= 4) return {
     label: "Dual Threat",
     icon: "\u{1F500}",
     description: "Elite rushing QB who also produces through the air \u2014 a true dual-threat weapon.",
     glossaryAnchor: "dual-threat",
   };
   // Mobile Playmaker — dangerous in and out of the pocket
-  if (rush >= 65 && eff >= 55 && vol >= 50) return {
+  if (rush >= 70 && eff >= 55 && vol >= 50) return {
     label: "Mobile Playmaker",
     icon: "\u{1F3C3}",
     description: "Extends plays and creates with his legs. Dangerous in and out of the pocket.",
@@ -135,7 +135,7 @@ export function classifyWR(percentiles: number[]): Archetype | null {
     glossaryAnchor: "yac-monster",
   };
   // Target Magnet — commands a huge target share with some production
-  if (vol >= 80 && above60 >= 2) return {
+  if (vol >= 78 && above60 >= 2) return {
     label: "Target Magnet",
     icon: "\u{1F9F2}",
     description: "Commands an elite target share \u2014 the offense runs through this receiver.",
@@ -202,7 +202,15 @@ export function classifyTE(percentiles: number[]): Archetype | null {
 
   // Elite TE1 — dominant across the board, no major weakness
   const teBelow30 = percentiles.filter(p => p < 30).length;
+  const above60 = percentiles.filter(p => p >= 60).length;
   if (above70 >= 4 && vol >= 60 && teBelow30 === 0) return {
+    label: "Elite TE1",
+    icon: "\u{1F48E}",
+    description: "Dominant tight end \u2014 elite receiving production across volume, efficiency, and consistency.",
+    glossaryAnchor: "elite-te1",
+  };
+  // Elite TE1 (volume path) — league-leading volume with strong production
+  if (above70 >= 3 && vol >= 90 && eff >= 65 && above60 >= 4) return {
     label: "Elite TE1",
     icon: "\u{1F48E}",
     description: "Dominant tight end \u2014 elite receiving production across volume, efficiency, and consistency.",

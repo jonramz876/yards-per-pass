@@ -31,9 +31,9 @@ export function getQBRadarVal(qb: QBSeasonStat, key: string): number {
       // Regress toward 0 (league avg) for low-volume rushers to prevent small-sample noise
       const raw = qb.rush_epa_per_play ?? NaN;
       if (isNaN(raw)) return NaN;
-      const MIN_RUSH = 50;
+      const MIN_RUSH = 60;
       const ratio = Math.min(qb.rush_attempts / MIN_RUSH, 1);
-      const weight = ratio * ratio; // squared: 25 att = 25%, 35 att = 49%, 50+ att = 100%
+      const weight = ratio * ratio * ratio; // cubed: 25att=12.5%, 33att=29%, 45att=73%, 50+=100%
       return raw * weight;
     }
     default: return NaN;
