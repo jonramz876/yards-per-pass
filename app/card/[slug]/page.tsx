@@ -49,6 +49,7 @@ function formatQBChip(key: string, val: number): string {
     case "adot": return val.toFixed(1);
     case "inv_int_pct": return ((1 - val) * 100).toFixed(1) + "%";
     case "success_rate": return (val * 100).toFixed(1) + "%";
+    case "rush_epa": return (val >= 0 ? "+" : "") + val.toFixed(2);
     default: return val.toFixed(2);
   }
 }

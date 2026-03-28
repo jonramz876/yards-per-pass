@@ -2,15 +2,15 @@
 "use client";
 
 interface RadarChartProps {
-  /** Percentile values (0–100) for each of the 6 axes, in order */
+  /** Percentile values (0–100) for each axis, in order */
   values: number[];
   /** Team primary color (hex) for the data polygon */
   color: string;
-  /** Custom axis labels (must be exactly 6). Defaults to QB axes if omitted. */
+  /** Custom axis labels. Defaults to QB 6-axis if omitted. */
   axes?: { label: string }[];
 }
 
-const AXES: { label: string }[] = [
+const DEFAULT_AXES: { label: string }[] = [
   { label: "EPA/DB" },
   { label: "CPOE" },
   { label: "DB/Game" },
@@ -20,32 +20,36 @@ const AXES: { label: string }[] = [
 ];
 
 const CX = 150;
-const CY = 125;
+const CY = 130;
 const R_OUTER = 90;
-const R_MID = 45; // 50% = 50th percentile ring (matches linear percentile-to-radius mapping)
-const R_INNER = 22.5; // 25% = 25th percentile ring
+const R_MID = 45;
+const R_INNER = 22.5;
 
-function hexPoint(radius: number, index: number): [number, number] {
-  const angle = -Math.PI / 2 + (index * Math.PI) / 3;
+function polyPoint(radius: number, index: number, count: number): [number, number] {
+  const angle = -Math.PI / 2 + (index * Math.PI * 2) / count;
   return [CX + radius * Math.cos(angle), CY + radius * Math.sin(angle)];
 }
 
-function hexPoints(radius: number): string {
-  return Array.from({ length: 6 }, (_, i) => hexPoint(radius, i).join(",")).join(" ");
+function polyPoints(radius: number, count: number): string {
+  return Array.from({ length: count }, (_, i) => polyPoint(radius, i, count).join(",")).join(" ");
 }
 
-const LABEL_POSITIONS: Array<{ x: number; y: number; anchor: "start" | "middle" | "end" }> = [
-  { x: 150, y: 16, anchor: "middle" },
-  { x: 252, y: 72, anchor: "start" },
-  { x: 252, y: 186, anchor: "start" },
-  { x: 150, y: 240, anchor: "middle" },
-  { x: 48, y: 186, anchor: "end" },
-  { x: 48, y: 72, anchor: "end" },
-];
+function labelPos(index: number, count: number): { x: number; y: number; anchor: "start" | "middle" | "end" } {
+  const angle = -Math.PI / 2 + (index * Math.PI * 2) / count;
+  const labelR = R_OUTER + 22;
+  const x = CX + labelR * Math.cos(angle);
+  const y = CY + labelR * Math.sin(angle) + 4;
+  const cos = Math.cos(angle);
+  const anchor = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
+  return { x, y, anchor };
+}
 
 export default function RadarChart({ values, color, axes: customAxes }: RadarChartProps) {
+  const axes = customAxes || DEFAULT_AXES;
+  const count = axes.length;
+
   const nullCount = values.filter((v) => isNaN(v) || v < 0).length;
-  if (nullCount >= 3) {
+  if (nullCount >= Math.ceil(count / 2)) {
     return (
       <div className="text-center text-gray-400 text-sm py-8">
         Not enough data for radar chart
@@ -54,61 +58,32 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
   }
 
   const clamped = values.map((v) => (isNaN(v) || v < 0 ? 0 : Math.min(v, 100)));
-
-  const dataPoints = clamped.map((pct, i) => {
-    const r = (pct / 100) * R_OUTER;
-    return hexPoint(r, i);
-  });
+  const dataPoints = clamped.map((pct, i) => polyPoint((pct / 100) * R_OUTER, i, count));
   const dataPolygon = dataPoints.map((p) => p.join(",")).join(" ");
 
   return (
-    <svg viewBox="-20 -5 340 280" className="mx-auto w-full" style={{ maxWidth: 340 }}>
+    <svg viewBox="-20 -5 340 290" className="mx-auto w-full" style={{ maxWidth: 340 }}>
       {/* Outer ring */}
+      <polygon points={polyPoints(R_OUTER, count)} fill="none" stroke="#e2e8f0" strokeWidth={1} />
+      {/* 50th percentile ring */}
       <polygon
-        points={hexPoints(R_OUTER)}
-        fill="none"
-        stroke="#e2e8f0"
-        strokeWidth={1}
-      />
-      {/* 50th percentile ring — amber, dashed */}
-      <polygon
-        points={hexPoints(R_MID)}
+        points={polyPoints(R_MID, count)}
         fill="rgba(251,191,36,0.06)"
         stroke="#f59e0b"
         strokeWidth={1}
         strokeDasharray="5,3"
       />
       {/* 25th percentile ring */}
-      <polygon
-        points={hexPoints(R_INNER)}
-        fill="none"
-        stroke="#f1f5f9"
-        strokeWidth={0.5}
-      />
+      <polygon points={polyPoints(R_INNER, count)} fill="none" stroke="#f1f5f9" strokeWidth={0.5} />
 
       {/* Axis lines */}
-      {Array.from({ length: 6 }, (_, i) => {
-        const [x, y] = hexPoint(R_OUTER, i);
-        return (
-          <line
-            key={i}
-            x1={CX}
-            y1={CY}
-            x2={x}
-            y2={y}
-            stroke="#f1f5f9"
-            strokeWidth={0.5}
-          />
-        );
+      {Array.from({ length: count }, (_, i) => {
+        const [x, y] = polyPoint(R_OUTER, i, count);
+        return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke="#f1f5f9" strokeWidth={0.5} />;
       })}
 
       {/* Data polygon */}
-      <polygon
-        points={dataPolygon}
-        fill={`${color}1F`}
-        stroke={color}
-        strokeWidth={2}
-      />
+      <polygon points={dataPolygon} fill={`${color}1F`} stroke={color} strokeWidth={2} />
 
       {/* Data points */}
       {dataPoints.map(([x, y], i) => (
@@ -116,22 +91,25 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
       ))}
 
       {/* Axis labels */}
-      {(customAxes || AXES).map((axis, i) => (
-        <text
-          key={axis.label}
-          x={LABEL_POSITIONS[i].x}
-          y={LABEL_POSITIONS[i].y}
-          textAnchor={LABEL_POSITIONS[i].anchor}
-          fontSize={12}
-          fill="#475569"
-          fontWeight={600}
-        >
-          {axis.label}
-        </text>
-      ))}
+      {axes.map((axis, i) => {
+        const pos = labelPos(i, count);
+        return (
+          <text
+            key={axis.label}
+            x={pos.x}
+            y={pos.y}
+            textAnchor={pos.anchor}
+            fontSize={11}
+            fill="#475569"
+            fontWeight={600}
+          >
+            {axis.label}
+          </text>
+        );
+      })}
 
       {/* Legend */}
-      <text x={150} y={268} textAnchor="middle" fontSize={9} fill="#94a3b8">
+      <text x={150} y={278} textAnchor="middle" fontSize={9} fill="#94a3b8">
         outer ring = league best · dashed = 50th percentile
       </text>
     </svg>

@@ -6,15 +6,17 @@
 import type { QBSeasonStat, ReceiverSeasonStat } from "@/lib/types";
 import { computePercentile } from "./percentiles";
 
-// ---- QB Radar ----
-export const QB_RADAR_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"] as const;
+// ---- QB Radar (7 axes: 6 passing + 1 rushing) ----
+export const QB_RADAR_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate", "rush_epa"] as const;
 export const QB_RADAR_AXES = [
   { label: "EPA/DB" }, { label: "CPOE" }, { label: "DB/Game" },
   { label: "aDOT" }, { label: "INT Rate" }, { label: "Success%" },
+  { label: "Rush EPA" },
 ];
 export const QB_RADAR_LABELS: Record<string, string> = {
   epa_per_db: "EPA/DB", cpoe: "CPOE", dropbacks_game: "DB/G",
   adot: "aDOT", inv_int_pct: "INT Rate", success_rate: "Success%",
+  rush_epa: "Rush EPA",
 };
 
 export function getQBRadarVal(qb: QBSeasonStat, key: string): number {
@@ -25,6 +27,7 @@ export function getQBRadarVal(qb: QBSeasonStat, key: string): number {
     case "adot": return qb.adot ?? NaN;
     case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
     case "success_rate": return qb.success_rate ?? NaN;
+    case "rush_epa": return qb.rush_epa_per_play ?? NaN;
     default: return NaN;
   }
 }

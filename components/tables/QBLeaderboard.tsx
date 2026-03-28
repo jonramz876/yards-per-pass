@@ -9,6 +9,7 @@ import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyQB } from "@/lib/stats/archetypes";
+import { QB_RADAR_KEYS, getQBRadarVal } from "@/lib/stats/radar";
 import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 import { formatStat } from "@/lib/stats/formatters";
 
@@ -291,29 +292,15 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const archetypeMap = useMemo(() => {
     // Filter to qualified QBs (100+ dropbacks) to match player page percentile pool
     const pool = data.filter((qb) => qb.dropbacks >= 100);
-    const radarKeys = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate"] as const;
-
-    function getRadarVal(qb: QBSeasonStat, key: string): number {
-      switch (key) {
-        case "epa_per_db": return qb.epa_per_db ?? NaN;
-        case "cpoe": return qb.cpoe ?? NaN;
-        case "dropbacks_game": return qb.games ? qb.dropbacks / qb.games : NaN;
-        case "adot": return qb.adot ?? NaN;
-        case "inv_int_pct": return qb.attempts > 0 ? 1 - (qb.interceptions / qb.attempts) : NaN;
-        case "success_rate": return qb.success_rate ?? NaN;
-        default: return NaN;
-      }
-    }
-
     // Pre-sort all pools once
-    const sortedPools = radarKeys.map((key) =>
-      pool.map((q) => getRadarVal(q, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    const sortedPools = QB_RADAR_KEYS.map((key) =>
+      pool.map((q) => getQBRadarVal(q, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
     );
 
     const map: Record<string, { icon: string; label: string }> = {};
     for (const qb of pool) {
-      const percentiles = radarKeys.map((key, i) =>
-        computePercentile(sortedPools[i], getRadarVal(qb, key))
+      const percentiles = QB_RADAR_KEYS.map((key, i) =>
+        computePercentile(sortedPools[i], getQBRadarVal(qb, key))
       );
       const arch = classifyQB(percentiles);
       if (arch) map[qb.player_id] = { icon: arch.icon, label: arch.label };

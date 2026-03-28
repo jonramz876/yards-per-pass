@@ -221,8 +221,12 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Throws at an extremely high rate with solid efficiency. Defined by DB/Game \u2265 80th and EPA/DB \u2265 50th percentile." },
   { term: "Game Manager (QB Archetype)", id: "game-manager",
     definition: "Protects the football and avoids mistakes. Defined by Success% \u2265 65th, INT% \u2265 65th, and DB/Game \u2264 45th." },
+  { term: "Dual Threat (QB Archetype)", id: "dual-threat",
+    definition: "Elite rushing QB who also produces through the air. Defined by Rush EPA \u2265 80th, EPA/DB \u2265 60th, and 4+ axes \u2265 60th. A true dual-threat weapon." },
+  { term: "Mobile Playmaker (QB Archetype)", id: "mobile-playmaker",
+    definition: "Extends plays and creates with his legs. Defined by Rush EPA \u2265 65th, EPA/DB \u2265 60th, and DB/Game \u2265 55th. Dangerous in and out of the pocket." },
   { term: "Sniper (QB Archetype)", id: "sniper",
-    definition: "Accurate deep passer who protects the football. Defined by aDOT \u2265 65th and INT% \u2265 65th. Pushes the ball downfield without turning it over." },
+    definition: "Accurate deep passer who protects the football. Defined by aDOT \u2265 65th, INT% \u2265 65th, and Rush EPA < 75th. Pushes the ball downfield without turning it over." },
   { term: "Improviser (QB Archetype)", id: "improviser",
     definition: "Creates plays outside of structure. Defined by EPA/DB \u2265 65th, 3+ axes \u2265 60th, and CPOE \u2264 50th. High EPA despite inconsistent accuracy." },
   // --- WR Archetypes ---

@@ -5,62 +5,88 @@ import { classifyQB, classifyWR, classifyTE, classifyRB } from "@/lib/stats/arch
 // classifyQB
 // ---------------------------------------------------------------------------
 describe("classifyQB", () => {
-  // Axes: [Efficiency, Accuracy, Volume, Depth, BallSecurity, Consistency]
+  // Axes: [Efficiency, Accuracy, Volume, Depth, BallSecurity, Consistency, Rush]
+
+  it("returns null for 6-element array (requires 7)", () => {
+    expect(classifyQB([80, 80, 80, 80, 80, 80])).toBeNull();
+  });
+
+  it("returns Dual Threat for elite rusher with strong passing", () => {
+    // rush >= 80, eff >= 60, above60 >= 4
+    const result = classifyQB([70, 65, 70, 65, 50, 60, 85]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Dual Threat");
+  });
+
+  it("returns Mobile Playmaker for good rusher with passing volume", () => {
+    // rush >= 65, eff >= 60, vol >= 55
+    const result = classifyQB([65, 50, 60, 50, 50, 50, 70]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Mobile Playmaker");
+  });
 
   it("returns Complete Passer when 4+ axes >= 70 and none below 30", () => {
-    const result = classifyQB([80, 80, 80, 80, 80, 80]);
+    const result = classifyQB([80, 80, 80, 80, 80, 80, 40]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Complete Passer");
   });
 
   it("returns null when all percentiles are at 20 (no match)", () => {
-    expect(classifyQB([20, 20, 20, 20, 20, 20])).toBeNull();
+    expect(classifyQB([20, 20, 20, 20, 20, 20, 20])).toBeNull();
   });
 
   it("returns Gunslinger for high depth + volume + low ball security", () => {
     // depth >= 65, vol >= 55, ballSec <= 45
-    const result = classifyQB([50, 40, 60, 75, 30, 40]);
+    const result = classifyQB([50, 40, 60, 75, 30, 40, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Gunslinger");
   });
 
   it("returns Surgeon for high accuracy + consistency + efficiency", () => {
     // acc >= 70, cons >= 65, eff >= 55
-    const result = classifyQB([60, 75, 40, 40, 50, 70]);
+    const result = classifyQB([60, 75, 40, 40, 50, 70, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Surgeon");
   });
 
   it("returns Distributor for high volume + accuracy + low depth", () => {
     // vol >= 70, acc >= 60, depth <= 45
-    const result = classifyQB([45, 65, 75, 40, 50, 50]);
+    const result = classifyQB([45, 65, 75, 40, 50, 50, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Distributor");
   });
 
   it("returns Game Manager for high consistency + ball security + low volume", () => {
     // cons >= 65, ballSec >= 65, vol <= 45
-    const result = classifyQB([40, 40, 40, 40, 70, 70]);
+    const result = classifyQB([40, 40, 40, 40, 70, 70, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Game Manager");
   });
 
   it("returns Playmaker for high efficiency + volume + consistency", () => {
     // eff >= 70, vol >= 70, cons >= 60
-    const result = classifyQB([75, 50, 75, 40, 50, 65]);
+    const result = classifyQB([75, 50, 75, 40, 50, 65, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Playmaker");
   });
 
-  it("returns Sniper for high depth + ball security (without matching Gunslinger)", () => {
-    // depth >= 65, ballSec >= 65
-    const result = classifyQB([40, 40, 40, 70, 70, 40]);
+  it("returns Sniper for high depth + ball security + low rush", () => {
+    // depth >= 65, ballSec >= 65, rush < 75
+    const result = classifyQB([40, 40, 40, 70, 70, 40, 20]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Sniper");
   });
 
+  it("does NOT return Sniper when rush >= 75 (mobile QB exclusion)", () => {
+    // Same as Sniper test but rush = 80 → should NOT match Sniper
+    const result = classifyQB([40, 40, 40, 70, 70, 40, 80]);
+    // With rush=80 but eff<60, won't match Dual Threat or Mobile Playmaker either
+    // Falls through to Improviser or null
+    expect(result === null || result.label !== "Sniper").toBe(true);
+  });
+
   it("all archetypes have a glossaryAnchor field", () => {
-    const completePasser = classifyQB([80, 80, 80, 80, 80, 80]);
+    const completePasser = classifyQB([80, 80, 80, 80, 80, 80, 40]);
     expect(completePasser!.glossaryAnchor).toBeTruthy();
   });
 });

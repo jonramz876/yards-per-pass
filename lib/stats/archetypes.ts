@@ -9,11 +9,27 @@ export interface Archetype {
   glossaryAnchor: string;
 }
 
-// QB axes: [Efficiency, Accuracy, Volume, Depth, BallSecurity, Consistency]
+// QB axes: [Efficiency, Accuracy, Volume, Depth, BallSecurity, Consistency, Rush]
 export function classifyQB(percentiles: number[]): Archetype | null {
-  const [eff, acc, vol, depth, ballSec, cons] = percentiles;
+  if (percentiles.length < 7) return null;
+  const [eff, acc, vol, depth, ballSec, cons, rush] = percentiles;
   const above70 = percentiles.filter(p => p >= 70).length;
   const above60 = percentiles.filter(p => p >= 60).length;
+
+  // Dual Threat — elite rusher who also produces through the air
+  if (rush >= 80 && eff >= 60 && above60 >= 4) return {
+    label: "Dual Threat",
+    icon: "\u26A1",
+    description: "Elite rushing QB who also produces through the air \u2014 a true dual-threat weapon.",
+    glossaryAnchor: "dual-threat",
+  };
+  // Mobile Playmaker — dangerous in and out of the pocket
+  if (rush >= 65 && eff >= 60 && vol >= 55) return {
+    label: "Mobile Playmaker",
+    icon: "\uD83C\uDF00",
+    description: "Extends plays and creates with his legs. Dangerous in and out of the pocket.",
+    glossaryAnchor: "mobile-playmaker",
+  };
 
   // Complete Passer — elite across 4+ axes, no major weakness
   const qbBelow30 = percentiles.filter(p => p < 30).length;
@@ -65,8 +81,8 @@ export function classifyQB(percentiles: number[]): Archetype | null {
     description: "Protects the football and moves the chains, leaning on efficiency over explosiveness.",
     glossaryAnchor: "game-manager",
   };
-  // Sniper — deep + safe, doesn't need high volume
-  if (depth >= 65 && ballSec >= 65) return {
+  // Sniper — deep + safe, doesn't need high volume (exclude mobile QBs)
+  if (depth >= 65 && ballSec >= 65 && rush < 75) return {
     label: "Sniper",
     icon: "\u{1F3AF}",
     description: "Accurate deep passer who protects the football \u2014 high aDOT with elite ball security.",
