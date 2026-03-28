@@ -9,6 +9,7 @@ import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
+import { WR_RADAR_KEYS, getWRRadarVal } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 import { formatStat } from "@/lib/stats/formatters";
 
@@ -293,39 +294,25 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   // Compute archetype for each receiver — TEs get their own pool and classifier
   const archetypeMap = useMemo(() => {
-    // Filter to qualified players to match player page percentile pools (routes run, not targets)
-    const wrPool = data.filter((r) => r.position === "WR" && r.routes_run >= 200);
-    const tePool = data.filter((r) => r.position === "TE" && r.routes_run >= 100);
-    const radarKeys = ["tgt_game", "epa_per_target", "catch_rate", "air_yards_per_target", "yac_per_reception", "yards_per_route_run"] as const;
-
-    function getRadarVal(rec: ReceiverSeasonStat, key: string): number {
-      switch (key) {
-        case "tgt_game": return rec.games ? rec.targets / rec.games : NaN;
-        case "epa_per_target": return rec.epa_per_target ?? NaN;
-        case "catch_rate": return rec.catch_rate ?? NaN;
-        case "air_yards_per_target": return rec.air_yards_per_target ?? NaN;
-        case "yac_per_reception": return rec.yac_per_reception ?? NaN;
-        case "yards_per_route_run": return rec.yards_per_route_run ?? NaN;
-        default: return NaN;
-      }
-    }
-
-    // Pre-sort pools for WRs and TEs separately
-    const wrSorted = radarKeys.map((key) =>
-      wrPool.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    // Filter to PFR-qualified players to match player page percentile pools
+    const PFR_MIN_TARGETS = 32;
+    const wrPool = data.filter((r) => r.position === "WR" && r.targets >= PFR_MIN_TARGETS);
+    const tePool = data.filter((r) => r.position === "TE" && r.targets >= PFR_MIN_TARGETS);
+    // Pre-sort pools for WRs and TEs separately (uses shared radar keys from radar.ts)
+    const wrSorted = WR_RADAR_KEYS.map((key) =>
+      wrPool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
     );
-    const teSorted = radarKeys.map((key) =>
-      tePool.map((r) => getRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+    const teSorted = WR_RADAR_KEYS.map((key) =>
+      tePool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
     );
 
     const map: Record<string, { icon: string; label: string }> = {};
     for (const rec of data) {
-      // Only classify WRs and TEs — RBs get their archetype on the /rushing page
       if (rec.position !== "WR" && rec.position !== "TE") continue;
       const isTE = rec.position === "TE";
       const pools = isTE ? teSorted : wrSorted;
-      const percentiles = radarKeys.map((key, i) =>
-        computePercentile(pools[i], getRadarVal(rec, key))
+      const percentiles = WR_RADAR_KEYS.map((key, i) =>
+        computePercentile(pools[i], getWRRadarVal(rec, key))
       );
       const arch = isTE ? classifyTE(percentiles) : classifyWR(percentiles);
       if (arch) map[rec.player_id] = { icon: arch.icon, label: arch.label };
