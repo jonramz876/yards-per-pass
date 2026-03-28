@@ -287,11 +287,10 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     pushURL({ tab: newTab, sort: cfg.defaultSort, dir: "desc" });
   }
 
-  // Compute archetype for each QB based on percentiles against ALL QBs (not filtered)
-  // Must match the player page pool to ensure consistent archetype labels
+  // Compute archetype for each QB — pool must match player page (PFR qualified: 238+ attempts)
   const archetypeMap = useMemo(() => {
-    // Filter to qualified QBs (100+ dropbacks) to match player page percentile pool
-    const pool = data.filter((qb) => qb.dropbacks >= 100);
+    const PFR_MIN_ATT = 238;
+    const pool = data.filter((qb) => qb.attempts >= PFR_MIN_ATT);
     // Pre-sort all pools once
     const sortedPools = QB_RADAR_KEYS.map((key) =>
       pool.map((q) => getQBRadarVal(q, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
