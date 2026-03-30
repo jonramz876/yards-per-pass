@@ -2942,7 +2942,7 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
         if cur.rowcount > 0:
             log.info("Cleaned up %d stale qb_season_stats rows", cur.rowcount)
 
-        if rb_gap_player_ids is not None:
+        if rb_gap_player_ids is not None and len(rb_gap_player_ids) > 0:
             cur.execute(
                 "DELETE FROM rb_gap_stats WHERE season = %s AND player_id != ALL(%s)",
                 (season, rb_gap_player_ids),
@@ -2950,7 +2950,7 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale rb_gap_stats rows", cur.rowcount)
 
-        if rb_gap_weekly_player_ids is not None:
+        if rb_gap_weekly_player_ids is not None and len(rb_gap_weekly_player_ids) > 0:
             cur.execute(
                 "DELETE FROM rb_gap_stats_weekly WHERE season = %s AND player_id != ALL(%s)",
                 (season, rb_gap_weekly_player_ids),
@@ -2958,7 +2958,7 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale rb_gap_stats_weekly rows", cur.rowcount)
 
-        if def_gap_team_ids is not None:
+        if def_gap_team_ids is not None and len(def_gap_team_ids) > 0:
             cur.execute(
                 "DELETE FROM def_gap_stats WHERE season = %s AND team_id != ALL(%s)",
                 (season, def_gap_team_ids),
@@ -3006,7 +3006,7 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale rb_weekly_stats rows", cur.rowcount)
 
-        if qb_pass_loc_player_ids is not None:
+        if qb_pass_loc_player_ids is not None and len(qb_pass_loc_player_ids) > 0:
             cur.execute(
                 "DELETE FROM qb_pass_location_stats WHERE season = %s AND player_id != ALL(%s)",
                 (season, qb_pass_loc_player_ids),

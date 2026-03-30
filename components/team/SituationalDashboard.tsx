@@ -2,6 +2,7 @@
 "use client";
 
 import type { TeamSituationalStat } from "@/lib/types";
+import { epaTextColor } from "@/lib/stats/formatters";
 
 interface SituationalDashboardProps {
   teamStats: TeamSituationalStat[];
@@ -37,10 +38,7 @@ function rankSuffix(n: number): string {
   }
 }
 
-function epaColor(val: number): string {
-  if (isNaN(val)) return "text-gray-400";
-  return val > 0 ? "text-green-700" : val < 0 ? "text-red-600" : "text-gray-600";
-}
+// epaColor for text styling now uses shared epaTextColor from formatters
 
 function rankColor(rank: number): string {
   if (rank <= 8) return "border-l-green-500";
@@ -149,7 +147,7 @@ export default function SituationalDashboard({ teamStats, allTeamStats }: Situat
               </div>
 
               {/* Main EPA */}
-              <div className={`text-2xl font-black tabular-nums ${epaColor(stat.epa_per_play)}`}>
+              <div className={`text-2xl font-black tabular-nums ${epaTextColor(stat.epa_per_play)}`}>
                 {formatEpa(stat.epa_per_play)}
               </div>
               <div className="text-[10px] text-gray-400 -mt-0.5 mb-1">EPA/Play</div>

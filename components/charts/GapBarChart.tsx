@@ -1,5 +1,7 @@
 "use client";
 
+import { epaColor } from "@/lib/stats/formatters";
+
 interface GapData {
   gap: string;
   carries: number;
@@ -22,7 +24,7 @@ export default function GapBarChart({ gaps, maxCarries, onGapClick, selectedGap 
     <div className="space-y-2">
       {sorted.map((g) => {
         const widthPct = maxCarries > 0 ? (g.carries / maxCarries) * 100 : 0;
-        const color = isNaN(g.epa_per_carry) ? '#9ca3af' : g.epa_per_carry > 0.02 ? '#16a34a' : g.epa_per_carry < -0.02 ? '#dc2626' : '#f59e0b';
+        const color = isNaN(g.epa_per_carry) ? '#9ca3af' : epaColor(g.epa_per_carry);
         const isSelected = selectedGap === g.gap;
 
         return (

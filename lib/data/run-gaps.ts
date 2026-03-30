@@ -156,22 +156,13 @@ export async function getDefGapStats(
   season: number,
   teamId?: string
 ): Promise<DefGapStat[]> {
-  const supabase = createServerClient();
-  let query = supabase
-    .from("def_gap_stats")
-    .select("*")
-    .eq("season", season);
+  const filters: Record<string, unknown> = { season };
+  if (teamId) filters.team_id = teamId;
 
-  if (teamId) {
-    query = query.eq("team_id", teamId);
-  }
+  const rows = await fetchAllRows("def_gap_stats", "*", filters);
 
-  const { data, error } = await query;
-  if (error) throw new Error(`Failed to fetch def gap stats: ${error.message}`);
-  if (!data) return [];
-
-  return data.map((row) =>
-    parseNumericFields<DefGapStat>(row as DefGapStat, DEF_GAP_NUMERIC_FIELDS)
+  return rows.map((row) =>
+    parseNumericFields<DefGapStat>(row as unknown as DefGapStat, DEF_GAP_NUMERIC_FIELDS)
   );
 }
 

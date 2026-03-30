@@ -11,7 +11,7 @@ import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { WR_RADAR_KEYS, getWRRadarVal } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat } from "@/lib/stats/formatters";
+import { formatStat, epaLeaderboardColor } from "@/lib/stats/formatters";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -429,9 +429,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     }
   }
 
-  function epaColor(val: number): string {
-    return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
-  }
+  const epaColor = epaLeaderboardColor;
 
   const isEpaCol = (key: string) => key === "epa_per_target" || key === "total_receiving_epa";
 

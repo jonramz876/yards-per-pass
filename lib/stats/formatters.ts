@@ -28,6 +28,48 @@ export function formatOneDecimal(val: number): string {
 export const EM_DASH = "\u2014";
 
 /**
+ * Canonical 6-step EPA background color scale.
+ * Maps an EPA value to a hex color string for heatmaps, bars, and diagrams.
+ */
+export function epaColor(epa: number): string {
+  if (isNaN(epa)) return "#f3f4f6";
+  if (epa >= 0.10) return "#22c55e";  // strong green
+  if (epa >= 0.05) return "#4ade80";  // green
+  if (epa >= 0.02) return "#86efac";  // light green
+  if (epa >= -0.02) return "#fbbf24"; // amber (neutral)
+  if (epa >= -0.05) return "#fca5a5"; // light red
+  return "#ef4444";                    // red
+}
+
+/**
+ * EPA text color as Tailwind class — for leaderboard tables & dashboards.
+ */
+export function epaTextColor(epa: number): string {
+  if (isNaN(epa)) return "text-gray-400";
+  if (epa >= 0.02) return "text-green-700";
+  if (epa >= -0.02) return "text-amber-600";
+  return "text-red-600";
+}
+
+/**
+ * Contrast text color (hex) for overlaying text on epaColor backgrounds.
+ * Returns white for the two darkest tiers, dark gray for the rest.
+ */
+export function epaContrastColor(epa: number): string {
+  if (isNaN(epa)) return "#9ca3af";
+  if (epa >= 0.10 || epa < -0.05) return "#ffffff";
+  return "#1f2937";
+}
+
+/**
+ * EPA text color for leaderboard tables (no neutral band).
+ * Simple positive/negative/zero split — used by QB, RB, Receiver leaderboards.
+ */
+export function epaLeaderboardColor(val: number): string {
+  return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
+}
+
+/**
  * Unified stat formatter used by all leaderboard tables and NFL AVG rows.
  * Merges QB, receiver, and RB formatting into a single function.
  */

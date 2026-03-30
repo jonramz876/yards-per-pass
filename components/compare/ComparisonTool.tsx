@@ -118,7 +118,7 @@ function getStatVal(player: QBSeasonStat | ReceiverSeasonStat | RBSeasonStat, ke
   return typeof v === "number" ? v : NaN;
 }
 
-export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceivers, rbs: serverRBs }: ComparisonToolProps) {
+export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceivers, rbs: serverRBs, season }: ComparisonToolProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -167,13 +167,13 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
     const supabase = getSupabaseClient();
 
     if (pos === "QB" && qbs.length === 0) {
-      supabase.from("qb_season_stats").select("*").eq("season", 2025)
+      supabase.from("qb_season_stats").select("*").eq("season", season)
         .then(({ data }) => { if (data) setLazyQBs(data as unknown as QBSeasonStat[]); });
     } else if ((pos === "WR" || pos === "TE") && receivers.length === 0) {
-      supabase.from("receiver_season_stats").select("*").eq("season", 2025)
+      supabase.from("receiver_season_stats").select("*").eq("season", season)
         .then(({ data }) => { if (data) setLazyReceivers(data as unknown as ReceiverSeasonStat[]); });
     } else if (pos === "RB" && rbs.length === 0) {
-      supabase.from("rb_season_stats").select("*").eq("season", 2025)
+      supabase.from("rb_season_stats").select("*").eq("season", season)
         .then(({ data }) => { if (data) setLazyRBs(data as unknown as RBSeasonStat[]); });
     }
   }, [player1, qbs.length, receivers.length, rbs.length]);

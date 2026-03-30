@@ -8,6 +8,7 @@ import "d3-transition";
 import type { RBGapStat, RBGapStatWeekly, DefGapStat } from "@/lib/types";
 import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
+import { epaColor } from "@/lib/stats/formatters";
 import PlayerGapCards from "./PlayerGapCards";
 import GapBarChart from "./GapBarChart";
 
@@ -159,15 +160,6 @@ function aggregateByGap(data: RBGapStat[]): AggregatedGap[] {
       explosive_rate: d.explSum / c,
     };
   });
-}
-
-function epaColor(epa: number): string {
-  if (isNaN(epa)) return "#f3f4f6";
-  if (epa > 0.05) return "#16a34a";  // dark green
-  if (epa > 0.02) return "#4ade80";  // light green
-  if (epa > -0.02) return "#fbbf24"; // amber
-  if (epa > -0.05) return "#f87171"; // light red
-  return "#dc2626";                   // dark red
 }
 
 function defEpaColor(epa: number): string {

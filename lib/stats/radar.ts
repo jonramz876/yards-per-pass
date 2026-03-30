@@ -10,12 +10,12 @@ import { computePercentile } from "./percentiles";
 export const QB_RADAR_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate", "rush_epa"] as const;
 export const QB_RADAR_AXES = [
   { label: "EPA/DB" }, { label: "CPOE" }, { label: "DB/Game" },
-  { label: "aDOT" }, { label: "INT Rate" }, { label: "Success%" },
+  { label: "aDOT" }, { label: "Ball Security" }, { label: "Success%" },
   { label: "Rush EPA" },
 ];
 export const QB_RADAR_LABELS: Record<string, string> = {
   epa_per_db: "EPA/DB", cpoe: "CPOE", dropbacks_game: "DB/G",
-  adot: "aDOT", inv_int_pct: "INT Rate", success_rate: "Success%",
+  adot: "aDOT", inv_int_pct: "Ball Security", success_rate: "Success%",
   rush_epa: "Rush EPA",
 };
 

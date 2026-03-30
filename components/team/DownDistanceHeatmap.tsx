@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from "react";
 import type { TeamDownDistanceStat } from "@/lib/types";
+import { epaColor } from "@/lib/stats/formatters";
 
 interface DownDistanceHeatmapProps {
   stats: TeamDownDistanceStat[];
@@ -21,22 +22,7 @@ const METRICS: { key: Metric; label: string; format: (v: number) => string }[] =
   { key: "yards_per_carry", label: "YPC", format: (v) => v.toFixed(1) },
 ];
 
-// Fixed EPA scale: -0.3 (red) → 0 (white) → +0.3 (green)
-function epaColor(val: number): string {
-  if (isNaN(val)) return "#f8fafc";
-  const clamped = Math.max(-0.3, Math.min(0.3, val));
-  const t = (clamped + 0.3) / 0.6; // 0 = worst, 1 = best
-  if (t < 0.5) {
-    const r = 220 + Math.round((255 - 220) * (t / 0.5));
-    const g = 50 + Math.round((255 - 50) * (t / 0.5));
-    const b = 50 + Math.round((255 - 50) * (t / 0.5));
-    return `rgb(${r},${g},${b})`;
-  }
-  const r = 255 - Math.round((255 - 34) * ((t - 0.5) / 0.5));
-  const g = 255 - Math.round((255 - 197) * ((t - 0.5) / 0.5));
-  const b = 255 - Math.round((255 - 94) * ((t - 0.5) / 0.5));
-  return `rgb(${r},${g},${b})`;
-}
+// EPA color now uses the shared 6-step discrete scale from formatters
 
 // Success rate: 0% (red) → 50% (white) → 70%+ (green)
 function successColor(val: number): string {

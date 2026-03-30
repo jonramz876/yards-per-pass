@@ -10,7 +10,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyRB } from "@/lib/stats/archetypes";
 import { rbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat } from "@/lib/stats/formatters";
+import { formatStat, epaLeaderboardColor } from "@/lib/stats/formatters";
 
 interface RBLeaderboardProps {
   data: RBSeasonStat[];
@@ -437,9 +437,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     }
   }
 
-  function epaColor(val: number): string {
-    return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
-  }
+  const epaColor = epaLeaderboardColor;
 
   const isEpaCol = (key: string) => key === "epa_per_carry" || key === "total_rushing_epa";
 

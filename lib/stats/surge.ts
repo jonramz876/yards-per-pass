@@ -45,7 +45,7 @@ export function computeZScore(values: number[], window: number, minGames = 6): n
 
   const n = values.length;
   const mean = values.reduce((a, b) => a + b, 0) / n;
-  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / (n - 1);
   const stdev = Math.sqrt(variance);
 
   if (stdev === 0) return 0;

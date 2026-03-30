@@ -17,17 +17,18 @@ export const metadata: Metadata = {
 export default async function ComparePage({
   searchParams,
 }: {
-  searchParams: { season?: string; p1?: string };
+  searchParams: Promise<{ season?: string; p1?: string }>;
 }) {
-  const season = searchParams.season ? parseInt(searchParams.season, 10) : 2025;
+  const { season: seasonParam, p1 } = await searchParams;
+  const season = seasonParam ? parseInt(seasonParam, 10) : 2025;
 
   // Only fetch the position we need based on p1's position (if present)
   let qbs: QBSeasonStat[] = [];
   let receivers: ReceiverSeasonStat[] = [];
   let rbs: RBSeasonStat[] = [];
 
-  if (searchParams.p1) {
-    const player = await getPlayerBySlug(searchParams.p1);
+  if (p1) {
+    const player = await getPlayerBySlug(p1);
     if (player) {
       const pos = player.position;
       if (pos === "QB") {

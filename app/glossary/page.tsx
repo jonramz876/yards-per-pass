@@ -31,7 +31,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   {
     term: "Success Rate",
     definition:
-      "How often a play gains enough yards to stay \u201Con schedule\u201D \u2014 roughly 40% of needed yards on 1st down, 50% on 2nd, and 100% on 3rd/4th. QB success rate on this site excludes sacks; team success rate includes them.",
+      "How often a play generates positive EPA (Expected Points Added > 0). This is the nflverse EPA-based definition, which may differ slightly from PFR\u2019s yardage-based formula (40%/50%/100% of needed yards). QB success rate on this site excludes sacks from the denominator.",
   },
   {
     term: "aDOT (Average Depth of Target)",

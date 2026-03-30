@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import type { RBGapStat } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
+import { epaColor, epaContrastColor } from "@/lib/stats/formatters";
 
 const GAP_ORDER = ["LE", "LT", "LG", "M", "RG", "RT", "RE"] as const;
 
@@ -33,22 +34,8 @@ interface GapHeatmapProps {
   teams: string[];
 }
 
-/** Smooth EPA color scale — 5-step diverging green/red */
-function epaColor(epa: number): string {
-  if (isNaN(epa)) return "#f3f4f6";
-  if (epa > 0.05) return "#16a34a";
-  if (epa > 0.02) return "#4ade80";
-  if (epa > 0) return "#bbf7d0";
-  if (epa > -0.02) return "#fecaca";
-  if (epa > -0.05) return "#f87171";
-  return "#dc2626";
-}
-
-function epaTextColor(epa: number): string {
-  if (isNaN(epa)) return "#9ca3af";
-  if (epa > 0.05 || epa < -0.05) return "#ffffff";
-  return "#1f2937";
-}
+/** epaTextColor for GapHeatmap is epaContrastColor from formatters */
+const epaTextColor = epaContrastColor;
 
 type SortDir = "asc" | "desc";
 

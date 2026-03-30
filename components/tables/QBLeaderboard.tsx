@@ -11,7 +11,7 @@ import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/
 import { classifyQB } from "@/lib/stats/archetypes";
 import { QB_RADAR_KEYS, getQBRadarVal } from "@/lib/stats/radar";
 import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat } from "@/lib/stats/formatters";
+import { formatStat, epaLeaderboardColor } from "@/lib/stats/formatters";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -395,9 +395,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return formatStat(key, val);
   }
 
-  function epaColor(val: number): string {
-    return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
-  }
+  const epaColor = epaLeaderboardColor;
 
   const isEpaCol = (key: string) =>
     key === "epa_per_play" || key === "epa_per_db" || key === "rush_epa_per_play" || key === "total_epa";
