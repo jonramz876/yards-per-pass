@@ -214,6 +214,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   const [qualified, setQualified] = useState(initialQualified);
   const [posFilter, setPosFilter] = useState(urlPos);
   const [teamFilter, setTeamFilter] = useState(urlTeam);
+  const [archFilter, setArchFilter] = useState(searchParams.get("arch") || "");
 
   // Unique teams sorted alphabetically for the dropdown
   const teams = useMemo(() => {
@@ -223,10 +224,10 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
-    (overrides: { tab?: RecTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean; pos?: string; team?: string }) => {
+    (overrides: { tab?: RecTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean; pos?: string; team?: string; arch?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
       // Remove our managed keys, then re-add non-defaults
-      ["tab", "sort", "dir", "q", "min", "qualified", "pos", "team"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "qualified", "pos", "team", "arch"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
       const defaultSort = REC_TABS[newTab].defaultSort;
@@ -248,15 +249,17 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       }
       if (newPos) params.set("pos", newPos);
       if (newTeam) params.set("team", newTeam);
+      const newArch = overrides.arch ?? archFilter;
+      if (newArch) params.set("arch", newArch);
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minTargets, qualified, pfrMinTargets, posFilter, teamFilter, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minTargets, qualified, pfrMinTargets, posFilter, teamFilter, archFilter, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: RecTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean; pos?: string; team?: string }) => {
+    (overrides: { tab?: RecTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean; pos?: string; team?: string; arch?: string }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -277,7 +280,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   const activeTabConfig = REC_TABS[tab];
   const columns = activeTabConfig.columns;
   const [showHeatmap, setShowHeatmap] = useState(activeTabConfig.defaultHeatmap);
-  const [archFilter, setArchFilter] = useState("");
   const [scoringFormat, setScoringFormat] = useState<ScoringFormat>("ppr");
 
   const heatmapCols = activeTabConfig.heatmapCols;
@@ -501,7 +503,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
             </select>
             <select
               value={archFilter}
-              onChange={(e) => setArchFilter(e.target.value)}
+              onChange={(e) => { setArchFilter(e.target.value); pushURL({ arch: e.target.value }); }}
               className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600 w-full sm:w-auto"
             >
               <option value="">All Archetypes</option>

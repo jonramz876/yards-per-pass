@@ -7,8 +7,9 @@ export const metadata: Metadata = {
     "Plain-English definitions for EPA, CPOE, success rate, ANY/A, passer rating, and every stat on Yards Per Pass.",
 };
 
-const TERMS: { term: string; definition: string; id?: string }[] = [
+const TERMS: { term: string; definition: string; id?: string; section?: string }[] = [
   {
+    section: "Core Stats",
     term: "EPA (Expected Points Added)",
     definition:
       "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Above 0 = above average.",
@@ -26,7 +27,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   {
     term: "CPOE (Completion % Over Expected)",
     definition:
-      "How often a QB completes passes compared to what\u2019s expected given throw difficulty. A CPOE of +3 means completing 3% more than expected. Higher is better.",
+      "How often a QB completes passes compared to what\u2019s expected given throw difficulty. A CPOE of +3 means completing 3% more than expected. Higher is better. Computed via the nflverse completion probability model, which may differ from NFL Next Gen Stats CPOE on ESPN/NFL.com.",
   },
   {
     term: "Success Rate",
@@ -155,8 +156,19 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     term: "Route Participation Rate (Route%)",
     definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks.",
   },
+  { term: "DB/Game (Dropbacks per Game)", id: "db-game",
+    definition: "Dropbacks divided by games played. Measures a QB\u2019s passing volume on a per-game basis. Used as the Volume axis on QB radar charts." },
+  { term: "FPts (Fantasy Points)", id: "fpts",
+    definition: "Fantasy points calculated from raw stats. QB: 1pt/25 pass yds, 4pt/pass TD, \u22122pt/INT, 1pt/10 rush yds, 6pt/rush TD, \u22121pt/fumble lost. RB/WR/TE: PPR (1pt/rec), Half-PPR (0.5pt/rec), or Standard (0pt/rec) plus yardage and TDs. Toggle scoring format on the leaderboard." },
+  { term: "Car/Game (Carries per Game)", id: "car-game",
+    definition: "Rush attempts divided by games played. The Volume axis on RB radar charts." },
+  { term: "Tgt/Game (Targets per Game)", id: "tgt-game",
+    definition: "Targets divided by games played. The Volume axis on WR/TE radar charts." },
+  { term: "YPC (Yards per Carry)", id: "ypc",
+    definition: "Rushing yards divided by carries. The most basic measure of rushing efficiency, though it doesn\u2019t account for situation or game script like EPA does." },
   // --- Leaderboard Overhaul Stats (2026-03-24) ---
   {
+    section: "Leaderboard Stats",
     term: "CROE (Catch Rate Over Expected)",
     id: "croe",
     definition: "Actual catch rate minus expected catch rate (based on throw difficulty). Positive means the receiver catches more than expected given the passes thrown to them. A better version of raw Catch% because it adjusts for throw quality. Derived from the same completion probability model that powers CPOE.",
@@ -207,7 +219,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Pro Football Reference\u2019s minimum thresholds for stat qualification. QBs: 14 attempts per team game (238/season). RBs: 6.25 carries per team game (106/season). WR/TEs: 1.875 targets per team game (32/season). These thresholds filter out players with small sample sizes.",
   },
   // --- QB Archetypes ---
-  { term: "Complete Passer (QB Archetype)", id: "complete-passer",
+  { section: "QB Archetypes", term: "Complete Passer (QB Archetype)", id: "complete-passer",
     definition: "A quarterback with 4+ radar axes at the 70th percentile or above. Elite across EPA/DB, CPOE, DB/Game, aDOT, INT%, and Success%." },
   { term: "Playmaker (QB Archetype)", id: "playmaker",
     definition: "A high-efficiency, high-volume quarterback who drives the offense. Defined by EPA/DB \u2265 70th, DB/Game \u2265 70th, and Success% \u2265 60th percentile." },
@@ -232,7 +244,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   { term: "Pocket Passer (QB Archetype)", id: "pocket-passer",
     definition: "Traditional pocket quarterback with no single elite dimension. Fallback archetype for QBs who have at least one axis above the 60th percentile but don\u2019t match any specialized archetype." },
   // --- WR Archetypes ---
-  { term: "Alpha WR1 (WR Archetype)", id: "alpha-wr1",
+  { section: "WR Archetypes", term: "Alpha WR1 (WR Archetype)", id: "alpha-wr1",
     definition: "Dominant number-one receiver. Defined by 4+ radar axes \u2265 70th and Tgt/Game \u2265 65th. Commands targets and produces at an elite level." },
   { term: "Contested Catch WR (WR Archetype)", id: "contested-catch-wr",
     definition: "Wins downfield and at the catch point. Defined by aDOT \u2265 65th and Catch% \u2265 60th. High depth of target with reliable hands." },
@@ -255,7 +267,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   { term: "Role Player (WR Archetype)", id: "role-player-wr",
     definition: "Contributes in a defined role without an elite dimension. Fallback archetype for WRs who have at least one axis above the 60th percentile but don\u2019t match any specialized archetype." },
   // --- TE Archetypes ---
-  { term: "Elite TE1 (TE Archetype)", id: "elite-te1",
+  { section: "TE Archetypes", term: "Elite TE1 (TE Archetype)", id: "elite-te1",
     definition: "Dominant tight end with 4+ radar axes at the 70th percentile (among TEs) and Tgt/Game \u2265 60th. Elite receiving production across volume, efficiency, and consistency." },
   { term: "Mismatch TE (TE Archetype)", id: "mismatch-te",
     definition: "High-efficiency pass catcher who creates mismatches. Defined by EPA/Tgt \u2265 70th and CROE \u2265 60th (among TEs) with Tgt/Game \u2265 40th. Elite per-target production regardless of volume." },
@@ -274,7 +286,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   { term: "Complementary TE (TE Archetype)", id: "complementary-te",
     definition: "Secondary receiving tight end who contributes as part of the passing game mix. Fallback archetype for TEs with at least one axis at 70th percentile or Tgt/Game \u2265 50th." },
   // --- RB Archetypes ---
-  { term: "Three-Down Back (RB Archetype)", id: "three-down-back",
+  { section: "RB Archetypes", term: "Three-Down Back (RB Archetype)", id: "three-down-back",
     definition: "Does it all. Defined by Car/Game \u2265 55th, Tgt/Game \u2265 60th, Success% \u2265 55th, and 2+ of EPA/Car, Stuff Avoid, Explosive%, Success% \u2265 55th." },
   { term: "Elite Runner (RB Archetype)", id: "elite-runner-rb",
     definition: "Elite across multiple rushing dimensions. Defined by 3+ of EPA/Car, Stuff Avoid, Explosive%, Success% at the 70th percentile with Car/Game \u2265 55th. A dominant pure runner." },
@@ -297,7 +309,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   { term: "Rotational Back (RB Archetype)", id: "rotational-back",
     definition: "Part of a backfield committee. Fallback archetype for RBs who contribute in a limited role \u2014 at least one quality axis at 60th percentile or Car/Game \u2265 40th." },
   // --- Down x Distance & Situational ---
-  { term: "Down & Distance Heatmap", id: "down-distance-heatmap",
+  { section: "Situational Stats", term: "Down & Distance Heatmap", id: "down-distance-heatmap",
     definition: "A 4\u00d75 grid showing rushing efficiency by down (1st\u20134th) and distance bin (1\u20132, 3\u20134, 5\u20137, 8\u201310, 11+ yards). Color intensity reflects EPA per carry, success rate, or yards per carry. Cells with fewer than 5 carries are marked as low-sample." },
   { term: "Early Downs", id: "early-downs",
     definition: "1st and 2nd down plays. The broadest situational filter, capturing plays where the offense has the most flexibility in play-calling." },
@@ -308,7 +320,7 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
   { term: "Late & Close", id: "late-close",
     definition: "Plays in the 4th quarter (game_seconds_remaining \u2264 900) with win probability between 25% and 75%. Filters out garbage time to show how a team performs when the game is still competitive." },
   // --- Trends & Surge Detection ---
-  { term: "Stat Surge Detector", id: "stat-surge-detector",
+  { section: "Trends & Surge Detection", term: "Stat Surge Detector", id: "stat-surge-detector",
     definition: "Identifies players whose recent performance significantly deviates from their season average. Uses z-score analysis comparing the last N weeks to the full season. Players with z \u2265 1.5 are flagged as \u2018Rising\u2019 and z \u2264 \u22121.5 as \u2018Falling\u2019." },
   { term: "Z-Score", id: "z-score",
     definition: "A statistical measure of how many standard deviations a value is from the mean. In the Surge Detector, z-score = (recent average \u2212 season average) / season standard deviation. Higher absolute values indicate more extreme deviations." },
@@ -327,6 +339,11 @@ export default function GlossaryPage() {
       <dl className="space-y-6">
         {TERMS.map((t) => (
           <div key={t.term} id={t.id} className={t.id ? "scroll-mt-24" : undefined}>
+            {t.section && (
+              <h2 className="text-lg font-extrabold text-navy tracking-tight mt-6 mb-2 border-b border-gray-200 pb-1">
+                {t.section}
+              </h2>
+            )}
             <dt className="text-sm font-bold text-navy">{t.term}</dt>
             <dd className="mt-1 text-sm text-gray-600 leading-relaxed">
               {t.definition}

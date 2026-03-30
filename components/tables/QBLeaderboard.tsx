@@ -219,13 +219,14 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const [search, setSearch] = useState(urlSearch);
   const [minDropbacks, setMinDropbacks] = useState(initialMin);
   const [qualified, setQualified] = useState(initialQualified);
+  const [archFilter, setArchFilter] = useState(searchParams.get("arch") || "");
 
   // Build URL from current state, omitting defaults. Clones existing params to preserve unknowns.
   const buildParams = useCallback(
-    (overrides: { tab?: QBTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean }) => {
+    (overrides: { tab?: QBTab; sort?: string; dir?: SortDir; q?: string; min?: number; qualified?: boolean; arch?: string }) => {
       const params = new URLSearchParams(searchParams.toString());
       // Remove our managed keys, then re-add non-defaults
-      ["tab", "sort", "dir", "q", "min", "qualified"].forEach((k) => params.delete(k));
+      ["tab", "sort", "dir", "q", "min", "qualified", "arch"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
       const defaultSort = QB_TABS[newTab].defaultSort;
@@ -243,15 +244,17 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
         params.set("qualified", "0");
         if (newMin !== pfrMinAttempts) params.set("min", String(newMin));
       }
+      const newArch = overrides.arch ?? archFilter;
+      if (newArch) params.set("arch", newArch);
 
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minDropbacks, qualified, pfrMinAttempts, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minDropbacks, qualified, pfrMinAttempts, archFilter, pathname]
   );
 
   const pushURL = useCallback(
-    (overrides: { tab?: QBTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean }) => {
+    (overrides: { tab?: QBTab; sort?: string; dir?: SortDir; min?: number; qualified?: boolean; arch?: string }) => {
       router.push(buildParams(overrides), { scroll: false });
     },
     [buildParams, router]
@@ -272,7 +275,6 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   const activeTabConfig = QB_TABS[tab];
   const columns = activeTabConfig.columns;
   const [showHeatmap, setShowHeatmap] = useState(activeTabConfig.defaultHeatmap);
-  const [archFilter, setArchFilter] = useState("");
   const [scoringFormat, setScoringFormat] = useState<ScoringFormat>("ppr");
 
   const heatmapCols = activeTabConfig.heatmapCols;
@@ -483,7 +485,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
             </div>
             <select
               value={archFilter}
-              onChange={(e) => setArchFilter(e.target.value)}
+              onChange={(e) => { setArchFilter(e.target.value); pushURL({ arch: e.target.value }); }}
               className="border border-gray-200 rounded-md px-2 py-1 text-sm text-gray-600 w-full sm:w-auto"
             >
               <option value="">All Archetypes</option>

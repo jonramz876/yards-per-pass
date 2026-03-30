@@ -112,13 +112,15 @@ export function formatStat(key: string, val: number): string {
     case "stuff_rate":
     case "explosive_rate":
       return (val * 100).toFixed(1) + "%";
-    // Already percentage-scale (1 decimal)
+    // Already percentage-scale with % symbol
     case "completion_pct":
-    case "passer_rating":
     case "td_pct":
     case "int_pct":
     case "sack_pct":
     case "scramble_pct":
+      return val.toFixed(1) + "%";
+    // Passer rating (no %)
+    case "passer_rating":
       return val.toFixed(1);
     // TD:INT ratio
     case "td_int_ratio":

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { detectSurges, type SurgeEntry, type WeeklyValue } from "@/lib/stats/surge";
@@ -168,9 +169,25 @@ export default function SurgeDetector({
   surgeData: Record<string, WeeklyValue[]>;
   stats: StatDef[];
 }) {
-  const [posFilter, setPosFilter] = useState<string>("all");
-  const [statKey, setStatKey] = useState<string>(stats[0]?.key ?? "qb_epa");
-  const [window, setWindow] = useState(4);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const posFilter = searchParams.get("pos") || "all";
+  const statKey = searchParams.get("stat") || (stats[0]?.key ?? "qb_epa");
+  const window = parseInt(searchParams.get("w") || "4", 10) || 4;
+
+  const updateParam = useCallback((key: string, value: string, defaultVal: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === defaultVal) params.delete(key);
+    else params.set(key, value);
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  const setPosFilter = useCallback((v: string) => updateParam("pos", v, "all"), [updateParam]);
+  const setStatKey = useCallback((v: string) => updateParam("stat", v, stats[0]?.key ?? "qb_epa"), [updateParam, stats]);
+  const setWindow = useCallback((v: number) => updateParam("w", String(v), "4"), [updateParam]);
 
   // Filter stats by position
   const filteredStats = useMemo(() => {

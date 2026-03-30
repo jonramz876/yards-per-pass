@@ -84,16 +84,16 @@ export async function getTeamHubData(
     freshness,
     seasons,
   ] = await Promise.all([
-    getTeamStats(season),
-    getQBStats(season),
-    getReceiverStats(season),
-    getRBGapStats(season, teamId),
-    getDefGapStats(season, teamId),
-    getDownDistanceStats(season, teamId),
-    getSituationalStats(season),
-    getAllPlayerSlugs(),
-    getDataFreshness(season),
-    getAvailableSeasons(),
+    getTeamStats(season).catch(() => []),
+    getQBStats(season).catch(() => []),
+    getReceiverStats(season).catch(() => []),
+    getRBGapStats(season, teamId).catch(() => []),
+    getDefGapStats(season, teamId).catch(() => []),
+    getDownDistanceStats(season, teamId).catch(() => ({ team: [], nfl: [] })),
+    getSituationalStats(season).catch(() => []),
+    getAllPlayerSlugs().catch(() => []),
+    getDataFreshness(season).catch(() => null),
+    getAvailableSeasons().catch(() => [season]),
   ]);
 
   const teamStats = allTeamStats.find((t) => t.team_id === teamId) ?? null;
