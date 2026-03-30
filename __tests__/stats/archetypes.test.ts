@@ -19,10 +19,17 @@ describe("classifyQB", () => {
   });
 
   it("returns Mobile Playmaker for good rusher with passing volume", () => {
-    // rush >= 65, eff >= 55, vol >= 50
+    // rush >= 70, eff >= 55, vol >= 50, NOT Surgeon-level (acc < 70 or cons < 65)
     const result = classifyQB([58, 50, 55, 50, 50, 50, 70]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Mobile Playmaker");
+  });
+
+  it("returns Surgeon (not Mobile Playmaker) for precise QB with moderate rush", () => {
+    // Purdy-like: rush >= 70 but acc >= 70 && cons >= 65 → Surgeon exclusion on Mobile Playmaker
+    const result = classifyQB([60, 75, 55, 50, 50, 70, 72]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Surgeon");
   });
 
   it("returns Complete Passer when 4+ axes >= 70 and none below 30", () => {
@@ -83,6 +90,17 @@ describe("classifyQB", () => {
     // With rush=80 but eff<60, won't match Dual Threat or Mobile Playmaker either
     // Falls through to Improviser or null
     expect(result === null || result.label !== "Sniper").toBe(true);
+  });
+
+  it("returns Pocket Passer fallback for QB with at least one axis above 60", () => {
+    // No specific archetype matches, but above60 >= 1
+    const result = classifyQB([45, 45, 45, 45, 45, 63, 30]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Pocket Passer");
+  });
+
+  it("returns null for QB with all axes below 60", () => {
+    expect(classifyQB([30, 30, 30, 30, 30, 30, 30])).toBeNull();
   });
 
   it("all archetypes have a glossaryAnchor field", () => {
@@ -155,6 +173,17 @@ describe("classifyWR", () => {
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Possession Receiver");
   });
+
+  it("returns Role Player fallback for WR with at least one axis above 60", () => {
+    // No specific archetype matches, but above60 >= 1
+    const result = classifyWR([45, 45, 45, 45, 45, 63]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Role Player");
+  });
+
+  it("returns null for WR with all axes below 60", () => {
+    expect(classifyWR([30, 30, 30, 30, 30, 30])).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -194,11 +223,25 @@ describe("classifyTE", () => {
     expect(result!.label).toBe("Security Blanket");
   });
 
+  it("returns Mismatch TE for high efficiency + catch + moderate volume", () => {
+    // eff >= 70, catch >= 60, vol >= 40 (Kincaid-like profile)
+    const result = classifyTE([45, 80, 65, 55, 50, 50]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Mismatch TE");
+  });
+
   it("returns Blocking TE for very low volume + consistency", () => {
     // vol <= 25, cons <= 35
     const result = classifyTE([20, 40, 40, 40, 40, 30]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Blocking TE");
+  });
+
+  it("returns Complementary TE fallback for moderate volume TE", () => {
+    // No specific match but vol >= 50
+    const result = classifyTE([55, 45, 45, 45, 45, 45]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Complementary TE");
   });
 });
 
@@ -215,8 +258,10 @@ describe("classifyRB", () => {
     expect(result!.label).toBe("Three-Down Back");
   });
 
-  it("returns null when all percentiles are at 40", () => {
-    expect(classifyRB([40, 40, 40, 40, 40, 40])).toBeNull();
+  it("returns Rotational Back when all percentiles are at 40 (fallback)", () => {
+    const result = classifyRB([40, 40, 40, 40, 40, 40]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Rotational Back");
   });
 
   it("returns Elite Runner for 3+ rush axes >= 70 and vol >= 55", () => {
@@ -259,5 +304,16 @@ describe("classifyRB", () => {
     const result = classifyRB([90, 30, 40, 40, 40, 40]);
     expect(result).not.toBeNull();
     expect(result!.label).toBe("Bell Cow");
+  });
+
+  it("returns Rotational Back fallback for committee RB", () => {
+    // No specific match but vol >= 40
+    const result = classifyRB([45, 45, 45, 45, 45, 45]);
+    expect(result).not.toBeNull();
+    expect(result!.label).toBe("Rotational Back");
+  });
+
+  it("returns null for RB with very low stats across the board", () => {
+    expect(classifyRB([20, 20, 20, 20, 20, 20])).toBeNull();
   });
 });

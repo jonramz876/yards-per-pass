@@ -24,7 +24,8 @@ export function classifyQB(percentiles: number[]): Archetype | null {
     glossaryAnchor: "dual-threat",
   };
   // Mobile Playmaker — dangerous in and out of the pocket
-  if (rush >= 70 && eff >= 55 && vol >= 50) return {
+  // Exclude QBs with Surgeon-level precision (acc >= 70 + cons >= 65) — they're surgical, not mobile
+  if (rush >= 70 && eff >= 55 && vol >= 50 && !(acc >= 70 && cons >= 65)) return {
     label: "Mobile Playmaker",
     icon: "\u{1F3C3}",
     description: "Extends plays and creates with his legs. Dangerous in and out of the pocket.",
@@ -94,6 +95,13 @@ export function classifyQB(percentiles: number[]): Archetype | null {
     icon: "\u{1F3AD}",
     description: "Creates plays outside of structure \u2014 high efficiency despite inconsistent accuracy.",
     glossaryAnchor: "improviser",
+  };
+  // Pocket Passer — fallback for QBs with no standout dimension
+  if (above60 >= 1) return {
+    label: "Pocket Passer",
+    icon: "\u{1F3C8}",
+    description: "Traditional pocket quarterback \u2014 no single elite dimension but contributes from the pocket.",
+    glossaryAnchor: "pocket-passer",
   };
   // No match
   return null;
@@ -190,6 +198,13 @@ export function classifyWR(percentiles: number[]): Archetype | null {
     description: "Dangerous after the catch, turning short throws into big gains.",
     glossaryAnchor: "yac-monster",
   };
+  // Role Player — fallback for WRs with at least one above-average dimension
+  if (above60 >= 1) return {
+    label: "Role Player",
+    icon: "\u{1F527}",
+    description: "Contributes in a defined role \u2014 no elite dimension but fills a need in the offense.",
+    glossaryAnchor: "role-player-wr",
+  };
   // No match
   return null;
 }
@@ -215,6 +230,13 @@ export function classifyTE(percentiles: number[]): Archetype | null {
     icon: "\u{1F48E}",
     description: "Dominant tight end \u2014 elite receiving production across volume, efficiency, and consistency.",
     glossaryAnchor: "elite-te1",
+  };
+  // Mismatch TE — high efficiency with strong catch rate, creates mismatches
+  if (eff >= 70 && catch_ >= 60 && vol >= 40) return {
+    label: "Mismatch TE",
+    icon: "\u{1F9E9}",
+    description: "High-efficiency pass catcher who creates mismatches \u2014 elite per-target production regardless of volume.",
+    glossaryAnchor: "mismatch-te",
   };
   // Seam Stretcher — attacks downfield
   if (downfield >= 70 && eff >= 50) return {
@@ -257,6 +279,13 @@ export function classifyTE(percentiles: number[]): Archetype | null {
     icon: "\u{1F6E1}\uFE0F",
     description: "Primarily a blocker who catches the occasional pass \u2014 low target volume and route involvement.",
     glossaryAnchor: "blocking-te",
+  };
+  // Complementary TE — fallback for TEs with at least one above-average dimension
+  if (above70 >= 1 || vol >= 50) return {
+    label: "Complementary TE",
+    icon: "\u{1F91D}",
+    description: "Secondary receiving tight end who contributes as part of the passing game mix.",
+    glossaryAnchor: "complementary-te",
   };
   // No match
   return null;
@@ -338,6 +367,14 @@ export function classifyRB(percentiles: number[]): Archetype | null {
     icon: "\u{1F402}",
     description: "Dominates touches in the backfield \u2014 the clear lead back regardless of efficiency.",
     glossaryAnchor: "bell-cow",
+  };
+  // Rotational Back — fallback for RBs in a committee role
+  const rbAbove60 = [eff, power, explosive, rec, cons].filter(p => p >= 60).length;
+  if (rbAbove60 >= 1 || vol >= 40) return {
+    label: "Rotational Back",
+    icon: "\u{1F504}",
+    description: "Part of a backfield committee \u2014 contributes in a limited role without dominating touches.",
+    glossaryAnchor: "rotational-back",
   };
   // No match
   return null;

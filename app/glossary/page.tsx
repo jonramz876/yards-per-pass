@@ -229,6 +229,8 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Accurate deep passer who protects the football. Defined by aDOT \u2265 65th, INT% \u2265 65th, and Rush EPA < 75th. Pushes the ball downfield without turning it over." },
   { term: "Improviser (QB Archetype)", id: "improviser",
     definition: "Creates plays outside of structure. Defined by EPA/DB \u2265 65th, 3+ axes \u2265 60th, and CPOE \u2264 50th. High EPA despite inconsistent accuracy." },
+  { term: "Pocket Passer (QB Archetype)", id: "pocket-passer",
+    definition: "Traditional pocket quarterback with no single elite dimension. Fallback archetype for QBs who have at least one axis above the 60th percentile but don\u2019t match any specialized archetype." },
   // --- WR Archetypes ---
   { term: "Alpha WR1 (WR Archetype)", id: "alpha-wr1",
     definition: "Dominant number-one receiver. Defined by 4+ radar axes \u2265 70th and Tgt/Game \u2265 65th. Commands targets and produces at an elite level." },
@@ -250,9 +252,13 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Maximizes every route run. Defined by YPRR \u2265 75th and EPA/Tgt \u2265 65th with Tgt/Game \u2264 50th." },
   { term: "Playmaker (WR Archetype)", id: "playmaker-wr",
     definition: "Creates big plays through efficiency and after-catch ability. Defined by EPA/Tgt \u2265 65th, YAC/Rec \u2265 65th, and 3+ axes \u2265 60th." },
+  { term: "Role Player (WR Archetype)", id: "role-player-wr",
+    definition: "Contributes in a defined role without an elite dimension. Fallback archetype for WRs who have at least one axis above the 60th percentile but don\u2019t match any specialized archetype." },
   // --- TE Archetypes ---
   { term: "Elite TE1 (TE Archetype)", id: "elite-te1",
     definition: "Dominant tight end with 4+ radar axes at the 70th percentile (among TEs) and Tgt/Game \u2265 60th. Elite receiving production across volume, efficiency, and consistency." },
+  { term: "Mismatch TE (TE Archetype)", id: "mismatch-te",
+    definition: "High-efficiency pass catcher who creates mismatches. Defined by EPA/Tgt \u2265 70th and CROE \u2265 60th (among TEs) with Tgt/Game \u2265 40th. Elite per-target production regardless of volume." },
   { term: "Seam Stretcher (TE Archetype)", id: "seam-stretcher",
     definition: "Attacks downfield as a seam threat. Defined by aDOT \u2265 70th (among TEs) and EPA/Tgt \u2265 50th. Stretches the middle of the field vertically." },
   { term: "YAC Weapon (TE Archetype)", id: "yac-weapon-te",
@@ -265,6 +271,8 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Commands a massive target share for a tight end. Defined by Tgt/Game \u2265 80th percentile among TEs." },
   { term: "Blocking TE (TE Archetype)", id: "blocking-te",
     definition: "Primarily a blocker who catches occasionally. Defined by Tgt/Game \u2264 25th and YPRR \u2264 35th among TEs. Low target volume and route involvement." },
+  { term: "Complementary TE (TE Archetype)", id: "complementary-te",
+    definition: "Secondary receiving tight end who contributes as part of the passing game mix. Fallback archetype for TEs with at least one axis at 70th percentile or Tgt/Game \u2265 50th." },
   // --- RB Archetypes ---
   { term: "Three-Down Back (RB Archetype)", id: "three-down-back",
     definition: "Does it all. Defined by Car/Game \u2265 55th, Tgt/Game \u2265 60th, Success% \u2265 55th, and 2+ of EPA/Car, Stuff Avoid, Explosive%, Success% \u2265 55th." },
@@ -286,6 +294,8 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "Maximizes limited touches. Defined by EPA/Car \u2265 65th, Explosive% \u2265 60th, and Car/Game \u2264 40th." },
   { term: "Bell Cow (RB Archetype)", id: "bell-cow",
     definition: "Dominates touches in the backfield. Defined by Car/Game \u2265 85th percentile. The clear lead back regardless of efficiency." },
+  { term: "Rotational Back (RB Archetype)", id: "rotational-back",
+    definition: "Part of a backfield committee. Fallback archetype for RBs who contribute in a limited role \u2014 at least one quality axis at 60th percentile or Car/Game \u2265 40th." },
   // --- Down x Distance & Situational ---
   { term: "Down & Distance Heatmap", id: "down-distance-heatmap",
     definition: "A 4\u00d75 grid showing rushing efficiency by down (1st\u20134th) and distance bin (1\u20132, 3\u20134, 5\u20137, 8\u201310, 11+ yards). Color intensity reflects EPA per carry, success rate, or yards per carry. Cells with fewer than 5 carries are marked as low-sample." },
@@ -297,6 +307,11 @@ const TERMS: { term: string; definition: string; id?: string }[] = [
     definition: "3rd or 4th down with 2 or fewer yards to go. High-leverage situations where teams often use heavy personnel and power rushing schemes." },
   { term: "Late & Close", id: "late-close",
     definition: "Plays in the 4th quarter (game_seconds_remaining \u2264 900) with win probability between 25% and 75%. Filters out garbage time to show how a team performs when the game is still competitive." },
+  // --- Trends & Surge Detection ---
+  { term: "Stat Surge Detector", id: "stat-surge-detector",
+    definition: "Identifies players whose recent performance significantly deviates from their season average. Uses z-score analysis comparing the last N weeks to the full season. Players with z \u2265 1.5 are flagged as \u2018Rising\u2019 and z \u2264 \u22121.5 as \u2018Falling\u2019." },
+  { term: "Z-Score", id: "z-score",
+    definition: "A statistical measure of how many standard deviations a value is from the mean. In the Surge Detector, z-score = (recent average \u2212 season average) / season standard deviation. Higher absolute values indicate more extreme deviations." },
 ];
 
 export default function GlossaryPage() {
