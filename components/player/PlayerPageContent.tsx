@@ -120,6 +120,8 @@ export default function PlayerPageContent({
           season={season}
           teamId={player.current_team_id}
           teamQBData={crossLinkQB ?? undefined}
+          headshotUrl={player.headshot_url ?? null}
+          jerseyNumber={player.jersey_number ?? null}
         />
       );
     }

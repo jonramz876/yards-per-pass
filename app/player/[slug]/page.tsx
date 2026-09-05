@@ -118,8 +118,9 @@ export default async function PlayerPage({
       const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
       seasonStats = playerSeason;
       weeklyStats = weekly;
-      // PFR qualified: 1.875 tgt/team game × 17 = 32 targets
-      allPlayers = allReceivers.filter((r) => r.targets >= 32);
+      // Full, unfiltered pool — buildWRCardData applies the per-game
+      // eligibility rule (WR_MIN_TGT_PER_GAME) and position matching internally.
+      allPlayers = allReceivers;
       crossLinkQB = teamQB;
     } else if (player.position === "RB") {
       const [weekly, allRBWeekly] = await Promise.all([
