@@ -110,7 +110,7 @@ Frontend: add the fields to the `PlayerSlug` type (`lib/data/players.ts` uses `s
 - Below-threshold or zero-stat player: OVR `—`, bars render at 0 with gray dots, no NaN text anywhere.
 - Week 1–3 thin pools (site now ingests single-game data): percentiles legal but volatile; thresholds mask most of it.
 - Long names (`AMON-RA ST.BROWN`), long team names (`SAN FRANCISCO 49ERS`) in pixel font at mobile widths.
-- Light team colors (CIN orange band): dark text on light bands via existing contrast helpers.
+- Light team colors (CIN orange band): dark text on light bands via the newly extracted luminance util.
 - FB position → RB variant (normalization added on card/player pages; currently only compare/OG have it).
 - 2020–2025 historical seasons via `?season=` (headshot is current-day; acceptable).
 
