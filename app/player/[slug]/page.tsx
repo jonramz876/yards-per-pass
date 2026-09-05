@@ -2,10 +2,11 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getAllRBWeeklyStats, getTeamTopReceivers, getTeamStartingQB, getQBPassLocationStats } from "@/lib/data/players";
+import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getTeamTopReceivers, getTeamStartingQB, getQBPassLocationStats } from "@/lib/data/players";
 import type { QBPassLocationStat } from "@/lib/types";
 import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
+import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getTeam } from "@/lib/data/teams";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import PlayerPageContent from "@/components/player/PlayerPageContent";
@@ -47,6 +48,7 @@ function getBreadcrumbs(position: string, playerName: string) {
         { label: playerName },
       ];
     case "RB":
+    case "FB":
       return [
         { label: "Rushing", href: "/rushing" },
         { label: playerName },
@@ -122,14 +124,19 @@ export default async function PlayerPage({
       // eligibility rule (WR_MIN_TGT_PER_GAME) and position matching internally.
       allPlayers = allReceivers;
       crossLinkQB = teamQB;
-    } else if (player.position === "RB") {
-      const [weekly, allRBWeekly] = await Promise.all([
+    } else if (player.position === "RB" || player.position === "FB") {
+      // FBs are carried in the RB stat tables.
+      const [allRBs, weekly] = await Promise.all([
+        getRBSeasonStats(currentSeason).catch(() => []),
+        // Weekly rows still power the Game Log tab.
         getRBWeeklyStats(player.player_id, currentSeason),
-        getAllRBWeeklyStats(currentSeason),
       ]);
-      seasonStats = [];
+      const playerSeason = allRBs.filter((r) => r.player_id === player.player_id);
+      seasonStats = playerSeason;
       weeklyStats = weekly;
-      allPlayers = allRBWeekly;
+      // Full, unfiltered pool — buildRBCardData applies the per-game
+      // eligibility rule (RB_MIN_CAR_PER_GAME) internally.
+      allPlayers = allRBs;
     }
   } catch {
     // Data fetch failed — page will render with empty data
