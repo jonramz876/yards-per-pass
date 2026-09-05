@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
 import JerseyAvatar from "@/components/player/JerseyAvatar";
 
 describe("JerseyAvatar", () => {
@@ -24,5 +24,16 @@ describe("JerseyAvatar", () => {
         primaryColor="#00338D" secondaryColor="#C60C30" playerName="X" />
     );
     expect(container.querySelector("svg")).not.toBeNull();
+    expect(container.querySelector("text")).toBeNull();
+  });
+  it("falls back to the jersey SVG when the headshot fails to load", () => {
+    const { container } = render(
+      <JerseyAvatar headshotUrl="https://img/broken.png" jerseyNumber={17}
+        primaryColor="#00338D" secondaryColor="#C60C30" playerName="Josh Allen" />
+    );
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelector("svg")).not.toBeNull();
+    expect(container.querySelector("text")?.textContent).toBe("17");
   });
 });
