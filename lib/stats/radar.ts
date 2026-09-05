@@ -13,11 +13,6 @@ export const QB_RADAR_AXES = [
   { label: "aDOT" }, { label: "Ball Security" }, { label: "Success%" },
   { label: "Rush EPA" },
 ];
-export const QB_RADAR_LABELS: Record<string, string> = {
-  epa_per_db: "EPA/DB", cpoe: "CPOE", dropbacks_game: "DB/G",
-  adot: "aDOT", inv_int_pct: "Ball Security", success_rate: "Success%",
-  rush_epa: "Rush EPA",
-};
 
 export function getQBRadarVal(qb: QBSeasonStat, key: string): number {
   switch (key) {
@@ -46,10 +41,6 @@ export const WR_RADAR_AXES = [
   { label: "Tgt/Game" }, { label: "EPA/Tgt" }, { label: "CROE" },
   { label: "aDOT" }, { label: "YAC/Rec" }, { label: "YPRR" },
 ];
-export const WR_RADAR_LABELS: Record<string, string> = {
-  targets_game: "Tgt/G", epa_per_target: "EPA/Tgt", croe: "CROE",
-  air_yards_per_target: "ADOT", yac_per_reception: "YAC/Rec", yards_per_route_run: "YPRR",
-};
 
 export function getWRRadarVal(rec: ReceiverSeasonStat, key: string): number {
   switch (key) {
@@ -64,7 +55,7 @@ export function getWRRadarVal(rec: ReceiverSeasonStat, key: string): number {
 }
 
 // ---- RB Radar ----
-// Minimal interface so both AggregatedRB (from weekly) and RBSeasonStat work
+// Minimal structural interface that RBSeasonStat satisfies
 export interface RBRadarInput {
   games: number;
   carries: number;
@@ -80,10 +71,6 @@ export const RB_RADAR_AXES = [
   { label: "Car/Game" }, { label: "EPA/Car" }, { label: "Stuff Avoid" },
   { label: "Explosive%" }, { label: "Tgt/Game" }, { label: "Success%" },
 ];
-export const RB_RADAR_LABELS: Record<string, string> = {
-  carries_game: "Car/G", epa_per_carry: "EPA/Car", stuff_avoidance: "Stuff Avoid%",
-  explosive_rate: "Explosive%", targets_game: "Tgt/G", success_rate: "Success%",
-};
 
 export function getRBRadarVal(rb: RBRadarInput, key: string): number {
   switch (key) {
