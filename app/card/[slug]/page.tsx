@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getTeam } from "@/lib/data/teams";
-import { getCardDataForPlayer } from "@/lib/stats/tecmo-card";
+import { getCardDataForPlayer } from "@/lib/data/card";
 import type { TecmoCardData } from "@/lib/stats/tecmo-card";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import CardPageActions from "./CardPageActions";
