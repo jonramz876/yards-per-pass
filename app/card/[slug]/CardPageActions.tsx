@@ -5,9 +5,10 @@ import { useState } from "react";
 
 interface CardPageActionsProps {
   slug: string;
+  season: number;
 }
 
-export default function CardPageActions({ slug }: CardPageActionsProps) {
+export default function CardPageActions({ slug, season }: CardPageActionsProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopyLink() {
@@ -31,7 +32,7 @@ export default function CardPageActions({ slug }: CardPageActionsProps) {
 
   function handleDownload() {
     // Open the OG image in a new tab — it's a real PNG the user can save
-    window.open(`/api/stat-card/${slug}`, "_blank");
+    window.open(`/api/stat-card/${slug}?season=${season}`, "_blank");
   }
 
   return (
