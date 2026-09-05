@@ -142,9 +142,11 @@ def download_pbp(season: int) -> pd.DataFrame:
         if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
             raise DataNotYetPublished(f"PBP file for {season} not on nflverse yet.") from e
         raise
-    if len(df) < 1000:
-        if season >= CURRENT_SEASON:
-            raise DataNotYetPublished(f"PBP for {season} has only {len(df)} rows — too few games played yet.")
+    if season >= CURRENT_SEASON:
+        # Early season: any completed game is worth ingesting, even a single one (~180 rows)
+        if len(df) == 0:
+            raise DataNotYetPublished(f"PBP file for {season} is published but empty — no games completed yet.")
+    elif len(df) < 1000:
         raise DataQualityError(f"PBP data for {season} suspiciously small ({len(df)} rows) — expected 40,000+. Aborting.")
     missing = [c for c in REQUIRED_PBP_COLS if c not in df.columns]
     if missing:
@@ -3053,6 +3055,15 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
 
 
 @retry(max_retries=2, delay=3)
+def get_existing_through_week(conn, season: int):
+    """Return the through_week already recorded for a season, or None if no row exists."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT through_week FROM data_freshness WHERE season = %s", (season,))
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
+@retry(max_retries=2, delay=3)
 def update_freshness(conn, season: int, through_week: int):
     """Update the data_freshness table (one row per season)."""
     with conn.cursor() as cur:
@@ -3117,6 +3128,13 @@ def process_season(season: int, conn, dry_run: bool = False):
     participation = download_participation(season)
     plays = filter_plays(pbp)
 
+    # A non-empty file can still hold zero usable plays (preseason-only or non-REG rows);
+    # through_week's int(max()) would crash on an empty frame
+    if len(plays) == 0:
+        if season >= CURRENT_SEASON:
+            raise DataNotYetPublished(f"PBP for {season} has no completed regular-season plays yet.")
+        raise DataQualityError(f"PBP for {season} contains no usable regular-season plays. Aborting.")
+
     team_stats = aggregate_team_stats(plays, pbp, season)
     qb_stats = aggregate_qb_stats(plays, roster, season)
     qb_pass_loc = aggregate_qb_pass_location_stats(plays, roster, season)
@@ -3151,6 +3169,14 @@ def process_season(season: int, conn, dry_run: bool = False):
         for _, row in top_qbs.iterrows():
             log.info("[SAMPLE] %s", {c: (round(row[c], 3) if isinstance(row[c], float) else row[c]) for c in avail_cols})
         return
+
+    # Guard against nflverse re-publishing a truncated file: never move a season's data backwards.
+    # cleanup_stale_rows would otherwise delete every team/player missing from the truncated frame.
+    prior_week = get_existing_through_week(conn, season)
+    if prior_week is not None and through_week < prior_week:
+        raise DataQualityError(
+            f"PBP for {season} only goes through week {through_week} but DB already has week {prior_week} — "
+            f"refusing to ingest a truncated file.")
 
     ensure_team_season_stats_columns(conn)
     ensure_qb_season_stats_columns(conn)

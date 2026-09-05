@@ -8,12 +8,13 @@
 ## Data pipeline
 
 - `scripts/ingest.py` downloads nflverse parquet files (PBP, rosters, participation) and upserts into Supabase. Run: `python scripts/ingest.py --season YEAR` (or `--all`, `--dry-run`).
-- `DataNotYetPublished` exception: a 404 or sub-minimum row count on the **current** season's PBP/roster is a benign skip (exit 0, clear log). Historical seasons still fail loudly. This keeps early-September and week-1 cron runs green before nflverse publishes data.
+- `DataNotYetPublished` exception: a 404, empty file, or zero usable REG plays on the **current** season is a benign skip (exit 0, clear log). Any non-empty current-season file with real plays is ingested — even a single game (~180 rows), per Jon's "update every night after at least 1 game" requirement. Historical seasons keep the 1,000-row minimum and fail loudly.
+- Truncation guard: ingest refuses to write if the new file's max week is lower than `data_freshness.through_week` (protects against nflverse re-publishing a truncated file; `cleanup_stale_rows` would otherwise delete players/teams). Accepted residual risk: a sparse republish that keeps the latest week would pass the guard.
 - nflverse publishes `play_by_play_{year}.parquet` only after the first games are played; rosters appear earlier.
 
 ## GitHub Actions (jonramz876/yards-per-pass)
 
-- `data-refresh.yml` — cron Fri/Mon/Tue/Wed 12:00 UTC; skips March–August; auto-targets current season.
+- `data-refresh.yml` ("Nightly Data Refresh") — daily cron 12:00 UTC (8 AM EDT / 7 AM EST); skips March–August; auto-targets current season. 2026 season opened Wednesday Sept 9 (Seahawks–Patriots), so nightly cadence matters from week 1.
 - **GitHub auto-disables cron workflows after 60 days without repo activity.** This silently killed the refresh June 1–Sept 5, 2026. The workflow now has a self-keepalive step (re-enables itself via `gh api` each run, needs `actions: write` permission). If the workflow file is ever renamed, update the filename inside the keepalive step.
 - `seed.yml` — manual historical backfill. `ci.yml` — tsc + build (placeholder Supabase env vars) + pytest.
 

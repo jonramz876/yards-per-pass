@@ -1,12 +1,9 @@
 # .github/workflows/data-refresh.yml
-name: Game Day Data Refresh
+name: Nightly Data Refresh
 
 on:
   schedule:
-    - cron: '0 12 * * 5'  # Friday 7 AM ET (12:00 UTC) — after Thursday Night Football
-    - cron: '0 12 * * 1'  # Monday 7 AM ET — after Sunday games
-    - cron: '0 12 * * 2'  # Tuesday 7 AM ET — after Monday Night Football
-    - cron: '0 12 * * 3'  # Wednesday 7 AM ET — late stat corrections
+    - cron: '0 12 * * *'  # Daily 12:00 UTC (8 AM EDT / 7 AM EST) — picks up any games played the night before
   workflow_dispatch:
     inputs:
       season:
@@ -46,7 +43,7 @@ jobs:
         if: github.event_name == 'schedule'
         run: |
           MONTH=$(date +%m)
-          # NFL offseason: February through early September (no new data)
+          # NFL offseason: March through August (no new data; keepalive step still runs)
           if [ "$MONTH" -ge 3 ] && [ "$MONTH" -le 8 ]; then
             echo "::notice::NFL offseason (month $MONTH) — skipping refresh"
             echo "skip=true" >> $GITHUB_OUTPUT
