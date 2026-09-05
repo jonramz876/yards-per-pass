@@ -98,6 +98,35 @@ describe("buildQBCardData", () => {
     const d = buildQBCardData(qb({}), [], 2026);
     expect(d.ovr).toBeNull();
     d.abilityRows.forEach(r => expect(Number.isNaN(r.percentile)).toBe(false));
+    d.statCells.forEach(c => expect(c.value).not.toContain("NaN"));
+  });
+  it("a missing quality metric is excluded from OVR, not counted as 0th", () => {
+    const noCpoe = qb({ player_id: "nc", epa_per_db: 0.21, cpoe: null });
+    const p = [pool[0], pool[1], pool[2], noCpoe];
+    const d = buildQBCardData(noCpoe, p, 2026);
+    const cpoeRow = d.abilityRows.find(r => r.label === "CPOE")!;
+    expect(cpoeRow.missing).toBe(true);
+    expect(cpoeRow.raw).toBe("—");
+    // EPA/DB 75th, three other inputs 0th (identical pool), CPOE dropped:
+    // mean of [75,0,0,0] = 18.75 -> 19. Counting CPOE as a 0 would give 15.
+    expect(d.ovr).toBe(19);
+    expect(d.ovr).not.toBe(15);
+  });
+  it("present metrics are not flagged missing", () => {
+    const d = buildQBCardData(pool[3], pool, 2026);
+    d.abilityRows.forEach(r => expect(r.missing).toBe(false));
+  });
+  it("formats raw values on the stored scales (golden strings)", () => {
+    const d = buildQBCardData(pool[3], pool, 2026);
+    const row = (l: string) => d.abilityRows.find(r => r.label === l)!.raw;
+    const cell = (l: string) => d.statCells.find(c => c.label === l)!.value;
+    expect(row("SUCCESS RATE")).toBe("49.8%");   // success_rate stored 0-1
+    expect(row("CPOE")).toBe("+2.4");            // cpoe stored on display scale
+    expect(row("BALL SECURITY")).toBe("2.2% INT"); // 12 INT / 542 att
+    expect(row("EPA/DROPBACK")).toBe("+0.21");
+    expect(cell("PCT")).toBe("66.2");            // completion_pct stored on display scale
+    expect(cell("ATT")).toBe("542");
+    expect(cell("FPTS")).toBe("404");
   });
   it("carries identity fields and radar labels through", () => {
     const d = buildQBCardData(pool[3], pool, 2026);
@@ -116,6 +145,14 @@ describe("tierColor", () => {
     expect(tierColor(80)).toBe("#16a34a");
     expect(tierColor(50)).toBe("#ca8a04");
     expect(tierColor(10)).toBe("#dc2626");
+  });
+  it("boundaries are inclusive at 75 and 40", () => {
+    expect(tierColor(75)).toBe("#16a34a");
+    expect(tierColor(74.9)).toBe("#ca8a04");
+    expect(tierColor(40)).toBe("#ca8a04");
+    expect(tierColor(39.9)).toBe("#dc2626");
+    expect(tierColor(0)).toBe("#dc2626");
+    expect(tierColor(100)).toBe("#16a34a");
   });
 });
 
@@ -185,6 +222,37 @@ describe("buildWRCardData", () => {
     d.statCells.forEach(c => expect(c.value).not.toContain("NaN"));
   });
 
+  it("a missing quality metric is excluded from OVR, not counted as 0th", () => {
+    const noCroe = wr({ player_id: "nc", epa_per_target: 0.40, croe: null });
+    const p = [pool[0], pool[1], pool[2], noCroe];
+    const d = buildWRCardData(noCroe, p, 2026);
+    const croeRow = d.abilityRows.find(r => r.label === "CROE")!;
+    expect(croeRow.missing).toBe(true);
+    expect(croeRow.raw).toBe("—");
+    // EPA/Tgt 75th, YPRR + receiving success 0th, CROE dropped:
+    // mean of [75,0,0] = 25. Counting CROE as a 0 would give 19.
+    expect(d.ovr).toBe(25);
+    expect(d.ovr).not.toBe(19);
+  });
+
+  it("a missing receiving_success_rate is excluded from OVR too", () => {
+    const noSucc = wr({ player_id: "ns", epa_per_target: 0.40, receiving_success_rate: null });
+    const p = [pool[0], pool[1], pool[2], noSucc];
+    // EPA/Tgt 75th, CROE + YPRR 0th, success dropped: mean of [75,0,0] = 25.
+    expect(buildWRCardData(noSucc, p, 2026).ovr).toBe(25);
+  });
+
+  it("formats raw values on the stored scales (golden strings)", () => {
+    const d = buildWRCardData(pool[0], pool, 2026);
+    const row = (l: string) => d.abilityRows.find(r => r.label === l)!.raw;
+    const cell = (l: string) => d.statCells.find(c => c.label === l)!.value;
+    expect(row("CROE")).toBe("+2.4%");        // croe stored 0-1 -> signed percent
+    expect(row("EPA/TARGET")).toBe("+0.10");
+    expect(row("YPRR")).toBe("2.46");
+    expect(cell("TGT %")).toBe("27.1%");      // target_share stored 0-1
+    expect(cell("SNAP %")).toBe("84.2%");     // snap_share stored 0-1
+  });
+
   it("carries identity fields and radar labels through", () => {
     const d = buildWRCardData(pool[0], pool, 2026);
     expect(d.playerName).toBe("R");
@@ -241,6 +309,33 @@ describe("buildRBCardData", () => {
     expect(d.ovr).toBeNull();
     d.abilityRows.forEach(r => expect(Number.isNaN(r.percentile)).toBe(false));
     d.statCells.forEach(c => expect(c.value).not.toContain("NaN"));
+  });
+
+  it("a missing quality metric is excluded from OVR, not counted as 0th", () => {
+    // parseNumericFields turns a null DB value into NaN, so NaN is the
+    // real-world "missing" representation for a non-nullable numeric column.
+    const noExpl = rb({ player_id: "ne", epa_per_carry: 0.10, explosive_rate: NaN });
+    const p = [pool[0], pool[1], pool[2], noExpl];
+    const d = buildRBCardData(noExpl, p, 2026);
+    const explRow = d.abilityRows.find(r => r.label === "EXPLOSIVE %")!;
+    expect(explRow.missing).toBe(true);
+    expect(explRow.raw).toBe("—");
+    // EPA/Car 75th, success + stuff avoid 0th, explosive dropped:
+    // mean of [75,0,0] = 25. Counting explosive as a 0 would give 19.
+    expect(d.ovr).toBe(25);
+    expect(d.ovr).not.toBe(19);
+  });
+
+  it("formats raw values on the stored scales (golden strings)", () => {
+    const d = buildRBCardData(pool[3], pool, 2026);
+    const row = (l: string) => d.abilityRows.find(r => r.label === l)!.raw;
+    const cell = (l: string) => d.statCells.find(c => c.label === l)!.value;
+    expect(cell("SUCC %")).toBe("45.1%");     // success_rate stored 0-1
+    expect(cell("EXPL %")).toBe("11.2%");     // explosive_rate stored 0-1
+    expect(cell("YPC")).toBe("4.6");
+    expect(row("STUFF AVOID")).toBe("83.2%"); // 1 - stuff_rate 0.168
+    expect(row("EPA/CARRY")).toBe("+0.10");
+    expect(row("CAR/GAME")).toBe("17.0");
   });
 
   it("carries identity fields and radar labels through", () => {
