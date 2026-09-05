@@ -2,11 +2,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPlayerBySlug } from "@/lib/data/players";
-import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
-import { getReceiverStats } from "@/lib/data/receivers";
-import { getRBSeasonStats } from "@/lib/data/rushing";
+import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getTeam } from "@/lib/data/teams";
-import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
+import { getCardDataForPlayer } from "@/lib/og/tecmo-card-image";
 import type { TecmoCardData } from "@/lib/stats/tecmo-card";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import CardPageActions from "./CardPageActions";
@@ -67,30 +65,11 @@ export default async function CardPage({
   const team = getTeam(player.current_team_id);
   const teamName = team?.name || player.current_team_id;
 
-  // FBs are carried in the RB stat tables.
-  const pos = player.position === "FB" ? "RB" : player.position;
-
+  // Assembly (position branching, stat lookup) is shared with the OG image and
+  // the download route — see lib/og/tecmo-card-image.tsx.
   let card: TecmoCardData | null = null;
-
   try {
-    if (pos === "QB") {
-      const all = await getQBStats(season);
-      const me = all.find((q) => q.player_id === player.player_id);
-      if (!me) notFound();
-      card = buildQBCardData(me, all, season);
-    } else if (pos === "WR" || pos === "TE") {
-      const all = await getReceiverStats(season);
-      const me = all.find((r) => r.player_id === player.player_id);
-      if (!me) notFound();
-      card = buildWRCardData(me, all, season);
-    } else if (pos === "RB") {
-      const all = await getRBSeasonStats(season);
-      const me = all.find((r) => r.player_id === player.player_id);
-      if (!me) notFound();
-      card = buildRBCardData(me, all, season);
-    } else {
-      notFound();
-    }
+    card = await getCardDataForPlayer(player, season);
   } catch {
     notFound();
   }

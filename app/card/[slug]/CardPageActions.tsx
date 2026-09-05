@@ -12,7 +12,8 @@ export default function CardPageActions({ slug, season }: CardPageActionsProps) 
   const [copied, setCopied] = useState(false);
 
   async function handleCopyLink() {
-    const url = `${window.location.origin}/card/${slug}`;
+    // Include the season so sharing a historical view shares that season.
+    const url = `${window.location.origin}/card/${slug}?season=${season}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
