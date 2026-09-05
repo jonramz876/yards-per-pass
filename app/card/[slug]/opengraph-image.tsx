@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
 import { createServerClient } from "@/lib/supabase/server";
+import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 
 export const runtime = "nodejs";
 export const alt = "Player Stat Card — Yards Per Pass";
@@ -71,6 +72,12 @@ export default async function Image({ params }: { params: { slug: string } }) {
   const isQB = pos === "QB";
   const isRB = pos === "RB" || pos === "FB";
   const cfg = isQB ? QB : isRB ? RB : WR;
+  let season: number;
+  try {
+    season = (await getAvailableSeasons())[0] ?? fallbackSeason();
+  } catch {
+    season = fallbackSeason();
+  }
 
   let rv = [50,50,50,50,50,50];
   let bars: { l: string; v: string; d: number; p: number }[] = cfg.bar.l.map(l => ({ l, v: "\u2014", d: 0, p: 0 }));
@@ -80,7 +87,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
     try {
       const sb = createServerClient();
       const tbl = isQB ? "qb_season_stats" : isRB ? "rb_season_stats" : "receiver_season_stats";
-      const { data: allRows } = await sb.from(tbl).select("*").eq("season", 2025);
+      const { data: allRows } = await sb.from(tbl).select("*").eq("season", season);
       const all = (allRows || []) as Record<string, unknown>[];
       const me = all.find(r => r.player_id === player.player_id);
       if (me) {
@@ -115,7 +122,7 @@ export default async function Image({ params }: { params: { slug: string } }) {
         <div style={{ display: "flex", padding: "12px 36px 4px" }}>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 34, fontWeight: 800, color: "#0f172a" }}>{nm}</div>
-            <div style={{ display: "flex", fontSize: 14, color: "#64748b", marginTop: 2 }}>{pos} {team ? `\u00B7 ${team.name}` : ""} {"\u00B7"} 2025 Season</div>
+            <div style={{ display: "flex", fontSize: 14, color: "#64748b", marginTop: 2 }}>{pos} {team ? `\u00B7 ${team.name}` : ""} {"\u00B7"} {season} Season</div>
           </div>
         </div>
 

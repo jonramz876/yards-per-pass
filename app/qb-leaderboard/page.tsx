@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import DashboardShell from "@/components/layout/DashboardShell";
 import QBLeaderboard from "@/components/tables/QBLeaderboard";
-import { getQBStats, getDataFreshness, getAvailableSeasons } from "@/lib/data/queries";
+import { getQBStats, getDataFreshness, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 
 export const revalidate = 3600;
@@ -13,7 +13,8 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
-  const s = season || "2025";
+  const parsed = season ? parseInt(season) : NaN;
+  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
   return {
     title: `QB Rankings ${s}`,
     description: `NFL quarterback rankings by EPA, CPOE, success rate, and 10+ advanced metrics for the ${s} season.`,
@@ -28,7 +29,7 @@ export default async function QBLeaderboardPage({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
   const [qbStats, freshness, slugs] = await Promise.all([
     getQBStats(currentSeason),
     getDataFreshness(currentSeason),

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { getRBGapStats, getAllGapData, getRBGapStatsWeekly, getDefGapStats } from "@/lib/data/run-gaps";
-import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, fallbackSeason } from "@/lib/data/queries";
 import { getTeam } from "@/lib/data/teams";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 import DashboardShell from "@/components/layout/DashboardShell";
@@ -38,7 +38,8 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string; team?: string }>;
 }): Promise<Metadata> {
   const { season, team } = await searchParams;
-  const s = season || "2025";
+  const parsed = season ? parseInt(season) : NaN;
+  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
   const teamName = team ? getTeam(team)?.name || team : "NFL";
   return {
     title: `${teamName} Run Gap Analysis ${s}`,
@@ -54,7 +55,7 @@ export default async function RunGapsPage({
   const { season, team, gap, opp, situation, zone } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
   // Single consolidated fetch for rb_gap_stats (replaces 3 separate paginated fetches)
   const [gapStats, allData, freshness, weeklyStats, defStats, slugs] = await Promise.all([

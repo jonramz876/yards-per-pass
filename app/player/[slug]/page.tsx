@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getAllRBWeeklyStats, getTeamTopReceivers, getTeamStartingQB, getQBPassLocationStats } from "@/lib/data/players";
 import type { QBPassLocationStat } from "@/lib/types";
-import { getQBStats, getAvailableSeasons } from "@/lib/data/queries";
+import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getTeam } from "@/lib/data/teams";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
@@ -83,7 +83,7 @@ export default async function PlayerPage({
 
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
   // Fetch position-specific data in parallel — catch errors so page doesn't 500
   let seasonStats: unknown[] = [];

@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import DashboardShell from "@/components/layout/DashboardShell";
 import MobileTeamList from "@/components/charts/MobileTeamList";
-import { getTeamStats, getDataFreshness, getAvailableSeasons } from "@/lib/data/queries";
+import { getTeamStats, getDataFreshness, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 
 // CRITICAL: D3 accesses window/document — must disable SSR
 const TeamScatterPlot = dynamic(
@@ -29,7 +29,8 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
-  const s = season || "2025";
+  const parsed = season ? parseInt(season) : NaN;
+  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
   return {
     title: `NFL Team Tiers ${s}`,
     description: `See where all 32 NFL teams rank by offensive and defensive EPA for the ${s} season.`,
@@ -44,7 +45,7 @@ export default async function TeamsPage({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
   const [teamStats, freshness] = await Promise.all([
     getTeamStats(currentSeason),
     getDataFreshness(currentSeason),

@@ -1,7 +1,7 @@
 // app/receivers/page.tsx
 import type { Metadata } from "next";
 import { getReceiverStats } from "@/lib/data/receivers";
-import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, fallbackSeason } from "@/lib/data/queries";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 import DashboardShell from "@/components/layout/DashboardShell";
 import ReceiverLeaderboard from "@/components/tables/ReceiverLeaderboard";
@@ -14,7 +14,8 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
-  const s = season || "2025";
+  const parsed = season ? parseInt(season) : NaN;
+  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
   return {
     title: `Receiver Rankings ${s}`,
     description: `NFL receiver stats with EPA/target, catch rate, YAC, air yards, and target share for the ${s} season.`,
@@ -29,7 +30,7 @@ export default async function ReceiversPage({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
   const [data, freshness, slugs] = await Promise.all([
     getReceiverStats(currentSeason),

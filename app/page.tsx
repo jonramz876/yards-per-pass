@@ -1,6 +1,6 @@
 // app/page.tsx
 import Link from "next/link";
-import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getPlayerSlugsByIds } from "@/lib/data/players";
@@ -34,7 +34,7 @@ function buildRecordMap(teams: TeamSeasonStat[]): Map<string, string> {
 /*  Page component                                                     */
 /* ------------------------------------------------------------------ */
 export default async function HomePage() {
-  let currentSeason = 2025;
+  let currentSeason = fallbackSeason();
   let freshness = null;
   let teamStats: TeamSeasonStat[] = [];
   let qbStats: import("@/lib/types").QBSeasonStat[] = [];
@@ -44,7 +44,7 @@ export default async function HomePage() {
 
   try {
     const seasons = await getAvailableSeasons();
-    currentSeason = seasons[0] || 2025;
+    currentSeason = seasons[0] || fallbackSeason();
 
     [freshness, teamStats, qbStats, receiverStats, rbStats] = await Promise.all([
       getDataFreshness(currentSeason),

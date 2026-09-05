@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, fallbackSeason } from "@/lib/data/queries";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 import { getAllSurgeData, SURGE_STATS } from "@/lib/data/trends";
 import DashboardShell from "@/components/layout/DashboardShell";
@@ -15,7 +15,8 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
-  const s = season || "2025";
+  const parsed = season ? parseInt(season) : NaN;
+  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
   return {
     title: `Stat Surge Detector ${s}`,
     description: `Identify NFL players surging or collapsing based on z-score analysis of recent vs. season performance for the ${s} season.`,
@@ -30,7 +31,7 @@ export default async function TrendsPage({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
   const [freshness, slugs] = await Promise.all([
     getDataFreshness(currentSeason),

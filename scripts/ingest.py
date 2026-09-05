@@ -12,6 +12,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from functools import wraps
+from urllib.error import HTTPError
 
 import pandas as pd
 import psycopg2
@@ -31,6 +32,11 @@ class DataQualityError(ValueError):
     pass
 
 
+class DataNotYetPublished(Exception):
+    """Current season's data isn't on nflverse yet (pre-season or week 1 in progress). Benign skip, not an error."""
+    pass
+
+
 def retry(max_retries=3, delay=5, backoff=2):
     """Retry decorator with exponential backoff for network calls."""
     def decorator(func):
@@ -41,8 +47,8 @@ def retry(max_retries=3, delay=5, backoff=2):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except DataQualityError:
-                    raise  # Fast-fail: bad data won't fix itself on retry
+                except (DataQualityError, DataNotYetPublished):
+                    raise  # Fast-fail: bad/absent data won't fix itself on retry
                 except Exception as e:
                     retries += 1
                     if retries > max_retries:
@@ -129,8 +135,16 @@ def download_pbp(season: int) -> pd.DataFrame:
     """Download play-by-play Parquet from nflverse."""
     url = PBP_URL.format(season=season)
     log.info("Downloading PBP for %d...", season)
-    df = pd.read_parquet(url)
+    try:
+        df = pd.read_parquet(url)
+    except (HTTPError, FileNotFoundError) as e:
+        # 404 on the current season = file not published yet (season hasn't started). Historical 404s are real failures.
+        if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
+            raise DataNotYetPublished(f"PBP file for {season} not on nflverse yet.") from e
+        raise
     if len(df) < 1000:
+        if season >= CURRENT_SEASON:
+            raise DataNotYetPublished(f"PBP for {season} has only {len(df)} rows — too few games played yet.")
         raise DataQualityError(f"PBP data for {season} suspiciously small ({len(df)} rows) — expected 40,000+. Aborting.")
     missing = [c for c in REQUIRED_PBP_COLS if c not in df.columns]
     if missing:
@@ -143,8 +157,15 @@ def download_roster(season: int) -> pd.DataFrame:
     """Download roster Parquet from nflverse."""
     url = ROSTER_URL.format(season=season)
     log.info("Downloading roster for %d...", season)
-    df = pd.read_parquet(url)
+    try:
+        df = pd.read_parquet(url)
+    except (HTTPError, FileNotFoundError) as e:
+        if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
+            raise DataNotYetPublished(f"Roster file for {season} not on nflverse yet.") from e
+        raise
     if len(df) < 100:
+        if season >= CURRENT_SEASON:
+            raise DataNotYetPublished(f"Roster for {season} has only {len(df)} rows — not fully published yet.")
         raise DataQualityError(f"Roster data for {season} suspiciously small ({len(df)} rows) — expected 1,500+. Aborting.")
     missing = [c for c in REQUIRED_ROSTER_COLS if c not in df.columns]
     if missing:
@@ -3210,7 +3231,10 @@ def main():
 
     try:
         for season in seasons:
-            process_season(season, conn, dry_run=args.dry_run)
+            try:
+                process_season(season, conn, dry_run=args.dry_run)
+            except DataNotYetPublished as e:
+                log.info("Season %d skipped — %s Nothing ingested; will succeed once data exists.", season, e)
     finally:
         if conn:
             conn.close()

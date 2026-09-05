@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { NFL_TEAMS, getTeam } from "@/lib/data/teams";
 import { getTeamHubData } from "@/lib/data/team-hub";
-import { getAvailableSeasons } from "@/lib/data/queries";
+import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import TeamHubContent from "@/components/team/TeamHubContent";
 
 export const revalidate = 3600;
@@ -49,7 +49,7 @@ export default async function TeamPage({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
   const data = await getTeamHubData(teamId, currentSeason);
 

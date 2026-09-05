@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import ComparisonTool from "@/components/compare/ComparisonTool";
 import { getPlayerBySlug } from "@/lib/data/players";
-import { getQBStats } from "@/lib/data/queries";
+import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
@@ -20,7 +20,8 @@ export default async function ComparePage({
   searchParams: Promise<{ season?: string; p1?: string }>;
 }) {
   const { season: seasonParam, p1 } = await searchParams;
-  const season = seasonParam ? parseInt(seasonParam, 10) : 2025;
+  const parsed = seasonParam ? parseInt(seasonParam, 10) : NaN;
+  const season = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
 
   // Only fetch the position we need based on p1's position (if present)
   let qbs: QBSeasonStat[] = [];

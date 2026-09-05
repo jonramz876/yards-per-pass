@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getAllRBWeeklyStats, getRBWeeklyStats } from "@/lib/data/players";
-import { getQBStats } from "@/lib/data/queries";
+import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 import { computePercentile, computeRank, ordinal } from "@/lib/stats/percentiles";
@@ -252,7 +252,8 @@ export default async function CardPage({
   const player = await getPlayerBySlug(slug);
   if (!player) notFound();
 
-  const season = 2025;
+  const seasons = await getAvailableSeasons();
+  const season = seasons[0] ?? fallbackSeason();
   const team = getTeam(player.current_team_id);
   const teamColor = getTeamColor(player.current_team_id);
   const teamName = team?.name || player.current_team_id;

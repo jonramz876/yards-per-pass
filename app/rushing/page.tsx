@@ -1,7 +1,7 @@
 // app/rushing/page.tsx
 import type { Metadata } from "next";
 import { getRBSeasonStats } from "@/lib/data/rushing";
-import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, fallbackSeason } from "@/lib/data/queries";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 import DashboardShell from "@/components/layout/DashboardShell";
 import RBLeaderboard from "@/components/tables/RBLeaderboard";
@@ -14,7 +14,8 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
-  const s = season || "2025";
+  const parsed = season ? parseInt(season) : NaN;
+  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
   return {
     title: `Rushing Stats ${s}`,
     description: `NFL rushing stats with EPA/carry, success rate, stuff rate, and explosive rate for the ${s} season.`,
@@ -29,7 +30,7 @@ export default async function RushingPage({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || 2025) : parsed;
+  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
   const [data, freshness, slugs] = await Promise.all([
     getRBSeasonStats(currentSeason),

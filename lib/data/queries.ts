@@ -84,6 +84,12 @@ export async function getDataFreshness(season?: number): Promise<DataFreshness |
   return data as DataFreshness;
 }
 
+/** Date-based fallback when the DB has no seasons: NFL season year rolls over in September (getMonth() is 0-indexed). */
+export function fallbackSeason(): number {
+  const now = new Date();
+  return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
 export async function getAvailableSeasons(): Promise<number[]> {
   const supabase = createServerClient();
   const { data, error } = await supabase
