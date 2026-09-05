@@ -96,6 +96,8 @@ export default function PlayerPageContent({
           season={season}
           teamId={player.current_team_id}
           topReceivers={crossLinkReceivers}
+          headshotUrl={player.headshot_url ?? null}
+          jerseyNumber={player.jersey_number ?? null}
         />
       );
     }
