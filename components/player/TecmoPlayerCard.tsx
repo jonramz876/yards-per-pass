@@ -9,6 +9,8 @@ import { textColorForBackground, EM_DASH } from "@/lib/stats/formatters";
 
 /** Dot color for a metric the player has no value for (slate-400). */
 const MISSING_GRAY = "#94a3b8";
+/** Accent used when a team's secondary is too light to read on the white card. */
+const ACCENT_FALLBACK = "#0f172a"; // slate-900, matches text-navy
 
 interface Props {
   data: TecmoCardData;
@@ -24,6 +26,12 @@ export default function TecmoPlayerCard({
   data, teamName, primaryColor, secondaryColor, headshotUrl, jerseyNumber,
 }: Props) {
   const bandText = textColorForBackground(primaryColor);
+  // Percentile accent sits on the white card, so it has to be dark itself.
+  // If white text is what's readable ON the secondary, the secondary is dark
+  // and safe here; otherwise it's a light silver (DAL, LV) or the "#ffffff"
+  // fallback, which would be invisible — use navy instead.
+  const accent =
+    textColorForBackground(secondaryColor) === "#ffffff" ? secondaryColor : ACCENT_FALLBACK;
   // RadarChart takes `axes: { label: string }[]`, not a flat string array.
   const radarAxes = data.radarLabels.map((label) => ({ label }));
 
@@ -83,13 +91,14 @@ export default function TecmoPlayerCard({
                     a genuine last-place player also scores 0 and gets a red dot. */}
                 <span
                   data-tier-dot
+                  aria-hidden="true"
                   className="w-2 h-2 rounded-full shrink-0"
                   style={{ background: r.missing ? MISSING_GRAY : tierColor(r.percentile) }}
                 />
                 <span className="font-[family-name:var(--font-pixel)] text-[7px] text-slate-700 uppercase basis-1/3 shrink-0">
                   {r.label}
                 </span>
-                <span className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden min-w-0">
+                <span aria-hidden="true" className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden min-w-0">
                   <span
                     data-bar-fill
                     className="block h-2 rounded-full"
@@ -101,7 +110,7 @@ export default function TecmoPlayerCard({
                 </span>
                 <span className="font-[family-name:var(--font-pixel)] text-[7px] text-navy basis-[27%] shrink-0 text-right uppercase">
                   {r.missing ? EM_DASH : (
-                    <>{r.raw} / <b style={{ color: secondaryColor }}>{ordinal(Math.round(r.percentile)).toUpperCase()}</b></>
+                    <>{r.raw} / <b data-pct-accent style={{ color: accent }}>{ordinal(Math.round(r.percentile)).toUpperCase()}</b></>
                   )}
                 </span>
               </div>

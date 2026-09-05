@@ -23,6 +23,9 @@ describe("TecmoPlayerCard", () => {
     expect(screen.getByText(/Josh Allen/i)).toBeTruthy();
     expect(screen.getByText(/Buffalo Bills/i)).toBeTruthy();
     expect(screen.getByText("91")).toBeTruthy();
+    // stat grid renders every cell's label and value
+    expect(screen.getByText("S0")).toBeTruthy();
+    expect(screen.getByText("11")).toBeTruthy();
   });
   it("renders raw / ordinal percentile per present ability row", () => {
     render(<TecmoPlayerCard data={data} {...team} headshotUrl={null} jerseyNumber={17} />);
@@ -60,8 +63,28 @@ describe("TecmoPlayerCard", () => {
     expect(dots[0].getAttribute("style")).toContain("22, 163, 74");  // #16a34a green (96th)
     expect(dots[1].getAttribute("style")).toContain("220, 38, 38");  // #dc2626 red (38th)
     const fills = container.querySelectorAll("[data-bar-fill]");
-    expect(fills[0].getAttribute("style")).toContain("96%");
-    expect(fills[2].getAttribute("style")).toContain("0%"); // missing row: zero-width bar
+    expect(fills[0].getAttribute("style")).toContain("width: 96%");
+    expect(fills[2].getAttribute("style")).toContain("width: 0%"); // missing row: zero-width bar
+  });
+
+  it("keeps the percentile accent readable when the team secondary is light", () => {
+    // LV/DAL silver would be near-invisible on the white card.
+    const { container } = render(
+      <TecmoPlayerCard data={data} {...team} secondaryColor="#A5ACAF"
+        headshotUrl={null} jerseyNumber={17} />
+    );
+    const style = container.querySelector("[data-pct-accent]")?.getAttribute("style");
+    expect(style).not.toContain("165, 172, 175"); // #A5ACAF
+    expect(style).toContain("15, 23, 42");        // #0f172a navy fallback
+  });
+
+  it("keeps a dark team secondary as the percentile accent", () => {
+    const { container } = render(
+      <TecmoPlayerCard data={data} {...team} headshotUrl={null} jerseyNumber={17} />
+    );
+    // #C60C30 is dark enough to read on white, so it survives the guard.
+    expect(container.querySelector("[data-pct-accent]")?.getAttribute("style"))
+      .toContain("198, 12, 48");
   });
   it("a genuine last-place row (percentile 0, not missing) renders normally", () => {
     const lastPlace: TecmoCardData = {
