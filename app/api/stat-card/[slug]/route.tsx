@@ -28,9 +28,13 @@ export async function GET(
   const { slug } = await params;
   const seasonParam = new URL(req.url).searchParams.get("season");
   const parsed = seasonParam ? parseInt(seasonParam, 10) : NaN;
+  // Clamp to a sane range before it can reach the DB: parseInt happily returns
+  // 1e20 for `?season=99999999999999999999`, which PostgREST rejects as an
+  // out-of-range integer and surfaces as an unhandled 500.
+  const valid = !Number.isNaN(parsed) && parsed >= 1999 && parsed <= 2100;
 
   let season: number;
-  if (!Number.isNaN(parsed)) {
+  if (valid) {
     season = parsed;
   } else {
     try {

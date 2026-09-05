@@ -8,7 +8,8 @@
 
 /** Format a rate (0–1) as a percentage string, e.g. 0.876 → "87.6%". */
 export function formatRate(val: number, decimals = 1): string {
-  if (isNaN(val)) return "\u2014";
+  // isFinite, not isNaN: a rate of Infinity would otherwise render "Infinity%".
+  if (!Number.isFinite(val)) return "\u2014";
   return (val * 100).toFixed(decimals) + "%";
 }
 

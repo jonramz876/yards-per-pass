@@ -2954,8 +2954,21 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
 
     cols = ['player_id', 'slug', 'player_name', 'position', 'current_team_id',
             'headshot_url', 'jersey_number']
-    clean_df = df[cols].where(df[cols].notna(), None)
-    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    # Missing jersey/headshot MUST reach psycopg2 as None. A mixed roster gives
+    # jersey_number a float64 dtype and headshot_url the pandas 3 string dtype,
+    # neither of which can hold None — and `.where(cond, None)` does not help:
+    # pandas reads that None as "fill with the default NA", so NaN survives.
+    # psycopg2 then adapts it as 'NaN'::float and Postgres rejects it for the
+    # INTEGER/TEXT columns, killing the whole ingest. So place None explicitly.
+    # int(v) too: the float64 column yields 17.0 where the column wants 17.
+    clean_df = df[cols].astype(object)
+    rows = [
+        tuple(
+            None if pd.isna(v) else (int(v) if c == 'jersey_number' else v)
+            for c, v in zip(cols, row)
+        )
+        for row in clean_df.itertuples(index=False, name=None)
+    ]
     col_names = ', '.join(cols)
     # Never update slug — only update name, position, team, headshot, jersey
     update_set = ', '.join(

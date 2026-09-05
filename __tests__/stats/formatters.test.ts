@@ -1,5 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { textColorForBackground } from "@/lib/stats/formatters";
+import { EM_DASH, formatRate, textColorForBackground } from "@/lib/stats/formatters";
+
+describe("formatRate", () => {
+  it("formats a 0–1 rate as a percentage", () => {
+    expect(formatRate(0.876)).toBe("87.6%");
+  });
+  it("honors the decimals argument", () => {
+    expect(formatRate(0.876, 0)).toBe("88%");
+  });
+  it("returns the em dash for NaN", () => {
+    expect(formatRate(NaN)).toBe(EM_DASH);
+  });
+  // Guard is isFinite, not isNaN: a divide-by-zero rate used to render
+  // "Infinity%" on the card instead of the em dash every other formatter uses.
+  it("returns the em dash for Infinity", () => {
+    expect(formatRate(Infinity)).toBe(EM_DASH);
+    expect(formatRate(-Infinity)).toBe(EM_DASH);
+  });
+});
 
 describe("textColorForBackground", () => {
   it("returns white on dark team colors", () => {
