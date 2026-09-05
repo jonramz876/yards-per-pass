@@ -2826,6 +2826,10 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
         # Sort by week so later rows overwrite earlier ones — the most recent
         # week's jersey/headshot wins (players change numbers mid-season).
         # (rows with no week sort first so a real week always wins)
+        # Side effect, intentional: pos_map/full_name_map are written in the same
+        # loop, so they become latest-week-wins too. That is the correct reading
+        # for a traded or position-changed player; previously they took whatever
+        # row order the parquet happened to have.
         roster_iter = (roster.sort_values('week', na_position='first')
                        if 'week' in roster.columns else roster)
         for _, row in roster_iter.iterrows():
@@ -2844,8 +2848,8 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
             if gsis_id and jersey is not None and pd.notna(jersey):
                 try:
                     jersey_map[gsis_id] = int(jersey)
-                except (TypeError, ValueError):
-                    pass  # unparseable jersey must not kill the ingest
+                except (TypeError, ValueError, OverflowError):
+                    pass  # unparseable/infinite jersey must not kill the ingest
 
     # Replace abbreviated names (P.Mahomes) with full names (Patrick Mahomes) for slug generation
     for pid in players:
