@@ -142,3 +142,49 @@ export function formatStat(key: string, val: number): string {
       return Number.isInteger(val) ? val.toString() : val.toFixed(1);
   }
 }
+
+/** Text colors paired with a solid background by textColorForBackground. */
+const LIGHT_TEXT = "#ffffff";
+const DARK_TEXT = "#0f172a"; // slate-900, WCAG relative luminance 0.008815
+
+/**
+ * Luminance crossover between LIGHT_TEXT and DARK_TEXT.
+ *
+ * Contrast ratio is (Lmax + 0.05) / (Lmin + 0.05), so the two text colors are
+ * equally readable when 1.05 / (L + 0.05) === (L + 0.05) / (0.008815 + 0.05),
+ * i.e. L = sqrt(1.05 * 0.058815) - 0.05 = 0.1985. Above it dark text wins.
+ *
+ * Note this is NOT the familiar 0.179 crossover, which assumes pure black text.
+ */
+const LUMINANCE_CROSSOVER = 0.1985;
+
+/** Convert one 0–255 sRGB channel to its linear-light value (WCAG 2.x). */
+function linearizeChannel(channel: number): number {
+  const s = channel / 255;
+  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+}
+
+/**
+ * WCAG relative luminance → readable text color for a solid background.
+ *
+ * Uses sRGB-linearized luminance rather than a raw weighted average of the
+ * 0–255 channels: the naive version misjudges saturated mid-tones, calling
+ * CIN/DEN orange (#FB4F14) dark when white text on it only reaches a 3.37
+ * contrast ratio versus 5.30 for dark text. Verified against all 32 team
+ * primary + secondary colors in lib/data/teams.ts — this picks the
+ * higher-contrast option for every one of them.
+ *
+ * Malformed or missing input falls back to white text, matching the dark
+ * neutral used when a team color is unavailable.
+ */
+export function textColorForBackground(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!m) return LIGHT_TEXT;
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const lum =
+    0.2126 * linearizeChannel(r) +
+    0.7152 * linearizeChannel(g) +
+    0.0722 * linearizeChannel(b);
+  return lum > LUMINANCE_CROSSOVER ? DARK_TEXT : LIGHT_TEXT;
+}
