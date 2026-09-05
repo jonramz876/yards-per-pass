@@ -9,12 +9,8 @@
 // text.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { PlayerSlug } from "@/lib/types";
-import { getQBStats } from "@/lib/data/queries";
-import { getReceiverStats } from "@/lib/data/receivers";
-import { getRBSeasonStats } from "@/lib/data/rushing";
-import { buildQBCardData, buildWRCardData, buildRBCardData, tierColor } from "@/lib/stats/tecmo-card";
-import type { TecmoCardData } from "@/lib/stats/tecmo-card";
+import { tierColor } from "@/lib/stats/tecmo-card";
+import type { AbilityRow, TecmoCardData } from "@/lib/stats/tecmo-card";
 import { ordinal } from "@/lib/stats/percentiles";
 import { textColorForBackground, EM_DASH } from "@/lib/stats/formatters";
 
@@ -36,45 +32,13 @@ export async function loadPixelFont(): Promise<ArrayBuffer> {
 export async function pixelFontOptions() {
   try {
     return [{ name: PIXEL, data: await loadPixelFont(), style: "normal" as const }];
-  } catch {
+  } catch (err) {
+    console.error("Pixel font unavailable for OG render:", err);
     return undefined;
   }
 }
 
-// ------------------------------------------------------------------ data
-/**
- * Assemble the Tecmo card for one player/season. Shared by the card page, the
- * OG image and the download route so the position branching lives in one place.
- *
- * Returns null when the position isn't supported or the player has no stat row
- * for that season; callers decide what that means (page → notFound(), routes →
- * 404). Query errors are NOT swallowed here — they propagate to the caller.
- */
-export async function getCardDataForPlayer(
-  player: PlayerSlug,
-  season: number,
-): Promise<TecmoCardData | null> {
-  // FBs are carried in the RB stat tables.
-  const pos = player.position === "FB" ? "RB" : player.position;
-
-  if (pos === "QB") {
-    const all = await getQBStats(season);
-    const me = all.find((q) => q.player_id === player.player_id);
-    return me ? buildQBCardData(me, all, season) : null;
-  }
-  if (pos === "WR" || pos === "TE") {
-    const all = await getReceiverStats(season);
-    const me = all.find((r) => r.player_id === player.player_id);
-    return me ? buildWRCardData(me, all, season) : null;
-  }
-  if (pos === "RB") {
-    const all = await getRBSeasonStats(season);
-    const me = all.find((r) => r.player_id === player.player_id);
-    return me ? buildRBCardData(me, all, season) : null;
-  }
-  return null;
-}
-
+// ------------------------------------------------------------------ assets
 /**
  * Fetch a headshot and inline it as a data URI.
  *
@@ -133,6 +97,20 @@ function fitName(name: string, max: number): string {
   return name.length > max ? name.slice(0, max - 1) + "…" : name;
 }
 
+/** Volume row that is deliberately excluded from OVR (see QB_OVR_KEYS). */
+const NON_OVR_ROW = "DROPBACKS/GM";
+
+/**
+ * Six ability rows fit on the image; QB cards ship seven. Drop DROPBACKS/GM
+ * rather than the tail: it's volume, excluded from OVR, whereas the last row
+ * (RUSH EPA) is an OVR input — the visible rows should explain the score.
+ */
+function visibleRows(rows: AbilityRow[]): AbilityRow[] {
+  if (rows.length <= 6) return rows;
+  const trimmed = rows.filter((r) => r.label !== NON_OVR_ROW);
+  return (trimmed.length >= 6 ? trimmed : rows).slice(0, 6);
+}
+
 interface TeamLike {
   name: string;
   primaryColor: string;
@@ -154,7 +132,7 @@ export function tecmoCardImage(
   const secondary = team.secondaryColor || "#334155";
   const bandText = textColorForBackground(primary);
   const cells = card.statCells.slice(0, 6);
-  const rows = card.abilityRows.slice(0, 6);
+  const rows = visibleRows(card.abilityRows);
   const axes = card.radarValues.length;
   const showRadar = axes >= 3;
   const dots = showRadar

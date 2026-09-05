@@ -5,8 +5,8 @@ import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
+import { getCardDataForPlayer } from "@/lib/stats/tecmo-card";
 import {
-  getCardDataForPlayer,
   loadHeadshotDataUri,
   pixelFontOptions,
   tecmoCardImage,
@@ -50,8 +50,9 @@ export async function GET(
   const headshot = await loadHeadshotDataUri(player.headshot_url);
 
   // ImageResponse IS a Response; its options take a plain `headers` object that
-  // is spread over the default content-type/cache-control, so the download
-  // header rides along without re-wrapping the stream.
+  // is spread AFTER the defaults, so these win without re-wrapping the stream.
+  // The Cache-Control override matters: the default is `immutable, max-age=1yr`,
+  // which would freeze a downloaded card at whatever mid-season stats it had.
   return new ImageResponse(
     tecmoCardImage(
       card,
@@ -69,6 +70,7 @@ export async function GET(
       headers: {
         // Sanitized: a raw slug in a header value is a header-injection vector.
         "Content-Disposition": `attachment; filename="${safeName(slug)}-${season}-card.png"`,
+        "Cache-Control": "public, max-age=0, s-maxage=3600",
       },
     },
   );

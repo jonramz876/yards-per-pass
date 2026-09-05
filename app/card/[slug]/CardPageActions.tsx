@@ -32,7 +32,8 @@ export default function CardPageActions({ slug, season }: CardPageActionsProps) 
   }
 
   function handleDownload() {
-    // Open the OG image in a new tab — it's a real PNG the user can save
+    // The route serves the card PNG with Content-Disposition: attachment, so
+    // the browser saves the file for this season instead of navigating to it.
     window.open(`/api/stat-card/${slug}?season=${season}`, "_blank");
   }
 

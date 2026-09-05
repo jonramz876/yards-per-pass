@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getTeam } from "@/lib/data/teams";
-import { getCardDataForPlayer } from "@/lib/og/tecmo-card-image";
+import { getCardDataForPlayer } from "@/lib/stats/tecmo-card";
 import type { TecmoCardData } from "@/lib/stats/tecmo-card";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import CardPageActions from "./CardPageActions";
@@ -66,7 +66,7 @@ export default async function CardPage({
   const teamName = team?.name || player.current_team_id;
 
   // Assembly (position branching, stat lookup) is shared with the OG image and
-  // the download route — see lib/og/tecmo-card-image.tsx.
+  // the download route — see lib/stats/tecmo-card.ts.
   let card: TecmoCardData | null = null;
   try {
     card = await getCardDataForPlayer(player, season);

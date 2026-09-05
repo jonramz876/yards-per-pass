@@ -4,8 +4,8 @@ import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
+import { getCardDataForPlayer } from "@/lib/stats/tecmo-card";
 import {
-  getCardDataForPlayer,
   loadHeadshotDataUri,
   pixelFontOptions,
   tecmoCardImage,
