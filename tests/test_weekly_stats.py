@@ -436,3 +436,81 @@ class TestRBWeeklyStats:
         roster = make_multi_roster([('RB1', 'RB')])
         result = aggregate_rb_weekly_stats(plays, roster, 2025)
         assert abs(result.iloc[0]['stuff_rate'] - 1.0) < 0.01
+
+
+# ---------------------------------------------------------------------------
+# QB kneeldown exclusion (OVR v3 ingest fix)
+# ---------------------------------------------------------------------------
+
+def make_qb_kneel(**overrides):
+    """A victory-formation kneeldown: a QB 'rush' for a yard or two of loss."""
+    defaults = {
+        'rusher_player_id': 'QB1',
+        'rusher_player_name': 'Test QB',
+        'play_type': 'qb_kneel',
+        'rushing_yards': -1.0,
+        'yards_gained': -1.0,
+        'epa': -1.2,
+    }
+    defaults.update(overrides)
+    return make_rush_play(**defaults)
+
+
+class TestQBWeeklyKneelExclusion:
+    """aggregate_qb_weekly_stats drops play_type == 'qb_kneel' QB rushes."""
+
+    @staticmethod
+    def _control():
+        """One dropback plus one real 6-yard QB scramble/designed run."""
+        return pd.concat([
+            make_qb_play(),
+            make_rush_play(
+                rusher_player_id='QB1', rusher_player_name='Test QB',
+                rushing_yards=6.0, yards_gained=6.0, epa=0.4, play_id=100,
+            ),
+        ], ignore_index=True)
+
+    def test_control_without_kneels(self):
+        """Baseline: the one real run is counted in full."""
+        from ingest import aggregate_qb_weekly_stats
+        result = aggregate_qb_weekly_stats(self._control(), make_roster('QB1', 'QB'), 2025)
+        row = result.iloc[0]
+        assert row['rush_attempts'] == 1
+        assert row['rush_yards'] == 6
+
+    def test_kneels_do_not_change_the_control(self):
+        """Three kneels added to the same game leave rush stats untouched."""
+        from ingest import aggregate_qb_weekly_stats
+        plays = pd.concat(
+            [self._control()] + [make_qb_kneel(play_id=200 + i) for i in range(3)],
+            ignore_index=True,
+        )
+        result = aggregate_qb_weekly_stats(plays, make_roster('QB1', 'QB'), 2025)
+        row = result.iloc[0]
+        assert row['rush_attempts'] == 1   # counting kneels would give 4
+        assert row['rush_yards'] == 6      # counting kneels would give 3
+
+    def test_kneel_touchdown_column_untouched(self):
+        """Kneels never carry a TD, and dropback stats are unaffected either."""
+        from ingest import aggregate_qb_weekly_stats
+        plays = pd.concat(
+            [self._control()] + [make_qb_kneel(play_id=200 + i) for i in range(3)],
+            ignore_index=True,
+        )
+        result = aggregate_qb_weekly_stats(plays, make_roster('QB1', 'QB'), 2025)
+        row = result.iloc[0]
+        assert row['rush_tds'] == 0
+        assert row['attempts'] == 1
+        assert abs(row['epa_per_dropback'] - 0.5) < 1e-9
+
+    def test_shared_frame_is_not_mutated(self):
+        """The caller's frame still holds its kneels (RB/team aggregators need them)."""
+        from ingest import aggregate_qb_weekly_stats
+        plays = pd.concat(
+            [self._control()] + [make_qb_kneel(play_id=200 + i) for i in range(3)],
+            ignore_index=True,
+        )
+        before = len(plays)
+        aggregate_qb_weekly_stats(plays, make_roster('QB1', 'QB'), 2025)
+        assert len(plays) == before
+        assert (plays['play_type'] == 'qb_kneel').sum() == 3

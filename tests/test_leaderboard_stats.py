@@ -654,3 +654,69 @@ class TestPFRQualifiers:
     def test_wr_qualifier(self):
         """WR/TE: 1.875 tgt/game × 17 ≈ 32."""
         assert round(1.875 * 17) == 32
+
+
+# --- QB kneeldown exclusion (OVR v3 ingest fix) ---
+
+class TestQBSeasonKneelExclusion:
+    """aggregate_qb_stats drops play_type == 'qb_kneel' QB rushes."""
+
+    @staticmethod
+    def _qb_rush(play_type='run', yards=6.0, epa=0.4, idx=0):
+        """A QB carry: designed run / scramble ('run') or a kneeldown."""
+        return make_qb_plays(
+            n=1, pass_attempt=0, qb_dropback=0, complete_pass=0,
+            passing_yards=0.0, cpoe=None, air_yards=None,
+            rusher_player_id='QB1', rusher_player_name='Test QB',
+            receiver_player_id=None, receiver_player_name=None,
+            rush_attempt=1, play_type=play_type,
+            yards_gained=yards, rushing_yards=yards, epa=epa,
+        )
+
+    @staticmethod
+    def _control():
+        """20 dropbacks at 0.3 EPA plus three real 6-yard carries at 0.4 EPA."""
+        return pd.concat(
+            [make_qb_plays(n=20)] + [TestQBSeasonKneelExclusion._qb_rush() for _ in range(3)],
+            ignore_index=True,
+        )
+
+    def test_control_without_kneels(self):
+        """Baseline: 3 carries, 18 yards, +0.40 rush EPA/play."""
+        from ingest import aggregate_qb_stats
+        result = aggregate_qb_stats(self._control(), make_roster('QB1', 'QB'), 2025)
+        row = result.iloc[0]
+        assert row['rush_attempts'] == 3
+        assert row['rush_yards'] == 18
+        assert abs(row['rush_epa_per_play'] - 0.4) < 1e-9
+        # total plays = 20 dropbacks + 3 non-scramble carries = 23
+        # total EPA   = 20*0.3 + 3*0.4 = 7.2  ->  0.313
+        assert abs(row['epa_per_play'] - 7.2 / 23) < 1e-9
+
+    def test_kneels_do_not_change_the_control(self):
+        """Four kneeldowns added to the same season leave every rush stat alone."""
+        from ingest import aggregate_qb_stats
+        plays = pd.concat(
+            [self._control()]
+            + [self._qb_rush(play_type='qb_kneel', yards=-1.0, epa=-1.5) for _ in range(4)],
+            ignore_index=True,
+        )
+        result = aggregate_qb_stats(plays, make_roster('QB1', 'QB'), 2025)
+        row = result.iloc[0]
+        assert row['rush_attempts'] == 3            # counting kneels: 7
+        assert row['rush_yards'] == 18              # counting kneels: 14
+        assert abs(row['rush_epa_per_play'] - 0.4) < 1e-9   # counting kneels: -0.686
+        assert abs(row['epa_per_play'] - 7.2 / 23) < 1e-9   # counting kneels: 0.044
+
+    def test_shared_frame_is_not_mutated(self):
+        """The caller's frame still holds its kneels (RB/team aggregators need them)."""
+        from ingest import aggregate_qb_stats
+        plays = pd.concat(
+            [self._control()]
+            + [self._qb_rush(play_type='qb_kneel', yards=-1.0, epa=-1.5) for _ in range(4)],
+            ignore_index=True,
+        )
+        before = len(plays)
+        aggregate_qb_stats(plays, make_roster('QB1', 'QB'), 2025)
+        assert len(plays) == before
+        assert (plays['play_type'] == 'qb_kneel').sum() == 4

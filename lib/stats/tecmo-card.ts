@@ -1,19 +1,35 @@
 // lib/stats/tecmo-card.ts — data builders for the Tecmo player card.
-// Eligibility (per-game, unified), OVR v2 ("REG50"), ability rows.
+// Eligibility (per-game, unified), OVR v3, ability rows.
 //
-// OVR = min(99, round(0.5 × quality_reg + 0.5 × production)), where
+// Every position first computes a 50-centered "blend" (50 = the average
+// qualified starter) and then maps it to the Madden-style display scale:
+//   OVR = min(99, round(77 + (blend − 50) × 0.45))
+// so an average starter reads ≈ 77 and a league-best season ≈ 95–99. That map
+// is the ONLY place an OVR is rounded; blends stay unrounded internally.
+//
+// QB blend (v3 "Ability") — how well he played when he played:
+//   quality    = WEIGHTED mean of the EPA/dropback, ANY/A, CPOE and success
+//                rate percentiles (weight 1 each) plus the regressed rush-EPA
+//                percentile at weight min((rush att / game) / 3, 1)
+//   production = mean of the PER-GAME percentiles of total value EPA, total
+//                yards (pass + rush) and total TDs (pass + rush)
+//   blend      = 50 + (0.5 × quality + 0.5 × production − 50)
+//                   × min(attempts / CAP, 1) ^ 0.5
+//
+// WR/TE/RB blend (v2 "REG50", unchanged):
 //   quality_reg = 50 + (mean of the position's QUALITY percentiles − 50)
 //                 × min(volume / CAP, 1)   — small samples regress to average
 //   production  = mean of the season total-EPA and total-yards percentiles
-//   CAP         = the qualified pool's 70th-percentile volume
-// so OVR grades quality AND how much of it a player actually delivered.
+//   blend       = 0.5 × quality_reg + 0.5 × production
+//
+// CAP is the qualified pool's 70th-percentile volume in both formulas, so OVR
+// grades quality AND how much of it a player actually delivered.
 //
 // Style metrics (aDOT, air yards/target, YAC/rec) show up as ability bars but
 // are deliberately excluded from OVR. Raw volume (dropbacks/targets/carries per
 // game) is not an OVR input either — volume enters only as the regression
-// weight on the quality half and through the season totals in the production
-// half. See the "OVR score" section of
-// docs/superpowers/specs/2026-09-05-tecmo-player-card-design.md.
+// weight and through the totals in the production half. See the "OVR score"
+// section of docs/superpowers/specs/2026-09-05-tecmo-player-card-design.md.
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import { computePercentile } from "./percentiles";
 import {
@@ -89,13 +105,27 @@ const OVR_CAP_QUANTILE = 0.7;
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
 /**
+ * Madden-style display scale — the ONLY place an OVR is rounded or clamped.
+ *
+ * The position blends are 50-centered percentile averages, which read as
+ * school grades rather than player ratings (an average starter at "50", a
+ * replacement-level one at "10"). This maps them the way Madden rates players:
+ * the average qualified starter shows 77, each blend point is worth 0.45
+ * display points, the best seasons land in the mid-to-high 90s and the worst
+ * qualifier still shows a mid-60s number instead of a 0. Capped at 99.
+ */
+function maddenScale(blend: number): number {
+  return Math.min(99, Math.round(77 + (blend - 50) * 0.45));
+}
+
+/**
  * Value at quantile `q` of an ascending-sorted array, interpolating linearly
  * between the closest ranks: the value at fractional index `q × (n − 1)`.
  *
  * This is numpy `percentile` / pandas `quantile` default behavior, which is the
  * convention the OVR study validated CAP under — a nearest-rank variant would
  * shift every regression weight. Empty input → NaN (callers gate on a
- * non-empty pool, and `ovrFrom` treats a non-positive/NaN CAP as "no
+ * non-empty pool, and both blend functions treat a non-positive/NaN CAP as "no
  * regression" rather than dividing by it).
  */
 function quantileLinear(sortedAsc: number[], q: number): number {
@@ -108,11 +138,14 @@ function quantileLinear(sortedAsc: number[], q: number): number {
 }
 
 /**
- * Blend volume-regressed quality with season production into a 0–99 OVR.
+ * WR/TE/RB blend (v2 "REG50"): volume-regressed quality plus season production.
  *
  *   quality_reg = 50 + (mean quality percentile − 50) × min(volume / cap, 1)
  *   production  = mean of the available production percentiles
- *   OVR         = min(99, round(0.5 × quality_reg + 0.5 × production))
+ *   blend       = 0.5 × quality_reg + 0.5 × production
+ *
+ * Returns the UNROUNDED, 50-centered blend (or null). Callers hand it to
+ * `maddenScale`, which owns the single round and the 99 cap.
  *
  * Callers must pass NaN (not the computed 0) for any metric the player is
  * missing: `computePercentile` returns 0 for a NaN value, and averaging that
@@ -145,11 +178,66 @@ function ovrFrom(
   const qualityReg = 50 + (mean(quality) - 50) * weight;
   const productionPct = mean(production);
 
+  return quality.length === 0 ? productionPct
+    : production.length === 0 ? qualityReg
+      : 0.5 * qualityReg + 0.5 * productionPct;
+}
+
+/** One quality input of the QB blend: its percentile and how much it counts. */
+interface WeightedPct { pct: number; weight: number; }
+
+/**
+ * QB blend (v3 "Ability"): a WEIGHTED quality mean and a per-game production
+ * mean, blended 50/50 and then regressed toward league average on the square
+ * root of the sample-size ratio.
+ *
+ *   blend = 50 + (0.5 × quality + 0.5 × production − 50)
+ *              × min(attempts / cap, 1) ^ 0.5
+ *
+ * Returns the UNROUNDED, 50-centered blend (or null) — `maddenScale` rounds.
+ *
+ * Two differences from the other positions:
+ *   - Quality is weighted, so a metric that is missing OR carries zero weight
+ *     (rush EPA for a QB who never runs) drops its VALUE AND ITS WEIGHT and the
+ *     survivors renormalize, instead of the input silently counting as average.
+ *   - The regression is a square root, not linear, and wraps the WHOLE blend
+ *     rather than the quality half: gentler on a strong nine-game season, still
+ *     brutal on a two-game cameo.
+ *
+ * Half-level degradation is the same symmetric rule as `ovrFrom`: an empty
+ * half drops out, both empty (or ineligible / empty pool) → null → "—".
+ */
+function qbBlendFrom(
+  quality: WeightedPct[],
+  productionPcts: number[],
+  attempts: number,
+  cap: number,
+  eligible: boolean,
+): number | null {
+  if (!eligible) return null;
+
+  let qualitySum = 0;
+  let qualityWeight = 0;
+  for (const { pct, weight } of quality) {
+    if (!Number.isNaN(pct) && weight > 0) {
+      qualitySum += pct * weight;
+      qualityWeight += weight;
+    }
+  }
+  const production = productionPcts.filter((p) => !Number.isNaN(p));
+  if (qualityWeight === 0 && production.length === 0) return null;
+
+  // Each is NaN when its half has no inputs; the branch below never reads it.
+  const qualityMean = qualitySum / qualityWeight;
+  const productionMean = mean(production);
   const blended =
-    quality.length === 0 ? productionPct
-      : production.length === 0 ? qualityReg
-        : 0.5 * qualityReg + 0.5 * productionPct;
-  return Math.min(99, Math.round(blended));
+    qualityWeight === 0 ? productionMean
+      : production.length === 0 ? qualityMean
+        : 0.5 * qualityMean + 0.5 * productionMean;
+
+  const weight =
+    Number.isFinite(attempts) && cap > 0 ? Math.sqrt(Math.min(attempts / cap, 1)) : 1;
+  return 50 + (blended - 50) * weight;
 }
 
 /**
@@ -189,12 +277,51 @@ function volumeCap<T>(pool: T[], get: (t: T) => number): number {
 type QBRadarKey = (typeof QB_RADAR_KEYS)[number];
 
 /**
- * Quality half of OVR: per-play metrics only — no aDOT (style) and no
- * dropbacks/game (raw volume). Attempts drive OVR through the regression
- * weight and the production half instead.
+ * Weight-1 radar axes in the quality half of the QB blend: per-play metrics
+ * only — no aDOT (style) and no dropbacks/game (raw volume). Attempts drive
+ * OVR through the regression weight and the production half instead.
+ *
+ * Two more quality inputs are handled separately in the builder because they
+ * don't fit this flat, weight-1 list:
+ *   - ANY/A, which replaces v2's ball-security input (it already bundles INTs,
+ *     sacks and TDs into one number) and is not a radar axis, so it has to be
+ *     percentiled directly. This is an OVR-only change — the BALL SECURITY
+ *     ability bar and the radar are untouched.
+ *   - rush EPA, whose weight scales with how much the QB actually runs.
  */
 const QB_OVR_KEYS: readonly QBRadarKey[] =
-  ["epa_per_db", "cpoe", "success_rate", "inv_int_pct", "rush_epa"];
+  ["epa_per_db", "cpoe", "success_rate"];
+
+/** Rush attempts per game at which a QB's rushing efficiency counts in full. */
+const QB_RUSH_FULL_ATT_PER_GAME = 3;
+
+/**
+ * Total-value EPA per game: `epa_per_play` times the play count ingest computed
+ * it over (dropbacks + rush attempts − scrambles, since scrambles are in both),
+ * per game. The DB's `total_epa` column is dropback EPA only, which undercounts
+ * a running QB's production — this reconstructs the full number instead.
+ *
+ * `scramble_pct` is stored 0–100 (ingest: scrambles / dropbacks × 100), and a
+ * QB with no scramble rate recorded is treated as having scrambled none,
+ * mirroring ingest's own fillna.
+ */
+function qbEpaPerGame(q: QBSeasonStat): number {
+  const epaPerPlay = q.epa_per_play ?? NaN;
+  if (!(q.games > 0) || Number.isNaN(epaPerPlay)) return NaN;
+  const scramblePct = q.scramble_pct ?? NaN;
+  const scrambles = (Number.isNaN(scramblePct) ? 0 : scramblePct / 100) * q.dropbacks;
+  return (epaPerPlay * (q.dropbacks + q.rush_attempts - scrambles)) / q.games;
+}
+
+/** Passing + rushing yards per game. */
+function qbYardsPerGame(q: QBSeasonStat): number {
+  return q.games > 0 ? (q.passing_yards + q.rush_yards) / q.games : NaN;
+}
+
+/** Passing + rushing touchdowns per game. */
+function qbTdsPerGame(q: QBSeasonStat): number {
+  return q.games > 0 ? (q.touchdowns + q.rush_tds) / q.games : NaN;
+}
 
 export function buildQBCardData(
   me: QBSeasonStat, all: QBSeasonStat[], season: number,
@@ -205,19 +332,34 @@ export function buildQBCardData(
 
   const pct = (key: QBRadarKey) => radarValues[QB_RADAR_KEYS.indexOf(key)];
   const missing = (key: QBRadarKey) => Number.isNaN(getQBRadarVal(me, key));
+
+  const anyA = me.any_a ?? NaN;
+  // Rushing efficiency counts in proportion to how much the QB actually runs:
+  // full weight at 3+ rush attempts per game, none at all for a pure pocket
+  // passer whose handful of scrambles say nothing about him.
+  const rushAttPerGame = me.games > 0 ? me.rush_attempts / me.games : NaN;
+  const rushWeight = Number.isNaN(rushAttPerGame)
+    ? 0 : Math.min(rushAttPerGame / QB_RUSH_FULL_ATT_PER_GAME, 1);
   // A metric the player doesn't have contributes NaN, not a 0th-percentile 0.
-  const ovr = ovrFrom(
-    QB_OVR_KEYS.map((k) => (missing(k) ? NaN : pct(k))),
-    // Production: season totals. Known limitation (see spec) — total_epa is
-    // dropback EPA only, so a running QB's production is slightly undercounted.
+  const blend = qbBlendFrom(
     [
-      prodPctOf(pool, (q) => q.total_epa ?? NaN, me),
-      prodPctOf(pool, (q) => q.passing_yards ?? NaN, me),
+      ...QB_OVR_KEYS.map((k) => ({ pct: missing(k) ? NaN : pct(k), weight: 1 })),
+      { pct: Number.isNaN(anyA) ? NaN : pctOf(pool, (q) => q.any_a ?? NaN, me), weight: 1 },
+      { pct: missing("rush_epa") ? NaN : pct("rush_epa"), weight: rushWeight },
+    ],
+    // Production: per-game rates, so a great half-season is graded on how he
+    // played rather than on how long he was available. All three include
+    // rushing.
+    [
+      prodPctOf(pool, qbEpaPerGame, me),
+      prodPctOf(pool, qbYardsPerGame, me),
+      prodPctOf(pool, qbTdsPerGame, me),
     ],
     me.attempts,
     volumeCap(pool, (q) => q.attempts),
     eligible && pool.length > 0,
   );
+  const ovr = blend === null ? null : maddenScale(blend);
 
   const intPct = me.attempts > 0 ? (me.interceptions / me.attempts) * 100 : NaN;
 
@@ -319,7 +461,7 @@ export function buildWRCardData(
   const succRaw = me.receiving_success_rate ?? NaN;
   const succPct = pctOf(pool, (r) => r.receiving_success_rate ?? NaN, me);
   // A metric the player doesn't have contributes NaN, not a 0th-percentile 0.
-  const ovr = ovrFrom(
+  const blend = ovrFrom(
     [
       ...WR_OVR_RADAR_KEYS.map((k) => (missing(k) ? NaN : pct(k))),
       Number.isNaN(succRaw) ? NaN : succPct,
@@ -332,6 +474,7 @@ export function buildWRCardData(
     volumeCap(pool, (r) => r.targets),
     eligible && pool.length > 0,
   );
+  const ovr = blend === null ? null : maddenScale(blend);
 
   const classify = me.position === "TE" ? classifyTE : classifyWR;
 
@@ -422,7 +565,7 @@ export function buildRBCardData(
   const pct = (key: RBRadarKey) => radarValues[RB_RADAR_KEYS.indexOf(key)];
   const missing = (key: RBRadarKey) => Number.isNaN(getRBRadarVal(me, key));
   // A metric the player doesn't have contributes NaN, not a 0th-percentile 0.
-  const ovr = ovrFrom(
+  const blend = ovrFrom(
     RB_OVR_KEYS.map((k) => (missing(k) ? NaN : pct(k))),
     [
       prodPctOf(pool, (r) => r.total_rushing_epa ?? NaN, me),
@@ -432,6 +575,7 @@ export function buildRBCardData(
     volumeCap(pool, (r) => r.carries),
     eligible && pool.length > 0,
   );
+  const ovr = blend === null ? null : maddenScale(blend);
 
   return {
     playerName: me.player_name,
