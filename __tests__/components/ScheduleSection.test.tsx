@@ -117,6 +117,24 @@ describe("ScheduleSection (Tecmo season grid)", () => {
     expect(w3.textContent).not.toContain("27-20");
   });
 
+  it("gives a tie its own slate tile, distinct from an unplayed game", () => {
+    const { container } = renderSchedule({
+      schedule: [final(3, 20, 20, { opponent_id: "LAC", gameday: "2026-09-27" })],
+    });
+    const tile = container.querySelector("[data-game-id]")! as HTMLElement;
+    expect(tile.getAttribute("data-state")).toBe("tie");
+    expect(tile.textContent).toContain("T");
+    expect(tile.textContent).toContain("20-20");
+    // Slate-700 #334155 / #64748b — NOT the upcoming pair (#1e293b / #334155),
+    // so a played tie can never read as a game that hasn't kicked off.
+    expect(tile.getAttribute("style")).toContain("rgb(51, 65, 85)");
+    expect(tile.getAttribute("style")).toContain("rgb(100, 116, 139)");
+    expect(tile.getAttribute("style")).not.toContain("rgb(30, 41, 59)");
+    // A tie is played, so it never carries the kickoff line or the next border.
+    expect(tile.textContent).not.toContain("SUN");
+    expect(tile.getAttribute("data-next")).toBeNull();
+  });
+
   it("marks only the next unplayed game with the bright border", () => {
     const { container } = renderSchedule();
     const next = container.querySelectorAll('[data-next="true"]');
@@ -168,6 +186,28 @@ describe("ScheduleSection (Tecmo season grid)", () => {
     expect(tiles[7].textContent).toContain("WC");
     expect(tiles[8].textContent).toContain("DIV");
     expect(tiles[8].textContent).toContain("21-17");
+  });
+
+  it("stops the bye grid at the last REG week (2020's 17-week season)", () => {
+    // 16 games across weeks 1-17 with week 9 off — the REG-scoped max week is
+    // 17, so there must be no phantom week-18 bye.
+    const weeks = Array.from({ length: 17 }, (_, i) => i + 1).filter((w) => w !== 9);
+    const { container } = renderSchedule({
+      schedule: weeks.map((w) => game(w, { opponent_id: "MIA", gameday: "2020-09-13" })),
+    });
+
+    expect(container.querySelectorAll("[data-game-id]").length).toBe(16);
+
+    const byes = container.querySelectorAll("[data-bye-week]");
+    expect(byes.length).toBe(1);
+    expect(byes[0].getAttribute("data-bye-week")).toBe("9");
+    expect(container.querySelector('[data-bye-week="18"]')).toBeNull();
+
+    const tiles = Array.from(container.querySelectorAll("[data-game-id], [data-bye-week]"));
+    expect(tiles.length).toBe(17);
+    // The bye sits at its own week position, and week 17 closes the grid.
+    expect(tiles[8].getAttribute("data-bye-week")).toBe("9");
+    expect(tiles[16].textContent).toContain("W17");
   });
 
   it("gives every tile a descriptive title tooltip", () => {
