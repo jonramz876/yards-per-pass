@@ -14,6 +14,7 @@ import type {
   CrossLinkQB,
   QBPassLocationStat,
 } from "@/lib/types";
+import { getTeam } from "@/lib/data/teams";
 import PlayerHeader from "./PlayerHeader";
 import PlayerOverviewQB from "./PlayerOverviewQB";
 import PlayerOverviewWR from "./PlayerOverviewWR";
@@ -163,11 +164,16 @@ export default function PlayerPageContent({
   // ─── Render Field Map tab ───────────────────────────────────────────────────
 
   function renderFieldMap() {
+    const team = getTeam(player.current_team_id);
     return (
       <PlayerFieldHeatMap
         stats={passLocationStats}
         playerName={player.player_name}
         season={season}
+        teamName={team?.name ?? player.current_team_id}
+        primaryColor={team?.primaryColor || "#0f172a"}
+        secondaryColor={team?.secondaryColor || "#334155"}
+        jerseyNumber={player.jersey_number ?? null}
       />
     );
   }
