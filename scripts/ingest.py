@@ -305,12 +305,26 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
 
 
 def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
-    """Aggregate QB season stats from filtered plays."""
+    """Aggregate QB season stats from filtered plays.
+
+    Victory-formation kneeldowns are dropped here (see qb_plays below). This is
+    a LOCAL filtered view — the caller's `plays` frame keeps its kneels, because
+    the RB and team aggregators need them to match PFR.
+    """
     # Identify QB player IDs from roster
     qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
 
+    # A kneeldown is worth about -1 EPA and gains a yard or two of loss, and a
+    # winning team takes three or four of them a game (~420 league-wide per
+    # season). Charging those to the QB costs the QBs who win the most 10-25
+    # rushing EPA a season -- Lamar Jackson's real 2023 rush EPA is about +37,
+    # stored as +10. They are excluded from every QB number below; the cost is
+    # that rush_attempts/rush_yards now diverge slightly from PFR, which counts
+    # kneels as carries. Deliberate (see the spec's "Ingest kneel fix").
+    qb_plays = plays[plays['play_type'] != 'qb_kneel']
+
     # --- Dropback stats (qb_dropback == 1) ---
-    dropbacks = plays[plays['qb_dropback'] == 1].copy()
+    dropbacks = qb_plays[qb_plays['qb_dropback'] == 1].copy()
 
     # Fix scramble attribution: on scrambles, passer_player_id and passer_player_name
     # are often NULL but rusher_player_id/name have the QB. Use fillna() to preserve
@@ -421,10 +435,11 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # --- Rush stats: ALL QB rushing plays (designed + scrambles) via rush_attempt ---
     # nflverse sets rush_attempt=1 on both designed runs AND scrambles.
     # Grouping by rusher_player_id captures everything in one pass.
-    # filter_plays() already excludes kneeldowns (play_type not in ['pass','run']).
-    qb_rushes = plays[
-        (plays['rush_attempt'] == 1) &
-        (plays['rusher_player_id'].isin(qb_ids))
+    # filter_plays() KEEPS kneeldowns (rushing stats elsewhere match PFR), so
+    # they are excluded here via qb_plays instead.
+    qb_rushes = qb_plays[
+        (qb_plays['rush_attempt'] == 1) &
+        (qb_plays['rusher_player_id'].isin(qb_ids))
     ]
     rush_stats = qb_rushes.groupby('rusher_player_id').agg(
         rush_attempts=('epa', 'count'),
@@ -460,15 +475,15 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # EPA per play (total: dropbacks + non-scramble rushes to avoid double-counting)
     # Scrambles are in BOTH dropbacks (qb_dropback=1) and rushes (rush_attempt=1),
     # so total plays = dropbacks + (rush_attempts - scrambles)
-    scramble_count = plays[
-        (plays['qb_scramble'] == 1) & (plays['rusher_player_id'].isin(qb_ids))
+    scramble_count = qb_plays[
+        (qb_plays['qb_scramble'] == 1) & (qb_plays['rusher_player_id'].isin(qb_ids))
     ].groupby('rusher_player_id').size().reset_index(name='scramble_count').rename(columns={'rusher_player_id': 'player_id'})
     qb_stats = qb_stats.merge(scramble_count, on='player_id', how='left')
     qb_stats['scramble_count'] = qb_stats['scramble_count'].fillna(0).astype(int)
     designed_rush_count = qb_stats['rush_attempts'] - qb_stats['scramble_count']
     total_plays = qb_stats['dropback_count'] + designed_rush_count
-    total_epa = qb_stats['dropback_epa_sum'] + (qb_stats['rush_epa_sum'] - plays[
-        (plays['qb_scramble'] == 1) & (plays['rusher_player_id'].isin(qb_ids))
+    total_epa = qb_stats['dropback_epa_sum'] + (qb_stats['rush_epa_sum'] - qb_plays[
+        (qb_plays['qb_scramble'] == 1) & (qb_plays['rusher_player_id'].isin(qb_ids))
     ].groupby('rusher_player_id')['epa'].sum().reindex(qb_stats['player_id']).fillna(0).values)
     qb_stats['epa_per_play'] = total_epa / total_plays.replace(0, float('nan'))
 
@@ -1919,11 +1934,19 @@ def _get_game_week_map(plays: pd.DataFrame) -> dict:
 
 
 def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
-    """Aggregate QB weekly (game-log) stats from filtered plays."""
+    """Aggregate QB weekly (game-log) stats from filtered plays.
+
+    Kneeldowns are dropped from the QB numbers exactly as in
+    aggregate_qb_stats, so the Game Log's rush yards and fantasy points still
+    sum to the season card above it. LOCAL view only — the caller's `plays`
+    frame is never modified.
+    """
     qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
 
+    qb_plays = plays[plays['play_type'] != 'qb_kneel']
+
     # --- Dropback stats ---
-    dropbacks = plays[plays['qb_dropback'] == 1].copy()
+    dropbacks = qb_plays[qb_plays['qb_dropback'] == 1].copy()
 
     # Fix scramble attribution (same as season-level)
     scramble_mask = dropbacks['qb_scramble'] == 1
@@ -1939,7 +1962,9 @@ def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     if dropbacks.empty:
         return pd.DataFrame()
 
-    # Game-week map
+    # Game-week map and score/opponent context: read the FULL frame, kneels
+    # included. These are game-level facts, not QB stats, and a kneel-only tail
+    # should never be able to change a game's week or final score.
     game_week = _get_game_week_map(plays)
     game_context = _derive_game_context(plays)
 
@@ -1990,9 +2015,10 @@ def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     )
 
     # --- Rush stats per game (designed runs + scrambles) ---
-    designed_rushes = plays[
-        (plays['rusher_player_id'].isin(qb_ids)) &
-        (plays['qb_dropback'] == 0)
+    # qb_plays, so victory-formation kneels do not land in the game log.
+    designed_rushes = qb_plays[
+        (qb_plays['rusher_player_id'].isin(qb_ids)) &
+        (qb_plays['qb_dropback'] == 0)
     ].copy()
 
     rush_game = designed_rushes.groupby(['rusher_player_id', 'game_id']).agg(
