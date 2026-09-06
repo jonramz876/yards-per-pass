@@ -218,6 +218,13 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
     id: "pfr-qualified",
     definition: "Pro Football Reference\u2019s minimum thresholds for stat qualification. QBs: 14 attempts per team game (238/season). RBs: 6.25 carries per team game (106/season). WR/TEs: 1.875 targets per team game (32/season). These thresholds filter out players with small sample sizes.",
   },
+  // --- Player Card ---
+  {
+    section: "Player Card",
+    term: "OVR (Overall)",
+    id: "ovr",
+    definition: "A 0\u201399 rating shown on the player card. OVR blends how good a player was per play (percentiles, regressed toward average at low volume) 50/50 with how much total value he produced (season EPA + yards). The per-play half uses his position\u2019s quality metrics. QB: EPA/dropback, CPOE, success rate, ball security, and rush EPA. WR/TE: EPA/target, CROE, yards per route run, and receiving success rate. RB: EPA/carry, success rate, stuff avoidance, and explosive rate. Style metrics (like aDOT and YAC per reception) appear on the card but do not affect OVR. Metrics a player has no data for are left out of the average rather than counted against him. Players below the per-game qualifying threshold (QB 14 attempts, WR/TE 2 targets, RB 6 carries per game) show \u201c\u2014\u201d instead of a score. RB OVR currently measures rushing only.",
+  },
   // --- QB Archetypes ---
   { section: "QB Archetypes", term: "Complete Passer (QB Archetype)", id: "complete-passer",
     definition: "A quarterback with 4+ radar axes at the 70th percentile or above. Elite across EPA/DB, CPOE, DB/Game, aDOT, INT%, and Success%." },

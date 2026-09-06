@@ -2770,6 +2770,9 @@ def ensure_player_slugs_table(conn):
             CREATE INDEX IF NOT EXISTS idx_player_slugs_slug ON player_slugs(slug);
             CREATE INDEX IF NOT EXISTS idx_player_slugs_team ON player_slugs(current_team_id);
         """)
+        # Added after initial deploy — existing installs gain the columns here
+        cur.execute("ALTER TABLE player_slugs ADD COLUMN IF NOT EXISTS headshot_url TEXT;")
+        cur.execute("ALTER TABLE player_slugs ADD COLUMN IF NOT EXISTS jersey_number INTEGER;")
         # RLS (wrapped in exception blocks for idempotent re-runs)
         cur.execute("""
             DO $$ BEGIN
@@ -2811,13 +2814,25 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
 
     if not players:
         log.info("No players found for slug generation")
-        return pd.DataFrame(columns=['player_id', 'slug', 'player_name', 'position', 'current_team_id'])
+        return pd.DataFrame(columns=['player_id', 'slug', 'player_name', 'position',
+                                     'current_team_id', 'headshot_url', 'jersey_number'])
 
     # Build position + full name lookups from roster
     pos_map = {}
     full_name_map = {}  # gsis_id -> full_name (for better slugs than "P.Mahomes")
+    headshot_map = {}   # gsis_id -> headshot_url (latest week wins)
+    jersey_map = {}     # gsis_id -> jersey_number (latest week wins)
     if roster is not None and not roster.empty:
-        for _, row in roster.iterrows():
+        # Sort by week so later rows overwrite earlier ones — the most recent
+        # week's jersey/headshot wins (players change numbers mid-season).
+        # (rows with no week sort first so a real week always wins)
+        # Side effect, intentional: pos_map/full_name_map are written in the same
+        # loop, so they become latest-week-wins too. That is the correct reading
+        # for a traded or position-changed player; previously they took whatever
+        # row order the parquet happened to have.
+        roster_iter = (roster.sort_values('week', na_position='first')
+                       if 'week' in roster.columns else roster)
+        for _, row in roster_iter.iterrows():
             gsis_id = row.get('gsis_id')
             pos = row.get('position')
             full_name = row.get('full_name')
@@ -2825,6 +2840,16 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
                 pos_map[gsis_id] = pos
             if gsis_id and full_name and pd.notna(full_name):
                 full_name_map[gsis_id] = full_name
+            # Columns are nullable and may be absent entirely — access softly
+            headshot = row.get('headshot_url')
+            if gsis_id and headshot is not None and pd.notna(headshot):
+                headshot_map[gsis_id] = headshot
+            jersey = row.get('jersey_number')
+            if gsis_id and jersey is not None and pd.notna(jersey):
+                try:
+                    jersey_map[gsis_id] = int(jersey)
+                except (TypeError, ValueError, OverflowError):
+                    pass  # unparseable/infinite jersey must not kill the ingest
 
     # Replace abbreviated names (P.Mahomes) with full names (Patrick Mahomes) for slug generation
     for pid in players:
@@ -2867,6 +2892,8 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
                 'player_name': pname,
                 'position': pos_map.get(pid),
                 'current_team_id': team,
+                'headshot_url': headshot_map.get(pid),
+                'jersey_number': jersey_map.get(pid),
             })
         return pd.DataFrame(rows)
 
@@ -2910,6 +2937,8 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
                 'player_name': pname,
                 'position': pos_map.get(pid),
                 'current_team_id': team,
+                'headshot_url': headshot_map.get(pid),
+                'jersey_number': jersey_map.get(pid),
             })
 
     log.info("Generated %d new slugs (%d total players)", len(new_slug_map), len(rows))
@@ -2923,13 +2952,29 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
         log.info("No player slugs to upsert (empty DataFrame)")
         return
 
-    cols = ['player_id', 'slug', 'player_name', 'position', 'current_team_id']
-    clean_df = df[cols].where(df[cols].notna(), None)
-    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    cols = ['player_id', 'slug', 'player_name', 'position', 'current_team_id',
+            'headshot_url', 'jersey_number']
+    # Missing jersey/headshot MUST reach psycopg2 as None. A mixed roster gives
+    # jersey_number a float64 dtype and headshot_url the pandas 3 string dtype,
+    # neither of which can hold None — and `.where(cond, None)` does not help:
+    # pandas reads that None as "fill with the default NA", so NaN survives.
+    # psycopg2 then adapts it as 'NaN'::float and Postgres rejects it for the
+    # INTEGER/TEXT columns, killing the whole ingest. So place None explicitly.
+    # int(v) too: the float64 column yields 17.0 where the column wants 17.
+    clean_df = df[cols].astype(object)
+    rows = [
+        tuple(
+            None if pd.isna(v) else (int(v) if c == 'jersey_number' else v)
+            for c, v in zip(cols, row)
+        )
+        for row in clean_df.itertuples(index=False, name=None)
+    ]
     col_names = ', '.join(cols)
-    # Never update slug — only update name, position, team
+    # Never update slug — only update name, position, team, headshot, jersey
     update_set = ', '.join(
-        f"{c} = EXCLUDED.{c}" for c in ['player_name', 'position', 'current_team_id']
+        f"{c} = EXCLUDED.{c}"
+        for c in ['player_name', 'position', 'current_team_id',
+                  'headshot_url', 'jersey_number']
     )
     update_set += ", updated_at = now()"
 

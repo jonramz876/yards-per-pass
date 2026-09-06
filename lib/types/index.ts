@@ -201,6 +201,8 @@ export interface PlayerSlug {
   player_name: string;
   position: string;
   current_team_id: string;
+  headshot_url: string | null;
+  jersey_number: number | null;
 }
 
 export interface QBWeeklyStat {

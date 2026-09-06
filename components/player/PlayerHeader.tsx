@@ -94,7 +94,7 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
             Compare
           </Link>
           <Link
-            href={`/card/${player.slug}`}
+            href={`/card/${player.slug}?season=${season}`}
             className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
           >
             Share Card

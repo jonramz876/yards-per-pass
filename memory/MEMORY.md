@@ -1,5 +1,17 @@
 # Yards Per Pass — Project Memory
 
+## Tecmo player card (built 2026-09-05, branch tecmo-player-card)
+
+- The player card (Tecmo Super Bowl style, Jon's design pick from mockups) lives at `components/player/TecmoPlayerCard.tsx`, fed by pure builders in `lib/stats/tecmo-card.ts` (`buildQBCardData`/`buildWRCardData`/`buildRBCardData`). It IS the Overview on `/player/[slug]` and the whole of `/card/[slug]`.
+- **OVR v2 "REG50"** (2026-09-05, replaced the v1 quality-only mean after an empirical 2025 study) = `min(99, round(0.5 × quality_reg + 0.5 × production))`. `quality_reg` = mean of the position's quality percentiles (QB: EPA/db, CPOE, succ%, ball security, rush EPA · WR/TE: EPA/tgt, CROE, YPRR, recv succ% · RB: EPA/car, succ%, stuff avoid, expl%) regressed toward 50 by `min(volume/CAP, 1)`, volume = attempts/targets/carries, CAP = the qualified pool's 70th-pctile volume by **linear interpolation** (numpy/pandas default — a nearest-rank CAP shifts every score). `production` = mean of the season total-EPA and total-yards percentiles vs the SAME qualified pool (QB total_epa+passing_yards · WR/TE total_receiving_epa+receiving_yards · RB total_rushing_epa+rushing_yards). Style metrics still excluded; raw per-game volume is still not an input. Degradation is symmetric: missing half is dropped (never 0 or 50), both missing → null. Verified against the study on the real 2025 RB pool: all 68 eligible RBs match, Henry 81, Corum 79. Glossary `#ovr` documents it.
+- **Unified eligibility** (pools + OVR + banners): QB 14+ att/g, WR/TE 2+ tgt/g, RB 6+ car/g — constants in tecmo-card.ts. Replaced the old 238-att/32-tgt/106-car season totals so week 1 works. Leaderboards/home still use their own pools (intentional, unify later if desired).
+- `AbilityRow.missing` is the authority for "no data" rendering (gray dot, empty bar, em dash) — never `percentile === 0` (that's a real last-place score). OVR `0` is valid; only `null` renders "—".
+- Headshots: `player_slugs.headshot_url`/`jersey_number` (from nflverse rosters, latest week wins); `JerseyAvatar` falls back to a team-color jersey SVG. Data assembly `getCardDataForPlayer` lives in `lib/data/card.ts` (server side — do NOT move into lib/stats; it would drag supabase into the client graph).
+- Share image (`app/card/[slug]/opengraph-image.tsx`, latest season) and download route (`/api/stat-card/[slug]?season=`, hour-cached attachment) render via `lib/og/tecmo-card-image.tsx` — satori rules: every div display:flex, no svg <text>, bundled Press Start 2P TTF (app/fonts, OFL), headshots prefetched to data URIs.
+- **@vercel/og cannot render on Windows** (yoga.wasm path bug) — OG/download images only testable on Vercel, not on Jon's machine.
+- FB players normalize to RB everywhere and now have working player pages (they 404'd before).
+- Pixel font: `app/fonts.ts` exports `pressStart` (`--font-pixel` var, applied at html root); Tailwind v4 scans docs/ markdown, so class strings in docs leak into the CSS (harmless, known).
+
 ## Season handling (as of 2026-09-05 readiness pass)
 
 - **No hardcoded season years anywhere.** All pages resolve the season from `getAvailableSeasons()` (newest row in Supabase `data_freshness`), falling back to `fallbackSeason()` in `lib/data/queries.ts` — date-based, rolls to the new season year in September (JS `getMonth() >= 8`). The Python twin is `_detect_current_season()` in `scripts/ingest.py`.

@@ -2,211 +2,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPlayerBySlug } from "@/lib/data/players";
-import { getAllRBWeeklyStats, getRBWeeklyStats } from "@/lib/data/players";
-import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
-import { getReceiverStats } from "@/lib/data/receivers";
-import { getTeam, getTeamColor } from "@/lib/data/teams";
-import { computePercentile, computeRank, ordinal } from "@/lib/stats/percentiles";
-import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
-import { getQBRadarVal, getWRRadarVal, getRBRadarVal, QB_RADAR_KEYS, QB_RADAR_LABELS as QB_RL, WR_RADAR_KEYS, WR_RADAR_LABELS as WR_RL, RB_RADAR_KEYS, RB_RADAR_LABELS as RB_RL } from "@/lib/stats/radar";
-import type { QBSeasonStat, ReceiverSeasonStat, RBWeeklyStat } from "@/lib/types";
-import StatCardView from "@/components/player/StatCardView";
+import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
+import { getTeam } from "@/lib/data/teams";
+import { getCardDataForPlayer } from "@/lib/data/card";
+import type { TecmoCardData } from "@/lib/stats/tecmo-card";
+import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import CardPageActions from "./CardPageActions";
 
 export const revalidate = 3600;
-
-// --- QB helpers ---
-const QB_RADAR_LABELS = QB_RADAR_KEYS.map((k) => QB_RL[k]);
-const QB_BAR_STATS = [
-  { key: "yards_per_game", label: "Yds/G" },
-  { key: "tds_per_game", label: "TD/G" },
-  { key: "passer_rating", label: "Rating" },
-  { key: "any_a", label: "ANY/A" },
-  { key: "fantasy_pts", label: "FPts" },
-];
-
-
-function getQBBarVal(qb: QBSeasonStat, key: string): number {
-  switch (key) {
-    case "yards_per_game": return qb.games ? qb.passing_yards / qb.games : NaN;
-    case "tds_per_game": return qb.games ? qb.touchdowns / qb.games : NaN;
-    case "passer_rating": return qb.passer_rating;
-    case "any_a": return qb.any_a;
-    case "fantasy_pts": return qbFantasyPoints({
-      passing_yards: qb.passing_yards, touchdowns: qb.touchdowns, interceptions: qb.interceptions,
-      rush_yards: qb.rush_yards, rush_tds: qb.rush_tds, fumbles_lost: qb.fumbles_lost,
-    });
-    default: return NaN;
-  }
-}
-
-function formatQBChip(key: string, val: number): string {
-  if (isNaN(val)) return "\u2014";
-  switch (key) {
-    case "epa_per_db": return val.toFixed(2);
-    case "cpoe": return (val >= 0 ? "+" : "") + val.toFixed(1);
-    case "dropbacks_game": return val.toFixed(1);
-    case "adot": return val.toFixed(1);
-    case "inv_int_pct": return ((1 - val) * 100).toFixed(1) + "%";
-    case "success_rate": return (val * 100).toFixed(1) + "%";
-    case "rush_epa": return (val >= 0 ? "+" : "") + val.toFixed(2);
-    default: return val.toFixed(2);
-  }
-}
-
-// --- WR/TE helpers ---
-const WR_RADAR_LABELS = WR_RADAR_KEYS.map((k) => WR_RL[k]);
-const WR_BAR_STATS: { key: string; label: string; pct: boolean }[] = [
-  { key: "yards_per_game", label: "Yds/G", pct: false },
-  { key: "tds_per_game", label: "TD/G", pct: false },
-  { key: "receptions_per_game", label: "Rec/G", pct: false },
-  { key: "yards_per_reception", label: "YPR", pct: false },
-  { key: "fantasy_pts", label: "FPts", pct: false },
-];
-
-
-function getWRBarVal(rec: ReceiverSeasonStat, key: string): number {
-  switch (key) {
-    case "yards_per_game": return rec.games ? rec.receiving_yards / rec.games : NaN;
-    case "tds_per_game": return rec.games ? rec.receiving_tds / rec.games : NaN;
-    case "receptions_per_game": return rec.games ? rec.receptions / rec.games : NaN;
-    case "yards_per_reception": return rec.yards_per_reception;
-    case "fantasy_pts": return wrFantasyPoints({
-      receiving_yards: rec.receiving_yards, receiving_tds: rec.receiving_tds,
-      receptions: rec.receptions, fumbles_lost: rec.fumbles_lost,
-    }, "ppr");
-    default: return NaN;
-  }
-}
-
-function formatWRChip(key: string, val: number): string {
-  if (isNaN(val)) return "\u2014";
-  switch (key) {
-    case "targets_game": return val.toFixed(1);
-    case "epa_per_target": return val.toFixed(2);
-    case "croe": return (val >= 0 ? "+" : "") + (val * 100).toFixed(1) + "%";
-    case "air_yards_per_target": return val.toFixed(1);
-    case "yac_per_reception": return val.toFixed(1);
-    case "yards_per_route_run": return val.toFixed(2);
-    default: return val.toFixed(2);
-  }
-}
-
-// --- RB helpers ---
-interface AggregatedRB {
-  player_id: string;
-  games: number;
-  carries: number;
-  rushing_yards: number;
-  rushing_tds: number;
-  epa_per_carry: number;
-  success_rate: number;
-  stuff_rate: number;
-  explosive_rate: number;
-  yards_per_carry: number;
-  targets: number;
-  receptions: number;
-  receiving_yards: number;
-  receiving_tds: number;
-  fumbles_lost: number;
-}
-
-const RB_RADAR_LABELS = RB_RADAR_KEYS.map((k) => RB_RL[k]);
-const RB_BAR_STATS = [
-  { key: "rush_yards_game", label: "Yds/G" },
-  { key: "rush_tds_game", label: "TD/G" },
-  { key: "yards_per_carry", label: "YPC" },
-  { key: "success_rate", label: "Success%" },
-  { key: "fantasy_pts", label: "FPts" },
-];
-
-function aggregateRBWeekly(rows: RBWeeklyStat[]): AggregatedRB {
-  const games = rows.length;
-  let carries = 0, rushYds = 0, rushTds = 0;
-  let epaSum = 0, srSum = 0, stuffSum = 0, explSum = 0, ypcSum = 0;
-  let epaCount = 0, srCount = 0, stuffCount = 0, explCount = 0, ypcCount = 0;
-  let targets = 0, receptions = 0, recYds = 0, recTds = 0, fumblesLost = 0;
-
-  for (const r of rows) {
-    const c = r.carries || 0;
-    carries += c;
-    rushYds += r.rushing_yards || 0;
-    rushTds += r.rushing_tds || 0;
-    targets += r.targets || 0;
-    receptions += r.receptions || 0;
-    recYds += r.receiving_yards || 0;
-    recTds += r.receiving_tds || 0;
-    fumblesLost += r.fumbles_lost || 0;
-    if (c > 0) {
-      if (!isNaN(r.epa_per_carry)) { epaSum += r.epa_per_carry * c; epaCount += c; }
-      if (!isNaN(r.success_rate)) { srSum += r.success_rate * c; srCount += c; }
-      if (!isNaN(r.stuff_rate)) { stuffSum += r.stuff_rate * c; stuffCount += c; }
-      if (!isNaN(r.explosive_rate)) { explSum += r.explosive_rate * c; explCount += c; }
-      if (!isNaN(r.yards_per_carry)) { ypcSum += r.yards_per_carry * c; ypcCount += c; }
-    }
-  }
-
-  return {
-    player_id: rows[0]?.player_id ?? "",
-    games, carries, rushing_yards: rushYds, rushing_tds: rushTds,
-    epa_per_carry: epaCount > 0 ? epaSum / epaCount : NaN,
-    success_rate: srCount > 0 ? srSum / srCount : NaN,
-    stuff_rate: stuffCount > 0 ? stuffSum / stuffCount : NaN,
-    explosive_rate: explCount > 0 ? explSum / explCount : NaN,
-    yards_per_carry: ypcCount > 0 ? ypcSum / ypcCount : NaN,
-    targets, receptions, receiving_yards: recYds, receiving_tds: recTds, fumbles_lost: fumblesLost,
-  };
-}
-
-function getRBBarVal(agg: AggregatedRB, key: string): number {
-  switch (key) {
-    case "rush_yards_game": return agg.games ? agg.rushing_yards / agg.games : NaN;
-    case "rush_tds_game": return agg.games ? agg.rushing_tds / agg.games : NaN;
-    case "yards_per_carry": return agg.yards_per_carry;
-    case "success_rate": return agg.success_rate;
-    case "fantasy_pts": return rbFantasyPoints({
-      rushing_yards: agg.rushing_yards, rushing_tds: agg.rushing_tds,
-      receiving_yards: agg.receiving_yards, receiving_tds: agg.receiving_tds,
-      receptions: agg.receptions, fumbles_lost: agg.fumbles_lost,
-    }, "ppr");
-    default: return NaN;
-  }
-}
-
-function formatRBChip(key: string, val: number): string {
-  if (isNaN(val)) return "\u2014";
-  switch (key) {
-    case "carries_game":
-    case "targets_game": return val.toFixed(1);
-    case "epa_per_carry": return val.toFixed(2);
-    case "stuff_avoidance":
-    case "explosive_rate":
-    case "success_rate": return (val * 100).toFixed(1) + "%";
-    default: return val.toFixed(2);
-  }
-}
-
-// --- Generic bar stat builder ---
-function buildBarStat(
-  val: number,
-  poolVals: number[],
-  label: string,
-  isPct: boolean = false,
-): { label: string; value: string; delta: number; pct: number } {
-  const clean = poolVals.filter((v) => !isNaN(v));
-  const avg = clean.length ? clean.reduce((a, b) => a + b, 0) / clean.length : 0;
-  const delta = val - avg;
-  const barPct = avg !== 0 ? Math.min(Math.abs(delta / avg) * 100, 45) : 0;
-  let valueStr: string;
-  if (isNaN(val)) {
-    valueStr = "\u2014";
-  } else if (isPct) {
-    valueStr = (val * 100).toFixed(1) + "%";
-  } else {
-    valueStr = val.toFixed(1);
-  }
-  return { label, value: valueStr, delta: isNaN(delta) ? 0 : delta, pct: barPct };
-}
 
 // -------------------------------------------------------------------
 // Metadata
@@ -245,128 +48,33 @@ export async function generateMetadata({
 // -------------------------------------------------------------------
 export default async function CardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ season?: string }>;
 }) {
   const { slug } = await params;
+  const { season: seasonParam } = await searchParams;
   const player = await getPlayerBySlug(slug);
   if (!player) notFound();
 
   const seasons = await getAvailableSeasons();
-  const season = seasons[0] ?? fallbackSeason();
+  const parsed = seasonParam ? parseInt(seasonParam, 10) : NaN;
+  const season = Number.isNaN(parsed) ? (seasons[0] ?? fallbackSeason()) : parsed;
+
   const team = getTeam(player.current_team_id);
-  const teamColor = getTeamColor(player.current_team_id);
   const teamName = team?.name || player.current_team_id;
 
-  let radarValues: number[] = [];
-  let radarLabels: string[] = [];
-  let chipStats: { label: string; value: string; rank: string }[] = [];
-  let barStats: { label: string; value: string; delta: number; pct: number }[] = [];
-
+  // Assembly (position branching, stat lookup) is shared with the OG image and
+  // the download route — see lib/stats/tecmo-card.ts.
+  let card: TecmoCardData | null = null;
   try {
-    if (player.position === "QB") {
-      const allQBs = await getQBStats(season);
-      const me = allQBs.find((q) => q.player_id === player.player_id);
-      if (!me) notFound();
-
-      // Wider pool (100+ dropbacks) for stable archetype percentiles
-      const pool = allQBs.filter((q) => q.dropbacks >= 100);
-      const total = pool.length;
-
-      radarLabels = QB_RADAR_LABELS;
-      radarValues = QB_RADAR_KEYS.map((key) => {
-        const sorted = pool.map((q) => getQBRadarVal(q, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-        return computePercentile(sorted, getQBRadarVal(me!, key));
-      });
-
-      chipStats = QB_RADAR_KEYS.map((key) => {
-        const val = getQBRadarVal(me!, key);
-        const poolVals = pool.map((q) => getQBRadarVal(q, key)).filter((v) => !isNaN(v));
-        const rank = computeRank(poolVals, val);
-        return { label: QB_RADAR_LABELS[QB_RADAR_KEYS.indexOf(key)], value: formatQBChip(key, val), rank: `${ordinal(rank)} of ${total}` };
-      });
-
-      barStats = QB_BAR_STATS.map((stat) => {
-        const val = getQBBarVal(me!, stat.key);
-        const poolVals = pool.map((q) => getQBBarVal(q, stat.key));
-        return buildBarStat(val, poolVals, stat.label);
-      });
-    } else if (player.position === "WR" || player.position === "TE") {
-      const allRec = await getReceiverStats(season);
-      const me = allRec.find((r) => r.player_id === player.player_id);
-      if (!me) notFound();
-
-      const isTE = me.position === "TE";
-      const PFR_MIN = 32;
-      const pool = allRec.filter((r) => (isTE ? r.position === "TE" : r.position === "WR") && r.targets >= PFR_MIN);
-      const total = pool.length;
-
-      radarLabels = WR_RADAR_LABELS;
-      radarValues = WR_RADAR_KEYS.map((key) => {
-        const sorted = pool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-        return computePercentile(sorted, getWRRadarVal(me, key));
-      });
-
-      chipStats = WR_RADAR_KEYS.map((key) => {
-        const val = getWRRadarVal(me, key);
-        const poolVals = pool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v));
-        const rank = computeRank(poolVals, val);
-        return { label: WR_RADAR_LABELS[WR_RADAR_KEYS.indexOf(key)], value: formatWRChip(key, val), rank: `${ordinal(rank)} of ${total}` };
-      });
-
-      barStats = WR_BAR_STATS.map((stat) => {
-        const val = getWRBarVal(me, stat.key);
-        const poolVals = pool.map((r) => getWRBarVal(r, stat.key));
-        return buildBarStat(val, poolVals, stat.label, stat.pct);
-      });
-    } else if (player.position === "RB") {
-      const [weekly, allRBWeekly] = await Promise.all([
-        getRBWeeklyStats(player.player_id, season),
-        getAllRBWeeklyStats(season),
-      ]);
-
-      if (weekly.length === 0) notFound();
-      const playerAgg = aggregateRBWeekly(weekly);
-
-      const PFR_MIN = 106;
-      const byPlayer = new Map<string, RBWeeklyStat[]>();
-      for (const r of allRBWeekly) {
-        const rows = byPlayer.get(r.player_id) || [];
-        rows.push(r);
-        byPlayer.set(r.player_id, rows);
-      }
-      const leaguePool: AggregatedRB[] = [];
-      byPlayer.forEach((rows) => {
-        const agg = aggregateRBWeekly(rows);
-        if (agg.carries >= PFR_MIN) leaguePool.push(agg);
-      });
-      const total = leaguePool.length;
-
-      radarLabels = RB_RADAR_LABELS;
-      radarValues = RB_RADAR_KEYS.map((key) => {
-        const sorted = leaguePool.map((p) => getRBRadarVal(p, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b);
-        return computePercentile(sorted, getRBRadarVal(playerAgg, key));
-      });
-
-      chipStats = RB_RADAR_KEYS.map((key) => {
-        const val = getRBRadarVal(playerAgg, key);
-        const poolVals = leaguePool.map((p) => getRBRadarVal(p, key)).filter((v) => !isNaN(v));
-        const rank = computeRank(poolVals, val);
-        return { label: RB_RADAR_LABELS[RB_RADAR_KEYS.indexOf(key)], value: formatRBChip(key, val), rank: `${ordinal(rank)} of ${total}` };
-      });
-
-      barStats = RB_BAR_STATS.map((stat) => {
-        const isPct = stat.key === "success_rate";
-        const val = getRBBarVal(playerAgg, stat.key);
-        const poolVals = leaguePool.map((p) => getRBBarVal(p, stat.key));
-        return buildBarStat(val, poolVals, stat.label, isPct);
-      });
-    } else {
-      notFound();
-    }
+    card = await getCardDataForPlayer(player, season);
   } catch {
     notFound();
   }
+
+  if (!card) notFound();
 
   return (
     <div
@@ -383,21 +91,19 @@ export default async function CardPage({
     >
       {/* The card — scrollable wrapper for mobile */}
       <div style={{ maxWidth: "100%", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
-        <StatCardView
-          playerName={player.player_name}
-          position={player.position}
+        <TecmoPlayerCard
+          data={card}
           teamName={teamName}
-          teamColor={teamColor}
-          season={season}
-          radarValues={radarValues}
-          radarLabels={radarLabels}
-          chipStats={chipStats}
-          barStats={barStats}
+          teamId={player.current_team_id}
+          primaryColor={team?.primaryColor || "#0f172a"}
+          secondaryColor={team?.secondaryColor || "#334155"}
+          headshotUrl={player.headshot_url ?? null}
+          jerseyNumber={player.jersey_number ?? null}
         />
       </div>
 
       {/* Actions below the card */}
-      <CardPageActions slug={slug} />
+      <CardPageActions slug={slug} season={season} />
 
       {/* Link back to player profile */}
       <a

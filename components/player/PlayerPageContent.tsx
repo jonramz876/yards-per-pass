@@ -6,6 +6,7 @@ import type {
   PlayerSlug,
   QBSeasonStat,
   ReceiverSeasonStat,
+  RBSeasonStat,
   QBWeeklyStat,
   ReceiverWeeklyStat,
   RBWeeklyStat,
@@ -96,6 +97,8 @@ export default function PlayerPageContent({
           season={season}
           teamId={player.current_team_id}
           topReceivers={crossLinkReceivers}
+          headshotUrl={player.headshot_url ?? null}
+          jerseyNumber={player.jersey_number ?? null}
         />
       );
     }
@@ -118,13 +121,17 @@ export default function PlayerPageContent({
           season={season}
           teamId={player.current_team_id}
           teamQBData={crossLinkQB ?? undefined}
+          headshotUrl={player.headshot_url ?? null}
+          jerseyNumber={player.jersey_number ?? null}
         />
       );
     }
 
-    if (position === "RB") {
-      const rbWeekly = weeklyStats as RBWeeklyStat[];
-      if (rbWeekly.length === 0) {
+    // FBs are carried in the RB stat tables.
+    if (position === "RB" || position === "FB") {
+      const rbStats = seasonStats as RBSeasonStat[];
+      const stat = rbStats[0];
+      if (!stat) {
         return (
           <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center text-gray-400">
             <p className="text-lg font-medium mb-1">No season data</p>
@@ -134,11 +141,12 @@ export default function PlayerPageContent({
       }
       return (
         <PlayerOverviewRB
-          weeklyStats={rbWeekly}
-          allRBWeekly={allPlayers as RBWeeklyStat[]}
+          stats={stat}
+          allRBs={allPlayers as RBSeasonStat[]}
           season={season}
           teamId={player.current_team_id}
-          playerName={player.player_name}
+          headshotUrl={player.headshot_url ?? null}
+          jerseyNumber={player.jersey_number ?? null}
         />
       );
     }
@@ -212,11 +220,9 @@ export default function PlayerPageContent({
       </div>
 
       {/* Tab content */}
-      {activeTab === "overview" ? (
-        <div id="share-card-target">
-          {renderOverview()}
-        </div>
-      ) : activeTab === "field-map" ? renderFieldMap() : renderGameLog()}
+      {activeTab === "overview"
+        ? renderOverview()
+        : activeTab === "field-map" ? renderFieldMap() : renderGameLog()}
     </>
   );
 }

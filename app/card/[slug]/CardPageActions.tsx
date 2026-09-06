@@ -5,13 +5,15 @@ import { useState } from "react";
 
 interface CardPageActionsProps {
   slug: string;
+  season: number;
 }
 
-export default function CardPageActions({ slug }: CardPageActionsProps) {
+export default function CardPageActions({ slug, season }: CardPageActionsProps) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopyLink() {
-    const url = `${window.location.origin}/card/${slug}`;
+    // Include the season so sharing a historical view shares that season.
+    const url = `${window.location.origin}/card/${slug}?season=${season}`;
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
@@ -30,8 +32,9 @@ export default function CardPageActions({ slug }: CardPageActionsProps) {
   }
 
   function handleDownload() {
-    // Open the OG image in a new tab — it's a real PNG the user can save
-    window.open(`/api/stat-card/${slug}`, "_blank");
+    // The route serves the card PNG with Content-Disposition: attachment, so
+    // the browser saves the file for this season instead of navigating to it.
+    window.open(`/api/stat-card/${slug}?season=${season}`, "_blank");
   }
 
   return (
