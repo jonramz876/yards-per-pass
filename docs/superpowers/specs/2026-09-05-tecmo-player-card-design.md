@@ -114,6 +114,20 @@ Notes:
 - **Below-threshold players show `—` instead of an OVR** (per-game eligibility rule above). The below-threshold warning banner stays on the player page, reworded to the per-game rule so it never contradicts a shown OVR.
 - Glossary gets an "OVR" entry documenting the formula and exactly which metrics feed it per position.
 
+## Passing Map redesign — "Tecmo Field" (amendment 2026-09-06, Jon picked option C from mockups)
+
+`components/player/PlayerFieldHeatMap.tsx` is rewritten from SVG to an HTML/CSS grid (props unchanged EXCEPT new additions: `teamName`, `primaryColor`, `secondaryColor`, `jerseyNumber` — threaded from PlayerPageContent like the card's). Mockup reference: `.superpowers/brainstorm/3394-1788732307/content/passing-map-options.html` option C.
+
+- **Structure**: team-color band header (pixel font, `PASSING MAP` left, `N-NAME · SEASON` right, textColorForBackground); dark navy `#0f172a` field panel; tab bar (EPA/ATT · CPOE · YDS/ATT · YARDS — pixel font, active = white chip); 4-col CSS grid (depth label gutter + 3 direction columns); dashed row dividers labeled `20 YDS` (deep/mid) and `10 YDS` (mid/short); gold `#f8d800` scrimmage rule at the bottom with `SCRIMMAGE` + `YARDSPERPASS.COM` pixel labels; season-totals strip (EPA, comp/att, pct, yds, TD, INT) between band and tabs, restyled to the dark panel.
+- **Cells**: solid fills keyed to the ACTIVE metric (this replaces v1's volume-tinted EPA cells — the #1 confusion). Chunky 2px brighter-step border (retro tile look). Big value in the REGULAR font with auto text color per step; subline (`8/19 · 2TD 1INT`) in the regular font, small; pixel font is for labels/headers ONLY. Empty zone: `—`, neutral slate tile.
+- **Color scales (dark-surface steps, pinned)**: EPA/ATT and CPOE are DIVERGING blue↔orange around 0 — positive steps `#1e293b (≈0) → #2563eb → #1d4ed8` region with light borders `#334155/#60a5fa/#93c5fd`, negative `#7c2d12 → #9a3412 → #c2410c` with `#ea580c/#fb923c` borders; clamp EPA at ±0.5, CPOE at ±15. YDS/ATT and YARDS are SEQUENTIAL blues (same positive ramp), YPA clamp 0–12, yards normalized to the zone max. Values always printed, so color is reinforcement, not the sole carrier; implementer picks exact 5-step arrays within these families and states them.
+- **Legend**: always visible, every tab: gradient bar with `TOUGH → ELITE` (diverging tabs) or `LOW → HIGH` (sequential tabs), pixel labels.
+- **Hover**: every non-empty cell gets a `title` tooltip with the full detail line (metric value, comp/att, comp%, yards, TD, INT).
+- **Scale footgun (reviewer-verified)**: `QBPassLocationStat.completion_pct` is stored 0–1 (×100 for display), the OPPOSITE of season-level `QBSeasonStat.completion_pct` (0–100). Keep the old component's ×100.
+- **Tests (first coverage for this component)**: renders 9 zones; empty-state message; tab switch changes fills/values; `title` tooltip present on non-empty cells. Auto text color via `textColorForBackground`, never hardcoded white.
+- **Width**: panel max-w-2xl, lg:max-w-3xl (fixes the old max-w-lg desktop smallness). Mobile: grid stays 4-col (cells compress); sublines may drop the TD/INT segment below `sm` if cramped — implementer's judgment.
+- **Percentile-clarity fix (same change set, TecmoPlayerCard.tsx)**: a one-line pixel-font column header `VALUE / PCTL` (gray, right-aligned) above the ability-row value column, and each ordinal `<b>` gets `title="Nth percentile among qualified <POS>s"`. No other card changes.
+
 ## Where the card appears
 
 1. **`/card/[slug]`** — the card full-size, replacing `StatCardView`. Gains `?season=` support (defaults to latest, same resolution as other pages). Copy Link button stays; **Download Image is served by a new route handler `/api/stat-card/[slug]?season=`** that renders the card via `ImageResponse` (fixing today's 404 and honoring the season picker — the file-convention OG image cannot see `?season`, so it stays latest-season for social embeds while downloads respect the picked season). Both renders share one card-drawing function.
