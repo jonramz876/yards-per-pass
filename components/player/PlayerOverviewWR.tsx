@@ -36,7 +36,7 @@ export default function PlayerOverviewWR({
   );
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl lg:max-w-4xl mx-auto space-y-6">
       {!wrEligible(stats) && (
         <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
           Small sample: below {WR_MIN_TGT_PER_GAME} targets per game. Percentiles are noisy and OVR is hidden.
