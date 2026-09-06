@@ -6,6 +6,7 @@ import type { TeamHubData } from "@/lib/data/team-hub";
 import DashboardShell from "@/components/layout/DashboardShell";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import TeamIdentityCard from "@/components/team/TeamIdentityCard";
+import ScheduleSection from "@/components/team/ScheduleSection";
 import PassingSection from "@/components/team/PassingSection";
 import GroundGameSection from "@/components/team/GroundGameSection";
 import DefenseSection from "@/components/team/DefenseSection";
@@ -40,6 +41,14 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
       />
 
       <div className="space-y-8 mt-8">
+        <ScheduleSection
+          schedule={data.schedule}
+          teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
+          teamStats={data.teamStats}
+        />
+
         <PassingSection
           teamQBs={data.teamQBs}
           teamReceivers={data.teamReceivers}

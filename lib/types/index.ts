@@ -307,6 +307,38 @@ export interface QBPassLocationStat {
   passer_rating: number | null;
 }
 
+/**
+ * One row of the `games` table (nflverse schedules), with the fields that only
+ * make sense relative to ONE team derived for that team. Future games carry
+ * null scores, so `played` — not the week number — is what says a game is done.
+ */
+export interface TeamGame {
+  game_id: string;
+  season: number;
+  /** REG for regular season; WC / DIV / CON / SB for playoff rounds. */
+  game_type: string;
+  week: number;
+  /** ISO date "2026-09-13" (nullable in the source for TBD games). */
+  gameday: string | null;
+  /** Full day name, e.g. "Sunday". */
+  weekday: string | null;
+  /** Kickoff in 24h ET, e.g. "13:00". Null when not yet scheduled. */
+  gametime: string | null;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+  // ── derived for the team the schedule was fetched for ──
+  opponent_id: string;
+  home_away: "home" | "away";
+  /** Both scores present — the game has been played. */
+  played: boolean;
+  /** From this team's perspective; null until played. */
+  result: "W" | "L" | "T" | null;
+  team_score: number | null;
+  opponent_score: number | null;
+}
+
 export interface TeamDownDistanceStat {
   team_id: string;
   season: number;
