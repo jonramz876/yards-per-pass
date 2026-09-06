@@ -57,6 +57,29 @@ Pools are position-matched as today (TE vs TE). Players below the rule show OVR 
 
 ## OVR score
 
+**Amended 2026-09-06 (v3, Jon-approved): Madden display scale (all positions) + QB "Ability" formula + ingest kneel fix.** Validated by a six-season study (2020–2025, 54-check ground-truth suite: winner 0 misses vs 9 for v2; artifacts `qb_ovr_study_*` in session scratchpad).
+
+**1. Madden display scale — ALL positions.** The position's 50-centered blend (below) maps to display via `display = min(99, round(77 + (blend − 50) × 0.45))`. Average qualified starter ≈ 77, best ≈ 95–99 (Jon: "like Madden ratings"). Ineligible/null handling unchanged (`—`). The round happens ONLY at this final step; blends stay unrounded internally.
+
+**2. QB blend (v3 "Ability") — replaces the v2 QB combining formula:**
+- `quality` = WEIGHTED mean of percentiles: `epa_per_db` (w=1), `any_a` (w=1), `cpoe` (w=1), `success_rate` (w=1), `rush_epa_reg` (w = `min((rush_attempts/games)/3, 1)` — rushing efficiency counts in proportion to rush volume, full at 3+ att/g; raw value = the existing radar getter `getQBRadarVal(me,"rush_epa")`). ANY/A replaces `inv_int_pct` as an OVR input (it bundles INT/sack/TD); the ability BARS and radar are unchanged — this affects OVR inputs only.
+- `production` = mean of PER-GAME percentiles vs the qualified pool: `epa_pg = epa_per_play × (dropbacks + rush_attempts − scrambles) / games` where `scrambles = (scramble_pct/100) × dropbacks` (verify scramble_pct's stored scale against ingest; the study confirmed /100); `yds_pg = (passing_yards + rush_yards)/games`; `tds_pg = (touchdowns + rush_tds)/games`.
+- `blend = 50 + (0.5×quality + 0.5×production − 50) × min(attempts/CAP, 1)^0.5` (square-root regression — gentler than v2's linear; CAP = existing 70th-pctl pool attempts via quantileLinear). Symmetric half-degradation rules carry over from v2 verbatim.
+
+**3. WR/TE/RB blends: unchanged v2 math**, then the Madden display map. (Their `0.5×quality_reg + 0.5×production` result IS the blend fed to the map.)
+
+**4. Ingest kneel fix.** BOTH `aggregate_qb_stats` AND `aggregate_qb_weekly_stats` drop `play_type == 'qb_kneel'` rows (on a LOCAL filtered copy — never mutate the shared `plays` frame, which feeds RB/team aggregators that must keep kneels): victory-formation kneels (−1 EPA each, ~420/season league-wide) currently pollute QB rush EPA and epa_per_play, costing winning QBs 10–25 EPA/season (Lamar 2023 real rush EPA ≈ +37, stored +10). Extending to weekly keeps the Game Log's rush yards/FPTS summing to the season card above it. Also fix the factually wrong comment at ingest.py:424 ("filter_plays() already excludes kneeldowns" — it doesn't). Consequence, accepted by design: QB `rush_attempts`/`rush_yards` become kneel-free and diverge slightly from PFR (which counts kneels). Python tests required for both aggregators. After merge: backfill seasons 2020–2025 via the workflow so historical cards update.
+
+**4b. Degradation clarification (v3 quality is a weighted mean):** a missing quality metric drops both its value and its WEIGHT (renormalize over the remaining weights); production and half-level degradation follow the v2 rules verbatim.
+
+**4c. Stale v2 artifacts the implementation must update:** `lib/stats/tecmo-card.ts` header comment (REG50 formula description) + `ovrFrom` docstring (restates the old round placement) + `QB_OVR_KEYS` list/comment (v3 drops `inv_int_pct` for `any_a` — OVR-only; bars/radar unaffected); `lib/og/tecmo-card-image.tsx` `visibleRows` rationale comment (ANY/A is now an OVR input with no bar — weaken the "visible rows explain the score" claim rather than change row selection); `scripts/ingest.py:424` stale comment (covered in item 4); `app/glossary/page.tsx` (item 6); and `__tests__/stats/tecmo-card.test.ts` — near-total churn of numeric OVR expectations (Madden map shifts every position; QB cases additionally shift from new inputs + sqrt regression); invariant tests survive with recomputed values, and new v3-specific tests are required (weighted-quality renormalization, rush-weight scaling, per-game production, sqrt regression, the Madden map itself incl. blend 50 → 77 and cap at 99).
+
+**5. Validation (implementer MUST reproduce before pushing)** — against the study's scored frames (scratchpad `qb_ovr_study_final_2025.parquet`, winner column `ovr_W_soft3` = raw blend, pre-kneel-fix data): after the Madden map, 2025 displays = Maye 97, Allen 94, Mahomes 92, Stafford 92, Purdy 91, Burrow 86, Lamar 85, McCarthy 71, Ward 67; RB Henry 91, Corum 90 (from the RB study frame under v2+map). Post-kneel-fix data may shift QBs ≤2 points — the reproduction check runs on pre-fix data.
+
+**6. Glossary `#ovr`** — rewritten: Madden-style scale (avg starter ≈ high 70s, best ≈ 99), QB measures how well he played when he played (per-play quality incl. rushing for QBs who run + per-game production incl. rushing, short seasons pulled toward average), other positions as before, thresholds unchanged.
+
+## OVR score (v2 — superseded by v3 above for the combining/display math; input tables below still current for WR/TE/RB and for the QB bars)
+
 **Amended 2026-09-05 (v2, "REG50") after user feedback + empirical study on full 2025 data** (all-pro workhorses scored poorly under quality-only; pure total-EPA addition fails at RB because league rushing EPA is net-negative — study artifacts in session scratchpad):
 
 `OVR = min(99, round(0.5 × quality_reg + 0.5 × production))`, where:
