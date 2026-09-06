@@ -56,40 +56,51 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           allTeamStats={data.allTeamStats}
           teamId={team.id}
           freshness={data.freshness}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <GroundGameSection
           teamRBGaps={data.teamRBGaps}
-          teamDefGaps={data.teamDefGaps}
           teamId={team.id}
           slugMap={data.slugMap}
           allTeamStats={data.allTeamStats}
           season={data.currentSeason}
           freshness={data.freshness}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <DownDistanceHeatmap
           stats={data.downDistanceStats}
           nflAvg={data.downDistanceNFL}
           teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <SituationalDashboard
           teamStats={data.situationalStats}
           allTeamStats={data.allSituationalStats}
           teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <DefenseSection
           teamStats={data.teamStats}
           allTeamStats={data.allTeamStats}
           teamDefGaps={data.teamDefGaps}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <DivisionRivals
           allTeamStats={data.allTeamStats}
           division={team.division}
           currentTeamId={team.id}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
       </div>
     </DashboardShell>

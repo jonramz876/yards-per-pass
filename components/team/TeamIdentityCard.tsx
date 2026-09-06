@@ -1,32 +1,81 @@
-// components/team/TeamIdentityCard.tsx
+// components/team/TeamIdentityCard.tsx — Tecmo page header.
+// Team-color pixel band (name left, division right) over a body row of logo +
+// two pixel lines: the record with division rank, then league ranks and the
+// turnover differential. Before week 1 `teamStats` is null (schedules backfill
+// ahead of any stats) — the two pixel lines are then omitted entirely so the
+// header never shows `undefined`/`NaN`.
 "use client";
 
 import Image from "next/image";
 import type { Team, TeamSeasonStat } from "@/lib/types";
+import { textColorForBackground } from "@/lib/stats/formatters";
+import { ordinal } from "@/lib/stats/percentiles";
+import { NFL_TEAMS } from "@/lib/data/teams";
 
 interface TeamIdentityCardProps {
   team: Team;
+  /** Null before the season's first game is scored. */
   teamStats: TeamSeasonStat | null;
   allTeamStats: TeamSeasonStat[];
 }
 
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+const PIXEL = "font-[family-name:var(--font-pixel)]";
+
+/** `+9` / `-3` — plain ASCII sign so the pixel font always has the glyph. */
+function signed(value: number): string {
+  return value >= 0 ? `+${value}` : `${value}`;
 }
 
-function computeRank(
+/**
+ * League rank, 1 = best. `ascending` ranks lowest-first (defensive EPA).
+ * Competition ranking: tied teams share the better rank. Returns null when the
+ * team is missing from the pool or its value isn't a real number (`parseNumericFields`
+ * turns nulls into NaN).
+ */
+function leagueRank(
   allStats: TeamSeasonStat[],
   teamId: string,
   getValue: (t: TeamSeasonStat) => number,
-  ascending: boolean = false
-): number {
-  const sorted = [...allStats].sort((a, b) =>
-    ascending ? getValue(a) - getValue(b) : getValue(b) - getValue(a)
+  ascending: boolean
+): number | null {
+  const self = allStats.find((t) => t.team_id === teamId);
+  if (!self) return null;
+  const value = getValue(self);
+  if (!Number.isFinite(value)) return null;
+
+  const ahead = allStats.filter((t) => {
+    const other = getValue(t);
+    if (!Number.isFinite(other)) return false;
+    return ascending ? other < value : other > value;
+  }).length;
+  return ahead + 1;
+}
+
+/**
+ * Place in the division by wins. The division roster comes from NFL_TEAMS (so
+ * a partially-populated allTeamStats can't shrink the field silently), and
+ * teams tied on wins share the same rank — 4/3/2/2 wins reads 1st/2nd/3rd/3rd.
+ */
+function divisionRank(allStats: TeamSeasonStat[], team: Team): number | null {
+  const divisionIds = new Set(
+    NFL_TEAMS.filter((t) => t.division === team.division).map((t) => t.id)
   );
-  const idx = sorted.findIndex((t) => t.team_id === teamId);
-  return idx >= 0 ? idx + 1 : 0;
+  const inDivision = allStats.filter((t) => divisionIds.has(t.team_id));
+  const self = inDivision.find((t) => t.team_id === team.id);
+  if (!self || !Number.isFinite(self.wins)) return null;
+
+  const ahead = inDivision.filter(
+    (t) => Number.isFinite(t.wins) && t.wins > self.wins
+  ).length;
+  return ahead + 1;
+}
+
+/** "12-5" / "9-7-1" — null when the W/L numbers aren't usable. */
+function formatRecord(stats: TeamSeasonStat): string | null {
+  const { wins, losses, ties } = stats;
+  if (!Number.isFinite(wins) || !Number.isFinite(losses)) return null;
+  const t = Number.isFinite(ties) ? ties : 0;
+  return t > 0 ? `${wins}-${losses}-${t}` : `${wins}-${losses}`;
 }
 
 export default function TeamIdentityCard({
@@ -34,108 +83,76 @@ export default function TeamIdentityCard({
   teamStats,
   allTeamStats,
 }: TeamIdentityCardProps) {
-  const record = teamStats
-    ? `${teamStats.wins}-${teamStats.losses}${teamStats.ties > 0 ? `-${teamStats.ties}` : ""}`
-    : null;
+  const bandText = textColorForBackground(team.primaryColor);
 
-  // Offensive EPA rank: higher is better
+  // Line 1: "12-5 · 2ND AFC EAST" — either half may drop out on its own.
+  const record = teamStats ? formatRecord(teamStats) : null;
+  const divRank = teamStats ? divisionRank(allTeamStats, team) : null;
+  const recordLine =
+    [record, divRank ? `${ordinal(divRank)} ${team.division}` : null]
+      .filter(Boolean)
+      .join(" · ") || null;
+
+  // Line 2: "OFF EPA 3RD · DEF EPA 11TH · TO DIFF +9"
   const offEpaRank = teamStats
-    ? computeRank(allTeamStats, team.id, (t) => t.off_epa_play, false)
-    : 0;
-
-  // Defensive EPA rank: lower (more negative) is better
+    ? leagueRank(allTeamStats, team.id, (t) => t.off_epa_play, false)
+    : null;
+  // Defense: lower (more negative) EPA is better, so rank ascending.
   const defEpaRank = teamStats
-    ? computeRank(allTeamStats, team.id, (t) => t.def_epa_play, true)
-    : 0;
+    ? leagueRank(allTeamStats, team.id, (t) => t.def_epa_play, true)
+    : null;
+  const toDiff = teamStats?.turnover_diff;
+  const rankLine =
+    [
+      offEpaRank ? `Off EPA ${ordinal(offEpaRank)}` : null,
+      defEpaRank ? `Def EPA ${ordinal(defEpaRank)}` : null,
+      typeof toDiff === "number" && Number.isFinite(toDiff)
+        ? `TO Diff ${signed(toDiff)}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null;
 
   return (
-    <div className="rounded-lg border border-gray-200 overflow-hidden">
-      {/* Team-colored accent bar */}
-      <div className="h-1.5" style={{ backgroundColor: team.primaryColor }} />
+    <div className="bg-white rounded-xl shadow overflow-hidden">
+      {/* Team band */}
+      <div
+        className={`${PIXEL} flex items-center justify-between gap-2 px-3 py-2.5 lg:px-5 lg:py-3 text-[7px] sm:text-[9px] lg:text-[11px] uppercase tracking-wide`}
+        style={{
+          background: team.primaryColor,
+          color: bandText,
+          borderBottom: `2px solid ${team.secondaryColor}`,
+        }}
+      >
+        <h2 className="min-w-0 truncate">{team.name}</h2>
+        {/* team.division already carries the conference ("AFC East") */}
+        <span className="shrink-0 text-right">{team.division}</span>
+      </div>
 
-      <div className="p-6 flex flex-col sm:flex-row sm:items-center gap-6">
-        {/* Team logo */}
-        <div className="flex-shrink-0">
-          <Image
-            src={team.logo}
-            alt={team.name}
-            width={80}
-            height={80}
-            className="object-contain"
-          />
-        </div>
+      <div className="flex items-center gap-4 p-4 lg:px-5 lg:py-5">
+        <Image
+          src={team.logo}
+          alt={team.name}
+          width={56}
+          height={56}
+          className="w-11 h-11 lg:w-14 lg:h-14 object-contain flex-shrink-0"
+        />
 
-        {/* Team info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-2xl font-extrabold text-navy tracking-tight">
-              {team.name}
-            </h2>
-            {record && (
-              <span className="inline-flex items-center px-2.5 py-0.5 text-sm font-semibold text-gray-600 bg-gray-100 rounded-full">
-                {record}
-              </span>
+        {(recordLine || rankLine) && (
+          <div className="min-w-0">
+            {recordLine && (
+              <div className={`${PIXEL} text-[8px] sm:text-[9px] lg:text-[11px] text-navy uppercase leading-relaxed`}>
+                {recordLine}
+              </div>
+            )}
+            {rankLine && (
+              <div className={`${PIXEL} mt-1.5 text-[6px] lg:text-[8px] text-slate-500 uppercase leading-relaxed`}>
+                {rankLine}
+              </div>
             )}
           </div>
-
-          {/* Division / Conference labels */}
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-sm text-gray-500">{team.conference}</span>
-            <span className="text-gray-300">&middot;</span>
-            <span className="text-sm text-gray-500">{team.division}</span>
-          </div>
-
-          {/* EPA rank badges */}
-          {teamStats && (
-            <div className="flex items-center gap-3 mt-3 flex-wrap">
-              <EpaRankBadge
-                label="Off EPA"
-                rank={offEpaRank}
-                value={teamStats.off_epa_play}
-              />
-              <EpaRankBadge
-                label="Def EPA"
-                rank={defEpaRank}
-                value={teamStats.def_epa_play}
-              />
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
-  );
-}
-
-function EpaRankBadge({
-  label,
-  rank,
-  value,
-}: {
-  label: string;
-  rank: number;
-  value: number;
-}) {
-  // Top 10 = green, 11-22 = gray, 23-32 = red
-  // For defense (invertColor), the logic is the same since rank is already
-  // computed with ascending sort (lower def_epa = better rank)
-  let colorClass = "bg-gray-100 text-gray-700";
-  if (rank > 0 && rank <= 10) {
-    colorClass = "bg-emerald-50 text-emerald-700";
-  } else if (rank > 22) {
-    colorClass = "bg-red-50 text-red-700";
-  }
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 text-sm font-medium rounded-md ${colorClass}`}
-    >
-      <span className="font-bold">{ordinalSuffix(rank)}</span>
-      <span className="text-gray-400">in</span>
-      <span>{label}</span>
-      <span className="text-xs text-gray-400 ml-1">
-        ({value >= 0 ? "+" : ""}
-        {value.toFixed(3)})
-      </span>
-    </span>
   );
 }

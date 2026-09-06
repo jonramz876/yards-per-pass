@@ -28,6 +28,12 @@ export interface TeamSeasonStat {
   wins: number;
   losses: number;
   ties: number;
+  /** Defensive forced turnovers. Null on rows ingested before the column existed. */
+  takeaways: number | null;
+  /** Offensive turnovers. Null on rows ingested before the column existed. */
+  giveaways: number | null;
+  /** takeaways - giveaways. Null on rows ingested before the column existed. */
+  turnover_diff: number | null;
 }
 
 export interface QBSeasonStat {
