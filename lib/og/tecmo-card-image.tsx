@@ -102,8 +102,12 @@ const NON_OVR_ROW = "DROPBACKS/GM";
 
 /**
  * Six ability rows fit on the image; QB cards ship seven. Drop DROPBACKS/GM
- * rather than the tail: it's volume, excluded from OVR, whereas the last row
- * (RUSH EPA) is an OVR input — the visible rows should explain the score.
+ * rather than the tail: it's raw volume, excluded from OVR, whereas the last
+ * row (RUSH EPA) is an OVR input, so this keeps the more informative six.
+ *
+ * The visible rows are not a complete account of the score, and were never
+ * meant to be read as one: OVR v3 also weighs ANY/A and per-game production,
+ * neither of which has an ability bar on any card, in any render.
  */
 function visibleRows(rows: AbilityRow[]): AbilityRow[] {
   if (rows.length <= 6) return rows;
