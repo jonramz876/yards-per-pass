@@ -1,9 +1,19 @@
 // lib/stats/tecmo-card.ts — data builders for the Tecmo player card.
-// Eligibility (per-game, unified), OVR (quality metrics only), ability rows.
+// Eligibility (per-game, unified), OVR v2 ("REG50"), ability rows.
 //
-// OVR design intent: style metrics (aDOT, air yards/target, YAC/rec) and volume
-// metrics (dropbacks/targets/carries per game) show up as ability bars but are
-// deliberately EXCLUDED from the OVR average — OVR grades quality, not usage.
+// OVR = min(99, round(0.5 × quality_reg + 0.5 × production)), where
+//   quality_reg = 50 + (mean of the position's QUALITY percentiles − 50)
+//                 × min(volume / CAP, 1)   — small samples regress to average
+//   production  = mean of the season total-EPA and total-yards percentiles
+//   CAP         = the qualified pool's 70th-percentile volume
+// so OVR grades quality AND how much of it a player actually delivered.
+//
+// Style metrics (aDOT, air yards/target, YAC/rec) show up as ability bars but
+// are deliberately excluded from OVR. Raw volume (dropbacks/targets/carries per
+// game) is not an OVR input either — volume enters only as the regression
+// weight on the quality half and through the season totals in the production
+// half. See the "OVR score" section of
+// docs/superpowers/specs/2026-09-05-tecmo-player-card-design.md.
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import { computePercentile } from "./percentiles";
 import {
@@ -73,20 +83,73 @@ const signed = (v: number | null | undefined, d = 2) =>
 const signedRate = (v: number | null | undefined, d = 1) =>
   v == null || !Number.isFinite(v) ? EM_DASH : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d)}%`;
 
+/** Volume quantile that earns a player full credit for his quality metrics. */
+const OVR_CAP_QUANTILE = 0.7;
+
+const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
 /**
- * Average the supplied percentiles into a 0–99 OVR.
+ * Value at quantile `q` of an ascending-sorted array, interpolating linearly
+ * between the closest ranks: the value at fractional index `q × (n − 1)`.
+ *
+ * This is numpy `percentile` / pandas `quantile` default behavior, which is the
+ * convention the OVR study validated CAP under — a nearest-rank variant would
+ * shift every regression weight. Empty input → NaN (callers gate on a
+ * non-empty pool, and `ovrFrom` treats a non-positive/NaN CAP as "no
+ * regression" rather than dividing by it).
+ */
+function quantileLinear(sortedAsc: number[], q: number): number {
+  if (sortedAsc.length === 0) return NaN;
+  const idx = q * (sortedAsc.length - 1);
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (idx - lo) * (sortedAsc[hi] - sortedAsc[lo]);
+}
+
+/**
+ * Blend volume-regressed quality with season production into a 0–99 OVR.
+ *
+ *   quality_reg = 50 + (mean quality percentile − 50) × min(volume / cap, 1)
+ *   production  = mean of the available production percentiles
+ *   OVR         = min(99, round(0.5 × quality_reg + 0.5 × production))
  *
  * Callers must pass NaN (not the computed 0) for any metric the player is
  * missing: `computePercentile` returns 0 for a NaN value, and averaging that
- * in would punish a missing metric as if it were dead-last in the league.
- * The NaN filter below drops those inputs so OVR is the mean of what we
- * actually know. All inputs missing → null.
+ * in would punish a missing metric as if it were dead-last in the league. The
+ * NaN filters below drop those inputs so each half is the mean of what we
+ * actually know.
+ *
+ * Degradation is symmetric — a half with no inputs at all is dropped from the
+ * blend rather than counted as a 0 or a 50:
+ *   production entirely missing → quality_reg alone
+ *   quality entirely missing    → production alone
+ *   both missing (or ineligible / empty pool) → null, rendered "—"
  */
-function ovrFrom(pcts: number[], eligible: boolean): number | null {
+function ovrFrom(
+  qualityPcts: number[],
+  productionPcts: number[],
+  volume: number,
+  cap: number,
+  eligible: boolean,
+): number | null {
   if (!eligible) return null;
-  const valid = pcts.filter((p) => !Number.isNaN(p));
-  if (valid.length === 0) return null;
-  return Math.min(99, Math.round(valid.reduce((a, b) => a + b, 0) / valid.length));
+  const quality = qualityPcts.filter((p) => !Number.isNaN(p));
+  const production = productionPcts.filter((p) => !Number.isNaN(p));
+  if (quality.length === 0 && production.length === 0) return null;
+
+  // Trust the quality signal in proportion to sample size: full weight at the
+  // pool's CAP volume, regressing toward 50 (league average) below it.
+  const weight = Number.isFinite(volume) && cap > 0 ? Math.min(volume / cap, 1) : 1;
+  // Each is NaN when its half has no inputs; the branch below never reads it.
+  const qualityReg = 50 + (mean(quality) - 50) * weight;
+  const productionPct = mean(production);
+
+  const blended =
+    quality.length === 0 ? productionPct
+      : production.length === 0 ? qualityReg
+        : 0.5 * qualityReg + 0.5 * productionPct;
+  return Math.min(99, Math.round(blended));
 }
 
 /**
@@ -102,10 +165,34 @@ function pctOf<T>(pool: T[], get: (t: T) => number, me: T): number {
   return computePercentile(vals, get(me)); // returns 0 on NaN/empty
 }
 
+/**
+ * Percentile of one of the two season-total (production) stats, against the
+ * same qualified pool the quality percentiles use. A total the player has no
+ * value for yields NaN so it is excluded from the production mean, mirroring
+ * the missing-quality-metric rule instead of scoring him 0th.
+ */
+function prodPctOf<T>(pool: T[], get: (t: T) => number, me: T): number {
+  return Number.isNaN(get(me)) ? NaN : pctOf(pool, get, me);
+}
+
+/**
+ * CAP: the qualified pool's 70th-percentile volume — the point at which a
+ * player's quality percentiles count in full. Pool values that are missing are
+ * dropped, as everywhere else.
+ */
+function volumeCap<T>(pool: T[], get: (t: T) => number): number {
+  const vals = pool.map(get).filter((v) => !Number.isNaN(v)).sort((a, b) => a - b);
+  return quantileLinear(vals, OVR_CAP_QUANTILE);
+}
+
 // ---------------------------------------------------------------- QB
 type QBRadarKey = (typeof QB_RADAR_KEYS)[number];
 
-/** OVR inputs: quality only — no aDOT (style) and no dropbacks/game (volume). */
+/**
+ * Quality half of OVR: per-play metrics only — no aDOT (style) and no
+ * dropbacks/game (raw volume). Attempts drive OVR through the regression
+ * weight and the production half instead.
+ */
 const QB_OVR_KEYS: readonly QBRadarKey[] =
   ["epa_per_db", "cpoe", "success_rate", "inv_int_pct", "rush_epa"];
 
@@ -121,6 +208,14 @@ export function buildQBCardData(
   // A metric the player doesn't have contributes NaN, not a 0th-percentile 0.
   const ovr = ovrFrom(
     QB_OVR_KEYS.map((k) => (missing(k) ? NaN : pct(k))),
+    // Production: season totals. Known limitation (see spec) — total_epa is
+    // dropback EPA only, so a running QB's production is slightly undercounted.
+    [
+      prodPctOf(pool, (q) => q.total_epa ?? NaN, me),
+      prodPctOf(pool, (q) => q.passing_yards ?? NaN, me),
+    ],
+    me.attempts,
+    volumeCap(pool, (q) => q.attempts),
     eligible && pool.length > 0,
   );
 
@@ -201,9 +296,10 @@ export function buildQBCardData(
 type WRRadarKey = (typeof WR_RADAR_KEYS)[number];
 
 /**
- * OVR inputs: quality only — no targets/game (volume), aDOT or YAC/rec (style).
- * receiving_success_rate is a fourth input but is not a radar axis, so it is
- * percentiled separately below.
+ * Quality half of OVR: per-play metrics only — no targets/game (raw volume),
+ * aDOT or YAC/rec (style). Targets drive OVR through the regression weight and
+ * the production half instead. receiving_success_rate is a fourth quality input
+ * but is not a radar axis, so it is percentiled separately below.
  */
 const WR_OVR_RADAR_KEYS: readonly WRRadarKey[] =
   ["epa_per_target", "croe", "yards_per_route_run"];
@@ -228,6 +324,12 @@ export function buildWRCardData(
       ...WR_OVR_RADAR_KEYS.map((k) => (missing(k) ? NaN : pct(k))),
       Number.isNaN(succRaw) ? NaN : succPct,
     ],
+    [
+      prodPctOf(pool, (r) => r.total_receiving_epa ?? NaN, me),
+      prodPctOf(pool, (r) => r.receiving_yards ?? NaN, me),
+    ],
+    me.targets,
+    volumeCap(pool, (r) => r.targets),
     eligible && pool.length > 0,
   );
 
@@ -301,7 +403,12 @@ export function buildWRCardData(
 // ---------------------------------------------------------------- RB
 type RBRadarKey = (typeof RB_RADAR_KEYS)[number];
 
-/** OVR inputs: rushing quality only — no carries/game or targets/game (volume). */
+/**
+ * Quality half of OVR: rushing per-carry metrics only — no carries/game or
+ * targets/game (raw volume). Carries drive OVR through the regression weight
+ * and the production half instead. Both halves are rushing-only: the
+ * production totals are rushing EPA and rushing yards (see spec).
+ */
 const RB_OVR_KEYS: readonly RBRadarKey[] =
   ["epa_per_carry", "success_rate", "stuff_avoidance", "explosive_rate"];
 
@@ -317,6 +424,12 @@ export function buildRBCardData(
   // A metric the player doesn't have contributes NaN, not a 0th-percentile 0.
   const ovr = ovrFrom(
     RB_OVR_KEYS.map((k) => (missing(k) ? NaN : pct(k))),
+    [
+      prodPctOf(pool, (r) => r.total_rushing_epa ?? NaN, me),
+      prodPctOf(pool, (r) => r.rushing_yards ?? NaN, me),
+    ],
+    me.carries,
+    volumeCap(pool, (r) => r.carries),
     eligible && pool.length > 0,
   );
 

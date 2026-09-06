@@ -55,7 +55,25 @@ Pools are position-matched as today (TE vs TE). Players below the rule show OVR 
 
 ## OVR score
 
-`OVR = round(mean(percentiles of the position's QUALITY metrics))`, clamped to 0–99 (a perfect 100 displays as 99, Tecmo-style). Style and raw-volume metrics are shown as bars but excluded from OVR:
+**Amended 2026-09-05 (v2, "REG50") after user feedback + empirical study on full 2025 data** (all-pro workhorses scored poorly under quality-only; pure total-EPA addition fails at RB because league rushing EPA is net-negative — study artifacts in session scratchpad):
+
+`OVR = min(99, round(0.5 × quality_reg + 0.5 × production))`, where:
+
+- `quality_reg = 50 + (mean(quality-metric percentiles) − 50) × min(volume / CAP, 1)` — the position's quality percentiles (input lists in the table below, unchanged from v1), regressed toward 50 at low volume. `volume` = the player's attempts (QB) / targets (WR/TE) / carries (RB). `CAP` = the 70th-percentile volume of the QUALIFIED pool, computed by **linear interpolation between closest ranks** (numpy `percentile` default: sort ascending, value at fractional index `0.7 × (n − 1)`). The existing `eligible && pool.length > 0` gate is retained, so CAP is never computed on an empty pool.
+- `production = mean(available production percentiles)`, where the two production inputs are the percentile of season total EPA and the percentile of season total yards, both computed **against the same QUALIFIED pool as the quality percentiles** (strictly-less rank / n × 100, the existing `computePercentile`). QB: `total_epa` + `passing_yards`; WR/TE: `total_receiving_epa` + `receiving_yards`; RB: `total_rushing_epa` + `rushing_yards`.
+- Degradation (symmetric): missing components are excluded, never counted as 0. Production entirely missing → OVR = `quality_reg` alone. Quality entirely missing but production present → OVR = `production` alone. Both entirely missing, or ineligible (per-game rule), or empty pool → OVR = null, rendered `—`.
+
+Validated on full 2025 data (qualified pools, conventions above): Henry 68→81 (production pct 92.6), 145-carry backup Corum 93→79, 13-target small-sample WRs deflate from the 90s to ~50, medians 46–48, 85+ rare (2–8 per position).
+
+Known DB-field limitation: QB `total_epa` excludes rushing EPA (undercounts running QBs' production slightly) — candidate ingest refinement, not in this change.
+
+**v2 supersedes these already-shipped v1 artifacts — the implementation MUST update all of them:**
+- `lib/stats/tecmo-card.ts`: `ovrFrom` and the per-builder OVR computation; the header comment (lines ~4-6 "OVR grades quality, not usage" — now false), the comments at the OVR key lists, and the `ovrFrom` docstring.
+- `app/glossary/page.tsx` `#ovr` entry: the "volume metrics … do not affect OVR" sentence is replaced by: "OVR blends how good a player was per play (percentiles, regressed toward average at low volume) 50/50 with how much total value he produced (season EPA + yards)." Style metrics (aDOT, YAC/rec) remain excluded — keep that clause.
+- `__tests__/stats/tecmo-card.test.ts`: the v1 "volume must not change OVR" invariant tests are superseded (volume now legitimately affects OVR via regression + production); the aDOT/style-exclusion invariants REMAIN. New tests required: regression factor at low volume, production blend, each degradation rule above, CAP interpolation.
+- `__tests__/components/TecmoPlayerCard.test.tsx`: unaffected (renders precomputed data), verify only.
+
+Original v1 formula (superseded): `OVR = round(mean(percentiles of the position's QUALITY metrics))`. The quality input lists and notes below remain CURRENT for v2 — only the combining formula changed. Note: "RB OVR is rushing-only" remains true in v2 (production uses rushing EPA/yards, no receiving). Style and raw-volume metrics are shown as bars but excluded from OVR:
 
 | Pos | OVR inputs | Excluded (still shown as bars) |
 |---|---|---|

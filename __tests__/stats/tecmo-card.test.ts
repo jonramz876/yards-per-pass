@@ -88,7 +88,9 @@ describe("buildQBCardData", () => {
     expect(d.ovr).toBeNull();
     expect(d.eligible).toBe(false);
   });
-  it("aDOT and volume are NOT in the OVR inputs (style/volume excluded)", () => {
+  it("aDOT is NOT an OVR input (style excluded)", () => {
+    // Same attempts, same passing totals — only the style metric differs, so
+    // neither the quality half nor the production half of OVR may move.
     const lowAdot = qb({ player_id: "l", adot: 6 });
     const highAdot = qb({ player_id: "h", adot: 12 });
     const p = [...pool, lowAdot, highAdot];
@@ -107,10 +109,14 @@ describe("buildQBCardData", () => {
     const cpoeRow = d.abilityRows.find(r => r.label === "CPOE")!;
     expect(cpoeRow.missing).toBe(true);
     expect(cpoeRow.raw).toBe("—");
-    // EPA/DB 75th, three other inputs 0th (identical pool), CPOE dropped:
-    // mean of [75,0,0,0] = 18.75 -> 19. Counting CPOE as a 0 would give 15.
-    expect(d.ovr).toBe(19);
-    expect(d.ovr).not.toBe(15);
+    // Quality: EPA/DB 75th, three other inputs 0th (identical pool), CPOE
+    // dropped -> mean([75,0,0,0]) = 18.75. All attempts equal so CAP = 542 and
+    // the regression weight is 1 -> quality_reg = 18.75. Production (total EPA
+    // + passing yards identical across the pool) = 0.
+    // OVR = 0.5*18.75 + 0.5*0 = 9.375 -> 9.
+    // Counting CPOE as a 0 would give mean 15 -> 7.5 -> 8.
+    expect(d.ovr).toBe(9);
+    expect(d.ovr).not.toBe(8);
   });
   it("present metrics are not flagged missing", () => {
     const d = buildQBCardData(pool[3], pool, 2026);
@@ -204,15 +210,16 @@ describe("buildWRCardData", () => {
     expect(epaRow.percentile).toBeCloseTo(66.67, 1);
   });
 
-  it("volume and style are NOT in the OVR inputs", () => {
-    const lowVol = wr({
-      player_id: "lv", targets: 60, air_yards_per_target: 5, yac_per_reception: 2,
+  it("style metrics (air yds/tgt, YAC/rec) are NOT in the OVR inputs", () => {
+    // Identical targets and identical receiving totals — only style differs.
+    const lowStyle = wr({
+      player_id: "ls", air_yards_per_target: 5, yac_per_reception: 2,
     });
-    const highVol = wr({
-      player_id: "hv", targets: 160, air_yards_per_target: 15, yac_per_reception: 9,
+    const highStyle = wr({
+      player_id: "hs", air_yards_per_target: 15, yac_per_reception: 9,
     });
-    const p = [...pool, lowVol, highVol];
-    expect(buildWRCardData(lowVol, p, 2026).ovr).toBe(buildWRCardData(highVol, p, 2026).ovr);
+    const p = [...pool, lowStyle, highStyle];
+    expect(buildWRCardData(lowStyle, p, 2026).ovr).toBe(buildWRCardData(highStyle, p, 2026).ovr);
   });
 
   it("empty pool yields null OVR, no NaN in rows", () => {
@@ -229,17 +236,21 @@ describe("buildWRCardData", () => {
     const croeRow = d.abilityRows.find(r => r.label === "CROE")!;
     expect(croeRow.missing).toBe(true);
     expect(croeRow.raw).toBe("—");
-    // EPA/Tgt 75th, YPRR + receiving success 0th, CROE dropped:
-    // mean of [75,0,0] = 25. Counting CROE as a 0 would give 19.
-    expect(d.ovr).toBe(25);
-    expect(d.ovr).not.toBe(19);
+    // Quality: EPA/Tgt 75th, YPRR + receiving success 0th, CROE dropped ->
+    // mean([75,0,0]) = 25. Targets identical across the pool so the regression
+    // weight is 1; production (receiving yards + EPA identical) = 0.
+    // OVR = 0.5*25 + 0.5*0 = 12.5 -> 13.
+    // Counting CROE as a 0 would give mean 18.75 -> 9.375 -> 9.
+    expect(d.ovr).toBe(13);
+    expect(d.ovr).not.toBe(9);
   });
 
   it("a missing receiving_success_rate is excluded from OVR too", () => {
     const noSucc = wr({ player_id: "ns", epa_per_target: 0.40, receiving_success_rate: null });
     const p = [pool[0], pool[1], pool[2], noSucc];
-    // EPA/Tgt 75th, CROE + YPRR 0th, success dropped: mean of [75,0,0] = 25.
-    expect(buildWRCardData(noSucc, p, 2026).ovr).toBe(25);
+    // EPA/Tgt 75th, CROE + YPRR 0th, success dropped: quality mean 25,
+    // production 0 -> 12.5 -> 13.
+    expect(buildWRCardData(noSucc, p, 2026).ovr).toBe(13);
   });
 
   it("formats raw values on the stored scales (golden strings)", () => {
@@ -294,6 +305,8 @@ describe("buildRBCardData", () => {
   });
 
   it("OVR is rushing-only — receiving stats do not move it", () => {
+    // True of both halves in v2: quality is rushing efficiency, production is
+    // rushing EPA + rushing yards. Carries (the volume input) are identical.
     const lowRec = rb({
       player_id: "lr", targets: 8, receptions: 6, receiving_yards: 40, receiving_tds: 0,
     });
@@ -320,10 +333,13 @@ describe("buildRBCardData", () => {
     const explRow = d.abilityRows.find(r => r.label === "EXPLOSIVE %")!;
     expect(explRow.missing).toBe(true);
     expect(explRow.raw).toBe("—");
-    // EPA/Car 75th, success + stuff avoid 0th, explosive dropped:
-    // mean of [75,0,0] = 25. Counting explosive as a 0 would give 19.
-    expect(d.ovr).toBe(25);
-    expect(d.ovr).not.toBe(19);
+    // Quality: EPA/Car 75th, success + stuff avoid 0th, explosive dropped ->
+    // mean([75,0,0]) = 25. Carries identical across the pool so the regression
+    // weight is 1; production (rushing yards + EPA identical) = 0.
+    // OVR = 0.5*25 + 0.5*0 = 12.5 -> 13.
+    // Counting explosive as a 0 would give mean 18.75 -> 9.375 -> 9.
+    expect(d.ovr).toBe(13);
+    expect(d.ovr).not.toBe(9);
   });
 
   it("formats raw values on the stored scales (golden strings)", () => {
@@ -346,5 +362,234 @@ describe("buildRBCardData", () => {
     expect(d.games).toBe(16);
     expect(d.radarValues).toHaveLength(6);
     expect(d.radarLabels).toHaveLength(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OVR v2 ("REG50"), per the "OVR score" section of
+// docs/superpowers/specs/2026-09-05-tecmo-player-card-design.md:
+//   OVR = min(99, round(0.5 * quality_reg + 0.5 * production))
+//   quality_reg = 50 + (mean quality pctl - 50) * min(volume / CAP, 1)
+//   CAP = 70th-percentile pool volume, linearly interpolated
+//   production = mean of the season total-EPA and total-yards percentiles
+// Every expected number below is hand-computed in the comment above it.
+// ---------------------------------------------------------------------------
+describe("OVR v2 (REG50)", () => {
+  type Quality = { epa: number; sr: number; stuff: number; expl: number };
+  type Production = { yards: number; epa: number };
+
+  /** RB fixture spelling out only the fields OVR reads. */
+  const r = (
+    id: string, carries: number, q: Quality, prod: Production, games = 16,
+  ): RBSeasonStat => rb({
+    player_id: id, player_name: id, games, carries,
+    epa_per_carry: q.epa, success_rate: q.sr, stuff_rate: q.stuff,
+    explosive_rate: q.expl, rushing_yards: prod.yards, total_rushing_epa: prod.epa,
+  });
+
+  const ELITE_Q: Quality = { epa: 0.20, sr: 0.60, stuff: 0.10, expl: 0.20 };
+  const BAD_Q: Quality = { epa: -0.10, sr: 0.35, stuff: 0.30, expl: 0.05 };
+  const BIG_PROD: Production = { yards: 1500, epa: 20 };
+  const SMALL_PROD: Production = { yards: 700, epa: -30 };
+
+  // ---- volume regression toward 50, both directions ----
+
+  it("pulls a low-volume elite DOWN toward 50", () => {
+    const fillers = [1, 2, 3].map((i) => r("f" + i, 200, BAD_Q, SMALL_PROD));
+    const hi = r("hi", 300, ELITE_Q, BIG_PROD);
+    const lo = r("lo", 120, ELITE_Q, BIG_PROD);
+    const p = [...fillers, hi, lo]; // identical in every field except carries
+    // Pool carries [120,200,200,200,300] -> CAP = 200 (index 0.7*4 = 2.8).
+    // Both elites: 3 of 5 below on every quality metric AND both production
+    // metrics -> quality 60, production 60.
+    //   hi: w = min(300/200,1) = 1 -> reg 60 -> 0.5*60 + 0.5*60 = 60
+    //   lo: w = 120/200 = 0.6      -> reg 56 -> 0.5*56 + 0.5*60 = 58
+    expect(buildRBCardData(hi, p, 2026).ovr).toBe(60);
+    expect(buildRBCardData(lo, p, 2026).ovr).toBe(58);
+  });
+
+  it("pulls a low-volume disaster UP toward 50", () => {
+    const fillers = [1, 2, 3].map((i) => r("f" + i, 200, ELITE_Q, BIG_PROD));
+    const hi = r("hi", 300, BAD_Q, SMALL_PROD);
+    const lo = r("lo", 120, BAD_Q, SMALL_PROD);
+    const p = [...fillers, hi, lo];
+    // Same CAP = 200. Quality and production percentiles are both 0 (nobody
+    // ranks below them).
+    //   hi: w = 1   -> reg 0  -> 0.5*0 + 0.5*0  = 0
+    //   lo: w = 0.6 -> reg 20 -> 0.5*20 + 0.5*0 = 10
+    expect(buildRBCardData(hi, p, 2026).ovr).toBe(0);
+    expect(buildRBCardData(lo, p, 2026).ovr).toBe(10);
+  });
+
+  // ---- production half ----
+
+  it("rewards bigger season totals at identical efficiency", () => {
+    const same: Quality = { epa: 0.00, sr: 0.45, stuff: 0.20, expl: 0.10 };
+    const p = [
+      r("f1", 200, { epa: -0.10, sr: 0.38, stuff: 0.28, expl: 0.06 }, { yards: 700, epa: -20 }),
+      r("f2", 200, { epa: -0.05, sr: 0.42, stuff: 0.24, expl: 0.08 }, { yards: 800, epa: -10 }),
+      r("f3", 200, { epa: 0.05, sr: 0.48, stuff: 0.16, expl: 0.12 }, { yards: 900, epa: 10 }),
+      r("f4", 200, { epa: 0.10, sr: 0.52, stuff: 0.12, expl: 0.14 }, { yards: 1000, epa: 20 }),
+      r("lowProd", 200, same, { yards: 600, epa: -30 }),
+      r("highProd", 200, same, { yards: 1400, epa: 40 }),
+    ];
+    // All carries equal -> CAP 200, w = 1, so quality_reg = quality = 33.33
+    // (2 of 6 below) for both. Production: lowProd last on both totals -> 0;
+    // highProd 5 of 6 below on both -> 83.33.
+    //   lowProd:  0.5*33.33 + 0.5*0     = 16.67 -> 17
+    //   highProd: 0.5*33.33 + 0.5*83.33 = 58.33 -> 58
+    expect(buildRBCardData(p[4], p, 2026).ovr).toBe(17);
+    expect(buildRBCardData(p[5], p, 2026).ovr).toBe(58);
+  });
+
+  it("a high-volume workhorse outranks a low-volume efficiency darling", () => {
+    // The Henry/Corum shape from the 2025 study: mediocre per-carry numbers but
+    // enormous totals must beat great per-carry numbers on 100 carries.
+    const p = [
+      r("f1", 150, { epa: -0.15, sr: 0.38, stuff: 0.28, expl: 0.06 }, { yards: 500, epa: -20 }),
+      r("f2", 200, { epa: -0.05, sr: 0.42, stuff: 0.24, expl: 0.08 }, { yards: 750, epa: -10 }),
+      r("f3", 250, { epa: 0.00, sr: 0.46, stuff: 0.20, expl: 0.10 }, { yards: 1000, epa: 0 }),
+      r("henry", 350, { epa: -0.02, sr: 0.44, stuff: 0.22, expl: 0.09 }, { yards: 1600, epa: 5 }),
+      r("corum", 100, { epa: 0.15, sr: 0.55, stuff: 0.12, expl: 0.16 }, { yards: 520, epa: 2 }),
+    ];
+    // CAP: carries [100,150,200,250,350], index 0.7*4 = 2.8 -> 200 + 0.8*50 = 240.
+    //   henry: quality 40, w = 1            -> reg 40   ; production (80,80) = 80
+    //          0.5*40 + 0.5*80 = 60
+    //   corum: quality 80, w = 100/240 = .4167 -> reg 62.5; production (20,60) = 40
+    //          0.5*62.5 + 0.5*40 = 51.25 -> 51
+    // v1 (quality only) had this backwards: henry 40, corum 80.
+    const henry = buildRBCardData(p[3], p, 2026).ovr!;
+    const corum = buildRBCardData(p[4], p, 2026).ovr!;
+    expect(henry).toBe(60);
+    expect(corum).toBe(51);
+    expect(henry).toBeGreaterThan(corum);
+  });
+
+  // ---- symmetric degradation ----
+
+  // Three backs the degradation target is measured against: he beats all three
+  // on every quality metric and both production totals -> 75th on each.
+  const DEG_POOL = [
+    r("d1", 200, { epa: -0.10, sr: 0.38, stuff: 0.28, expl: 0.06 }, { yards: 700, epa: -20 }),
+    r("d2", 200, { epa: -0.05, sr: 0.42, stuff: 0.24, expl: 0.08 }, { yards: 800, epa: -10 }),
+    r("d3", 200, { epa: 0.05, sr: 0.48, stuff: 0.16, expl: 0.12 }, { yards: 900, epa: 10 }),
+  ];
+  const GOOD_Q: Quality = { epa: 0.10, sr: 0.52, stuff: 0.12, expl: 0.14 };
+
+  it("production entirely missing -> quality_reg alone", () => {
+    const me = rb({
+      player_id: "me", games: 16, carries: 200,
+      epa_per_carry: GOOD_Q.epa, success_rate: GOOD_Q.sr,
+      stuff_rate: GOOD_Q.stuff, explosive_rate: GOOD_Q.expl,
+      rushing_yards: NaN, total_rushing_epa: null,
+    });
+    const p = [...DEG_POOL, me];
+    // Quality 75 on all four inputs, carries all 200 -> CAP 200, w = 1 -> 75.
+    // Blending a missing production in as a 0 would give 37.5 -> 38.
+    expect(buildRBCardData(me, p, 2026).ovr).toBe(75);
+    expect(buildRBCardData(me, p, 2026).ovr).not.toBe(38);
+  });
+
+  it("quality entirely missing -> production alone", () => {
+    const me = rb({
+      player_id: "me", games: 16, carries: 200,
+      epa_per_carry: NaN, success_rate: NaN, stuff_rate: NaN, explosive_rate: NaN,
+      rushing_yards: 1000, total_rushing_epa: 20,
+    });
+    const p = [...DEG_POOL, me];
+    // Both production percentiles are 75. Treating an absent quality half as a
+    // 50 would give 0.5*50 + 0.5*75 = 62.5 -> 63.
+    expect(buildRBCardData(me, p, 2026).ovr).toBe(75);
+    expect(buildRBCardData(me, p, 2026).ovr).not.toBe(63);
+  });
+
+  it("quality and production both missing -> null OVR", () => {
+    const me = rb({
+      player_id: "me", games: 16, carries: 200,
+      epa_per_carry: NaN, success_rate: NaN, stuff_rate: NaN, explosive_rate: NaN,
+      rushing_yards: NaN, total_rushing_epa: null,
+    });
+    const d = buildRBCardData(me, [...DEG_POOL, me], 2026);
+    expect(d.eligible).toBe(true); // he clears 6 carries/game — there is just no data
+    expect(d.ovr).toBeNull();
+  });
+
+  // ---- CAP quantile convention ----
+
+  it("CAP is the pool's 70th-percentile volume, linearly interpolated", () => {
+    // Volumes [10,20,30,40,50] -> fractional index 0.7*(5-1) = 2.8
+    //   -> 30 + 0.8*(40-30) = 38   (a nearest-rank CAP would be 40)
+    // Every other field is identical, so all quality and production
+    // percentiles are 0 and OVR = round(0.5 * (50 - 50*w)).
+    const q: Quality = { epa: 0.05, sr: 0.45, stuff: 0.20, expl: 0.10 };
+    const prod: Production = { yards: 900, epa: 5 };
+    const p = [10, 20, 30, 40, 50].map((c) => r("c" + c, c, q, prod, 1));
+    const ovr = (i: number) => buildRBCardData(p[i], p, 2026).ovr;
+    expect(ovr(0)).toBe(18); // w = 10/38 = .2632 -> reg 36.84 -> 18.42 (CAP 40 -> 19)
+    expect(ovr(1)).toBe(12); // w = 20/38 = .5263 -> reg 23.68 -> 11.84 (CAP 40 -> 13)
+    expect(ovr(4)).toBe(0);  // w = min(50/38,1) = 1 -> reg 0
+  });
+
+  // ---- range / null guards ----
+
+  it("clamps to 99 and stays an integer at the very top", () => {
+    const others = [1, 2, 3, 4].map((i) => r("f" + i, 200, BAD_Q, SMALL_PROD));
+    const monster = r("monster", 400, ELITE_Q, BIG_PROD);
+    // `monster` is not in the pool, so every percentile is a true 100:
+    // quality_reg 100 (w = 1) and production 100 -> 100, clamped to 99.
+    const d = buildRBCardData(monster, others, 2026);
+    expect(d.ovr).toBe(99);
+    expect(Number.isInteger(d.ovr)).toBe(true);
+  });
+
+  it("stays null for an ineligible player even with huge production", () => {
+    const scrub = r("scrub", 40, ELITE_Q, BIG_PROD); // 2.5 carries/game
+    const p = [...DEG_POOL, scrub];
+    const d = buildRBCardData(scrub, p, 2026);
+    expect(d.eligible).toBe(false);
+    expect(d.ovr).toBeNull();
+  });
+
+  // ---- per-position wiring of the volume and production inputs ----
+
+  it("QB volume is attempts; QB production is total EPA + passing yards", () => {
+    const bad = {
+      epa_per_db: 0.0, cpoe: -2, success_rate: 0.40, interceptions: 20,
+      rush_epa_per_play: -0.1, rush_attempts: 80, total_epa: 10, passing_yards: 3000,
+    };
+    // interceptions 0 keeps ball security (1 - INT/att) identical despite the
+    // different attempt counts, so attempts is the ONLY difference.
+    const good = {
+      epa_per_db: 0.30, cpoe: 5, success_rate: 0.55, interceptions: 0,
+      rush_epa_per_play: 0.3, rush_attempts: 80, total_epa: 150, passing_yards: 4500,
+    };
+    const fillers = [1, 2, 3].map((i) => qb({ player_id: "f" + i, attempts: 500, ...bad }));
+    const hi = qb({ player_id: "hi", attempts: 700, ...good });
+    const lo = qb({ player_id: "lo", attempts: 300, ...good });
+    const p = [...fillers, hi, lo];
+    // Attempts [300,500,500,500,700] -> CAP 500. Quality and production are
+    // both 60 for the two good passers (3 of 5 below on every input).
+    //   hi: w = 1   -> 0.5*60 + 0.5*60 = 60
+    //   lo: w = 0.6 -> 0.5*56 + 0.5*60 = 58
+    expect(buildQBCardData(hi, p, 2026).ovr).toBe(60);
+    expect(buildQBCardData(lo, p, 2026).ovr).toBe(58);
+  });
+
+  it("WR volume is targets; WR production is total receiving EPA + yards", () => {
+    const bad = {
+      epa_per_target: 0.0, croe: -0.02, yards_per_route_run: 1.2,
+      receiving_success_rate: 0.42, total_receiving_epa: 5, receiving_yards: 600,
+    };
+    const good = {
+      epa_per_target: 0.45, croe: 0.06, yards_per_route_run: 2.9,
+      receiving_success_rate: 0.62, total_receiving_epa: 80, receiving_yards: 1400,
+    };
+    const fillers = [1, 2, 3].map((i) => wr({ player_id: "f" + i, targets: 100, ...bad }));
+    const hi = wr({ player_id: "hi", targets: 150, ...good });
+    const lo = wr({ player_id: "lo", targets: 60, ...good });
+    const p = [...fillers, hi, lo];
+    // Targets [60,100,100,100,150] -> CAP 100; same arithmetic as the QB case.
+    expect(buildWRCardData(hi, p, 2026).ovr).toBe(60);
+    expect(buildWRCardData(lo, p, 2026).ovr).toBe(58);
   });
 });
