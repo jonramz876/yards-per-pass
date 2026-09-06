@@ -73,6 +73,14 @@ CURRENT_SEASON = _detect_current_season()
 PBP_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet"
 ROSTER_URL = "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_{season}.parquet"
 PARTICIPATION_URL = "https://github.com/nflverse/nflverse-data/releases/download/pbp_participation/pbp_participation_{season}.parquet"
+SCHEDULES_URL = "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv"
+
+# Columns kept from the schedules file (source has ~46; the rest — betting lines,
+# stadium, officials — are out of scope).
+GAMES_COLS = [
+    'game_id', 'season', 'game_type', 'week', 'gameday', 'weekday',
+    'gametime', 'home_team', 'away_team', 'home_score', 'away_score',
+]
 
 REQUIRED_ROSTER_COLS = ['gsis_id', 'position']
 
@@ -189,6 +197,28 @@ def download_participation(season: int) -> pd.DataFrame | None:
     except Exception as e:
         log.warning("Could not download participation data for %d: %s", season, e)
         return None
+
+
+# One file holds every season, so `--all` must not re-download it per season.
+_SCHEDULES_CACHE = None
+
+
+@retry(max_retries=3, delay=5)
+def download_schedules() -> pd.DataFrame:
+    """Download the nflverse schedules CSV (all seasons, ~2 MB). Cached per process."""
+    global _SCHEDULES_CACHE
+    if _SCHEDULES_CACHE is not None:
+        return _SCHEDULES_CACHE
+    log.info("Downloading schedules...")
+    df = pd.read_csv(SCHEDULES_URL)
+    if len(df) < 1000:
+        raise DataQualityError(f"Schedules file suspiciously small ({len(df)} rows) — expected 7,000+. Aborting.")
+    missing = [c for c in GAMES_COLS if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in schedules data: {missing}")
+    log.info("Loaded %d schedule rows (all seasons)", len(df))
+    _SCHEDULES_CACHE = df
+    return df
 
 
 def filter_plays(pbp: pd.DataFrame) -> pd.DataFrame:
@@ -3015,6 +3045,114 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
     log.info("Upserted %d player slug rows", len(rows))
 
 
+# --- Schedules / games ---
+
+def ensure_games_table(conn):
+    """Create games table (nflverse schedules) if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS games (
+                game_id TEXT PRIMARY KEY,
+                season INT,
+                game_type TEXT,
+                week INT,
+                gameday DATE,
+                weekday TEXT,
+                gametime TEXT,
+                home_team TEXT,
+                away_team TEXT,
+                home_score REAL,
+                away_score REAL,
+                created_at TIMESTAMPTZ DEFAULT now(),
+                updated_at TIMESTAMPTZ DEFAULT now()
+            );
+            CREATE INDEX IF NOT EXISTS idx_games_season_home ON games(season, home_team);
+            CREATE INDEX IF NOT EXISTS idx_games_season_away ON games(season, away_team);
+        """)
+        # RLS (wrapped in exception blocks for idempotent re-runs)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE games ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON games FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured games table exists with RLS")
+
+
+def ingest_schedules(conn, season: int):
+    """Upsert one season's schedule + results into games.
+
+    Future games carry null scores and fill in as they're played, so this runs
+    every refresh: ON CONFLICT updates scores plus gameday/gametime/weekday
+    (reschedules move the date AND the day name).
+
+    conn is None (dry run) → log the would-upsert count and write nothing.
+    """
+    schedules = download_schedules()
+    df = schedules[schedules['season'] == season]
+    if df.empty:
+        log.warning("No schedule rows for season %d — nothing to ingest", season)
+        return
+    df = df[GAMES_COLS]
+
+    if conn is None:
+        log.info("[DRY RUN] Would upsert %d schedule rows for %d", len(df), season)
+        return
+
+    # Missing scores/gametime MUST reach psycopg2 as None. home_score is float64
+    # and gametime the pandas 3 string dtype, neither of which can hold None —
+    # and `.where(cond, None)` does not help (pandas reads that None as "fill
+    # with the default NA", so NaN survives) and psycopg2 adapts NaN as
+    # 'NaN'::float, which Postgres rejects for REAL/TEXT. So place None
+    # explicitly. int()/float() too: numpy scalars have no psycopg2 adapter.
+    clean_df = df.astype(object)
+    rows = []
+    for row in clean_df.itertuples(index=False, name=None):
+        values = []
+        for c, v in zip(GAMES_COLS, row):
+            if pd.isna(v):
+                values.append(None)
+            elif c in ('season', 'week'):
+                values.append(int(v))
+            elif c in ('home_score', 'away_score'):
+                values.append(float(v))
+            else:
+                values.append(str(v))
+        rows.append(tuple(values))
+
+    col_names = ', '.join(GAMES_COLS)
+    update_set = ', '.join(
+        f"{c} = EXCLUDED.{c}"
+        for c in ['home_score', 'away_score', 'gameday', 'gametime', 'weekday']
+    )
+    update_set += ", updated_at = now()"
+
+    try:
+        ensure_games_table(conn)
+        with conn.cursor() as cur:
+            execute_values(
+                cur,
+                f"""INSERT INTO games ({col_names})
+                    VALUES %s
+                    ON CONFLICT (game_id) DO UPDATE SET {update_set}""",
+                rows,
+            )
+        conn.commit()
+    except Exception:
+        # Leave the connection usable — process_season runs next on this same conn
+        conn.rollback()
+        log.error("Schedules ingest for %d FAILED — rolled back", season)
+        raise
+    log.info("Upserted %d schedule rows for %d", len(rows), season)
+
+
 def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None, dd_team_ids: list = None, sit_team_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
@@ -3328,6 +3466,14 @@ def main():
 
     try:
         for season in seasons:
+            # Schedules ingest BEFORE process_season and outside its DataNotYetPublished
+            # skip: the schedule must land even when no PBP exists yet (pre-season).
+            # Its own except — the one below catches only DataNotYetPublished, so an
+            # unwrapped schedules failure would kill the whole run.
+            try:
+                ingest_schedules(conn, season)
+            except Exception as e:
+                log.warning("Schedules ingest for %d failed — continuing: %s", season, e)
             try:
                 process_season(season, conn, dry_run=args.dry_run)
             except DataNotYetPublished as e:

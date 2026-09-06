@@ -3,11 +3,15 @@
 
 import type { TeamSituationalStat } from "@/lib/types";
 import { epaTextColor } from "@/lib/stats/formatters";
+import { ordinal } from "@/lib/stats/percentiles";
+import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
 interface SituationalDashboardProps {
   teamStats: TeamSituationalStat[];
   allTeamStats: TeamSituationalStat[]; // all 32 teams for ranking
   teamName: string;
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 const SITUATION_META: Record<string, { label: string; description: string }> = {
@@ -26,16 +30,6 @@ function computeRank(allTeams: TeamSituationalStat[], situation: string, value: 
   const pool = allTeams.filter((s) => s.situation === situation && s.team_id !== "NFL");
   const better = pool.filter((s) => s.epa_per_play > value).length;
   return better + 1;
-}
-
-function rankSuffix(n: number): string {
-  if (n >= 11 && n <= 13) return "th";
-  switch (n % 10) {
-    case 1: return "st";
-    case 2: return "nd";
-    case 3: return "rd";
-    default: return "th";
-  }
 }
 
 // epaColor for text styling now uses shared epaTextColor from formatters
@@ -110,15 +104,23 @@ function SplitBar({ rushEpa, passEpa }: { rushEpa: number; passEpa: number }) {
   );
 }
 
-export default function SituationalDashboard({ teamStats, allTeamStats }: SituationalDashboardProps) {
+export default function SituationalDashboard({
+  teamStats,
+  allTeamStats,
+  primaryColor,
+  secondaryColor,
+}: SituationalDashboardProps) {
   if (teamStats.length === 0) return null;
 
   const statMap = new Map(teamStats.map((s) => [s.situation, s]));
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-lg font-bold text-gray-900">Situational Efficiency</h3>
-
+    <TecmoSectionCard
+      title="Situational Efficiency"
+      primaryColor={primaryColor}
+      secondaryColor={secondaryColor}
+      bodyClassName="p-6 space-y-3"
+    >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         {DISPLAY_ORDER.map((sit) => {
           const stat = statMap.get(sit);
@@ -140,7 +142,7 @@ export default function SituationalDashboard({ teamStats, allTeamStats }: Situat
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-bold text-gray-500">
-                    {rank}{rankSuffix(rank)}
+                    {ordinal(rank)}
                   </div>
                   <div className="text-[10px] text-gray-400">{stat.plays} plays</div>
                 </div>
@@ -170,6 +172,6 @@ export default function SituationalDashboard({ teamStats, allTeamStats }: Situat
           );
         })}
       </div>
-    </div>
+    </TecmoSectionCard>
   );
 }

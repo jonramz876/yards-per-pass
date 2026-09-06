@@ -6,6 +6,7 @@ import type { TeamHubData } from "@/lib/data/team-hub";
 import DashboardShell from "@/components/layout/DashboardShell";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import TeamIdentityCard from "@/components/team/TeamIdentityCard";
+import ScheduleSection from "@/components/team/ScheduleSection";
 import PassingSection from "@/components/team/PassingSection";
 import GroundGameSection from "@/components/team/GroundGameSection";
 import DefenseSection from "@/components/team/DefenseSection";
@@ -40,6 +41,14 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
       />
 
       <div className="space-y-8 mt-8">
+        <ScheduleSection
+          schedule={data.schedule}
+          teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
+          teamStats={data.teamStats}
+        />
+
         <PassingSection
           teamQBs={data.teamQBs}
           teamReceivers={data.teamReceivers}
@@ -47,40 +56,51 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           allTeamStats={data.allTeamStats}
           teamId={team.id}
           freshness={data.freshness}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <GroundGameSection
           teamRBGaps={data.teamRBGaps}
-          teamDefGaps={data.teamDefGaps}
           teamId={team.id}
           slugMap={data.slugMap}
           allTeamStats={data.allTeamStats}
           season={data.currentSeason}
           freshness={data.freshness}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <DownDistanceHeatmap
           stats={data.downDistanceStats}
           nflAvg={data.downDistanceNFL}
           teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <SituationalDashboard
           teamStats={data.situationalStats}
           allTeamStats={data.allSituationalStats}
           teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <DefenseSection
           teamStats={data.teamStats}
           allTeamStats={data.allTeamStats}
           teamDefGaps={data.teamDefGaps}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
 
         <DivisionRivals
           allTeamStats={data.allTeamStats}
           division={team.division}
           currentTeamId={team.id}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
         />
       </div>
     </DashboardShell>

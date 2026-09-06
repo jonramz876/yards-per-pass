@@ -6,6 +6,7 @@ import { getTeamStats, getQBStats, getDataFreshness, getAvailableSeasons } from 
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBGapStats, getDefGapStats } from "@/lib/data/run-gaps";
 import { getAllPlayerSlugs } from "@/lib/data/players";
+import { getTeamSchedule } from "@/lib/data/games";
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
 import type {
@@ -16,6 +17,7 @@ import type {
   DefGapStat,
   TeamDownDistanceStat,
   TeamSituationalStat,
+  TeamGame,
   DataFreshness,
 } from "@/lib/types";
 
@@ -33,6 +35,7 @@ export interface TeamHubData {
   downDistanceNFL: TeamDownDistanceStat[];
   situationalStats: TeamSituationalStat[];
   allSituationalStats: TeamSituationalStat[];
+  schedule: TeamGame[];
   slugMap: Record<string, string>;
   freshness: DataFreshness | null;
   seasons: number[];
@@ -80,6 +83,7 @@ export async function getTeamHubData(
     teamDefGaps,
     ddResult,
     allSitStats,
+    schedule,
     slugs,
     freshness,
     seasons,
@@ -91,6 +95,7 @@ export async function getTeamHubData(
     getDefGapStats(season, teamId).catch(() => []),
     getDownDistanceStats(season, teamId).catch(() => ({ team: [], nfl: [] })),
     getSituationalStats(season).catch(() => []),
+    getTeamSchedule(teamId, season).catch(() => []),
     getAllPlayerSlugs().catch(() => []),
     getDataFreshness(season).catch(() => null),
     getAvailableSeasons().catch(() => [season]),
@@ -112,6 +117,7 @@ export async function getTeamHubData(
     downDistanceNFL: ddResult.nfl,
     situationalStats: allSitStats.filter((s) => s.team_id === teamId),
     allSituationalStats: allSitStats.filter((s) => s.team_id !== "NFL"),
+    schedule,
     slugMap,
     freshness,
     seasons,

@@ -3,6 +3,8 @@
 
 import Link from "next/link";
 import type { QBSeasonStat, ReceiverSeasonStat, TeamSeasonStat, DataFreshness } from "@/lib/types";
+import { ordinal } from "@/lib/stats/percentiles";
+import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
 interface PassingSectionProps {
   teamQBs: QBSeasonStat[];
@@ -11,12 +13,8 @@ interface PassingSectionProps {
   allTeamStats: TeamSeasonStat[];
   teamId: string;
   freshness: DataFreshness | null;
-}
-
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 function fmt(val: number | null, decimals = 2): string {
@@ -41,6 +39,8 @@ export default function PassingSection({
   allTeamStats,
   teamId,
   freshness,
+  primaryColor,
+  secondaryColor,
 }: PassingSectionProps) {
   // Compute pass EPA rank
   const sorted = [...allTeamStats].sort((a, b) => b.off_pass_epa - a.off_pass_epa);
@@ -58,13 +58,15 @@ export default function PassingSection({
   const sortedReceivers = [...teamReceivers].sort((a, b) => b.targets - a.targets);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-6">
-      <h3 className="text-lg font-bold text-navy mb-4">Passing Attack</h3>
-
+    <TecmoSectionCard
+      title="Passing Attack"
+      primaryColor={primaryColor}
+      secondaryColor={secondaryColor}
+    >
       {/* Programmatic summary */}
       {teamStat && (
         <p className="text-sm text-gray-600 mb-4">
-          The passing offense ranks {ordinalSuffix(rank)} in EPA/play ({fmtSigned(epaVal ?? null, 3)})
+          The passing offense ranks {ordinal(rank)} in EPA/play ({fmtSigned(epaVal ?? null, 3)})
           {week ? ` through Week ${week}` : ""}.
         </p>
       )}
@@ -144,7 +146,7 @@ export default function PassingSection({
       >
         See full QB Rankings &rarr;
       </Link>
-    </div>
+    </TecmoSectionCard>
   );
 }
 

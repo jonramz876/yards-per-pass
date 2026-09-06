@@ -3,20 +3,18 @@
 
 import { useMemo } from "react";
 import type { TeamSeasonStat, DefGapStat } from "@/lib/types";
+import { ordinal } from "@/lib/stats/percentiles";
+import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
 interface DefenseSectionProps {
   teamStats: TeamSeasonStat | null;
   allTeamStats: TeamSeasonStat[];
   teamDefGaps: DefGapStat[];
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 const GAP_ORDER = ["LE", "LT", "LG", "M", "RG", "RT", "RE"];
-
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
 
 function computeRank(
   allStats: TeamSeasonStat[],
@@ -44,6 +42,8 @@ export default function DefenseSection({
   teamStats,
   allTeamStats,
   teamDefGaps,
+  primaryColor,
+  secondaryColor,
 }: DefenseSectionProps) {
   // Defensive gap display — must be called before any early return (hooks rules)
   const gapDisplay = useMemo(() => {
@@ -58,10 +58,13 @@ export default function DefenseSection({
 
   if (!teamStats) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-6">
-        <h3 className="text-lg font-bold text-navy mb-4">Defense</h3>
+      <TecmoSectionCard
+        title="Defense"
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+      >
         <p className="text-sm text-gray-400">No defensive stats available.</p>
-      </div>
+      </TecmoSectionCard>
     );
   }
 
@@ -81,9 +84,11 @@ export default function DefenseSection({
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-6">
-      <h3 className="text-lg font-bold text-navy mb-4">Defense</h3>
-
+    <TecmoSectionCard
+      title="Defense"
+      primaryColor={primaryColor}
+      secondaryColor={secondaryColor}
+    >
       {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {statCards.map((sc) => (
@@ -130,7 +135,7 @@ export default function DefenseSection({
           </div>
         </div>
       )}
-    </div>
+    </TecmoSectionCard>
   );
 }
 
@@ -151,7 +156,7 @@ function RankCard({ label, value, rank }: { label: string; value: string; rank: 
       <div className="text-xs text-gray-500 font-medium mb-1">{label}</div>
       <div className="text-base font-bold text-navy tabular-nums">{value}</div>
       <span className={`inline-block mt-1 px-1.5 py-0.5 text-[10px] font-bold rounded ${rankColor}`}>
-        {ordinalSuffix(rank)}
+        {ordinal(rank)}
       </span>
     </div>
   );

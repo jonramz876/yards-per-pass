@@ -5,17 +5,15 @@ import Link from "next/link";
 import Image from "next/image";
 import type { TeamSeasonStat } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
+import { ordinal } from "@/lib/stats/percentiles";
+import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
 interface DivisionRivalsProps {
   allTeamStats: TeamSeasonStat[];
   division: string;
   currentTeamId: string;
-}
-
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 function computeRank(
@@ -34,6 +32,8 @@ export default function DivisionRivals({
   allTeamStats,
   division,
   currentTeamId,
+  primaryColor,
+  secondaryColor,
 }: DivisionRivalsProps) {
   // Find division rivals (same division, not current team)
   const rivals = allTeamStats.filter((ts) => {
@@ -45,9 +45,11 @@ export default function DivisionRivals({
   const sorted = [...rivals].sort((a, b) => b.wins - a.wins || b.off_epa_play - a.off_epa_play);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-6">
-      <h3 className="text-lg font-bold text-navy mb-4">{division}</h3>
-
+    <TecmoSectionCard
+      title={division}
+      primaryColor={primaryColor}
+      secondaryColor={secondaryColor}
+    >
       {sorted.length === 0 ? (
         <p className="text-sm text-gray-400">No division rival stats available.</p>
       ) : (
@@ -94,7 +96,7 @@ export default function DivisionRivals({
           })}
         </div>
       )}
-    </div>
+    </TecmoSectionCard>
   );
 }
 
@@ -106,7 +108,7 @@ function RankPill({ label, rank }: { label: string; rank: number }) {
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full ${cls}`}>
       {label}:
-      <span className="font-bold">{ordinalSuffix(rank)}</span>
+      <span className="font-bold">{ordinal(rank)}</span>
     </span>
   );
 }

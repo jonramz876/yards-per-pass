@@ -4,11 +4,14 @@
 import { useState, useMemo } from "react";
 import type { TeamDownDistanceStat } from "@/lib/types";
 import { epaColor } from "@/lib/stats/formatters";
+import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
 interface DownDistanceHeatmapProps {
   stats: TeamDownDistanceStat[];
   nflAvg: TeamDownDistanceStat[];
   teamName: string;
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 const DOWNS = [1, 2, 3, 4];
@@ -74,7 +77,12 @@ function textColor(bg: string): string {
   return lum > 0.6 ? "#0f172a" : "#ffffff";
 }
 
-export default function DownDistanceHeatmap({ stats, nflAvg }: DownDistanceHeatmapProps) {
+export default function DownDistanceHeatmap({
+  stats,
+  nflAvg,
+  primaryColor,
+  secondaryColor,
+}: DownDistanceHeatmapProps) {
   const [metric, setMetric] = useState<Metric>("epa_per_carry");
   const currentMetric = METRICS.find((m) => m.key === metric)!;
 
@@ -94,9 +102,13 @@ export default function DownDistanceHeatmap({ stats, nflAvg }: DownDistanceHeatm
   if (stats.length === 0) return null;
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-lg font-bold text-gray-900">Rushing by Down & Distance</h3>
+    <TecmoSectionCard
+      title={"Rushing by Down & Distance"}
+      primaryColor={primaryColor}
+      secondaryColor={secondaryColor}
+      bodyClassName="p-6 space-y-3"
+    >
+      <div className="flex items-center justify-end flex-wrap gap-2">
         <div className="flex gap-1">
           {METRICS.map((m) => (
             <button
@@ -193,6 +205,6 @@ export default function DownDistanceHeatmap({ stats, nflAvg }: DownDistanceHeatm
           <span className="ml-1">NFL avg rush EPA ~-0.06</span>
         )}
       </div>
-    </div>
+    </TecmoSectionCard>
   );
 }

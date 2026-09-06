@@ -3,26 +3,23 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import type { RBGapStat, DefGapStat, TeamSeasonStat, DataFreshness } from "@/lib/types";
+import type { RBGapStat, TeamSeasonStat, DataFreshness } from "@/lib/types";
 import GapBarChart from "@/components/charts/GapBarChart";
+import { ordinal } from "@/lib/stats/percentiles";
+import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
 interface GroundGameSectionProps {
   teamRBGaps: RBGapStat[];
-  teamDefGaps: DefGapStat[];
   teamId: string;
   slugMap: Record<string, string>;
   allTeamStats: TeamSeasonStat[];
   season: number;
   freshness: DataFreshness | null;
+  primaryColor: string;
+  secondaryColor: string;
 }
 
 const GAP_ORDER = ["LE", "LT", "LG", "M", "RG", "RT", "RE"];
-
-function ordinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-}
 
 function fmt(val: number | null, decimals = 2): string {
   if (val == null || isNaN(val)) return "\u2014";
@@ -41,14 +38,14 @@ function fmtPct(val: number | null): string {
 
 export default function GroundGameSection({
   teamRBGaps,
-  teamDefGaps: _teamDefGaps,
   teamId,
   slugMap,
   allTeamStats,
   season,
   freshness,
+  primaryColor,
+  secondaryColor,
 }: GroundGameSectionProps) {
-  void _teamDefGaps; // defensive gaps not used in offense section
   const [selectedGap, setSelectedGap] = useState<string | null>(null);
 
   // Aggregate gap stats for the team (sum across RBs)
@@ -104,13 +101,15 @@ export default function GroundGameSection({
   }, [teamRBGaps]);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-6">
-      <h3 className="text-lg font-bold text-navy mb-4">Ground Game</h3>
-
+    <TecmoSectionCard
+      title="Ground Game"
+      primaryColor={primaryColor}
+      secondaryColor={secondaryColor}
+    >
       {/* Programmatic summary */}
       {teamStat && (
         <p className="text-sm text-gray-600 mb-4">
-          The rush offense ranks {ordinalSuffix(rushRank)} in EPA ({fmtSigned(rushEpa ?? null, 3)})
+          The rush offense ranks {ordinal(rushRank)} in EPA ({fmtSigned(rushEpa ?? null, 3)})
           {bestGap && bestGap.carries >= 5 ? `, running through the ${bestGap.gap} gap most effectively` : ""}
           {week ? ` through Week ${week}` : ""}.
         </p>
@@ -171,6 +170,6 @@ export default function GroundGameSection({
       >
         Full Run Gap Breakdown &rarr;
       </Link>
-    </div>
+    </TecmoSectionCard>
   );
 }
