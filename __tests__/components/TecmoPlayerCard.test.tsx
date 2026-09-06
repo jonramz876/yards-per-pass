@@ -86,6 +86,22 @@ describe("TecmoPlayerCard", () => {
     expect(container.querySelector("[data-pct-accent]")?.getAttribute("style"))
       .toContain("198, 12, 48");
   });
+  it("labels the ability-row value column VALUE / PCTL", () => {
+    render(<TecmoPlayerCard data={data} {...team} headshotUrl={null} jerseyNumber={17} />);
+    expect(screen.getByText(/VALUE \/ PCTL/i)).toBeTruthy();
+  });
+
+  it("explains each ordinal with a percentile tooltip naming the position pool", () => {
+    const { container } = render(
+      <TecmoPlayerCard data={data} {...team} headshotUrl={null} jerseyNumber={17} />
+    );
+    const accents = container.querySelectorAll("[data-pct-accent]");
+    // Two present rows (RUSH EPA is missing, so it renders no ordinal).
+    expect(accents.length).toBe(2);
+    expect(accents[0].getAttribute("title")).toBe("96th percentile among qualified QBs");
+    expect(accents[1].getAttribute("title")).toBe("38th percentile among qualified QBs");
+  });
+
   it("a genuine last-place row (percentile 0, not missing) renders normally", () => {
     const lastPlace: TecmoCardData = {
       ...data,

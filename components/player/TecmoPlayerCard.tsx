@@ -85,6 +85,16 @@ export default function TecmoPlayerCard({
         {/* Ability rows + radar */}
         <div className="flex flex-col sm:flex-row gap-4 items-center mt-4 border-t border-slate-200 pt-2">
           <div className="flex-1 w-full min-w-0">
+            {/* Column header for the right-hand `raw / percentile` pair. Mirrors
+                the ability-row widths so it lands exactly over that column. */}
+            <div aria-hidden="true" className="flex items-center gap-2">
+              <span className="w-2 h-2 lg:w-2.5 lg:h-2.5 shrink-0" />
+              <span className="basis-1/3 shrink-0" />
+              <span className="flex-1 min-w-0" />
+              <span className="font-[family-name:var(--font-pixel)] text-[7px] lg:text-[9px] text-gray-400 basis-[27%] shrink-0 text-right uppercase">
+                Value / Pctl
+              </span>
+            </div>
             {data.abilityRows.map((r) => (
               <div key={r.label} className="flex items-center gap-2 mt-2">
                 {/* r.missing — not percentile === 0 — decides the gray treatment:
@@ -110,7 +120,11 @@ export default function TecmoPlayerCard({
                 </span>
                 <span className="font-[family-name:var(--font-pixel)] text-[7px] lg:text-[9px] text-navy basis-[27%] shrink-0 text-right uppercase">
                   {r.missing ? EM_DASH : (
-                    <>{r.raw} / <b data-pct-accent style={{ color: accent }}>{ordinal(Math.round(r.percentile)).toUpperCase()}</b></>
+                    <>{r.raw} / <b
+                      data-pct-accent
+                      title={`${ordinal(Math.round(r.percentile))} percentile among qualified ${data.position}s`}
+                      style={{ color: accent }}
+                    >{ordinal(Math.round(r.percentile)).toUpperCase()}</b></>
                   )}
                 </span>
               </div>
