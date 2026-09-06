@@ -31,7 +31,7 @@ export default function PlayerOverviewRB({
   const card = useMemo(() => buildRBCardData(stats, allRBs, season), [stats, allRBs, season]);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl lg:max-w-4xl mx-auto space-y-6">
       {!rbEligible(stats) && (
         <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
           Small sample: below {RB_MIN_CAR_PER_GAME} carries per game. Percentiles are noisy and OVR is hidden.

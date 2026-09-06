@@ -20,6 +20,8 @@ Layout, top to bottom (component: `TecmoPlayerCard`):
 
 Font: Press Start 2P (self-hosted via `next/font` — no runtime Google Fonts dependency), used ONLY for headers/labels/OVR; numbers and stat values use the site's normal font for legibility. Mobile: stat grid 6 → 3 columns, radar moves below ability rows, pixel font sizes bump up one step.
 
+**Desktop scale-up (amendment 2026-09-06, Jon: card too small on desktop).** At the `lg:` breakpoint the card grows: container `max-w-2xl → lg:max-w-4xl` (~896px); pixel-font sizes step up roughly +2px per element (band, name, sublines, stat-cell labels/values, ability labels and raw/percentile text, OVR number, footer); ability bars and tier dots slightly thicker; radar wrapper ~240px → ~300px; headshot/jersey avatar 56 → 64px at ALL breakpoints (the size prop is inline width/height, so it can't be breakpoint-scoped; 64px verified fine on mobile — reviewer-checked). The tiny "OVR" caption scales with the sublines. The three player-page overview wrappers (`max-w-2xl mx-auto`) gain the same `lg:max-w-4xl` so "Throws To"/"Catches From"/hub-link boxes stay width-aligned with the card. Mobile and `sm:` sizes unchanged. `/card/[slug]` inherits the wider desktop card automatically (intended). Share/OG images unaffected (separate renderer).
+
 ### Avatar
 
 - Primary: real headshot from nflverse roster data (`headshot_url`), rendered in a team-color frame.
