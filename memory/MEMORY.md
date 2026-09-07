@@ -13,6 +13,13 @@
 - **Passing Map** (2026-09-06, Jon's mockup pick "Tecmo Field"): `PlayerFieldHeatMap.tsx` is an HTML/CSS grid (no more SVG) — team band, dark navy field, pixel labels only, solid tiles colored by the SELECTED metric (diverging blue/orange for EPA ±0.5 & CPOE ±15; sequential blues for YPA 0-12 & yards), textColorForBackground on every tile, always-on legend, title tooltips. FOOTGUN: zone-level `completion_pct` is 0-1 but season-level is 0-100 (same name, opposite scales). parseNumericFields null→NaN means every numeric read needs Number.isFinite guards (a null CPOE once painted a tile bright-positive with "NaN" text). Card ability rows have a VALUE / PCTL header — the red ordinals are PERCENTILES, not ranks.
 - Pixel font: `app/fonts.ts` exports `pressStart` (`--font-pixel` var, applied at html root); Tailwind v4 scans docs/ markdown, so class strings in docs leak into the CSS (harmless, known).
 
+## Team pages (2026-09-06, Jon's mockup pick "full Tecmo")
+
+- `games` table (nflverse schedules file) feeds Schedule & Results season grids on team pages — ingested in main()'s loop BEFORE the DataNotYetPublished skip (schedules land pre-season; scores fill nightly). Tiles: W green / L red / T slate / upcoming navy w/ kickoff, next-game #60a5fa border, REG-scoped byes (no phantom playoff byes), playoff tiles appended by round.
+- **Upcoming-season rule**: viewing the latest stats season also fetches season+1's schedule; if present it shows instead, band `SCHEDULE · {year}`, record omitted (page passes isLatestSeason; don't derive in team-hub). Self-retires when the season flips.
+- Whole team page wears TecmoSectionCard band headers (each section wraps ITSELF — parent-wrapping breaks empty-state nulls); identity header shows record · division rank (competition ranking from allTeamStats) · EPA ranks · TO diff (fields added to TeamSeasonStat; turnover_diff is NOT numeric-parsed — typeof check, not isFinite). NO team OVR (deliberate — needs its own study if ever).
+- games.csv footguns: playoff game_type is WC/DIV/CON/SB (never "POST") at weeks 19-22; a cross-week reschedule gets a NEW game_id (stale row remains, no cleanup exists).
+
 ## Season handling (as of 2026-09-05 readiness pass)
 
 - **No hardcoded season years anywhere.** All pages resolve the season from `getAvailableSeasons()` (newest row in Supabase `data_freshness`), falling back to `fallbackSeason()` in `lib/data/queries.ts` — date-based, rolls to the new season year in September (JS `getMonth() >= 8`). The Python twin is `_detect_current_season()` in `scripts/ingest.py`.
