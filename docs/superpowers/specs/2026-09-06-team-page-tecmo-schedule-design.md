@@ -42,6 +42,22 @@ Content of every section is UNTOUCHED — this is a chrome/styling pass.
 - **Cleanup within touched files only**: the 4× copy-pasted `ordinalSuffix` helpers may be replaced with `ordinal` from `lib/stats/percentiles` where those files are already being edited; do NOT refactor untouched files. GroundGameSection's discarded `teamDefGaps` prop (`void _teamDefGaps`) may be removed from its interface + call site.
 - Desktop scale-up conventions follow the card (lg: pixel sizes step up).
 
+## Upcoming season in the team-page dropdown (amendment 2026-09-06, Jon-approved)
+
+Default stays the latest STATS season until the new season's first ingest (existing behavior). The team page's season `<select>` gains the upcoming season whenever its schedule exists. **Mechanism (reviewer-corrected):** the seasons list DashboardShell renders comes from `getTeamHubData`'s own returned `seasons` (TeamHubContent passes `data.seasons` — the page's list never reaches the shell), so the prepend happens INSIDE `getTeamHubData`: prepend the upcoming year when `upcomingSchedule` is non-empty **OR** when `currentSeason > seasons[0]` and the viewed-season schedule is non-empty (the second clause fixes the direct `?season=2026` visit, where isLatestSeason is false, no upcoming fetch runs, and the select would otherwise render blank — SeasonSelect only maps the array, no value-union). Prepended years are always > seasons[0] by construction, so no dedupe is needed (a one-line defensive comment is fine; it is not load-bearing). Selecting 2026 renders the verified graceful state: 2026 schedule grid, record omitted, identity launch state, stat sections self-omitted, freshness pill hidden. TEAM PAGES ONLY.
+
+## Landing page standings — Tecmo Super Bowl style (amendment 2026-09-06, Jon-approved)
+
+The homepage's teams-by-division logo grid (`app/page.tsx`) is REPLACED by a standings board, Tecmo Super Bowl style. New `components/team/TecmoStandings.tsx` (or components/layout — implementer's call, state it):
+
+- 8 division cards, `grid-cols-2 md:grid-cols-4` (AFC row, NFC row on desktop). Each card: pixel band header with the division name — AFC divisions get a red band (`#C8102E`-family), NFC blue (`#013369`-family), the classic conference colors; dark navy `#0f172a` body.
+- 4 team rows per card, sorted by wins desc (competition ranking, ties share placement — same rule as the team identity header): small logo, team abbreviation (pixel font, linked to `/team/{id}` — the grid keeps its navigation role), `W-L(-T)` record right-aligned in the REGULAR font.
+- **Standings season** = the upcoming season when its schedule exists (mirrors the team-page rule; a light `hasScheduleForSeason(season)`-style check or reuse of an existing query — implementer picks, states it), else the latest stats season. Records from `getTeamStats(standingsSeason)`; teams with no row (the entire league pre-season) show `0-0` — Jon: "of course everyone is 0-0 right now". Once week-1 stats land, real records appear with no code change; offseason (Feb–May) shows the completed season's final standings until the next schedule release flips it back to 0-0.
+- Section keeps its current position on the homepage; a small pixel sub-label states the season (`2026 STANDINGS`). No stats beyond the record in v1 (no EPA columns — the homepage has those elsewhere).
+- Null/edge: getTeamStats failure → all 0-0 (never crash); ties render `10-6-1`; textColorForBackground on band text.
+- The existing `getTeamStats(currentSeason)` homepage fetch STAYS (it feeds the other strips); standings add a second `getTeamStats(standingsSeason)` fetch only when the seasons differ (pre-season: `[]` → all 0-0). The old grid is inline JSX at app/page.tsx:108-146 (not a component); `buildRecordMap` (:25-31) has that grid as its only consumer — move it into/feed it to TecmoStandings or delete it, never leave it orphaned.
+- Tests: renders 8 divisions × 4 teams, 0-0 default, sorted-by-wins with a fixture, links present.
+
 ## Out of scope
 
 Team OVR badge; `/teams` index page changes; team OG images; playoffs bracket views; betting lines/spreads from games.csv (ingested columns exclude them).

@@ -47,6 +47,11 @@ export interface TeamHubData {
   upcomingSeason: number | undefined;
   slugMap: Record<string, string>;
   freshness: DataFreshness | null;
+  /**
+   * Seasons the page's `<select>` offers — the stats seasons, plus the upcoming
+   * season when its schedule exists. This list is what reaches DashboardShell
+   * (TeamHubContent passes `data.seasons`), so the prepend has to happen here.
+   */
   seasons: number[];
   currentSeason: number;
 }
@@ -132,6 +137,28 @@ export async function getTeamHubData(
   // rows; the viewed season's schedule renders either way.
   const hasUpcoming = upcomingSchedule.length > 0;
 
+  // Make the upcoming season SELECTABLE. `seasons` here is the stats seasons
+  // (data_freshness rows), which never include a season nobody has played yet,
+  // so the year whose schedule we're already showing has to be added by hand.
+  // Two ways in:
+  //   1. `hasUpcoming` — the latest-season view fetched next year's slate and
+  //      found it, so `season + 1` becomes an option.
+  //   2. the visitor is ALREADY on a season past the newest stats season (a
+  //      direct `?season=2026` link) and that season has games. No upcoming
+  //      fetch ran there (isLatestSeason is false), so without this clause the
+  //      select would list every season EXCEPT the one being viewed —
+  //      SeasonSelect just maps the array, it never unions in its own value.
+  // Either year is greater than every entry in `seasons` by construction, so
+  // no dedupe is needed.
+  const latestStatsSeason = seasons[0];
+  const viewingFutureSeason =
+    latestStatsSeason !== undefined && season > latestStatsSeason && schedule.length > 0;
+  const selectableSeasons = hasUpcoming
+    ? [season + 1, ...seasons]
+    : viewingFutureSeason
+      ? [season, ...seasons]
+      : seasons;
+
   return {
     teamStats,
     allTeamStats,
@@ -148,7 +175,7 @@ export async function getTeamHubData(
     upcomingSeason: hasUpcoming ? season + 1 : undefined,
     slugMap,
     freshness,
-    seasons,
+    seasons: selectableSeasons,
     currentSeason: season,
   };
 }
