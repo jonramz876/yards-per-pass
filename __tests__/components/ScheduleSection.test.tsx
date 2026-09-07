@@ -247,6 +247,31 @@ describe("ScheduleSection (Tecmo season grid)", () => {
     expect(document.body.textContent).not.toContain("NaN");
   });
 
+  it("labels the band with the year and drops the record on an upcoming season", () => {
+    // Pre-week-1: the page hands over NEXT season's slate. teamStats is still
+    // the viewed (finished) season's, so the record must NOT ride along.
+    renderSchedule({
+      schedule: [1, 2, 3].map((w) => game(w, { opponent_id: "MIA", gameday: "2027-09-12" })),
+      upcomingSeason: 2027,
+    });
+    expect(screen.getByText("Schedule · 2027")).toBeTruthy();
+    expect(screen.queryByText("Schedule & Results")).toBeNull();
+    expect(screen.queryByText("1-1")).toBeNull();
+    expect(document.body.textContent).not.toContain("undefined");
+    expect(document.body.textContent).not.toContain("NaN");
+  });
+
+  it("marks week 1 as next when no game has been played yet", () => {
+    const { container } = renderSchedule({
+      schedule: [1, 2, 3].map((w) => game(w, { opponent_id: "MIA", gameday: "2027-09-12" })),
+      upcomingSeason: 2027,
+    });
+    const next = container.querySelectorAll('[data-next="true"]');
+    expect(next.length).toBe(1);
+    expect(next[0].getAttribute("data-game-id")).toContain("_01_");
+    expect(next[0].getAttribute("style")).toContain("rgb(96, 165, 250)"); // #60a5fa
+  });
+
   it("includes ties in the record", () => {
     renderSchedule({ teamStats: { wins: 9, losses: 7, ties: 1 } as TeamSeasonStat });
     expect(screen.getByText("9-7-1")).toBeTruthy();

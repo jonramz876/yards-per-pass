@@ -36,6 +36,12 @@ export interface TeamHubData {
   situationalStats: TeamSituationalStat[];
   allSituationalStats: TeamSituationalStat[];
   schedule: TeamGame[];
+  /**
+   * Set only when `schedule` holds NEXT season's slate (latest stats season and
+   * that slate is already published) — the section then labels the band with
+   * this year and drops the record. Undefined = schedule is `currentSeason`.
+   */
+  upcomingSeason: number | undefined;
   slugMap: Record<string, string>;
   freshness: DataFreshness | null;
   seasons: number[];
@@ -70,10 +76,18 @@ async function getSituationalStats(season: number): Promise<TeamSituationalStat[
 /**
  * Fetch all data needed for a team hub page in parallel.
  * Filters QB/receiver/RB data to the specified team.
+ *
+ * `isLatestSeason` — the page passes `currentSeason === seasons[0]`. When true
+ * we ALSO fetch next season's schedule in the same round trip; if the league has
+ * published it (pre-season, before any stats exist for it) that slate replaces
+ * the current one so the page shows games to come rather than an empty grid.
+ * Historical `?season=` views never do this. Supplied by the caller because
+ * team-hub's own getAvailableSeasons resolves too late to gate the fetch.
  */
 export async function getTeamHubData(
   teamId: string,
-  season: number
+  season: number,
+  isLatestSeason: boolean
 ): Promise<TeamHubData> {
   const [
     allTeamStats,
@@ -84,6 +98,7 @@ export async function getTeamHubData(
     ddResult,
     allSitStats,
     schedule,
+    upcomingSchedule,
     slugs,
     freshness,
     seasons,
@@ -96,6 +111,9 @@ export async function getTeamHubData(
     getDownDistanceStats(season, teamId).catch(() => ({ team: [], nfl: [] })),
     getSituationalStats(season).catch(() => []),
     getTeamSchedule(teamId, season).catch(() => []),
+    isLatestSeason
+      ? getTeamSchedule(teamId, season + 1).catch((): TeamGame[] => [])
+      : Promise.resolve<TeamGame[]>([]),
     getAllPlayerSlugs().catch(() => []),
     getDataFreshness(season).catch(() => null),
     getAvailableSeasons().catch(() => [season]),
@@ -105,6 +123,10 @@ export async function getTeamHubData(
   const teamQBs = allQBs.filter((qb) => qb.team_id === teamId);
   const teamReceivers = allReceivers.filter((r) => r.team_id === teamId);
   const slugMap = Object.fromEntries(slugs.map((s) => [s.player_id, s.slug]));
+
+  // Next season's slate only wins when it actually has rows; otherwise nothing
+  // changes and the current season's schedule renders as it always has.
+  const showUpcoming = upcomingSchedule.length > 0;
 
   return {
     teamStats,
@@ -117,7 +139,8 @@ export async function getTeamHubData(
     downDistanceNFL: ddResult.nfl,
     situationalStats: allSitStats.filter((s) => s.team_id === teamId),
     allSituationalStats: allSitStats.filter((s) => s.team_id !== "NFL"),
-    schedule,
+    schedule: showUpcoming ? upcomingSchedule : schedule,
+    upcomingSeason: showUpcoming ? season + 1 : undefined,
     slugMap,
     freshness,
     seasons,

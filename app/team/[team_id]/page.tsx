@@ -51,7 +51,8 @@ export default async function TeamPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
-  const data = await getTeamHubData(teamId, currentSeason);
+  // Only the latest season pre-surfaces next season's schedule.
+  const data = await getTeamHubData(teamId, currentSeason, currentSeason === seasons[0]);
 
   const jsonLd = {
     "@context": "https://schema.org",

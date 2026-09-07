@@ -47,6 +47,7 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           primaryColor={team.primaryColor}
           secondaryColor={team.secondaryColor}
           teamStats={data.teamStats}
+          upcomingSeason={data.upcomingSeason}
         />
 
         <PassingSection
