@@ -4,7 +4,9 @@ import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats, fallba
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getPlayerSlugsByIds } from "@/lib/data/players";
-import { NFL_TEAMS, DIVISIONS, getTeam } from "@/lib/data/teams";
+import { hasScheduleForSeason } from "@/lib/data/games";
+import { getTeam } from "@/lib/data/teams";
+import TecmoStandings from "@/components/team/TecmoStandings";
 import type { TeamSeasonStat, PlayerSlug } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -15,18 +17,6 @@ export const revalidate = 3600;
 function buildSlugMap(slugs: PlayerSlug[]): Map<string, string> {
   const m = new Map<string, string>();
   for (const s of slugs) m.set(s.player_id, s.slug);
-  return m;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Record helper — maps team_id → "W-L" from team stats              */
-/* ------------------------------------------------------------------ */
-function buildRecordMap(teams: TeamSeasonStat[]): Map<string, string> {
-  const m = new Map<string, string>();
-  for (const t of teams) {
-    const rec = t.ties > 0 ? `${t.wins}-${t.losses}-${t.ties}` : `${t.wins}-${t.losses}`;
-    m.set(t.team_id, rec);
-  }
   return m;
 }
 
@@ -57,7 +47,23 @@ export default async function HomePage() {
     // Data unavailable (e.g., CI build with placeholder credentials) — render with empty data
   }
 
-  const recordMap = buildRecordMap(teamStats);
+  // Standings season: once the league publishes next season's schedule, the
+  // board flips to it (every team 0-0 until week 1 lands, which is the correct
+  // pre-season answer). Otherwise it stays on the latest stats season, which
+  // through the offseason means the completed season's final standings.
+  // `teamStats` is reused unless the seasons differ — it feeds the strips below
+  // and must keep pointing at `currentSeason`.
+  let standingsSeason = currentSeason;
+  let standingsStats: TeamSeasonStat[] = teamStats;
+  try {
+    if (await hasScheduleForSeason(currentSeason + 1)) {
+      standingsSeason = currentSeason + 1;
+      standingsStats = await getTeamStats(standingsSeason).catch(() => []);
+    }
+  } catch {
+    // Probe failed (placeholder credentials, table missing) — the latest stats
+    // season stands in.
+  }
 
   // Strip 1: QB Efficiency — top 5 by EPA/play
   const epaLeaders = [...qbStats]
@@ -105,9 +111,6 @@ export default async function HomePage() {
 
   const slugMap = buildSlugMap(playerSlugs);
 
-  // Division order: AFC East through NFC West
-  const divisionOrder = DIVISIONS;
-
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-12 py-8 space-y-10">
       {/* ---- 1. Compact Hero ---- */}
@@ -131,46 +134,8 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* ---- 2. 32-Team Logo Grid ---- */}
-      <section>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-x-4 gap-y-6">
-          {divisionOrder.map((div) => {
-            const divTeams = NFL_TEAMS.filter((t) => t.division === div);
-            return (
-              <div key={div}>
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">
-                  {div}
-                </h3>
-                <div className="space-y-2">
-                  {divTeams.map((team) => {
-                    const record = recordMap.get(team.id);
-                    return (
-                      <Link
-                        key={team.id}
-                        href={`/team/${team.id.toLowerCase()}`}
-                        title={`${team.name}${record ? ` (${record})` : ""}`}
-                        className="flex flex-col items-center gap-1 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={team.logo}
-                          alt={team.name}
-                          width={40}
-                          height={40}
-                          className="w-10 h-10 object-contain"
-                        />
-                        <span className="text-[11px] font-semibold text-navy">
-                          {team.abbreviation}
-                        </span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
+      {/* ---- 2. Standings Board (Tecmo) ---- */}
+      <TecmoStandings season={standingsSeason} teamStats={standingsStats} />
 
       {/* ---- 3. Stat Leaderboard Strips ---- */}
       <section className="space-y-6">
