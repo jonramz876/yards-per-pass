@@ -261,6 +261,24 @@ describe("ScheduleSection (Tecmo season grid)", () => {
     expect(document.body.textContent).not.toContain("NaN");
   });
 
+  it("names the year in the grid's aria-label on an upcoming season", () => {
+    // The upcoming section renders ABOVE the viewed season's, so the two grids
+    // must not carry the same label.
+    const viewed = renderSchedule();
+    expect(
+      viewed.container.querySelector('[aria-label="Buffalo Bills schedule and results"]'),
+    ).toBeTruthy();
+
+    const upcoming = renderSchedule({
+      schedule: [1, 2, 3].map((w) => game(w, { opponent_id: "MIA", gameday: "2027-09-12" })),
+      upcomingSeason: 2027,
+    });
+    expect(upcoming.container.querySelector('[aria-label="Buffalo Bills 2027 schedule"]')).toBeTruthy();
+    expect(
+      upcoming.container.querySelector('[aria-label="Buffalo Bills schedule and results"]'),
+    ).toBeNull();
+  });
+
   it("marks week 1 as next when no game has been played yet", () => {
     const { container } = renderSchedule({
       schedule: [1, 2, 3].map((w) => game(w, { opponent_id: "MIA", gameday: "2027-09-12" })),
