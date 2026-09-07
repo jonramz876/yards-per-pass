@@ -90,3 +90,23 @@ export async function getTeamSchedule(
   // Derive against the same id the query filtered on, so home/away can't flip.
   return (data as unknown as GameRow[]).map((row) => toTeamGame(row, safeId));
 }
+
+/**
+ * Has the league published this season's schedule yet? One row settles it, so
+ * this stays a `limit(1)` probe rather than pulling 272 games.
+ *
+ * Answers FALSE on any failure (query error, missing table, no rows). Its only
+ * caller uses it to decide whether the landing page shows next season's 0-0
+ * board, and falling back to the completed season is the safe direction.
+ */
+export async function hasScheduleForSeason(season: number): Promise<boolean> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("games")
+    .select("game_id")
+    .eq("season", season)
+    .limit(1);
+
+  if (error) return false;
+  return (data?.length ?? 0) > 0;
+}
