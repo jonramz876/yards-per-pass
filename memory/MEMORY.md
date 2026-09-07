@@ -16,7 +16,7 @@
 ## Team pages (2026-09-06, Jon's mockup pick "full Tecmo")
 
 - `games` table (nflverse schedules file) feeds Schedule & Results season grids on team pages — ingested in main()'s loop BEFORE the DataNotYetPublished skip (schedules land pre-season; scores fill nightly). Tiles: W green / L red / T slate / upcoming navy w/ kickoff, next-game #60a5fa border, REG-scoped byes (no phantom playoff byes), playoff tiles appended by round.
-- **Upcoming-season rule**: viewing the latest stats season also fetches season+1's schedule; if present it shows instead, band `SCHEDULE · {year}`, record omitted (page passes isLatestSeason; don't derive in team-hub). Self-retires when the season flips.
+- **Upcoming-season rule (v2)**: viewing the latest stats season also fetches season+1's schedule; if present it renders as an ADDITIONAL section ABOVE the viewed season's (band `SCHEDULE · {year}`, record omitted; the viewed season keeps its `SCHEDULE & RESULTS` grid below — v1 replaced it, which masked the latest season's results pre-flip). Page passes isLatestSeason (don't derive in team-hub); each section self-omits when empty, so post-flip only one renders.
 - Whole team page wears TecmoSectionCard band headers (each section wraps ITSELF — parent-wrapping breaks empty-state nulls); identity header shows record · division rank (competition ranking from allTeamStats) · EPA ranks · TO diff (fields added to TeamSeasonStat; turnover_diff is NOT numeric-parsed — typeof check, not isFinite). NO team OVR (deliberate — needs its own study if ever).
 - games.csv footguns: playoff game_type is WC/DIV/CON/SB (never "POST") at weeks 19-22; a cross-week reschedule gets a NEW game_id (stale row remains, no cleanup exists).
 
