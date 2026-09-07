@@ -41,13 +41,25 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
       />
 
       <div className="space-y-8 mt-8">
+        {/* Next season's slate, pre-surfaced before its stats exist. Empty on
+            historical views and once the season flips, and the section omits
+            itself then — leaving just the viewed season's schedule below. */}
+        <ScheduleSection
+          schedule={data.upcomingSchedule}
+          teamName={team.name}
+          primaryColor={team.primaryColor}
+          secondaryColor={team.secondaryColor}
+          teamStats={data.teamStats}
+          upcomingSeason={data.upcomingSeason}
+        />
+
+        {/* The viewed season's schedule & results, with its record. */}
         <ScheduleSection
           schedule={data.schedule}
           teamName={team.name}
           primaryColor={team.primaryColor}
           secondaryColor={team.secondaryColor}
           teamStats={data.teamStats}
-          upcomingSeason={data.upcomingSeason}
         />
 
         <PassingSection

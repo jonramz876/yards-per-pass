@@ -305,11 +305,13 @@ export default function ScheduleSection({
         {record && <span className="shrink-0 text-right">{record}</span>}
       </div>
 
-      {/* Dark season grid */}
+      {/* Dark season grid. Both sections can render at once (next season above
+          the viewed one), so the upcoming grid names its year in the aria-label
+          — two identical labels would give a screen reader nothing to go on. */}
       <div
         className="p-3 lg:p-4 grid grid-cols-3 sm:grid-cols-6 gap-1.5 lg:gap-2"
         style={{ background: PANEL_BG }}
-        aria-label={`${teamName} schedule and results`}
+        aria-label={isUpcoming ? `${teamName} ${upcomingSeason} schedule` : `${teamName} schedule and results`}
       >
         {regTiles}
         {/* Playoff tiles append after the regular-season grid */}

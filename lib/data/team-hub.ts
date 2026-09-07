@@ -35,12 +35,15 @@ export interface TeamHubData {
   downDistanceNFL: TeamDownDistanceStat[];
   situationalStats: TeamSituationalStat[];
   allSituationalStats: TeamSituationalStat[];
+  /** The VIEWED season's slate (`currentSeason`), always. */
   schedule: TeamGame[];
   /**
-   * Set only when `schedule` holds NEXT season's slate (latest stats season and
-   * that slate is already published) — the section then labels the band with
-   * this year and drops the record. Undefined = schedule is `currentSeason`.
+   * NEXT season's slate, pre-surfaced on the latest stats season once the league
+   * publishes it. Empty on historical views and before the release. Rendered as
+   * its own section ABOVE `schedule` — it adds to the page, never replaces.
    */
+  upcomingSchedule: TeamGame[];
+  /** Year of `upcomingSchedule` when non-empty; undefined when it's empty. */
   upcomingSeason: number | undefined;
   slugMap: Record<string, string>;
   freshness: DataFreshness | null;
@@ -79,8 +82,9 @@ async function getSituationalStats(season: number): Promise<TeamSituationalStat[
  *
  * `isLatestSeason` — the page passes `currentSeason === seasons[0]`. When true
  * we ALSO fetch next season's schedule in the same round trip; if the league has
- * published it (pre-season, before any stats exist for it) that slate replaces
- * the current one so the page shows games to come rather than an empty grid.
+ * published it (pre-season, before any stats exist for it) it comes back as
+ * `upcomingSchedule` and the page shows it as an EXTRA section above the viewed
+ * season's — games to come without hiding the results already played.
  * Historical `?season=` views never do this. Supplied by the caller because
  * team-hub's own getAvailableSeasons resolves too late to gate the fetch.
  */
@@ -124,9 +128,9 @@ export async function getTeamHubData(
   const teamReceivers = allReceivers.filter((r) => r.team_id === teamId);
   const slugMap = Object.fromEntries(slugs.map((s) => [s.player_id, s.slug]));
 
-  // Next season's slate only wins when it actually has rows; otherwise nothing
-  // changes and the current season's schedule renders as it always has.
-  const showUpcoming = upcomingSchedule.length > 0;
+  // The upcoming section only appears when next season's slate actually has
+  // rows; the viewed season's schedule renders either way.
+  const hasUpcoming = upcomingSchedule.length > 0;
 
   return {
     teamStats,
@@ -139,8 +143,9 @@ export async function getTeamHubData(
     downDistanceNFL: ddResult.nfl,
     situationalStats: allSitStats.filter((s) => s.team_id === teamId),
     allSituationalStats: allSitStats.filter((s) => s.team_id !== "NFL"),
-    schedule: showUpcoming ? upcomingSchedule : schedule,
-    upcomingSeason: showUpcoming ? season + 1 : undefined,
+    schedule,
+    upcomingSchedule,
+    upcomingSeason: hasUpcoming ? season + 1 : undefined,
     slugMap,
     freshness,
     seasons,
