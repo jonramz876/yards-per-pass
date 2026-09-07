@@ -17,6 +17,12 @@ interface ScheduleSectionProps {
   secondaryColor: string;
   /** Null before week 1 — the record segment of the band is then omitted. */
   teamStats: TeamSeasonStat | null;
+  /**
+   * Set when `schedule` is NEXT season's slate (pre-surfaced before week 1).
+   * The band then reads `SCHEDULE · {year}` and drops the record entirely — the
+   * record belongs to the viewed stats season, not to the season being shown.
+   */
+  upcomingSeason?: number;
 }
 
 const PIXEL = "font-[family-name:var(--font-pixel)]";
@@ -244,6 +250,7 @@ export default function ScheduleSection({
   primaryColor,
   secondaryColor,
   teamStats,
+  upcomingSeason,
 }: ScheduleSectionProps) {
   // No schedule rows (pre-backfill season) → the section is omitted entirely.
   if (schedule.length === 0) return null;
@@ -277,7 +284,10 @@ export default function ScheduleSection({
     }
   }
 
-  const record = formatRecord(teamStats);
+  // Showing next season's slate: no games are scored yet in it, so the record —
+  // which belongs to the viewed stats season — would be misleading beside it.
+  const isUpcoming = upcomingSeason !== undefined;
+  const record = isUpcoming ? null : formatRecord(teamStats);
   const bandText = textColorForBackground(primaryColor);
 
   return (
@@ -287,8 +297,11 @@ export default function ScheduleSection({
         className={`${PIXEL} flex items-center justify-between gap-2 px-3 py-2.5 lg:px-5 lg:py-3 text-[7px] sm:text-[9px] lg:text-[11px] uppercase tracking-wide`}
         style={{ background: primaryColor, color: bandText, borderBottom: `2px solid ${secondaryColor}` }}
       >
-        <span className="shrink-0">Schedule &amp; Results</span>
-        {/* Record omitted before any games are scored (teamStats null pre-season) */}
+        <span className="shrink-0">
+          {isUpcoming ? `Schedule · ${upcomingSeason}` : "Schedule & Results"}
+        </span>
+        {/* Record omitted before any games are scored (teamStats null pre-season)
+            and always on an upcoming-season slate. */}
         {record && <span className="shrink-0 text-right">{record}</span>}
       </div>
 
