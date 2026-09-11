@@ -138,10 +138,12 @@ export function tecmoCardImage(
   const cells = card.statCells.slice(0, 6);
   const rows = visibleRows(card.abilityRows);
   const axes = card.radarValues.length;
-  const showRadar = axes >= 3;
-  const dots = showRadar
-    ? card.radarValues.map((v, i) => hp((clampPct(v) / 100) * RAD, i, axes))
+  // A missing axis (card.radarMissing) gets no dot; the outline bridges it.
+  const dots = axes >= 3
+    ? card.radarValues.flatMap((v, i) =>
+        card.radarMissing?.[i] ? [] : [hp((clampPct(v) / 100) * RAD, i, axes)])
     : [];
+  const showRadar = dots.length >= 3;
   const name = fitName(
     `${jerseyNumber != null ? `${jerseyNumber}-` : ""}${card.playerName}`.toUpperCase(),
     24,

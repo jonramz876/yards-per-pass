@@ -131,7 +131,7 @@ export default function TecmoPlayerCard({
             ))}
           </div>
           <div className="shrink-0 w-full sm:w-[240px] lg:w-[300px]">
-            <RadarChart values={data.radarValues} color={primaryColor} axes={radarAxes} />
+            <RadarChart values={data.radarValues} color={primaryColor} axes={radarAxes} missing={data.radarMissing} />
           </div>
         </div>
 

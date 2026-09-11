@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import type { TecmoCardData } from "@/lib/stats/tecmo-card";
+import { tecmoCardImage } from "@/lib/og/tecmo-card-image";
 
 const data: TecmoCardData = {
   playerName: "Josh Allen", position: "QB", season: 2026, games: 16,
@@ -112,5 +113,58 @@ describe("TecmoPlayerCard", () => {
     );
     expect(screen.getByText(/\b0TH\b/i)).toBeTruthy();
     expect(container.querySelector("[data-tier-dot]")?.getAttribute("style")).toContain("220, 38, 38");
+  });
+
+  it("radar leaves a gap for a missing axis", () => {
+    const wrData: TecmoCardData = {
+      ...data, playerName: "Jaxon Smith-Njigba", position: "WR", archetypeLabel: null,
+      radarValues: [80, 70, 60, 50, 40, 0],
+      radarLabels: ["Tgt/Game", "EPA/Tgt", "CROE", "aDOT", "YAC/Rec", "YPRR"],
+      radarMissing: [false, false, false, false, false, true],
+    };
+    const { container } = render(
+      <TecmoPlayerCard data={wrData} {...team} headshotUrl={null} jerseyNumber={11} />
+    );
+    expect(container.querySelectorAll("svg circle").length).toBe(5);
+    const gray = container.querySelectorAll("[data-missing-axis]");
+    expect(gray).toHaveLength(1);
+    expect(gray[0].textContent).toBe("YPRR");
+    expect(gray[0].getAttribute("fill")).toBe("#cbd5e1");
+  });
+
+  it("no radarMissing: every axis keeps its dot (QB card unchanged)", () => {
+    const { container } = render(<TecmoPlayerCard data={data} {...team} headshotUrl={null} jerseyNumber={17} />);
+    expect(container.querySelectorAll("svg circle").length).toBe(7);
+    expect(container.querySelector("[data-missing-axis]")).toBeNull();
+  });
+});
+
+describe("tecmoCardImage radar", () => {
+  // The share/download PNG. Its only <circle> elements are the radar dots.
+  const imgTeam = { name: "Seattle Seahawks", primaryColor: "#002244", secondaryColor: "#69BE28" };
+  const card: TecmoCardData = {
+    ...data, playerName: "Jaxon Smith-Njigba", position: "WR", archetypeLabel: null,
+    radarValues: [80, 70, 60, 50, 40, 0],
+    radarLabels: ["Tgt/Game", "EPA/Tgt", "CROE", "aDOT", "YAC/Rec", "YPRR"],
+  };
+
+  it("a missing axis gets no dot", () => {
+    const { container } = render(tecmoCardImage(
+      { ...card, radarMissing: [false, false, false, false, false, true] }, imgTeam, null, null,
+    ));
+    expect(container.querySelectorAll("circle")).toHaveLength(5);
+  });
+
+  it("without radarMissing every axis keeps its dot", () => {
+    const { container } = render(tecmoCardImage(card, imgTeam, null, null));
+    expect(container.querySelectorAll("circle")).toHaveLength(6);
+  });
+
+  it("all six axes missing: no radar at all, and no crash", () => {
+    const { container } = render(tecmoCardImage(
+      { ...card, radarMissing: Array(6).fill(true) }, imgTeam, null, null,
+    ));
+    expect(container.querySelectorAll("circle")).toHaveLength(0);
+    expect(container.querySelector("svg")).toBeNull();
   });
 });

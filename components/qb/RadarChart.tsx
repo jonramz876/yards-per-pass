@@ -8,6 +8,9 @@ interface RadarChartProps {
   color: string;
   /** Custom axis labels. Defaults to QB 6-axis if omitted. */
   axes?: { label: string }[];
+  /** Per-axis "no data" flags: that axis gets no vertex, no dot and a gray label
+   *  (the outline bridges its neighbors) instead of a point at the center. */
+  missing?: boolean[];
 }
 
 const DEFAULT_AXES: { label: string }[] = [
@@ -44,11 +47,11 @@ function labelPos(index: number, count: number): { x: number; y: number; anchor:
   return { x, y, anchor };
 }
 
-export default function RadarChart({ values, color, axes: customAxes }: RadarChartProps) {
+export default function RadarChart({ values, color, axes: customAxes, missing }: RadarChartProps) {
   const axes = customAxes || DEFAULT_AXES;
   const count = axes.length;
 
-  const nullCount = values.filter((v) => isNaN(v) || v < 0).length;
+  const nullCount = values.filter((v, i) => isNaN(v) || v < 0 || missing?.[i]).length;
   if (nullCount >= Math.ceil(count / 2)) {
     return (
       <div className="text-center text-gray-400 text-sm py-8">
@@ -58,7 +61,9 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
   }
 
   const clamped = values.map((v) => (isNaN(v) || v < 0 ? 0 : Math.min(v, 100)));
-  const dataPoints = clamped.map((pct, i) => polyPoint((pct / 100) * R_OUTER, i, count));
+  const dataPoints = clamped
+    .map((pct, i) => (missing?.[i] ? null : polyPoint((pct / 100) * R_OUTER, i, count)))
+    .filter((p): p is [number, number] => p !== null);
   const dataPolygon = dataPoints.map((p) => p.join(",")).join(" ");
 
   return (
@@ -100,7 +105,8 @@ export default function RadarChart({ values, color, axes: customAxes }: RadarCha
             y={pos.y}
             textAnchor={pos.anchor}
             fontSize={11}
-            fill="#475569"
+            fill={missing?.[i] ? "#cbd5e1" : "#475569"}
+            data-missing-axis={missing?.[i] ? "true" : undefined}
             fontWeight={600}
           >
             {axis.label}

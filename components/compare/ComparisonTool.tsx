@@ -6,7 +6,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
-import { computePercentile } from "@/lib/stats/percentiles";
+import { computePercentile, percentileOrMissing } from "@/lib/stats/percentiles";
 import {
   getQBRadarVal, getWRRadarVal, getRBRadarVal,
   QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
@@ -221,11 +221,15 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
     const sortedPools = radarKeys.map((key) =>
       pool.map((p) => getRadarVal(p, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
     );
+    // WR/TE: an axis with no data (e.g. 2026 YPRR, no participation file) is
+    // NaN, which OverlayRadarChart leaves out instead of plotting at the center.
+    // QB/RB keep the old 0 until their own missing-axis pass (follow-up).
+    const pct = isQB || isRB ? computePercentile : percentileOrMissing;
     return {
-      values1: radarKeys.map((key, i) => computePercentile(sortedPools[i], getRadarVal(stats1, key))),
-      values2: radarKeys.map((key, i) => computePercentile(sortedPools[i], getRadarVal(stats2, key))),
+      values1: radarKeys.map((key, i) => pct(sortedPools[i], getRadarVal(stats1, key))),
+      values2: radarKeys.map((key, i) => pct(sortedPools[i], getRadarVal(stats2, key))),
     };
-  }, [stats1, stats2, pool, radarKeys, getRadarVal]);
+  }, [stats1, stats2, pool, radarKeys, getRadarVal, isQB, isRB]);
 
   // Colors — ensure sufficient perceptual contrast between the two players
   const color1 = player1 ? getTeamColor(player1.current_team_id) : "#1e3a5f";

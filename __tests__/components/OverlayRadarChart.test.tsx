@@ -113,4 +113,26 @@ describe("OverlayRadarChart", () => {
       screen.getByText("outer ring = league best · dashed = 50th percentile")
     ).toBeInTheDocument();
   });
+
+  it("a NaN axis gets no dot and no vertex", () => {
+    const customAxes = ["A", "B", "C", "D", "E", "F"].map((label) => ({ label }));
+    const { container } = render(
+      <OverlayRadarChart
+        {...defaultProps}
+        values1={[80, 70, 90, 60, 55, NaN]}
+        values2={[50, 85, 40, 70, 60, NaN]}
+        axes={customAxes}
+      />
+    );
+    expect(container.querySelectorAll("svg circle")).toHaveLength(10);
+    const dataPolygons = Array.from(container.querySelectorAll("svg polygon")).filter(
+      (p) => p.getAttribute("stroke") === defaultProps.color1 || p.getAttribute("stroke") === defaultProps.color2
+    );
+    expect(dataPolygons).toHaveLength(2);
+    for (const p of dataPolygons) {
+      expect(p.getAttribute("points")!.trim().split(/\s+/)).toHaveLength(5);
+    }
+    expect(screen.getByText("F").getAttribute("fill")).toBe("#cbd5e1");
+    expect(screen.getByText("A").getAttribute("fill")).toBe("#475569");
+  });
 });

@@ -121,6 +121,23 @@ def make_multi_roster(entries):
     return pd.DataFrame([{'gsis_id': pid, 'position': pos} for pid, pos in entries])
 
 
+class _FakeCursor:
+    """Records nothing itself — execute_values is monkeypatched to capture."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeConn:
+    """Minimal psycopg2 connection stand-in: only cursor() as a context manager."""
+
+    def cursor(self):
+        return _FakeCursor()
+
+
 # ---------------------------------------------------------------------------
 # QB Weekly Stats
 # ---------------------------------------------------------------------------
@@ -317,6 +334,55 @@ class TestReceiverWeeklyStats:
         roster = make_multi_roster([('QB2', 'QB'), ('QB1', 'QB')])
         result = aggregate_receiver_weekly_stats(plays, roster, 2025)
         assert len(result) == 0  # QB2 filtered out by position check
+
+    def test_no_participation_routes_are_none(self):
+        """No participation file -> routes_run and YPRR are None (NULL), not 0/NaN."""
+        from ingest import aggregate_receiver_weekly_stats
+        plays = pd.concat([
+            make_qb_play(receiver_player_id='WR1', complete_pass=1, receiving_yards=15.0),
+            make_qb_play(receiver_player_id='WR1', complete_pass=0, receiving_yards=0.0, play_id=2),
+        ], ignore_index=True)
+        roster = make_multi_roster([('WR1', 'WR'), ('QB1', 'QB')])
+        result = aggregate_receiver_weekly_stats(plays, roster, 2025)
+        row = result.iloc[0]
+        assert row['routes_run'] is None
+        assert row['yards_per_route_run'] is None
+
+    def test_upsert_weekly_missing_participation_is_null(self, monkeypatch):
+        """The weekly upsert hands both columns to psycopg2 as None (SQL NULL)
+        and overwrites them on conflict. Runs under CI's pandas 2.2.x and local
+        pandas 3.x alike: both keep None in an object column through
+        `.where(notna, None)`; a float NaN column would reach Postgres as 'NaN'."""
+        import re
+        import ingest
+        from ingest import aggregate_receiver_weekly_stats, upsert_receiver_weekly_stats
+        captured = {}
+
+        def fake_execute_values(cur, sql, rows):
+            captured['sql'] = sql
+            captured['rows'] = rows
+
+        monkeypatch.setattr(ingest, 'execute_values', fake_execute_values)
+        plays = pd.concat([
+            make_qb_play(receiver_player_id='WR1', complete_pass=1, receiving_yards=15.0),
+            make_qb_play(receiver_player_id='WR1', complete_pass=0, receiving_yards=0.0, play_id=2),
+        ], ignore_index=True)
+        roster = make_multi_roster([('WR1', 'WR'), ('QB1', 'QB')])
+        df = aggregate_receiver_weekly_stats(plays, roster, 2026)
+        # Precondition for both pandas lines: an all-None OBJECT column.
+        assert df['routes_run'].dtype == object
+        assert df['yards_per_route_run'].dtype == object
+        upsert_receiver_weekly_stats(_FakeConn(), df)
+
+        # Tuple order = the INSERT column list the upsert built.
+        cols = [c.strip() for c in
+                re.search(r'INSERT INTO \w+ \(([^)]*)\)', captured['sql']).group(1).split(',')]
+        assert len(captured['rows']) == 1
+        row = dict(zip(cols, captured['rows'][0]))
+        assert row['routes_run'] is None
+        assert row['yards_per_route_run'] is None
+        assert 'routes_run = EXCLUDED.routes_run' in captured['sql']
+        assert 'yards_per_route_run = EXCLUDED.yards_per_route_run' in captured['sql']
 
 
 # ---------------------------------------------------------------------------

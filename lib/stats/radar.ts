@@ -4,7 +4,7 @@
  */
 
 import type { QBSeasonStat, ReceiverSeasonStat } from "@/lib/types";
-import { computePercentile } from "./percentiles";
+import { computePercentile, percentileOrMissing } from "./percentiles";
 
 // ---- QB Radar (7 axes: 6 passing + 1 rushing) ----
 export const QB_RADAR_KEYS = ["epa_per_db", "cpoe", "dropbacks_game", "adot", "inv_int_pct", "success_rate", "rush_epa"] as const;
@@ -87,19 +87,23 @@ export function getRBRadarVal(rb: RBRadarInput, key: string): number {
 // ---- Generic percentile computation ----
 /**
  * Compute radar percentile values for a player against a league pool.
- * Returns an array of 0–100 values, one per radar key.
+ * Returns an array of 0–100 values, one per radar key. With `missingAsNaN`,
+ * an axis with no data (player value NaN, or no values in the pool) is NaN
+ * instead of 0 — see percentileOrMissing.
  */
 export function computeRadarValues<T>(
   keys: readonly string[],
   getValue: (item: T, key: string) => number,
   player: T,
   pool: T[],
+  missingAsNaN = false,
 ): number[] {
+  const pct = missingAsNaN ? percentileOrMissing : computePercentile;
   return keys.map((key) => {
     const allVals = pool
       .map((p) => getValue(p, key))
       .filter((v) => !isNaN(v))
       .sort((a, b) => a - b);
-    return computePercentile(allVals, getValue(player, key));
+    return pct(allVals, getValue(player, key));
   });
 }

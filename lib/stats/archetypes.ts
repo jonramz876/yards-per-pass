@@ -1,6 +1,9 @@
 // Archetype classification based on radar chart percentile values
 // Evaluated in priority order — first match wins
 // Returns null if no archetype matches (no generic fallbacks)
+// A NaN percentile means "no data for this axis": NaN fails every >= / <= test,
+// so a missing axis is never counted as strong (>= 60/70) or weak (< 30) and
+// never satisfies a rule. Callers pass NaN via percentileOrMissing.
 
 export interface Archetype {
   label: string;

@@ -389,9 +389,40 @@ class TestRoutesRun:
         plays['play_id'] = [0]
         roster = make_roster()
         result = aggregate_receiver_stats(plays, roster, 2025, None)
-        assert result.iloc[0]['routes_run'] == 0
-        assert math.isnan(result.iloc[0]['yards_per_route_run'])
-        assert math.isnan(result.iloc[0]['targets_per_route_run'])
+        assert result.iloc[0]['routes_run'] is None
+        assert result.iloc[0]['yards_per_route_run'] is None
+        assert result.iloc[0]['targets_per_route_run'] is None
+
+    def test_empty_participation_frame_is_missing(self):
+        """An empty participation frame is treated like a missing file."""
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025, pd.DataFrame())
+        row = result.iloc[0]
+        for col in ('routes_run', 'total_snaps', 'snap_share',
+                    'route_participation_rate', 'yards_per_route_run',
+                    'targets_per_route_run'):
+            assert row[col] is None, f"{col} = {row[col]!r}, expected None"
+
+    def test_participation_present_keeps_numbers(self):
+        """With participation data the None override must not fire."""
+        import numpy as np
+        from ingest import aggregate_receiver_stats
+        plays = make_plays()
+        plays['play_id'] = [0]
+        participation = pd.concat([
+            make_participation(play_id=0),
+        ], ignore_index=True)
+        roster = make_roster()
+        result = aggregate_receiver_stats(plays, roster, 2025, participation)
+        row = result.iloc[0]
+        assert row['routes_run'] is not None
+        assert isinstance(row['routes_run'], (int, np.integer))
+        yprr = row['yards_per_route_run']
+        assert yprr is not None and math.isfinite(yprr)
+        assert row['total_snaps'] is not None
 
     def test_output_has_route_columns(self):
         from ingest import aggregate_receiver_stats
@@ -477,16 +508,16 @@ class TestSnapCounts:
         assert abs(row['route_participation_rate'] - 1.0) < 0.01
 
     def test_snap_zero_division(self):
-        """Player with 0 total_snaps gets NaN for snap_share and route_participation_rate."""
+        """No participation data -> snap fields are None (NULL), not 0/NaN"""
         from ingest import aggregate_receiver_stats
         plays = make_plays()
         plays['play_id'] = [0]
         roster = make_roster()
         # No participation data — fallback
         result = aggregate_receiver_stats(plays, roster, 2025, None)
-        assert result.iloc[0]['total_snaps'] == 0
-        assert math.isnan(result.iloc[0]['snap_share'])
-        assert math.isnan(result.iloc[0]['route_participation_rate'])
+        assert result.iloc[0]['total_snaps'] is None
+        assert result.iloc[0]['snap_share'] is None
+        assert result.iloc[0]['route_participation_rate'] is None
 
     def test_snap_share_bounds(self):
         """No player should have snap_share > 1.0 or route_participation_rate > 1.0."""
@@ -539,3 +570,110 @@ class TestSnapCounts:
         result = aggregate_receiver_stats(plays, roster, 2025)
         for col in ['total_snaps', 'snap_share', 'route_participation_rate']:
             assert col in result.columns, f"Missing column: {col}"
+
+
+# ---------------------------------------------------------------------------
+# Upsert: missing participation must reach psycopg2 as None (SQL NULL)
+# ---------------------------------------------------------------------------
+
+class _FakeCursor:
+    """Records nothing itself — execute_values is monkeypatched to capture."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeConn:
+    """Minimal psycopg2 connection stand-in: only cursor() as a context manager."""
+
+    def cursor(self):
+        return _FakeCursor()
+
+
+def _capture_execute_values(monkeypatch):
+    """Monkeypatch ingest.execute_values; returns the dict it fills with sql/rows."""
+    import ingest
+    captured = {}
+
+    def fake_execute_values(cur, sql, rows):
+        captured['sql'] = sql
+        captured['rows'] = rows
+
+    monkeypatch.setattr(ingest, 'execute_values', fake_execute_values)
+    return captured
+
+
+def _captured_row(captured):
+    """The single captured tuple as {column: value}, in the INSERT column order."""
+    import re
+    cols = [c.strip() for c in
+            re.search(r'INSERT INTO \w+ \(([^)]*)\)', captured['sql']).group(1).split(',')]
+    assert len(captured['rows']) == 1
+    return dict(zip(cols, captured['rows'][0]))
+
+
+class TestUpsertReceiverParticipationNulls:
+    """The nightly upsert must write NULL — not 0 or 'NaN' — when the season has
+    no participation file. CI pins pandas 2.2.x and local runs use 3.x: both keep
+    None in an object column through `.where(notna, None)`, while a float NaN
+    column would reach psycopg2 as NaN ('NaN'::numeric, or a rejected INTEGER
+    that aborts the whole ingest). These tests fail loudly if that ever changes."""
+
+    PARTICIPATION_COLS = ('routes_run', 'total_snaps', 'snap_share',
+                          'route_participation_rate', 'yards_per_route_run',
+                          'targets_per_route_run')
+
+    def test_missing_participation_reaches_psycopg2_as_none(self, monkeypatch):
+        from ingest import aggregate_receiver_stats, upsert_receiver_stats
+        captured = _capture_execute_values(monkeypatch)
+        plays = make_plays()
+        plays['play_id'] = [0]
+        df = aggregate_receiver_stats(plays, make_roster(), 2026, None)
+        # The precondition both pandas lines rely on (2.2.x in CI, 3.x locally):
+        # an all-None OBJECT column. A float column would turn None back into NaN.
+        for col in self.PARTICIPATION_COLS:
+            assert df[col].dtype == object, f"{col} dtype = {df[col].dtype}"
+        upsert_receiver_stats(_FakeConn(), df)
+
+        row = _captured_row(captured)
+        for col in self.PARTICIPATION_COLS:
+            assert row[col] is None, f"{col} = {row[col]!r}, expected None"
+        # No float NaN (or pd.NA) anywhere in the tuple.
+        nan_cols = [c for c, v in row.items()
+                    if v is not None and not isinstance(v, str) and pd.isna(v)]
+        assert nan_cols == []
+        assert row['targets'] == 1
+
+    def test_present_participation_writes_numbers(self, monkeypatch):
+        from ingest import aggregate_receiver_stats, upsert_receiver_stats
+        captured = _capture_execute_values(monkeypatch)
+        plays = pd.concat([
+            make_plays(game_id='GAME1'),
+            make_plays(game_id='GAME1', complete_pass=0, receiving_yards=0),
+        ], ignore_index=True)
+        plays['play_id'] = range(len(plays))
+        participation = pd.concat([
+            make_participation(play_id=0),
+            make_participation(play_id=1),
+            make_participation(play_id=2),
+        ], ignore_index=True)
+        df = aggregate_receiver_stats(plays, make_roster(), 2025, participation)
+        upsert_receiver_stats(_FakeConn(), df)
+
+        row = _captured_row(captured)
+        assert row['routes_run'] is not None
+        assert row['routes_run'] == 2
+
+    def test_conflict_update_overwrites_participation_columns(self, monkeypatch):
+        """ON CONFLICT rewrites all six columns, so the nightly run replaces
+        today's stored 0/'NaN' rows with NULL."""
+        from ingest import aggregate_receiver_stats, upsert_receiver_stats
+        captured = _capture_execute_values(monkeypatch)
+        plays = make_plays()
+        plays['play_id'] = [0]
+        upsert_receiver_stats(_FakeConn(), aggregate_receiver_stats(plays, make_roster(), 2026, None))
+        for col in self.PARTICIPATION_COLS:
+            assert f"{col} = EXCLUDED.{col}" in captured['sql']

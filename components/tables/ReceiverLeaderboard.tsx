@@ -7,7 +7,7 @@ import type { ReceiverSeasonStat } from "@/lib/types";
 import { getTeamColor, getTeamLogo } from "@/lib/data/teams";
 import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
+import { percentileOrMissing, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { WR_RADAR_KEYS, getWRRadarVal } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
@@ -163,6 +163,39 @@ function getVal(rec: ReceiverSeasonStat, key: string, scoringFmt?: ScoringFormat
   }
 }
 
+export function receiverArchetypeMap(data: ReceiverSeasonStat[]): Record<string, { icon: string; label: string }> {
+  // Filter to PFR-qualified players to match player page percentile pools
+  const PFR_MIN_TARGETS = 32;
+  // Early season the 32-target pools are empty or tiny (2025: no WR/TE until
+  // week 3, 10+ TEs only from week 6). A percentile against 0-3 players is
+  // meaningless — an empty pool scored everyone 0th, so every TE read
+  // "Blocking TE". Show no archetype until the position has 10 qualifiers.
+  const MIN_ARCHETYPE_POOL = 10;
+  const wrPool = data.filter((r) => r.position === "WR" && r.targets >= PFR_MIN_TARGETS);
+  const tePool = data.filter((r) => r.position === "TE" && r.targets >= PFR_MIN_TARGETS);
+  // Pre-sort pools for WRs and TEs separately (uses shared radar keys from radar.ts)
+  const wrSorted = WR_RADAR_KEYS.map((key) =>
+    wrPool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+  );
+  const teSorted = WR_RADAR_KEYS.map((key) =>
+    tePool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
+  );
+
+  const map: Record<string, { icon: string; label: string }> = {};
+  for (const rec of data) {
+    if (rec.position !== "WR" && rec.position !== "TE") continue;
+    const isTE = rec.position === "TE";
+    if ((isTE ? tePool : wrPool).length < MIN_ARCHETYPE_POOL) continue;
+    const pools = isTE ? teSorted : wrSorted;
+    const percentiles = WR_RADAR_KEYS.map((key, i) =>
+      // NaN (not 0) for an axis with no data — the rules ignore it
+      percentileOrMissing(pools[i], getWRRadarVal(rec, key))
+    );
+    const arch = isTE ? classifyTE(percentiles) : classifyWR(percentiles);
+    if (arch) map[rec.player_id] = { icon: arch.icon, label: arch.label };
+  }
+  return map;
+}
 
 export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap = {} }: ReceiverLeaderboardProps) {
   const searchParams = useSearchParams();
@@ -295,32 +328,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   }
 
   // Compute archetype for each receiver — TEs get their own pool and classifier
-  const archetypeMap = useMemo(() => {
-    // Filter to PFR-qualified players to match player page percentile pools
-    const PFR_MIN_TARGETS = 32;
-    const wrPool = data.filter((r) => r.position === "WR" && r.targets >= PFR_MIN_TARGETS);
-    const tePool = data.filter((r) => r.position === "TE" && r.targets >= PFR_MIN_TARGETS);
-    // Pre-sort pools for WRs and TEs separately (uses shared radar keys from radar.ts)
-    const wrSorted = WR_RADAR_KEYS.map((key) =>
-      wrPool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
-    );
-    const teSorted = WR_RADAR_KEYS.map((key) =>
-      tePool.map((r) => getWRRadarVal(r, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
-    );
-
-    const map: Record<string, { icon: string; label: string }> = {};
-    for (const rec of data) {
-      if (rec.position !== "WR" && rec.position !== "TE") continue;
-      const isTE = rec.position === "TE";
-      const pools = isTE ? teSorted : wrSorted;
-      const percentiles = WR_RADAR_KEYS.map((key, i) =>
-        computePercentile(pools[i], getWRRadarVal(rec, key))
-      );
-      const arch = isTE ? classifyTE(percentiles) : classifyWR(percentiles);
-      if (arch) map[rec.player_id] = { icon: arch.icon, label: arch.label };
-    }
-    return map;
-  }, [data]);
+  const archetypeMap = useMemo(() => receiverArchetypeMap(data), [data]);
 
   const uniqueArchetypes = useMemo(
     () => Array.from(new Set(Object.values(archetypeMap).map((a) => a.label))).sort(),

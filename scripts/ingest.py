@@ -1316,6 +1316,17 @@ def aggregate_receiver_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: 
     ).reset_index(name='total_receiving_epa').rename(columns={'receiver_player_id': 'player_id'})
     rec = rec.merge(total_recv_epa, on='player_id', how='left')
 
+    # No participation file for this season (nflverse 404s until it publishes
+    # one): routes and snaps are UNKNOWN, not zero. Replace the 0/NaN
+    # placeholders above with None in an object column — the one form the
+    # upsert's `.where(notna, None)` hands to psycopg2 as NULL (a float NaN
+    # column stays NaN and lands in Postgres as 'NaN'; see upsert_player_slugs).
+    if participation is None or participation.empty:
+        for col in ('routes_run', 'total_snaps', 'snap_share',
+                    'route_participation_rate', 'yards_per_route_run',
+                    'targets_per_route_run'):
+            rec[col] = None
+
     # Select final columns
     cols = [
         'player_id', 'player_name', 'position', 'team_id', 'season', 'games',
@@ -2230,6 +2241,11 @@ def aggregate_receiver_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, s
         'routes_run', 'yards_per_route_run',
     ]
     result = rec[cols].copy()
+
+    # Same rule as the season table: no participation file -> NULL, not 0/NaN.
+    if participation is None or participation.empty:
+        result['routes_run'] = None
+        result['yards_per_route_run'] = None
 
     log.info("Aggregated weekly stats for %d receiver game rows", len(result))
     return result

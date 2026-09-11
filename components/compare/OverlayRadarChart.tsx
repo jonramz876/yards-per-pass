@@ -42,8 +42,10 @@ function labelPos(index: number, count: number): { x: number; y: number; anchor:
 }
 
 function makePolygon(values: number[], count: number): { polygon: string; points: [number, number][] } {
-  const clamped = values.map((v) => (isNaN(v) || v < 0 ? 0 : Math.min(v, 100)));
-  const pts = clamped.map((pct, i) => polyPoint((pct / 100) * R_OUTER, i, count));
+  // NaN = no data for this axis (percentileOrMissing): no vertex, no dot — the
+  // outline bridges its neighbors instead of dipping to the center.
+  const pts = values.flatMap((v, i) =>
+    Number.isNaN(v) ? [] : [polyPoint(((v < 0 ? 0 : Math.min(v, 100)) / 100) * R_OUTER, i, count)]);
   return { polygon: pts.map((p) => p.join(",")).join(" "), points: pts };
 }
 
@@ -99,7 +101,7 @@ export default function OverlayRadarChart({
               y={pos.y}
               textAnchor={pos.anchor}
               fontSize={11}
-              fill="#475569"
+              fill={Number.isNaN(values1[i]) && Number.isNaN(values2[i]) ? "#cbd5e1" : "#475569"}
               fontWeight={600}
             >
               {axis.label}
