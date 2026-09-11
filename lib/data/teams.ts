@@ -2,7 +2,7 @@
 // Last verified: 2026-03-15
 // Source: Official NFL team colors, logos hosted locally in /public/logos/
 
-import type { Team } from "@/lib/types";
+import type { Team, TeamSeasonStat } from "@/lib/types";
 
 const teamLogo = (slug: string) => `/logos/${slug}.png`;
 
@@ -57,3 +57,49 @@ export function getTeamLogo(id: string): string {
 // Groupings
 export const DIVISIONS = Array.from(new Set(NFL_TEAMS.map((t) => t.division))).sort();
 export const CONFERENCES = ["AFC", "NFC"] as const;
+
+/* ─── Standings order ───
+ * One rule for every standings view: the homepage board (TecmoStandings), the
+ * team header's division rank (TeamIdentityCard) and the division rivals strip
+ * (DivisionRivals). W/L/T come from ingest; this only orders them. */
+
+type WinLossTie = Pick<TeamSeasonStat, "wins" | "losses" | "ties">;
+
+/** A W/L/T count as a usable number — null, NaN or a missing field reads 0. */
+function recordCount(n: number | null | undefined): number {
+  return typeof n === "number" && Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Win percentage the NFL way: (W + T/2) / (W + L + T) — a tie is half a win.
+ * A team that hasn't played (0-0, or no stats row at all) is .500, so early in
+ * the season it sits below every winning record and above every losing one.
+ */
+export function winPct(rec: WinLossTie | null | undefined): number {
+  const w = recordCount(rec?.wins);
+  const l = recordCount(rec?.losses);
+  const t = recordCount(rec?.ties);
+  const games = w + l + t;
+  return games > 0 ? (w + t / 2) / games : 0.5;
+}
+
+/**
+ * Standings comparator, ready for Array#sort: negative when `a` ranks ahead of
+ * `b`, positive when behind, 0 when the records are level.
+ *   1. Higher win % first (9-7-1 .559 above 9-8 .529; 3-1 above 3-2 and 4-2).
+ *   2. Same win %: more wins-minus-losses first — the "games behind" column —
+ *      so 5-0 leads 4-0 and 0-2 leads 0-3 across a bye week.
+ * Level records (9-8 vs 9-8, 0-0 vs 0-0-1) return 0: the board and the rivals
+ * strip add their own final tiebreak, and division rank lets them share a
+ * place. A missing row counts as 0-0. Never returns NaN.
+ */
+export function compareRecords(
+  a: WinLossTie | null | undefined,
+  b: WinLossTie | null | undefined
+): number {
+  const byPct = winPct(b) - winPct(a);
+  if (byPct !== 0) return byPct;
+  const marginA = recordCount(a?.wins) - recordCount(a?.losses);
+  const marginB = recordCount(b?.wins) - recordCount(b?.losses);
+  return marginB - marginA;
+}

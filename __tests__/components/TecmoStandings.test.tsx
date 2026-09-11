@@ -155,4 +155,89 @@ describe("TecmoStandings", () => {
     expect(row?.textContent).toContain("0-0");
     expect(container.textContent).not.toContain("NaN");
   });
+
+  /** The real live week-1 rows (2026): NE 0-1, SEA 1-0, LA 0-1, SF 1-0. */
+  const WEEK1: TeamSeasonStat[] = [
+    stat("NE", { wins: 0, losses: 1 }),
+    stat("SEA", { wins: 1, losses: 0 }),
+    stat("LA", { wins: 0, losses: 1 }),
+    stat("SF", { wins: 1, losses: 0 }),
+  ];
+
+  it("week 1 (live rows): lists 0-1 NE below 0-0 BUF, MIA and NYJ", () => {
+    const { container } = render(<TecmoStandings season={2026} teamStats={WEEK1} />);
+
+    expect(rowOrder(divisionCard(container, "AFC East"))).toEqual(["BUF", "MIA", "NYJ", "NE"]);
+    expect(rowOrder(divisionCard(container, "NFC West"))).toEqual(["SEA", "SF", "ARI", "LA"]);
+  });
+
+  it("ranks by win % with a tie as half a win (2025 NFC North: GB 9-7-1 above DET 9-8)", () => {
+    const teamStats = [
+      stat("CHI", { wins: 11, losses: 6 }),
+      stat("DET", { wins: 9, losses: 8 }),
+      stat("GB", { wins: 9, losses: 7, ties: 1 }),
+      stat("MIN", { wins: 9, losses: 8 }),
+    ];
+    const { container } = render(<TecmoStandings season={2025} teamStats={teamStats} />);
+
+    expect(rowOrder(divisionCard(container, "NFC North"))).toEqual(["CHI", "GB", "DET", "MIN"]);
+  });
+
+  it("puts 3-1 above 3-2 in a bye week even when the 3-2 team is first alphabetically", () => {
+    const teamStats = [
+      stat("BUF", { wins: 3, losses: 2 }),
+      stat("MIA", { wins: 3, losses: 1 }),
+      stat("NE", { wins: 2, losses: 2 }),
+      stat("NYJ", { wins: 1, losses: 3 }),
+    ];
+    const { container } = render(<TecmoStandings season={2026} teamStats={teamStats} />);
+
+    expect(rowOrder(divisionCard(container, "AFC East"))).toEqual(["MIA", "BUF", "NE", "NYJ"]);
+  });
+
+  it("puts 3-1 above 4-2 (win %, not raw wins)", () => {
+    // NE and NYJ have no row, so they read 0-0 = .500.
+    const teamStats = [stat("BUF", { wins: 4, losses: 2 }), stat("MIA", { wins: 3, losses: 1 })];
+    const { container } = render(<TecmoStandings season={2026} teamStats={teamStats} />);
+
+    expect(rowOrder(divisionCard(container, "AFC East"))).toEqual(["MIA", "BUF", "NE", "NYJ"]);
+  });
+
+  it("at the same win %, more games over .500 ranks higher (5-0 above 4-0, 0-2 above 0-3)", () => {
+    const teamStats = [
+      stat("BUF", { wins: 4, losses: 0 }),
+      stat("MIA", { wins: 5, losses: 0 }),
+      stat("NE", { wins: 0, losses: 3 }),
+      stat("NYJ", { wins: 0, losses: 2 }),
+    ];
+    const { container } = render(<TecmoStandings season={2026} teamStats={teamStats} />);
+
+    expect(rowOrder(divisionCard(container, "AFC East"))).toEqual(["MIA", "BUF", "NYJ", "NE"]);
+  });
+
+  it("puts a 1-0 team above the 0-0 teams even when it is last alphabetically", () => {
+    const { container } = render(
+      <TecmoStandings season={2026} teamStats={[stat("LV", { wins: 1 })]} />
+    );
+
+    expect(rowOrder(divisionCard(container, "AFC West"))).toEqual(["LV", "DEN", "KC", "LAC"]);
+  });
+
+  it("orders an all-0-0 division alphabetically", () => {
+    const { container } = render(<TecmoStandings season={2026} teamStats={[]} />);
+
+    expect(rowOrder(divisionCard(container, "AFC East"))).toEqual(["BUF", "MIA", "NE", "NYJ"]);
+    expect(rowOrder(divisionCard(container, "NFC West"))).toEqual(["ARI", "LA", "SEA", "SF"]);
+    expect(rowOrder(divisionCard(container, "AFC West"))).toEqual(["DEN", "KC", "LAC", "LV"]);
+  });
+
+  it("orders level records alphabetically (0-0-1 tie level with 0-0)", () => {
+    const { container } = render(
+      <TecmoStandings season={2026} teamStats={[stat("NYJ", { ties: 1 })]} />
+    );
+
+    expect(rowOrder(divisionCard(container, "AFC East"))).toEqual(["BUF", "MIA", "NE", "NYJ"]);
+    const row = container.querySelector('[data-team-id="NYJ"]');
+    expect(row?.textContent).toContain("0-0-1");
+  });
 });

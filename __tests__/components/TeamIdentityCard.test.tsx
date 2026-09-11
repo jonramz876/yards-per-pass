@@ -159,4 +159,86 @@ describe("TeamIdentityCard (Tecmo header)", () => {
       expect(container.textContent).not.toMatch(/undefined|NaN|null/);
     });
   });
+
+  describe("division rank (standings order)", () => {
+    /** The real live week-1 rows (2026): NE 0-1, SEA 1-0, LA 0-1, SF 1-0. */
+    const WEEK1: TeamSeasonStat[] = [
+      stat("NE", { wins: 0, losses: 1 }),
+      stat("SEA", { wins: 1, losses: 0 }),
+      stat("LA", { wins: 0, losses: 1 }),
+      stat("SF", { wins: 1, losses: 0 }),
+    ];
+
+    /** Header for `teamId`, fed its own row from `pool`. */
+    function renderTeam(teamId: string, pool: TeamSeasonStat[]) {
+      return render(
+        <TeamIdentityCard
+          team={getTeam(teamId)!}
+          teamStats={pool.find((t) => t.team_id === teamId)!}
+          allTeamStats={pool}
+        />,
+      );
+    }
+
+    it("week 1 (live rows): 0-1 NE is 4th behind 0-0 rivals that have no stats row", () => {
+      renderTeam("NE", WEEK1);
+      expect(screen.getByText("0-1 · 4th AFC East")).toBeInTheDocument();
+    });
+
+    it("week 1 (live rows): 0-1 LA is 4th behind 1-0 SEA, 1-0 SF and 0-0 ARI", () => {
+      renderTeam("LA", WEEK1);
+      expect(screen.getByText("0-1 · 4th NFC West")).toBeInTheDocument();
+    });
+
+    it("week 1 (live rows): 1-0 SEA and 1-0 SF share 1st", () => {
+      renderTeam("SEA", WEEK1);
+      expect(screen.getByText("1-0 · 1st NFC West")).toBeInTheDocument();
+    });
+
+    it("counts a tie as half a win: 9-7-1 ranks above 9-8", () => {
+      // BUF 9-7-1, MIA 9-8, NE 8-9, NYJ 4-13 (NYJ is already 4-13 in ALL).
+      const pool = poolWithBuf({ wins: 9, losses: 7, ties: 1 }).map((t) =>
+        t.team_id === "MIA"
+          ? { ...t, wins: 9, losses: 8 }
+          : t.team_id === "NE"
+            ? { ...t, wins: 8, losses: 9 }
+            : t,
+      );
+      renderTeam("BUF", pool);
+      expect(screen.getByText("9-7-1 · 1st AFC East")).toBeInTheDocument();
+      renderTeam("MIA", pool);
+      expect(screen.getByText("9-8 · 2nd AFC East")).toBeInTheDocument();
+    });
+
+    it("2025 NFC North: 9-8 DET is 3rd behind 11-6 CHI and 9-7-1 GB, level with 9-8 MIN", () => {
+      const pool = [
+        stat("CHI", { wins: 11, losses: 6 }),
+        stat("DET", { wins: 9, losses: 8 }),
+        stat("GB", { wins: 9, losses: 7, ties: 1 }),
+        stat("MIN", { wins: 9, losses: 8 }),
+      ];
+      renderTeam("DET", pool);
+      expect(screen.getByText("9-8 · 3rd NFC North")).toBeInTheDocument();
+    });
+
+    it("bye week: 3-2 ranks below 3-1", () => {
+      renderTeam("BUF", [stat("BUF", { wins: 3, losses: 2 }), stat("MIA", { wins: 3, losses: 1 })]);
+      expect(screen.getByText("3-2 · 2nd AFC East")).toBeInTheDocument();
+    });
+
+    it("bye week: 4-2 ranks below 3-1 (win %, not raw wins)", () => {
+      renderTeam("BUF", [stat("BUF", { wins: 4, losses: 2 }), stat("MIA", { wins: 3, losses: 1 })]);
+      expect(screen.getByText("4-2 · 2nd AFC East")).toBeInTheDocument();
+    });
+
+    it("a rival row with NaN counts reads as 0-0 and never breaks the rank", () => {
+      const pool = [
+        stat("BUF", { wins: 0, losses: 1 }),
+        stat("MIA", { wins: NaN, losses: NaN, ties: NaN }),
+      ];
+      const { container } = renderTeam("BUF", pool);
+      expect(screen.getByText("0-1 · 4th AFC East")).toBeInTheDocument();
+      expect(container.textContent).not.toContain("NaN");
+    });
+  });
 });

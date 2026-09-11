@@ -3,8 +3,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import type { TeamSeasonStat } from "@/lib/types";
-import { getTeam } from "@/lib/data/teams";
+import type { Team, TeamSeasonStat } from "@/lib/types";
+import { NFL_TEAMS, compareRecords } from "@/lib/data/teams";
 import { ordinal } from "@/lib/stats/percentiles";
 import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 
@@ -28,6 +28,33 @@ function computeRank(
   return sorted.findIndex((t) => t.team_id === teamId) + 1;
 }
 
+/** One rival card: the team, plus its stats row (null until it has played). */
+interface Rival {
+  team: Team;
+  stats: TeamSeasonStat | null;
+}
+
+/** Offensive EPA for the tiebreak — a rival without a usable number sorts last. */
+function offEpaForSort(stats: TeamSeasonStat | null): number {
+  return stats && Number.isFinite(stats.off_epa_play)
+    ? stats.off_epa_play
+    : Number.NEGATIVE_INFINITY;
+}
+
+/**
+ * Standings order (compareRecords: win %, a tie as half a win, 0-0 = .500),
+ * then offensive EPA between rivals with level records (this strip's existing
+ * tiebreak), then abbreviation A→Z so the order never depends on row order.
+ */
+function compareRivals(a: Rival, b: Rival): number {
+  const byRecord = compareRecords(a.stats, b.stats);
+  if (byRecord !== 0) return byRecord;
+  const epaA = offEpaForSort(a.stats);
+  const epaB = offEpaForSort(b.stats);
+  if (epaA !== epaB) return epaA > epaB ? -1 : 1;
+  return a.team.id < b.team.id ? -1 : a.team.id > b.team.id ? 1 : 0;
+}
+
 export default function DivisionRivals({
   allTeamStats,
   division,
@@ -35,14 +62,17 @@ export default function DivisionRivals({
   primaryColor,
   secondaryColor,
 }: DivisionRivalsProps) {
-  // Find division rivals (same division, not current team)
-  const rivals = allTeamStats.filter((ts) => {
-    const team = getTeam(ts.team_id);
-    return team && team.division === division && ts.team_id !== currentTeamId;
-  });
+  // Every division rival, straight from NFL_TEAMS. A rival that hasn't played
+  // yet has no stats row — it still gets a card (0-0, rank pills "—") instead
+  // of vanishing from the strip.
+  const rivals: Rival[] = NFL_TEAMS.filter(
+    (t) => t.division === division && t.id !== currentTeamId
+  ).map((team) => ({
+    team,
+    stats: allTeamStats.find((ts) => ts.team_id === team.id) ?? null,
+  }));
 
-  // Sort by wins desc, then off_epa desc
-  const sorted = [...rivals].sort((a, b) => b.wins - a.wins || b.off_epa_play - a.off_epa_play);
+  const sorted = [...rivals].sort(compareRivals);
 
   return (
     <TecmoSectionCard
@@ -54,18 +84,17 @@ export default function DivisionRivals({
         <p className="text-sm text-gray-400">No division rival stats available.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {sorted.map((rival) => {
-            const team = getTeam(rival.team_id);
-            if (!team) return null;
-
-            const record = `${rival.wins}-${rival.losses}${rival.ties > 0 ? `-${rival.ties}` : ""}`;
-            const offRank = computeRank(allTeamStats, rival.team_id, (t) => t.off_epa_play, false);
-            const defRank = computeRank(allTeamStats, rival.team_id, (t) => t.def_epa_play, true);
+          {sorted.map(({ team, stats }) => {
+            const rec = stats ?? { wins: 0, losses: 0, ties: 0 };
+            const record = `${rec.wins}-${rec.losses}${rec.ties > 0 ? `-${rec.ties}` : ""}`;
+            // computeRank returns 0 for a rival missing from the pool — RankPill shows "—".
+            const offRank = computeRank(allTeamStats, team.id, (t) => t.off_epa_play, false);
+            const defRank = computeRank(allTeamStats, team.id, (t) => t.def_epa_play, true);
 
             return (
               <Link
-                key={rival.team_id}
-                href={`/team/${rival.team_id.toLowerCase()}`}
+                key={team.id}
+                href={`/team/${team.id.toLowerCase()}`}
                 className="block rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 {/* Team color accent */}
@@ -108,7 +137,7 @@ function RankPill({ label, rank }: { label: string; rank: number }) {
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-full ${cls}`}>
       {label}:
-      <span className="font-bold">{ordinal(rank)}</span>
+      <span className="font-bold">{rank > 0 ? ordinal(rank) : "—"}</span>
     </span>
   );
 }

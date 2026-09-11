@@ -10,7 +10,7 @@ import Image from "next/image";
 import type { Team, TeamSeasonStat } from "@/lib/types";
 import { textColorForBackground } from "@/lib/stats/formatters";
 import { ordinal } from "@/lib/stats/percentiles";
-import { NFL_TEAMS } from "@/lib/data/teams";
+import { NFL_TEAMS, compareRecords } from "@/lib/data/teams";
 
 interface TeamIdentityCardProps {
   team: Team;
@@ -52,20 +52,21 @@ function leagueRank(
 }
 
 /**
- * Place in the division by wins. The division roster comes from NFL_TEAMS (so
- * a partially-populated allTeamStats can't shrink the field silently), and
- * teams tied on wins share the same rank — 4/3/2/2 wins reads 1st/2nd/3rd/3rd.
+ * Place in the division, standings-style (compareRecords: win %, a tie as half
+ * a win, 0-0 = .500). The field is all four teams from NFL_TEAMS — a rival
+ * with no stats row yet counts as 0-0, so a partially-populated allTeamStats
+ * can't shrink it. Competition ranking: teams with level records share the
+ * better place — 11-6 / 9-7-1 / 9-8 / 9-8 reads 1st/2nd/3rd/3rd.
  */
 function divisionRank(allStats: TeamSeasonStat[], team: Team): number | null {
-  const divisionIds = new Set(
-    NFL_TEAMS.filter((t) => t.division === team.division).map((t) => t.id)
-  );
-  const inDivision = allStats.filter((t) => divisionIds.has(t.team_id));
-  const self = inDivision.find((t) => t.team_id === team.id);
+  const self = allStats.find((t) => t.team_id === team.id);
   if (!self || !Number.isFinite(self.wins)) return null;
 
-  const ahead = inDivision.filter(
-    (t) => Number.isFinite(t.wins) && t.wins > self.wins
+  const ahead = NFL_TEAMS.filter(
+    (t) =>
+      t.division === team.division &&
+      t.id !== team.id &&
+      compareRecords(allStats.find((s) => s.team_id === t.id), self) < 0
   ).length;
   return ahead + 1;
 }

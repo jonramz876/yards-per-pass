@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import type { TeamSeasonStat, Team } from "@/lib/types";
-import { NFL_TEAMS, DIVISIONS } from "@/lib/data/teams";
+import { NFL_TEAMS, DIVISIONS, compareRecords } from "@/lib/data/teams";
 import { textColorForBackground } from "@/lib/stats/formatters";
 
 interface TecmoStandingsProps {
@@ -78,12 +78,13 @@ function DivisionCard({
   const bodyText = textColorForBackground(PANEL_BG);
 
   // The roster comes from NFL_TEAMS, not from the stats — all four teams show
-  // up even when nobody has a row yet. Sorted by wins desc; Array#sort is
-  // stable, so teams level on wins keep their (alphabetical) NFL_TEAMS order
-  // and share the placement rather than being reshuffled arbitrarily.
+  // up even when nobody has a row yet (no row = 0-0). Standings order is the
+  // shared rule (compareRecords: win %, a tie as half a win, 0-0 = .500, then
+  // games over .500); teams with level records fall back to abbreviation A→Z.
   const teams: Team[] = NFL_TEAMS.filter((t) => t.division === division).sort(
     (a, b) =>
-      (records.get(b.id) ?? DEFAULT_RECORD).wins - (records.get(a.id) ?? DEFAULT_RECORD).wins
+      compareRecords(records.get(a.id) ?? DEFAULT_RECORD, records.get(b.id) ?? DEFAULT_RECORD) ||
+      (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
   );
 
   return (

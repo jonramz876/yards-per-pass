@@ -40,20 +40,23 @@ function rankColor(rank: number): string {
   return "border-l-gray-300";
 }
 
-function formatPct(val: number): string {
-  if (isNaN(val)) return "—";
+// A situation with 0 rushes (or 0 passes) is stored as 'NaN'; parseNumericFields
+// turns that into null, and isNaN(null) is false — so check null explicitly.
+function formatPct(val: number | null): string {
+  if (val == null || Number.isNaN(val)) return "—";
   return (val * 100).toFixed(0) + "%";
 }
 
-function formatEpa(val: number): string {
-  if (isNaN(val)) return "—";
+function formatEpa(val: number | null): string {
+  if (val == null || Number.isNaN(val)) return "—";
   return (val >= 0 ? "+" : "") + val.toFixed(2);
 }
 
 // Horizontal bar showing rush vs pass split
 function SplitBar({ rushEpa, passEpa }: { rushEpa: number; passEpa: number }) {
-  const hasRush = !isNaN(rushEpa);
-  const hasPass = !isNaN(passEpa);
+  // A side with zero plays arrives as null (DB 'NaN' → parseNumericFields → null).
+  const hasRush = !(rushEpa == null || Number.isNaN(rushEpa));
+  const hasPass = !(passEpa == null || Number.isNaN(passEpa));
   if (!hasRush && !hasPass) return null;
 
   const maxAbs = Math.max(Math.abs(rushEpa || 0), Math.abs(passEpa || 0), 0.15);
@@ -76,7 +79,7 @@ function SplitBar({ rushEpa, passEpa }: { rushEpa: number; passEpa: number }) {
           )}
           <div className="absolute left-1/2 top-0 h-full w-px bg-gray-300" />
         </div>
-        <span className={`text-[10px] font-mono w-10 ${rushEpa >= 0 ? "text-green-700" : "text-red-600"}`}>
+        <span className={`text-[10px] font-mono w-10 ${!hasRush ? "text-gray-400" : rushEpa >= 0 ? "text-green-700" : "text-red-600"}`}>
           {hasRush ? formatEpa(rushEpa) : "—"}
         </span>
       </div>
@@ -96,7 +99,7 @@ function SplitBar({ rushEpa, passEpa }: { rushEpa: number; passEpa: number }) {
           )}
           <div className="absolute left-1/2 top-0 h-full w-px bg-gray-300" />
         </div>
-        <span className={`text-[10px] font-mono w-10 ${passEpa >= 0 ? "text-blue-700" : "text-red-600"}`}>
+        <span className={`text-[10px] font-mono w-10 ${!hasPass ? "text-gray-400" : passEpa >= 0 ? "text-blue-700" : "text-red-600"}`}>
           {hasPass ? formatEpa(passEpa) : "—"}
         </span>
       </div>
