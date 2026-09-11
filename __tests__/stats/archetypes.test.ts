@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { classifyQB, classifyWR, classifyTE, classifyRB } from "@/lib/stats/archetypes";
+import { receiverArchetypeMap } from "@/components/tables/ReceiverLeaderboard";
+import type { ReceiverSeasonStat } from "@/lib/types";
+import wrTePool from "./fixtures/wr-te-2025-pool.json";
 
 // ---------------------------------------------------------------------------
 // classifyQB
@@ -315,5 +318,143 @@ describe("classifyRB", () => {
 
   it("returns null for RB with very low stats across the board", () => {
     expect(classifyRB([20, 20, 20, 20, 20, 20])).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Missing axes: a NaN percentile means "no data", never last place
+// ---------------------------------------------------------------------------
+describe("missing axes (NaN percentiles)", () => {
+  it("classifyTE: a missing YPRR axis never triggers Blocking TE", () => {
+    expect(classifyTE([20, 40, 40, 40, 40, NaN])).toBeNull();
+    // A real low YPRR still does.
+    expect(classifyTE([20, 40, 40, 40, 40, 30])?.label).toBe("Blocking TE");
+  });
+
+  it("classifyWR: a missing axis is not a weak axis (Alpha WR1 path 1)", () => {
+    expect(classifyWR([70, 80, 80, 80, 80, NaN])?.label).toBe("Alpha WR1");
+    // Control: a real 0th-percentile axis is weak.
+    expect(classifyWR([70, 80, 80, 80, 80, 0])?.label).toBe("Contested Catch WR");
+  });
+
+  it("classifyWR: YPRR-defined archetypes need a real YPRR", () => {
+    expect(classifyWR([60, 65, 60, 50, 50, NaN])?.label).toBe("Role Player");
+    // Control: the same profile with a real high YPRR is a Route Technician.
+    expect(classifyWR([60, 65, 60, 50, 50, 90])?.label).toBe("Route Technician");
+  });
+
+  it("all-NaN input yields null", () => {
+    expect(classifyWR(Array(6).fill(NaN))).toBeNull();
+    expect(classifyTE(Array(6).fill(NaN))).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// receiverArchetypeMap (leaderboard)
+// ---------------------------------------------------------------------------
+function wr(over: Partial<ReceiverSeasonStat>): ReceiverSeasonStat {
+  return {
+    player_id: "r", player_name: "R", position: "WR", team_id: "BUF", season: 2026,
+    games: 16, targets: 140, receptions: 96, receiving_yards: 1281, receiving_tds: 9,
+    catch_rate: 0.686, yards_per_target: 9.15, yards_per_reception: 13.3,
+    epa_per_target: 0.32, yac: 480, yac_per_reception: 5.0, air_yards: 1450,
+    air_yards_per_target: 10.4, target_share: 0.271, fumbles: 2, fumbles_lost: 1,
+    routes_run: 520, yards_per_route_run: 2.46, targets_per_route_run: 0.269,
+    total_snaps: 900, snap_share: 0.842, route_participation_rate: 0.78,
+    air_yards_share: 0.35, croe: 0.024, receiving_success_rate: 0.552,
+    total_receiving_epa: 44.8,
+    ...over,
+  } as ReceiverSeasonStat;
+}
+
+// 2026 has no participation file yet: every route/snap field is NULL.
+const NO_PARTICIPATION = { routes_run: null, total_snaps: null, snap_share: null, route_participation_rate: null, yards_per_route_run: null, targets_per_route_run: null } as unknown as Partial<ReceiverSeasonStat>;
+// Real 2026 week-1 receivers (NE-SEA and SF-LA games).
+const WEEK1_2026 = [
+  wr({ player_id: '00-0033288', player_name: 'G.Kittle', position: 'TE', games: 1, targets: 5, epa_per_target: -1.1161671683192254, croe: -0.2958020687103271, air_yards_per_target: 7.6, yac_per_reception: 8.5, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0033090', player_name: 'H.Henry', position: 'TE', games: 1, targets: 3, epa_per_target: 0.03257922793272883, croe: 0.26544823249181115, air_yards_per_target: 4.0, yac_per_reception: 4.666666666666667, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0039793', player_name: 'A.Barner', position: 'TE', games: 1, targets: 2, epa_per_target: 0.4385657471430022, croe: 0.16090834140777588, air_yards_per_target: -0.5, yac_per_reception: 7.0, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0033110', player_name: 'T.Higbee', position: 'TE', games: 1, targets: 2, epa_per_target: -2.3662121596280485, croe: 0.18677937984466553, air_yards_per_target: 4.5, yac_per_reception: 1.5, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0036244', player_name: 'C.Parkinson', position: 'TE', games: 1, targets: 2, epa_per_target: -0.12938752805348486, croe: -0.2827591001987457, air_yards_per_target: 4.5, yac_per_reception: 4.0, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0036887', player_name: 'L.Farrell', position: 'TE', games: 1, targets: 2, epa_per_target: 0.7624222467420623, croe: 0.16920223832130432, air_yards_per_target: 1.5, yac_per_reception: 8.0, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0041395', player_name: 'E.Raridon', position: 'TE', games: 1, targets: 1, epa_per_target: 0.8406261451600585, croe: 0.46012723445892334, air_yards_per_target: 2.0, yac_per_reception: 0.0, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0039074', player_name: 'D.Allen', position: 'TE', games: 1, targets: 1, epa_per_target: 1.1979658557102084, croe: 0.1323910355567932, air_yards_per_target: -1.0, yac_per_reception: 14.0, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0040737', player_name: 'T.Ferguson', position: 'TE', games: 1, targets: 1, epa_per_target: -2.7767381893936545, croe: -0.2940230965614319, air_yards_per_target: 24.0, yac_per_reception: null as unknown as number, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0038543', player_name: 'J.Smith-Njigba', position: 'WR', games: 1, targets: 11, epa_per_target: 0.6979132208492171, croe: 0.05526326732202014, air_yards_per_target: 6.909090909090909, yac_per_reception: 7.75, ...NO_PARTICIPATION }),
+  wr({ player_id: '00-0033908', player_name: 'C.Kupp', position: 'WR', games: 1, targets: 3, epa_per_target: 0.5744059124651054, croe: 0.17203072706858313, air_yards_per_target: 16.333333333333332, yac_per_reception: 2.5, ...NO_PARTICIPATION }),
+];
+
+describe("receiverArchetypeMap (leaderboard)", () => {
+  // Frozen 2025 WR/TE pool + leaderboard labels captured before the fix.
+  // It pins the FORMULA, not the data: never re-capture it to make this pass.
+  const fixture = wrTePool as unknown as {
+    rows: ReceiverSeasonStat[];
+    leaderboardLabels: Record<string, string | null>;
+  };
+
+  it("2025 golden: every WR/TE leaderboard label is unchanged", () => {
+    expect(fixture.rows).toHaveLength(347);
+    const map = receiverArchetypeMap(fixture.rows);
+    const actual = Object.fromEntries(
+      fixture.rows.map((r) => [r.player_id, map[r.player_id]?.label ?? null]),
+    );
+    expect(Object.keys(actual)).toHaveLength(347);
+    expect(actual).toEqual(fixture.leaderboardLabels);
+  });
+
+  it("week 1 (empty 32-target pools): no archetypes at all", () => {
+    // Regression: the old code scored every axis against the empty pool as
+    // 0th and tagged all nine TEs "Blocking TE".
+    expect(receiverArchetypeMap(WEEK1_2026)).toEqual({});
+  });
+
+  it("no labels for a position until it has 10 qualifiers", () => {
+    // Varied profiles, so the positive case is a real label rather than an
+    // all-zero-percentile one.
+    const te = (i: number) => wr({
+      player_id: `te${i}`, position: "TE", games: 17, targets: 40 + i * 8,
+      epa_per_target: 0.02 * i, croe: -0.05 + 0.01 * i,
+      air_yards_per_target: 5 + 0.5 * i, yac_per_reception: 3 + 0.4 * i,
+      yards_per_route_run: 1 + 0.1 * i,
+    });
+    const wrs = Array.from({ length: 10 }, (_, i) => wr({
+      player_id: `wr${i}`, position: "WR", games: 17, targets: 50 + i * 10,
+      epa_per_target: 0.03 * i, croe: -0.04 + 0.01 * i,
+      air_yards_per_target: 7 + 0.6 * i, yac_per_reception: 3 + 0.3 * i,
+      yards_per_route_run: 1.2 + 0.15 * i,
+    }));
+    const smallTE = wr({ player_id: "te-small", position: "TE", games: 17, targets: 5 });
+    const nineTEs = [...Array.from({ length: 9 }, (_, i) => te(i)), smallTE];
+    const nine = receiverArchetypeMap([...wrs, ...nineTEs]);
+    expect(Object.keys(nine).filter((id) => id.startsWith("te"))).toEqual([]);
+
+    const ten = receiverArchetypeMap([...wrs, ...nineTEs, te(9)]);
+    expect(Object.keys(ten).filter((id) => id.startsWith("te")).length).toBeGreaterThan(0);
+    // The best TE in the pool (90th on every axis) earns a real label.
+    expect(ten["te9"]?.label).toBe("Elite TE1");
+
+    // WRs do not depend on the TE count.
+    const wrOnly = (m: Record<string, { icon: string; label: string }>) =>
+      Object.fromEntries(Object.entries(m).filter(([id]) => id.startsWith("wr")));
+    expect(Object.keys(wrOnly(nine)).length).toBeGreaterThan(0);
+    expect(wrOnly(ten)).toEqual(wrOnly(nine));
+  });
+
+  it("missing YPRR is ignored, not scored 0th", () => {
+    // 12 qualifying TEs with no route data, plus a 1-target TE whose other
+    // axes sit mid-pool. The old code read his missing YPRR as 0th -> Blocking TE.
+    const pool = Array.from({ length: 12 }, (_, i) => wr({
+      player_id: `te${i}`, position: "TE", games: 3, targets: 40 + i,
+      epa_per_target: -0.1 + 0.03 * i, croe: -0.06 + 0.01 * i,
+      air_yards_per_target: 4 + 0.5 * i, yac_per_reception: 2 + 0.5 * i,
+      ...NO_PARTICIPATION,
+    }));
+    const low = wr({
+      player_id: "low", position: "TE", games: 1, targets: 1,
+      epa_per_target: 0.08, croe: 0.0, air_yards_per_target: 7, yac_per_reception: 5,
+      ...NO_PARTICIPATION,
+    });
+    const map = receiverArchetypeMap([...pool, low]);
+    expect(map["low"]?.label).not.toBe("Blocking TE");
   });
 });

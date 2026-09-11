@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   computePercentile,
+  percentileOrMissing,
   computeRank,
   ordinal,
   chipColor,
@@ -188,5 +189,27 @@ describe("getHeatmapStyle", () => {
     // percentile=5, inverted → effective = 95 → green
     const style = getHeatmapStyle(5, true);
     expect(style.color).toBe("#15803d");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// percentileOrMissing
+// ---------------------------------------------------------------------------
+describe("percentileOrMissing", () => {
+  it("returns NaN for a NaN value", () => {
+    expect(percentileOrMissing([1, 2, 3], NaN)).toBeNaN();
+  });
+
+  it("returns NaN for an empty pool", () => {
+    expect(percentileOrMissing([], 50)).toBeNaN();
+  });
+
+  it("matches computePercentile otherwise", () => {
+    expect(percentileOrMissing([10, 20, 30, 40, 50], 30)).toBe(40);
+    expect(percentileOrMissing([10, 20, 30, 40, 50], 30)).toBe(computePercentile([10, 20, 30, 40, 50], 30));
+  });
+
+  it("a real last place is still 0, not NaN", () => {
+    expect(percentileOrMissing([10, 20, 30], 5)).toBe(0);
   });
 });

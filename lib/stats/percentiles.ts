@@ -10,6 +10,18 @@ export function computePercentile(allValues: number[], value: number): number {
   return (rank / allValues.length) * 100;
 }
 
+/**
+ * Like computePercentile, but returns NaN ("no data") instead of 0 when the
+ * player's value is missing or nobody in the pool has a value. Use it where a
+ * 0 would be read as a real last place: archetype rules and radar axes.
+ * The coercing isNaN (same check as computePercentile) also catches the raw
+ * string "NaN" an unparsed Supabase row carries.
+ */
+export function percentileOrMissing(allValues: number[], value: number): number {
+  if (value == null || isNaN(value) || allValues.length === 0) return NaN;
+  return computePercentile(allValues, value);
+}
+
 /** Compute 1-based rank (1 = best/highest) of `value` within `allValues`. */
 export function computeRank(allValues: number[], value: number): number {
   if (isNaN(value)) return allValues.length;

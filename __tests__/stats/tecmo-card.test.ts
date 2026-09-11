@@ -4,6 +4,10 @@ import {
   qbEligible, wrEligible, rbEligible, tierColor,
 } from "@/lib/stats/tecmo-card";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
+// Frozen 2025 WR/TE pool (347 rows) + labels/OVRs captured before the
+// missing-participation fix. It pins the FORMULA, not the data: never
+// re-capture it to make a failing test pass.
+import wrTePool from "./fixtures/wr-te-2025-pool.json";
 
 function qb(over: Partial<QBSeasonStat>): QBSeasonStat {
   return {
@@ -275,6 +279,93 @@ describe("buildWRCardData", () => {
     expect(d.games).toBe(16);
     expect(d.radarValues).toHaveLength(6);
     expect(d.radarLabels).toHaveLength(6);
+  });
+
+  it("2025 golden: every WR/TE card archetype and OVR is unchanged", () => {
+    const fx = wrTePool as unknown as {
+      rows: ReceiverSeasonStat[];
+      cardLabels: Record<string, string | null>;
+      cardOvr: Record<string, number | null>;
+    };
+    expect(fx.rows).toHaveLength(347);
+    const labels: Record<string, string | null> = {};
+    const ovrs: Record<string, number | null> = {};
+    for (const r of fx.rows) {
+      const d = buildWRCardData(r, fx.rows, 2025);
+      labels[r.player_id] = d.archetypeLabel;
+      ovrs[r.player_id] = d.ovr;
+    }
+    expect(labels).toEqual(fx.cardLabels);
+    expect(ovrs).toEqual(fx.cardOvr);
+    expect(Object.values(ovrs).filter((v) => v != null)).toHaveLength(247);
+  });
+
+  // 2026 has no participation file yet: every route/snap field is NULL.
+  const NO_PARTICIPATION = { routes_run: null, total_snaps: null, snap_share: null, route_participation_rate: null, yards_per_route_run: null, targets_per_route_run: null } as unknown as Partial<ReceiverSeasonStat>;
+  // Real 2026 week-1 receivers (NE-SEA and SF-LA games).
+  const WEEK1_2026 = [
+    wr({ player_id: '00-0033288', player_name: 'G.Kittle', position: 'TE', games: 1, targets: 5, epa_per_target: -1.1161671683192254, croe: -0.2958020687103271, air_yards_per_target: 7.6, yac_per_reception: 8.5, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0033090', player_name: 'H.Henry', position: 'TE', games: 1, targets: 3, epa_per_target: 0.03257922793272883, croe: 0.26544823249181115, air_yards_per_target: 4.0, yac_per_reception: 4.666666666666667, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0039793', player_name: 'A.Barner', position: 'TE', games: 1, targets: 2, epa_per_target: 0.4385657471430022, croe: 0.16090834140777588, air_yards_per_target: -0.5, yac_per_reception: 7.0, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0033110', player_name: 'T.Higbee', position: 'TE', games: 1, targets: 2, epa_per_target: -2.3662121596280485, croe: 0.18677937984466553, air_yards_per_target: 4.5, yac_per_reception: 1.5, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0036244', player_name: 'C.Parkinson', position: 'TE', games: 1, targets: 2, epa_per_target: -0.12938752805348486, croe: -0.2827591001987457, air_yards_per_target: 4.5, yac_per_reception: 4.0, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0036887', player_name: 'L.Farrell', position: 'TE', games: 1, targets: 2, epa_per_target: 0.7624222467420623, croe: 0.16920223832130432, air_yards_per_target: 1.5, yac_per_reception: 8.0, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0041395', player_name: 'E.Raridon', position: 'TE', games: 1, targets: 1, epa_per_target: 0.8406261451600585, croe: 0.46012723445892334, air_yards_per_target: 2.0, yac_per_reception: 0.0, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0039074', player_name: 'D.Allen', position: 'TE', games: 1, targets: 1, epa_per_target: 1.1979658557102084, croe: 0.1323910355567932, air_yards_per_target: -1.0, yac_per_reception: 14.0, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0040737', player_name: 'T.Ferguson', position: 'TE', games: 1, targets: 1, epa_per_target: -2.7767381893936545, croe: -0.2940230965614319, air_yards_per_target: 24.0, yac_per_reception: null as unknown as number, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0038543', player_name: 'J.Smith-Njigba', position: 'WR', games: 1, targets: 11, epa_per_target: 0.6979132208492171, croe: 0.05526326732202014, air_yards_per_target: 6.909090909090909, yac_per_reception: 7.75, ...NO_PARTICIPATION }),
+    wr({ player_id: '00-0033908', player_name: 'C.Kupp', position: 'WR', games: 1, targets: 3, epa_per_target: 0.5744059124651054, croe: 0.17203072706858313, air_yards_per_target: 16.333333333333332, yac_per_reception: 2.5, ...NO_PARTICIPATION }),
+  ];
+  const week1Card = (name: string) =>
+    buildWRCardData(WEEK1_2026.find((r) => r.player_name === name)!, WEEK1_2026, 2026);
+
+  it("2026 week 1 (no participation file): no TE is a Blocking TE", () => {
+    // Regression: the old code returned "Blocking TE" for Barner, Higbee,
+    // Parkinson, Farrell, Raridon and Ferguson (missing YPRR scored as 0th).
+    const expected: Record<string, string | null> = {
+      "G.Kittle": "Target Hog",
+      "H.Henry": "Security Blanket",
+      "A.Barner": null,
+      "T.Higbee": null,
+      "C.Parkinson": null,
+      "L.Farrell": "Complementary TE",
+      "E.Raridon": "Complementary TE",
+      "T.Ferguson": "Complementary TE",
+      "D.Allen": "YAC Weapon",
+    };
+    for (const [name, label] of Object.entries(expected)) {
+      expect(week1Card(name).archetypeLabel, name).toBe(label);
+    }
+    for (const r of WEEK1_2026) {
+      expect(buildWRCardData(r, WEEK1_2026, 2026).archetypeLabel, r.player_name).not.toBe("Blocking TE");
+    }
+  });
+
+  it("missing participation: ROUTES, SNAP % and YPRR render an em dash", () => {
+    const d = week1Card("J.Smith-Njigba");
+    const cell = (l: string) => d.statCells.find((c) => c.label === l)!.value;
+    expect(cell("ROUTES")).toBe("—");
+    expect(cell("SNAP %")).toBe("—");
+    expect(cell("YPRR")).toBe("—");
+    expect(d.abilityRows.find((r) => r.label === "YPRR")!.missing).toBe(true);
+  });
+
+  it("missing axes are flagged for the radar, and radarValues stay NaN-free", () => {
+    expect(week1Card("J.Smith-Njigba").radarMissing).toEqual([false, false, false, false, false, true]);
+    expect(week1Card("T.Ferguson").radarMissing).toEqual([false, false, false, false, true, true]);
+    // radarValues is serialized server -> client on /card/[slug]: no NaN allowed.
+    for (const r of WEEK1_2026) {
+      expect(buildWRCardData(r, WEEK1_2026, 2026).radarValues.some(Number.isNaN), r.player_name).toBe(false);
+    }
+  });
+
+  it("full data: no radar axis is missing", () => {
+    expect(buildWRCardData(pool[3], pool, 2026).radarMissing).toEqual([false, false, false, false, false, false]);
+  });
+
+  it("a real zero routes count still renders 0", () => {
+    const d = buildWRCardData(wr({ player_id: "z", routes_run: 0 }), pool, 2026);
+    expect(d.statCells.find((c) => c.label === "ROUTES")!.value).toBe("0");
   });
 });
 

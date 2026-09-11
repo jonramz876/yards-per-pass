@@ -92,7 +92,7 @@ const WR_COLS: ColDef[] = [
   { key: "catch_rate", label: "Catch%", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).catch_rate, format: fmtPct },
   { key: "adot", label: "ADOT", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).adot, format: fmtDec1 },
   { key: "yac", label: "YAC", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).yac, format: fmtInt },
-  { key: "routes_run", label: "Routes", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).routes_run, format: fmtInt },
+  { key: "routes_run", label: "Routes", numeric: true, sortable: true, getValue: (r) => (r as ReceiverWeeklyStat).routes_run ?? NaN, format: fmtInt },
   { key: "fantasy_pts", label: "FPts", numeric: true, sortable: true, getValue: (r) => {
     const wr = r as ReceiverWeeklyStat;
     return wrFantasyPoints({

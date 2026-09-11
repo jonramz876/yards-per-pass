@@ -66,6 +66,15 @@ export interface TecmoCardData {
   abilityRows: AbilityRow[];
   radarValues: number[];
   radarLabels: string[];
+  /**
+   * Per radar axis: true when there is no data for it (the player has no value,
+   * or nobody in his pool does — e.g. 2026 YPRR while nflverse's participation
+   * file is unpublished). RadarChart leaves a gap there instead of drawing a
+   * 0th-percentile spike. Optional: only WR/TE cards set it for now.
+   * radarValues itself stays NaN-free — it is serialized server→client on
+   * /card/[slug].
+   */
+  radarMissing?: boolean[];
 }
 
 // ---- Unified per-game eligibility (pools + OVR + banner) ----
@@ -452,6 +461,10 @@ export function buildWRCardData(
   // Position-matched pool: TEs are ranked against TEs, WRs against WRs.
   const pool = all.filter((r) => r.position === me.position).filter(wrEligible);
   const radarValues = computeRadarValues(WR_RADAR_KEYS, getWRRadarVal, me, pool);
+  // Same percentiles, but NaN on an axis with no data, so the archetype rules
+  // ignore it instead of reading it as last place. radarValues (0 sentinel)
+  // still drives the ability rows and OVR, unchanged.
+  const axisValues = computeRadarValues(WR_RADAR_KEYS, getWRRadarVal, me, pool, true);
   const eligible = wrEligible(me);
 
   const pct = (key: WRRadarKey) => radarValues[WR_RADAR_KEYS.indexOf(key)];
@@ -483,7 +496,7 @@ export function buildWRCardData(
     position: me.position,
     season,
     games: me.games,
-    archetypeLabel: classify(radarValues)?.label ?? null,
+    archetypeLabel: classify(axisValues)?.label ?? null,
     eligible,
     ovr,
     statCells: [
@@ -539,6 +552,7 @@ export function buildWRCardData(
       },
     ],
     radarValues,
+    radarMissing: axisValues.map((v) => Number.isNaN(v)),
     radarLabels: WR_RADAR_AXES.map((a) => a.label),
   };
 }
