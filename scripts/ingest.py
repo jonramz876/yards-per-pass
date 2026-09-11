@@ -2846,11 +2846,66 @@ def ensure_player_slugs_table(conn):
     log.info("Ensured player_slugs table exists")
 
 
-def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
+# Season stats tables whose players must ALL have a slug, in every season —
+# not just the season being ingested.
+SLUG_SOURCE_TABLES = ('qb_season_stats', 'receiver_season_stats',
+                      'rb_season_stats', 'rb_gap_stats')
+
+
+def find_unslugged_players(conn):
+    """Players with season stats in ANY season but no player_slugs row.
+
+    Returns {player_id: [(season, player_name, team_id), ...]}, newest season
+    first. Direct SQL (psycopg2), so Supabase's 1000-row REST cap does not
+    apply. Runs inside process_season's transaction, so the rows upserted
+    earlier in the same run are included.
+    """
+    union = " UNION ".join(
+        f"SELECT player_id, player_name, team_id, season FROM {t}"
+        for t in SLUG_SOURCE_TABLES
+    )
+    with conn.cursor() as cur:
+        cur.execute(f"""
+            SELECT s.player_id, s.player_name, s.team_id, s.season
+            FROM ({union}) s
+            WHERE s.player_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM player_slugs p
+                              WHERE p.player_id = s.player_id)
+            ORDER BY s.player_id, s.season DESC, s.team_id
+        """)
+        rows = cur.fetchall()
+    out = {}
+    for pid, pname, team, season in rows:
+        out.setdefault(pid, []).append((season, pname, team))
+    return out
+
+
+def _roster_full_names(roster):
+    """{gsis_id: (full_name, position)} from one season's roster.
+
+    Latest week wins, the same rule generate_player_slugs uses. Rows without
+    a full name are skipped; a missing full_name column yields {}.
+    """
+    out = {}
+    if roster is None or roster.empty:
+        return out
+    ordered = (roster.sort_values('week', na_position='first')
+               if 'week' in roster.columns else roster)
+    for _, row in ordered.iterrows():
+        gsis_id = row.get('gsis_id')
+        full_name = row.get('full_name')
+        if gsis_id and full_name is not None and pd.notna(full_name):
+            pos = row.get('position')
+            out[gsis_id] = (full_name, pos if pos is not None and pd.notna(pos) else None)
+    return out
+
+
+def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn, season=None):
     """Collect all unique players, generate slugs with collision handling.
 
     Existing slugs are NEVER changed (immutability). Only new players get slugs.
     Collisions (e.g. two Josh Allens) are resolved by appending team abbreviation.
+    When conn and season are given, also backfills a slug for every player who has season stats in any season but no slug (see find_unslugged_players).
     """
     # Collect all unique (player_id, player_name, team) from stat DataFrames
     players = {}  # player_id -> (player_name, team_id)
@@ -2913,27 +2968,61 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
             pname, team = players[pid]
             players[pid] = (full_name_map[pid], team)
 
-    # Load existing slugs from DB
-    # If a slug looks like it was generated from an abbreviated name (e.g., "pmahomes" from "P.Mahomes"),
-    # regenerate it using the full name. This is a one-time migration for the initial bad slugs.
+    # Load existing slugs from DB. Slugs are immutable: a stored slug is never
+    # removed or regenerated here, even when the roster's name has changed
+    # since (Gabriel/Gabe Davis, Kenneth/Kenny Gainwell). Removing one kills
+    # the old URL and, for a player with no stats this season, leaves him with
+    # no page at all. No commit here either: process_season commits once.
     existing_slugs = {}  # player_id -> slug
     existing_slug_values = set()  # all slug strings in use
     if conn is not None:
         with conn.cursor() as cur:
             cur.execute("SELECT player_id, slug FROM player_slugs")
             for pid, old_slug in cur.fetchall():
-                # Check if this slug should be regenerated (full name available and slug doesn't match)
-                if pid in full_name_map:
-                    expected_slug = make_slug(full_name_map[pid])
-                    if old_slug != expected_slug and not old_slug.startswith(expected_slug):
-                        # Old slug was from abbreviated name — skip it so it gets regenerated
-                        log.debug("Regenerating slug for %s: %s -> %s", pid, old_slug, expected_slug)
-                        # Delete the old slug so the new one can be inserted
-                        cur.execute("DELETE FROM player_slugs WHERE player_id = %s", (pid,))
-                        continue
                 existing_slugs[pid] = old_slug
                 existing_slug_values.add(old_slug)
-            conn.commit()
+
+    # Backfill: every player with season stats in ANY season needs a slug, not
+    # only this season's players. A NEW slug for a player with older stats is
+    # built from the roster of his newest stats season other than the one
+    # being ingested (the name his existing pages were built under), so on a
+    # current-season run a lost slug comes back as the same URL no matter when
+    # this runs. Players whose only stats are this season keep today's rule
+    # (this season's roster name).
+    slug_name_override = {}  # player_id -> name used ONLY to build a new slug
+    if conn is not None and season is not None:
+        unslugged = {pid: rows for pid, rows in find_unslugged_players(conn).items()
+                     if pid not in existing_slugs}
+        src_season = {}
+        for pid, rows in unslugged.items():
+            older = [r for r in rows if r[0] != season]
+            src_season[pid] = older[0][0] if older else season  # rows are newest-first
+        other_rosters = {}  # season -> {gsis_id: (full_name, position)}, None = download failed
+        for s in sorted({v for v in src_season.values() if v != season}):
+            try:
+                other_rosters[s] = _roster_full_names(download_roster(s))
+            except Exception as e:
+                log.warning("Slug backfill: could not load the %d roster (%s) — "
+                            "those players get their slugs on a later run", s, e)
+                other_rosters[s] = None
+        for pid, rows in unslugged.items():
+            s = src_season[pid]
+            _, stats_name, stats_team = next(r for r in rows if r[0] == s)
+            if s != season:
+                names = other_rosters.get(s)
+                if names is None:
+                    # No slug this run rather than a different, permanent one
+                    players.pop(pid, None)
+                    continue
+                old_name, old_pos = names.get(pid, (None, None))
+                slug_name_override[pid] = old_name or full_name_map.get(pid) or stats_name
+                if pid not in pos_map and old_pos:
+                    pos_map[pid] = old_pos
+            if pid not in players:
+                players[pid] = (full_name_map.get(pid) or slug_name_override.get(pid) or stats_name,
+                                stats_team)
+        if unslugged:
+            log.info("Slug backfill: %d players with stats but no slug", len(unslugged))
 
     # Filter to NEW players only
     new_players = {pid: info for pid, info in players.items() if pid not in existing_slugs}
@@ -2957,7 +3046,7 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
     # First pass: group new players by base slug
     slug_groups = {}  # base_slug -> [(player_id, player_name, team_id), ...]
     for pid, (pname, team) in new_players.items():
-        base = make_slug(pname)
+        base = make_slug(slug_name_override.get(pid, pname))
         slug_groups.setdefault(base, []).append((pid, pname, team))
 
     new_slug_map = {}  # player_id -> slug
@@ -2974,7 +3063,7 @@ def generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn):
                 disambiguated = f"{base_slug}-{team_suffix}"
                 if disambiguated in existing_slug_values:
                     # Same team collision — append position
-                    pos = pos_map.get(pid, "").lower() or "x"
+                    pos = (pos_map.get(pid) if isinstance(pos_map.get(pid), str) else "").lower() or "x"
                     disambiguated = f"{base_slug}-{team_suffix}-{pos}"
                 if disambiguated in existing_slug_values:
                     # Still colliding — append player_id suffix
@@ -3417,7 +3506,7 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_rb_weekly_stats(conn, rb_weekly)
         upsert_team_down_distance_stats(conn, dd_stats)
         upsert_team_situational_stats(conn, sit_stats)
-        player_slugs_df = generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn)
+        player_slugs_df = generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn, season=season)
         upsert_player_slugs(conn, player_slugs_df)
         cleanup_stale_rows(
             conn, season,
