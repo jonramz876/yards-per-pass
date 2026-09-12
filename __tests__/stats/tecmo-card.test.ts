@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildQBCardData, buildWRCardData, buildRBCardData,
   qbEligible, wrEligible, rbEligible, tierColor,
+  isCardPosition, resolveCardSeason,
 } from "@/lib/stats/tecmo-card";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 // Frozen 2025 WR/TE pool (347 rows) + labels/OVRs captured before the
@@ -948,5 +949,73 @@ describe("OVR v3 QB blend (Ability)", () => {
     const d = buildQBCardData(me, POOL, 2026);
     expect(d.eligible).toBe(true); // 25 attempts/game — there is just no data
     expect(d.ovr).toBeNull();
+  });
+});
+
+describe("isCardPosition", () => {
+  it("QB, WR, TE, RB and FB have cards", () => {
+    for (const p of ["QB", "WR", "TE", "RB", "FB"]) {
+      expect(isCardPosition(p)).toBe(true);
+    }
+  });
+  it("K, P, LB, DB and other non-card positions don't", () => {
+    for (const p of ["K", "P", "LB", "DB", "OL"]) {
+      expect(isCardPosition(p)).toBe(false);
+    }
+  });
+  it("null, undefined, empty and lowercase are false", () => {
+    expect(isCardPosition(null)).toBe(false);
+    expect(isCardPosition(undefined)).toBe(false);
+    expect(isCardPosition("")).toBe(false);
+    expect(isCardPosition("qb")).toBe(false); // the DB stores upper case
+  });
+});
+
+describe("resolveCardSeason", () => {
+  const SEASONS = [2026, 2025, 2024, 2023, 2022, 2021, 2020];
+
+  it("no param → site default, not requested", () => {
+    expect(resolveCardSeason(undefined, SEASONS, 2026)).toEqual({
+      season: 2026, requested: null, invalid: false,
+    });
+    expect(resolveCardSeason("", SEASONS, 2026)).toEqual({
+      season: 2026, requested: null, invalid: false,
+    });
+  });
+
+  it("non-numeric → site default (today's behavior)", () => {
+    expect(resolveCardSeason("abc", SEASONS, 2026)).toEqual({
+      season: 2026, requested: null, invalid: false,
+    });
+  });
+
+  it("available season is honored and marked requested", () => {
+    expect(resolveCardSeason("2025", SEASONS, 2026)).toEqual({
+      season: 2025, requested: 2025, invalid: false,
+    });
+  });
+
+  it("parseInt leniency kept", () => {
+    expect(resolveCardSeason("2025abc", SEASONS, 2026)).toEqual({
+      season: 2025, requested: 2025, invalid: false,
+    });
+  });
+
+  it("season with no data at all is invalid (page 404s)", () => {
+    // 1e20 never reaches PostgREST.
+    for (const p of ["2099", "-1", "99999999999999999999"]) {
+      const r = resolveCardSeason(p, SEASONS, 2026);
+      expect(r.invalid).toBe(true);
+      expect(r.requested).toBeNull();
+    }
+  });
+
+  it("empty seasons list (DB hiccup) accepts any integer and falls back when absent", () => {
+    expect(resolveCardSeason("2025", [], 2026)).toEqual({
+      season: 2025, requested: 2025, invalid: false,
+    });
+    expect(resolveCardSeason(undefined, [], 2026)).toEqual({
+      season: 2026, requested: null, invalid: false,
+    });
   });
 });

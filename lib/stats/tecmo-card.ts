@@ -92,6 +92,38 @@ export function rbEligible(r: RBSeasonStat): boolean {
   return r.games > 0 && r.carries / r.games >= RB_MIN_CAR_PER_GAME;
 }
 
+// ---- Which players/seasons have a card (player page button, /card page, OG) ----
+/** Positions that get a Tecmo card. FBs are carried in the RB tables; K/P and
+ *  defensive players never have one. Values match player_slugs.position. */
+export const CARD_POSITIONS: readonly string[] = ["QB", "WR", "TE", "RB", "FB"];
+
+export function isCardPosition(position: string | null | undefined): boolean {
+  return position != null && CARD_POSITIONS.includes(position);
+}
+
+/**
+ * The /card page's season from `?season=`.
+ *  - missing / non-numeric → the site default (seasons[0], else `fallback`); requested = null
+ *  - a number the site has no data for (seasons non-empty and not in the list:
+ *    2099, typos, 1e20) → invalid: the page 404s exactly as it does today
+ *  - otherwise that season; requested = it (canonical + og:url carry ?season=)
+ * When `seasons` is empty (data_freshness read failed) any integer is accepted,
+ * which is today's behavior.
+ */
+export function resolveCardSeason(
+  seasonParam: string | undefined,
+  seasons: number[],
+  fallback: number,
+): { season: number; requested: number | null; invalid: boolean } {
+  const defaultSeason = seasons[0] ?? fallback;
+  const parsed = seasonParam ? parseInt(seasonParam, 10) : NaN;
+  if (Number.isNaN(parsed)) return { season: defaultSeason, requested: null, invalid: false };
+  if (seasons.length > 0 && !seasons.includes(parsed)) {
+    return { season: defaultSeason, requested: null, invalid: true };
+  }
+  return { season: parsed, requested: parsed, invalid: false };
+}
+
 export function tierColor(percentile: number): string {
   if (percentile >= 75) return "#16a34a";
   if (percentile >= 40) return "#ca8a04";

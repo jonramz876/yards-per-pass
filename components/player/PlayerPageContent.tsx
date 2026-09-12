@@ -15,6 +15,7 @@ import type {
   QBPassLocationStat,
 } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
+import { isCardPosition } from "@/lib/stats/tecmo-card";
 import PlayerHeader from "./PlayerHeader";
 import PlayerOverviewQB from "./PlayerOverviewQB";
 import PlayerOverviewWR from "./PlayerOverviewWR";
@@ -66,6 +67,9 @@ export default function PlayerPageContent({
 
   const tabs = position === "QB" ? QB_TABS : TABS;
   const activeTab = tabs.some((t) => t.key === tab) ? tab : "overview";
+  // Share Card shows only when /card has something for this season: a card
+  // position with a stat row — the same test lib/data/card.ts uses.
+  const hasCard = isCardPosition(position) && seasonStats.length > 0;
 
   function handleTabChange(newTab: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -203,7 +207,7 @@ export default function PlayerPageContent({
 
   return (
     <>
-      <PlayerHeader player={player} season={season} seasons={seasons} />
+      <PlayerHeader player={player} season={season} seasons={seasons} hasCard={hasCard} />
 
       {/* Tab bar */}
       <div className="flex items-center gap-0 border-b border-gray-200 mb-6">
