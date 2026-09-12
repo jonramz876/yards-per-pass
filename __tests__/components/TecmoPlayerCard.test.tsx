@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import type { TecmoCardData } from "@/lib/stats/tecmo-card";
-import { tecmoCardImage } from "@/lib/og/tecmo-card-image";
+import { tecmoCardImage, namePlateImage } from "@/lib/og/tecmo-card-image";
+import { getTeam } from "@/lib/data/teams";
+import type { PlayerSlug } from "@/lib/types";
 
 const data: TecmoCardData = {
   playerName: "Josh Allen", position: "QB", season: 2026, games: 16,
@@ -166,5 +168,53 @@ describe("tecmoCardImage radar", () => {
     ));
     expect(container.querySelectorAll("circle")).toHaveLength(0);
     expect(container.querySelector("svg")).toBeNull();
+  });
+});
+
+describe("namePlateImage", () => {
+  // Pinned through the move out of app/player/[slug]/opengraph-image.tsx.
+  // No next/og involved: this renders as plain React DOM.
+  const aubrey: PlayerSlug = {
+    player_id: "00-0038391", slug: "brandon-aubrey", player_name: "Brandon Aubrey",
+    position: "K", current_team_id: "DAL", headshot_url: null, jersey_number: 17,
+  };
+
+  it("name, position · team and brand lines", () => {
+    const { container } = render(namePlateImage(aubrey, getTeam("DAL")));
+    expect(container.textContent).toContain("BRANDON AUBREY");
+    expect(container.textContent).toContain(`K · ${getTeam("DAL")!.name.toUpperCase()}`);
+    expect(container.textContent).toContain("YARDS PER PASS");
+    expect(container.textContent).toContain("YARDSPERPASS.COM");
+  });
+
+  it("unknown team id → subline is the position alone, navy background", () => {
+    const unknown = { ...aubrey, current_team_id: "XXX" };
+    const { container } = render(namePlateImage(unknown, getTeam("XXX")));
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.style.backgroundColor).toBe("rgb(15, 23, 42)");
+    const lines = Array.from(root.children).map((c) => c.textContent);
+    expect(lines).toContain("K");
+  });
+
+  it("names over 28 characters are cut to 27 + …", () => {
+    const long = { ...aubrey, player_name: "Christian Mccaffrey Jefferson" }; // 29 chars
+    const { container } = render(namePlateImage(long, getTeam("DAL")));
+    const capped = "CHRISTIAN MCCAFFREY JEFFERSON".slice(0, 27);
+    expect(container.textContent).toContain(`${capped}…`);
+    expect(container.textContent).not.toContain("CHRISTIAN MCCAFFREY JEFFERSON");
+  });
+
+  it("special characters survive", () => {
+    const swift = render(namePlateImage({ ...aubrey, player_name: "D'Andre Swift" }, getTeam("DAL")));
+    expect(swift.container.textContent).toContain("D'ANDRE SWIFT");
+    const stBrown = render(
+      namePlateImage({ ...aubrey, player_name: "Amon-Ra St. Brown" }, getTeam("DAL")),
+    );
+    expect(stBrown.container.textContent).toContain("AMON-RA ST. BROWN");
+  });
+
+  it("empty name → PLAYER", () => {
+    const { container } = render(namePlateImage({ ...aubrey, player_name: "" }, getTeam("DAL")));
+    expect(container.textContent).toContain("PLAYER");
   });
 });

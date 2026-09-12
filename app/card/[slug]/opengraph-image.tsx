@@ -1,5 +1,5 @@
 // app/card/[slug]/opengraph-image.tsx — social share image: the Tecmo card.
-// File convention, so no searchParams: this is always the latest season.
+// File convention, so no searchParams: this is always the latest season. A real player with no card in it gets the pixel name plate.
 import { ImageResponse } from "next/og";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
@@ -10,6 +10,7 @@ import {
   pixelFontOptions,
   tecmoCardImage,
   brandedFallbackImage,
+  namePlateImage,
 } from "@/lib/og/tecmo-card-image";
 
 export const runtime = "nodejs";
@@ -37,18 +38,24 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   } catch {
     return fallback();
   }
-  if (!player) return fallback();
+  if (!player) return fallback(); // unknown slug: brand plate, unchanged
+
+  // Real player but no card this season — K/P, or no stat row yet (week 1
+  // before his team plays). Same name plate the player OG uses; the player row
+  // is already in hand, so the anonymous brand plate would waste it.
+  const found = player; // const copy keeps TS narrowing inside the closure
+  const team = getTeam(found.current_team_id);
+  const plate = () => new ImageResponse(namePlateImage(found, team), { ...size, fonts });
 
   let card = null;
   try {
-    card = await getCardDataForPlayer(player, season);
+    card = await getCardDataForPlayer(found, season);
   } catch {
-    return fallback();
+    return plate();
   }
-  if (!card) return fallback();
+  if (!card) return plate();
 
-  const team = getTeam(player.current_team_id);
-  const headshot = await loadHeadshotDataUri(player.headshot_url);
+  const headshot = await loadHeadshotDataUri(found.headshot_url);
 
   return new ImageResponse(
     tecmoCardImage(

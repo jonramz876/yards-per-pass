@@ -12,6 +12,8 @@ interface PlayerHeaderProps {
   player: PlayerSlug;
   season: number;
   seasons: number[];
+  /** /card/<slug>?season=<season> has a card: card position + a stat row that season. */
+  hasCard: boolean;
 }
 
 const POSITION_COLORS: Record<string, string> = {
@@ -47,7 +49,7 @@ function SeasonSelector({ seasons, season }: { seasons: number[]; season: number
   );
 }
 
-export default function PlayerHeader({ player, season, seasons }: PlayerHeaderProps) {
+export default function PlayerHeader({ player, season, seasons, hasCard }: PlayerHeaderProps) {
   const team = getTeam(player.current_team_id);
   const teamColor = getTeamColor(player.current_team_id);
   const posClass = POSITION_COLORS[player.position] || "bg-gray-100 text-gray-800";
@@ -93,12 +95,16 @@ export default function PlayerHeader({ player, season, seasons }: PlayerHeaderPr
           >
             Compare
           </Link>
-          <Link
-            href={`/card/${player.slug}?season=${season}`}
-            className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
-          >
-            Share Card
-          </Link>
+          {/* Only when that season has a card; otherwise the link would land on
+              a "no card" message (K/P, or no stats yet this season). */}
+          {hasCard && (
+            <Link
+              href={`/card/${player.slug}?season=${season}`}
+              className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-md bg-white text-navy hover:bg-navy hover:text-white transition-colors"
+            >
+              Share Card
+            </Link>
+          )}
           <Suspense
             fallback={
               <select

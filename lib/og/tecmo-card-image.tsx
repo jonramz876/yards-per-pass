@@ -1,6 +1,7 @@
 // lib/og/tecmo-card-image.tsx — shared render + data assembly for the Tecmo
-// card PNG. Used by the OG image (app/card/[slug]/opengraph-image.tsx) and the
-// season-aware download route (app/api/stat-card/[slug]/route.tsx).
+// card PNG. Used by both OG images (app/card/[slug] and app/player/[slug]
+// opengraph-image.tsx) and the season-aware download route
+// (app/api/stat-card/[slug]/route.tsx).
 //
 // Satori (the renderer behind next/og) is NOT a browser: no Tailwind, no CSS
 // variables, no class names, every element that has children needs an explicit
@@ -13,6 +14,7 @@ import { tierColor } from "@/lib/stats/tecmo-card";
 import type { AbilityRow, TecmoCardData } from "@/lib/stats/tecmo-card";
 import { ordinal } from "@/lib/stats/percentiles";
 import { textColorForBackground, EM_DASH } from "@/lib/stats/formatters";
+import type { PlayerSlug, Team } from "@/lib/types";
 
 // ------------------------------------------------------------------ fonts
 /** Registered font family name — the only family the image asks for. */
@@ -390,6 +392,68 @@ export function brandedFallbackImage(): JSX.Element {
       <div style={{ display: "flex", fontSize: 44 }}>YARDS PER PASS</div>
       <div style={{ display: "flex", fontSize: 14, marginTop: 28, color: "#94a3b8" }}>
         NFL ADVANCED STATS · YARDSPERPASS.COM
+      </div>
+    </div>
+  );
+}
+
+/** Long names in a monospace pixel font need a smaller size to stay on one line. */
+function nameFontSize(len: number): number {
+  if (len <= 12) return 52;
+  if (len <= 18) return 40;
+  if (len <= 24) return 30;
+  return 24;
+}
+
+/**
+ * Fallback picture for a real player with no card — kickers, punters, or
+ * anyone without a stat row this season. Team-colored plate with the name,
+ * position · team and the site footer.
+ * Shared by the player and card OG images.
+ */
+export function namePlateImage(player: PlayerSlug, team: Team | undefined): JSX.Element {
+  const bg = team?.primaryColor || NAVY;
+  const text = textColorForBackground(bg);
+  const name = (player.player_name || "PLAYER").toUpperCase();
+  const capped = name.length > 28 ? `${name.slice(0, 27)}…` : name;
+  // Team omitted when the id doesn't match a known team.
+  const subline = [player.position?.toUpperCase(), team?.name?.toUpperCase()]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: bg,
+        fontFamily: PIXEL,
+        color: text,
+        padding: "0 60px",
+      }}
+    >
+      <div style={{ display: "flex", fontSize: 16, opacity: 0.7 }}>YARDS PER PASS</div>
+      <div
+        style={{
+          display: "flex",
+          fontSize: nameFontSize(capped.length),
+          marginTop: 34,
+          textAlign: "center",
+        }}
+      >
+        {capped}
+      </div>
+      {subline ? (
+        <div style={{ display: "flex", fontSize: 20, marginTop: 30, opacity: 0.85 }}>
+          {subline}
+        </div>
+      ) : null}
+      <div style={{ display: "flex", fontSize: 14, marginTop: 44, opacity: 0.6 }}>
+        YARDSPERPASS.COM
       </div>
     </div>
   );
