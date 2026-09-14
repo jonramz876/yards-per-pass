@@ -46,9 +46,19 @@
 
 - Python is `py -3` (plain `python` is not installed). Tests: `py -3 -m pytest tests/ -q`.
 - Local build needs the placeholder env vars CI uses: `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build-only npm run build`.
-- Frontend tests: `npx vitest run` (399 tests / 23 files after the 2026-09-11 week-1 fixes). Python: `py -3 -m pytest tests/ -q` (262 tests).
+- Frontend tests: `npx vitest run` (413 tests / 24 files after the 2026-09-14 homepage-resilience change). Python: `py -3 -m pytest tests/ -q` (262 tests).
 - Agent/tool shells reset the working directory between calls, so `cd` does not carry over: use absolute paths — `node <repo>/node_modules/vitest/vitest.mjs run --root <repo>`, `node <repo>/node_modules/typescript/bin/tsc --noEmit -p <repo>/tsconfig.json`, `npm --prefix <repo> run lint`, `py -3 -m pytest <repo>/tests -q`.
 - Running pytest dirties the tracked `tests/__pycache__/*.pyc` files; use `PYTHONDONTWRITEBYTECODE=1 … -p no:cacheprovider`, and never stage `__pycache__`.
+
+## Homepage resilience (2026-09-14)
+
+- **Incident:** the live homepage went blank for ~20 min (no "Through Week" line, 32 teams 0-0, empty strips). One of its six reads failed, `app/page.tsx` swallowed the error into an empty render, and ISR cached that for up to an hour (fixed live with a manual `/api/revalidate`).
+- **Now:** the homepage throws on any data error — a rejected read, `getAvailableSeasons()` returning `[]`, or `getDataFreshness()` returning `null` — unless the Supabase URL is the placeholder (`https://placeholder.supabase.co`) or unset (`hasNoDatabase()` in `app/page.tsx`); only then does it render the empty shell (CI, local placeholder build). A throwing ISR refresh is never cached: Vercel keeps the last good copy and retries ~30s later. A visitor on a cold cache miss gets `error.tsx` (500, not cached).
+- **Transient Supabase error during a Vercel build fails the deploy** (`Error occurred prerendering page "/"`). The previous deployment stays live; click **Redeploy**.
+- **Persistent Supabase problem** (outage, paused project, rotated/revoked anon key, an RLS change hiding `data_freshness` rows): **every Vercel build fails — production and PR previews — until the database recovers.** The live site keeps serving its last good homepage (stale, not blank). The only workaround is reverting this change.
+- **Next 14.2 replays identical fetches within one render** (per-render dedupe memo, failures included — `next/dist/server/lib/dedupe-fetch.js`), so an in-render retry of the same Supabase query is a no-op. A working retry needs a different request per attempt (e.g. a per-attempt header).
+- **Scope:** the guarantee covers the homepage's six primary reads only. Follow-up: `getPlayerSlugsByIds` (leader cards cached unlinked) and `hasScheduleForSeason` (preseason board cached on the wrong season) still swallow errors and can cache a degraded homepage; `app/sitemap.ts` swallows a failed `getAllPlayerSlugs` the same way.
+- Tests: `__tests__/app/home-page.test.tsx` (includes the incident reproduction).
 
 ## Known debt (2026-09-05)
 

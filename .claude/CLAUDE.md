@@ -35,6 +35,7 @@ Team roster spec: `docs/superpowers/specs/2026-03-18-review-team-roster-design.m
 - Nav labels: Team Tiers | Passing | Receiving | Rushing | Run Gaps | Glossary
 - Supabase has a 1000-row server limit — use `fetchAllRows()` from `lib/data/utils.ts` for large tables
 - After any DB data change, trigger ISR revalidation via the webhook at `/api/revalidate`
+- Static/ISR pages must not swallow data errors into a rendered page. Rethrow unless there is no database (see `hasNoDatabase` in `app/page.tsx`); known exception pending follow-up: `app/sitemap.ts`. An in-render retry of the same Supabase query is a no-op in Next 14 (per-render fetch dedupe). Consequence: a persistent Supabase problem fails every Vercel build (production and previews) until the database recovers; the live site keeps its last good copy.
 - `parseNumericFields` converts null → null (NOT NaN — NaN can't be serialized by Next.js server→client). UI checks `val == null || Number.isNaN(val)`.
 - Always run `tsc --noEmit` and `next lint` before committing (separate commands, never chain with &&)
 - Player pages use dynamic rendering (no generateStaticParams) — searchParams requires dynamic
