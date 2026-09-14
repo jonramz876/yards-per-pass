@@ -21,6 +21,22 @@ function buildSlugMap(slugs: PlayerSlug[]): Map<string, string> {
 }
 
 /* ------------------------------------------------------------------ */
+/*  No-database check — CI and local builds                            */
+/* ------------------------------------------------------------------ */
+/**
+ * True when there is no real database behind the Supabase env vars: the fake
+ * URL that .github/workflows/ci.yml (and the local build command in
+ * memory/MEMORY.md) passes to `next build`, or no URL at all. Only then is an
+ * empty homepage the right render. Next inlines NEXT_PUBLIC_* vars when it
+ * compiles, so in a real build this is effectively fixed at build time; only
+ * under vitest is the variable read again on each call.
+ */
+function hasNoDatabase(): boolean {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return !url || /^https?:\/\/placeholder\.supabase\.co(\/|$)/i.test(url.trim());
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page component                                                     */
 /* ------------------------------------------------------------------ */
 export default async function HomePage() {
@@ -34,6 +50,12 @@ export default async function HomePage() {
 
   try {
     const seasons = await getAvailableSeasons();
+    // getAvailableSeasons and getDataFreshness return []/null on a query error
+    // instead of throwing. A real database always has data_freshness rows (one
+    // per season, upserted, never deleted), so empty here means the read failed.
+    if (seasons.length === 0) {
+      throw new Error("Homepage: no seasons from data_freshness (query failed or table empty)");
+    }
     currentSeason = seasons[0] || fallbackSeason();
 
     [freshness, teamStats, qbStats, receiverStats, rbStats] = await Promise.all([
@@ -43,8 +65,22 @@ export default async function HomePage() {
       getReceiverStats(currentSeason),
       getRBSeasonStats(currentSeason),
     ]);
-  } catch {
-    // Data unavailable (e.g., CI build with placeholder credentials) — render with empty data
+    if (!freshness) {
+      throw new Error(`Homepage: no data_freshness row for ${currentSeason} (query failed)`);
+    }
+  } catch (err) {
+    if (!hasNoDatabase()) {
+      // Real database error: never render (and cache) an empty homepage.
+      // Throwing keeps ISR serving the last good copy and retrying in ~30s;
+      // during `next build` it fails the deploy, so the previous one stays live.
+      // Do not add an in-render retry: Next 14 replays identical fetches from a
+      // per-render memo, failures included (next/dist/server/lib/dedupe-fetch.js).
+      if (err instanceof Error) throw err;
+      // fetchAllRows throws the raw PostgREST error object — wrap it for the logs.
+      const m = (err as { message?: unknown } | null)?.message;
+      throw new Error(`Homepage data unavailable: ${typeof m === "string" ? m : JSON.stringify(err)}`);
+    }
+    // No database (CI / local placeholder build) — render with empty data
   }
 
   // Standings season: once the league publishes next season's schedule, the
