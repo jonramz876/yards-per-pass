@@ -1,157 +1,218 @@
 # Box Scores — Design Spec
 
-**Date:** 2026-09-15
-**Status:** Approved by Jon (brainstormed section by section, mockups chosen in the visual companion)
-**Scope:** per-game box score pages for 2026, a weekly scores page, and a homepage scores strip. Charts are a separate later project.
+**Date:** 2026-09-15 (revised after spec review)
+**Status:** design approved by Jon section by section; revised to fix 13 blocking issues from spec review
+**Scope:** per-game box score pages for 2026, a weekly scores page, a homepage scores strip. Charts are a separate later project.
 
 ## 1. Goal
 
-Give every played game a page that answers **why a team won**, with the advanced stats the site already specialises in (EPA, success rate, explosive plays) alongside the traditional box score, plus each player's line.
+Give every played game a page that answers **why a team won**, using the advanced stats this site specialises in (EPA, success rate, explosive plays) beside the traditional box score, plus each player's line.
 
-Today nothing links to a game: `games` holds the schedule and final scores, and the weekly player tables hold per-player games, but no team stats exist per game and there is no game page.
+Today nothing links to a game: `games` holds the schedule and final scores, the weekly player tables hold per-player games, but no team stats exist per game and there is no game page.
 
-## 2. Decisions (all made by Jon)
+## 2. Decisions (Jon's, not to be relitigated)
 
 | Decision | Choice |
 |---|---|
 | Page leads with | "Why they won" — team-vs-team advanced comparison, player lines below |
-| Seasons in v1 | 2026 only; 2020–2025 backfilled later (the ingest step must be season-agnostic) |
+| Seasons in v1 | 2026 only; 2020–2025 backfilled later (the ingest step is season-agnostic) |
 | Player lines | Reuse the existing weekly QB/receiver/RB rows (approach A), built so a complete player table can replace it later |
 | Game chart (win probability / drives) | Not in v1 — the later charts project |
-| Definitions | nflfastR / rbsdm standard (see §4) |
+| Definitions | nflfastR / rbsdm standard (§4) |
 | Team comparison sections | Efficiency core, traditional team stats, what it cost them, early vs late downs |
-| Team comparison layout | Side-by-side stat sheet: `AWAY | stat | HOME`, better side shaded, section bands like the team pages. Detail values in parentheses: `+0.24 (52)`, `8 (15%)` |
+| Team comparison layout | `AWAY | stat | HOME` stat sheet, better side shaded, section bands like the team pages, detail values in parentheses: `+0.28 (56)`, `8 (15%)` |
 | Extra efficiency row | Toxic differential (turnover margin + explosive margin), using this page's explosive definition so it reconciles with the row above |
 | Player lines layout | Type A: one table per stat type (passing, rushing, receiving) with both teams' rows inside |
 | Receiving columns | Adds target share (TGT%) and Y/TGT; YPRR shown **only when route data exists** |
-| Entry points | Schedule tiles, Game Log rows (phase 1); scores page + homepage strip (phase 2) |
+| Entry points | Schedule tiles and Game Log rows (phase 1); scores page and homepage strip (phase 2) |
 | Scores page layout | Tecmo game cards grouped by kickoff window |
 | Homepage strip | Top of the homepage, above the standings |
 | Unplayed games | No page; links only on played games |
-| Percentile colouring | Later, after the backfill (a handful of 2026 games is too small a pool) |
-| Playoffs | Out of scope (the ingest skips them today) |
+| Percentile colouring | Later, after the backfill |
+| Playoffs | Out of scope (the ingest skips them); playoff tiles never link |
 
 ## 3. Phases
 
-- **Phase 0 — Game Log score fix.** Its own PR, before box score work. See §9.
-- **Phase 1 — box score.** `team_game_stats` + player-row fixes (PR 2), then `/game/[game_id]` with schedule-tile and Game Log links (PR 3).
-- **Phase 2 — ways in.** `/scores` page + homepage strip (PR 4).
+- **Phase 0 — Game Log score fix** (own PR, first). §9.
+- **Phase 1 — box score.** PR 2: `team_game_stats` + player-row work. PR 3: `/game/[game_id]` + schedule-tile and Game Log links.
+- **Phase 2 — ways in.** PR 4: `/scores` + homepage strip.
+
+Each PR leaves the site working on its own.
 
 ## 4. Definitions
 
-The site's existing pages use three slightly different play filters; box scores use the nflfastR/rbsdm standard so the numbers match other analytics sites. Unifying the older pages is a follow-up, so **a team's box score EPA/play may differ slightly from its season figure on the team page** until then.
+The site's existing pages use three different play filters. Box scores use the nflfastR/rbsdm standard so numbers match other analytics sites; unifying the older pages is a follow-up, so **a team's box score EPA/play may differ from its season figure on the team page** until then.
+
+### Efficiency set
+
+```
+(pbp["pass"] == 1) | (pbp["rush"] == 1), and epa not null, and posteam not null
+```
+
+That is the whole filter. Specifically:
+- **Kneels need no exclusion.** nflverse sets `pass = 0` and `rush = 0` on `qb_kneel`, so they drop out by themselves.
+- **2-point tries are KEPT.** Do **not** copy `filter_plays()`'s `two_point_attempt != 1`. Verified: BUF's failed 2-point pass in week 1 is one of their 56 plays, and only the 2-pt-kept version reproduces rbsdm.
+- **2-point rows have a null `down`**, so early-down plays + late-down plays can be one fewer than total plays (BUF, MIN, NO and WAS in week 1). The page must not claim they add up.
 
 | Item | Definition |
 |---|---|
-| Plays counted (efficiency) | `(pass == 1 or rush == 1)` and `epa` not null and `posteam` not null. Sacks and scrambles count as passes; plays wiped out by penalty are included; kneels and 2-point tries are excluded |
 | Success | `success == 1` (EPA > 0) |
-| Explosive | rush gaining 10+ yards, or a completed pass gaining 20+ yards |
-| First-down rate (`1st%`) | share of counted plays with `first_down == 1` |
-| Early / late downs | downs 1–2 / downs 3–4 |
-| Red zone | inside the opponent's 20 (nflverse convention, **not** the site's current "includes the 20") |
-| Time of possession | summed per `drive`, never `fixed_drive` (which gave one game 57:46) |
-| Traditional counts | official box-score conventions (kneel-downs count as rushing attempts, net passing yards subtract sack yards), so they match ESPN / Pro Football Reference |
-| Toxic differential | (opponent turnovers − own turnovers) + (own explosive plays − opponent explosive plays), using the explosive definition above |
+| First-down rate (`1st%`) | share of efficiency-set plays with `first_down == 1` |
+| Early / late downs | `down` 1–2 / 3–4 within the efficiency set |
+| Pass / rush split | `pass == 1` / `rush == 1` (scrambles and sacks sit in **pass**) |
+| Explosive pass | `complete_pass == 1 and yards_gained >= 20` |
+| Explosive rush | `(rush == 1 or qb_scramble == 1) and yards_gained >= 10` |
+| Toxic differential | (opponent turnovers − own turnovers) + (own explosive plays − opponent explosive plays) |
 
-**Verified 2026-09-15** against rbsdm's BUF–HOU week 1 page: every row matched exactly — BUF all `+0.28 / 41 / 36 / 56`, rush `−0.26 (19)`, pass `+0.56 (37)`, early `+0.30 (45)`, late `+0.30 (10)`; HOU all `+0.07 / 48 / 32 / 79`, rush `+0.03 (31)`, pass `+0.10 (48)`, early `+0.10 (59)`, late `−0.01 (20)`. The site's current filter gives BUF `+0.25 (52)` for the same game, because it drops 4 penalty-wiped plays and would keep kneels.
+**Scrambles are explosive runs but pass plays for EPA.** nflverse sets `pass = 1, rush = 0, complete_pass = 0` on scrambles, so without the `qb_scramble` clause 19 of week 1's 10+ yard scrambles vanish — a 10% undercount (163 vs 182 explosives). The page's glossary tooltip states this.
+
+**Verified 2026-09-15** against rbsdm's BUF–HOU week 1 page, every row exact: BUF all `+0.28 / 41 / 36 / 56`, rush `−0.26 (19)`, pass `+0.56 (37)`, early `+0.30 (45)`, late `+0.30 (10)`; HOU all `+0.07 / 48 / 32 / 79`, rush `+0.03 (31)`, pass `+0.10 (48)`, early `+0.10 (59)`, late `−0.01 (20)`. The site's current `filter_plays` gives BUF `+0.247 (52)` for the same game: it drops 4 penalty-wiped plays and keeps the kneel.
+
+### Traditional set (official box-score conventions, matching ESPN / PFR)
+
+Computed from **raw play-by-play**, not the efficiency set, and each with its own rule:
+
+| Stat | Rule | Week 1 BUF/HOU check |
+|---|---|---|
+| Total yards | `passing_yards` + `rushing_yards` + sack `yards_gained` (negative), 2-pt excluded. Plain `yards_gained` does **not** work (it counts return yards) | 409 / 381 ✅ |
+| Net passing yards | `passing_yards` − sack yards lost | 323 / 257 ✅ |
+| Comp/Att, Yards per pass | completions, attempts; net passing ÷ (attempts + sacks) | 20/29 · 10.4, 26/38 · 6.3 ✅ |
+| Rushing yards / attempts / YPR | `rush_attempt == 1` including kneels and scrambles | 86 · 21 · 4.1, 124 · 32 · 3.9 ✅ |
+| 3rd / 4th down | attempts and conversions **excluding `no_play` rows** — the opposite of the efficiency filter. Including them gives HOU 8-of-18 | 3-9 / 7-16 ✅ |
+| First downs (total) | `first_down_pass + first_down_rush + first_down_penalty` | 20 / 26 ✅ |
+| Red zone trips / TDs | **drive-level**: a drive is a trip if any snap reaches `yardline_100 <= 20`; a score if that drive ends in a TD. Scrimmage plays only, 2-pt excluded (play-level counting gives BUF 6 trips because extra points snap from the 15) | 1-3 / 4-5 ✅ |
+| Penalties / yards | `penalty == 1 and penalty_team == team` | 10-85 / 7-106 ✅ |
+| Turnovers | `interception == 1` + `fumble_lost == 1` | 0 / 2 ✅ |
+| Total drives | distinct `drive` over rows with this `posteam` and non-null `drive` (4 week-1 rows have a posteam but null drive) | 12 / 11 ✅ |
+| Time of possession | one `drive_time_of_possession` per (game, team, `drive`) over **all** raw rows with a posteam — 1 of 354 week-1 drives (TEN drive 6) has no scrimmage play and would otherwise be lost. Never `fixed_drive` | 23:43 / 36:17 ✅ (sums to 60:00; 68:26 in the OT game) |
+| Defensive / ST TDs | rows where `td_team == team and posteam != team` (3 in week 1, all INT/fumble returns) | 0 / 0 ✅ |
+
+**First downs deliberately double-count one case.** One HOU play (3rd-and-2 run for 6 yards *plus* defensive holding) sets both `first_down_rush` and `first_down_penalty`. Only the sum of parts reaches ESPN's 26; `sum(first_down)` gives 25. This diverges in 91 of 544 (16.7%) 2025 team-games by 1–3. We store the sum of parts so the total always equals its own sub-rows and matches ESPN, and the glossary notes it.
+
+### "What it cost them"
+
+| Stat | Rule |
+|---|---|
+| EPA lost to turnovers | sum of `epa` on the team's own interception and lost-fumble plays |
+| EPA lost to sacks | sum of `epa` on plays where the team was sacked |
+| EPA lost to penalties | (sum of `epa` on penalty plays where this team had the ball) − (sum of `epa` on penalty plays where this team was on defense). The naive one-sided version **flips sign**: BUF gets +2.39, because 6 of their 10 penalties came on defence where the EPA belongs to HOU. Sign-corrected: −8.52 |
+
+**A strip-sack counts in both** the sack row and the turnover row. That overlap is intended; the page says so in a footnote.
 
 ## 5. Data: `team_game_stats`
 
-One row per team per game; about 544 rows a season, ~3,200 for a full 2020–2026 backfill. Key: `(game_id, team_id)`, with `season`, `week`, `opponent_id`, `home_away`. Built the same way as `team_situational_stats`: an `aggregate_*` function, an `ensure_*` table function, an `upsert_*` function, all called inside `process_season`'s single transaction, with stale rows cleaned like the other tables (a rescheduled game gets a new `game_id`, so the old row must go).
+One row per team per game — 544 a season; ~3,776 for a 2020–2026 backfill (2020 had 256 games). Key `(game_id, team_id)` plus `season`, `week`, `opponent_id`, `home_away`.
 
-**Efficiency:** plays, epa_per_play, success_rate, first_down_rate; the same four for pass and for rush; explosive_plays, explosive_rate, explosive_pass, explosive_rush.
-**Early/late:** plays, epa_per_play, success_rate for early downs and for late downs.
-**What it cost them:** epa_lost_turnovers, epa_lost_sacks, epa_lost_penalties (the team's own penalties).
-**Traditional:** first_downs and the passing/rushing/penalty splits, third_down_att/conv, fourth_down_att/conv, total_plays, total_yards, total_drives, yards_per_play, net_passing_yards, completions, attempts, yards_per_pass, interceptions, sacks, sack_yards, rushing_yards, rushing_attempts, yards_per_rush, red_zone_trips, red_zone_tds, penalties, penalty_yards, turnovers, fumbles_lost, def_st_tds, time_of_possession_seconds.
-**For the player tables:** team_targets (so target share divides by the true team total, not a sum of stored player rows).
+**Efficiency:** plays, epa_per_play, success_rate, first_down_rate; the same four for pass and for rush; early_plays/epa/success, late_plays/epa/success; explosive_plays, explosive_rate, explosive_pass, explosive_rush.
+**What it cost them:** epa_lost_turnovers, epa_lost_sacks, epa_lost_penalties.
+**Traditional:** first_downs, first_downs_pass, first_downs_rush, first_downs_penalty, third_down_att/conv, fourth_down_att/conv, total_plays, total_yards, total_drives, yards_per_play, net_passing_yards, completions, attempts, yards_per_pass, interceptions, sacks, sack_yards, rushing_yards, rushing_attempts, yards_per_rush, red_zone_trips, red_zone_tds, penalties, penalty_yards, turnovers, fumbles_lost, def_st_tds, time_of_possession_seconds.
+**For the player tables:** `team_targets` — plays with a non-null `receiver_player_id`, `pass_attempt == 1`, `sack != 1`, `qb_scramble != 1`, `two_point_attempt != 1`: the exact set `aggregate_receiver_weekly_stats` counts, so TGT% sums to 100%. **BUF 28, HOU 37** (not 29/37 — pass attempts are a different number).
 
-**Not stored here:** final scores and records, which always come from `games`; and anything per-play or per-drive, which v1 does not keep.
+**Not stored:** final scores and records (always from `games`), and anything per-play or per-drive.
+
+**How it runs.** `aggregate_team_game_stats(pbp, season)` takes **raw** play-by-play — following `aggregate_team_stats(plays, pbp, season)` at `scripts/ingest.py:237`, **not** the situational aggregators, which only receive `filter_plays()` output and so can't see `no_play`, kicking, or 2-pt rows. `ensure_team_game_stats_table(conn)` joins the other `ensure_*` calls at `scripts/ingest.py:3495-3508`, which sit **before** `process_season`'s try/rollback and each commit their own DDL. Only the upsert and cleanup run inside the transaction.
+
+**Stale rows.** `cleanup_stale_rows` deletes by `team_id != ALL(...)` or `player_id != ALL(...)`, which can never delete a game-keyed row (all 32 teams are always present). It gains a `game_ids` parameter and `DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)`, so a rescheduled game's old row goes. The orphan row in `games` itself has no cleanup (known debt in MEMORY.md) and would show on `/scores` as an unplayed card with a past kickoff forever — §8 handles it by hiding unplayed games whose kickoff is more than 12 hours past.
 
 ## 6. Page: `/game/[game_id]`
 
-Address uses nflverse's game id, e.g. `/game/2026_01_BUF_HOU` (season, week, away, home).
+Address uses nflverse's id: `/game/2026_01_BUF_HOU` (season, week, away, home).
 
 **Order:** Tecmo scoreboard header (away @ home, final score, week, date, each team's record after that game, links to both team pages) → Efficiency (ending with toxic differential) → Team stats → What it cost them → Early vs late downs → Player stats.
 
-**Player tables (type A).** One table per stat type, away team's rows then home team's, each under a team sub-header:
-- **Passing:** C/ATT, YDS, TD, INT, SCK, RTG, EPA/DB, CPOE, SUCC%, aDOT
-- **Rushing:** CAR, YDS, TD, YPC, EPA/CAR, SUCC% — including QB runs
-- **Receiving:** TGT, REC, YDS, TD, TGT%, YAC, EPA/TGT, CATCH%, aDOT, Y/TGT, and YPRR only when route data exists
+**Records** are counted from that team's `games` rows through that week, reusing `winPct`/`compareRecords` tie semantics; `games` has no record column.
 
-Sorted by yards descending within each team. Player names link to their player page. Advanced columns are visually distinguished from basic ones, and EPA values are coloured green/red with the shared `epaTextColor` helper.
+**Player tables (type A).** Rows are fetched by `season + week + team_id IN (away, home)`, taken from the `games` row — never by parsing the URL. Away team's rows first, then home, under team sub-headers, sorted by yards descending; names link to player pages.
+- **Passing:** C/ATT, YDS, TD, INT, SCK, RTG, EPA/DB, CPOE, SUCC%, aDOT — `qb_weekly_stats`
+- **Rushing:** CAR, YDS, TD, YPC, EPA/CAR, SUCC% — `rb_weekly_stats` + QB rushing from `qb_weekly_stats` (§10.1)
+- **Receiving:** TGT, REC, YDS, TD, TGT%, YAC, EPA/TGT, CATCH%, aDOT, Y/TGT, and YPRR only when route data exists — **`receiver_weekly_stats` only**. Its position filter already includes RB/FB (`scripts/ingest.py:2186`), so unioning `rb_weekly_stats` would duplicate every RB.
+
+**Every EPA cell needs `val == null || Number.isNaN(val)`.** `epaTextColor` (`lib/stats/formatters.ts:48`) guards `isNaN` only, and `isNaN(null)` is false, so a null EPA would render amber "neutral" instead of grey — the same footgun as the September 11 team-page crash. Zero-volume players produce null EPA/DB, EPA/CAR and EPA/TGT.
 
 **States:**
-- unknown game id, or a season with no data → `notFound()`
-- game not played (no final score) → `notFound()`; links only render for played games
-- played but no play-by-play yet (e.g. Sunday night game the next morning) → scoreboard renders, stat sections show "Stats arrive once play-by-play is published, usually within a few hours"
-- a data read fails → the page throws rather than rendering an empty shell, per `.claude/CLAUDE.md`, so ISR keeps the last good copy. The placeholder-credentials escape hatch (`hasNoDatabase`) applies as on the homepage
+- unknown game id → `notFound()`
+- game not played (no final score) → `notFound()`; links never render for it
+- **played REG game in a season with no `team_game_stats`** (every 2020–2025 game until the backfill) → a 200 page, `noindex`: the scoreboard plus "Box scores start with the 2026 season", linking both team pages. Never a blank page (MEMORY.md rule)
+- played, season covered, but play-by-play not published yet → scoreboard plus "Stats arrive once play-by-play is published, usually within a few hours"
+- a protected read fails → the page throws rather than rendering an empty shell, so ISR keeps the last good copy. `hasNoDatabase` is module-private in `app/page.tsx:34` and page files cannot export helpers, so it moves to `lib/supabase/server.ts` and both pages import it
 
-**Caching:** statically generated with ISR like the rest of the site; `/api/revalidate` gains `/game` (layout) so each nightly run refreshes it. Sitemap gains played games' URLs.
+**Rendering:** no `generateStaticParams` — team pages enumerate from the static `NFL_TEAMS` constant with no DB read, but game ids would need one, and a Supabase blip would then fail every build. Pages are generated on demand with `revalidate = 3600`; `/api/revalidate` gains `/game` (layout). The sitemap lists played, covered games.
 
-**Mobile:** the comparison fits phone width; player tables scroll sideways inside their own container.
+**Mobile:** the comparison fits phone width; player tables scroll sideways in their own container.
 
 ## 7. Links (phase 1)
 
-- **Schedule tiles** (`components/team/ScheduleSection.tsx`): the tile already links the opponent's abbreviation to their team page, and links cannot nest. So on played games the **result/score line becomes the box score link**, leaving the opponent link intact. Unplayed tiles are unchanged.
-- **Game Log rows** (`components/player/GameLogTab.tsx`): the result cell ("W 36-31") links to that game's box score. Requires Phase 0, or the link text shows a wrong score.
+A link renders only when **`game_type === "REG"`** and **the game's season has `team_game_stats`**, resolved from data (a `seasonsWithBoxScores` read) rather than hardcoding 2026. Without that gate, 1,709 played rows — 1,693 of them 2020–2025 — plus 78 playoff rows would all point at the message page. Playoff tiles never link.
+
+- **Schedule tiles** (`components/team/ScheduleSection.tsx`): the tile already links the opponent abbreviation to their team page and links cannot nest, so the **result/score line** becomes the box score link. Unplayed and uncovered tiles are unchanged.
+- **Game Log rows** (`components/player/GameLogTab.tsx`): the result cell ("W 36-31") links to the box score. Requires Phase 0 or the link text shows a wrong score.
 
 ## 8. Phase 2: `/scores` and the homepage strip
 
-**`/scores`** — navbar entry "Scores" between Rushing and Run Gaps. Opens on the latest week with a finished game; week picker W1–W18 plus the season picker. Tecmo game cards grouped by kickoff window in kickoff order, winner in gold, the "why they won" line, and a box score link. Unplayed games show kickoff time and no link.
+**`/scores`** — navbar entry "Scores" between Rushing and Run Gaps. Opens on the latest week with a finished game; week and season pickers are query params, which force dynamic rendering (MEMORY.md), so the page is dynamic like `/teams` — no ISR, and no revalidate entry needed. It is added to the sitemap's static list. Any non-season-scoped read (e.g. which seasons exist) must use `fetchAllRows()`: a plain `games?select=season` returns only 2020–2023 and 2026 because of the 1000-row cap.
 
-**"Why they won" rule.** Score the winner's three edges — EPA/play margin ÷ 0.10, turnover margin ÷ 1, explosive-play margin ÷ 2 — and use the highest scoring one, provided it scores at least 1.0. If the winner trailed badly on another edge (score ≤ −2.0), append a "despite" clause. Wording:
+Tecmo game cards grouped by **kickoff window** — `weekday` + `gametime` (24-hour ET text, non-null on all 1,965 rows), with Sunday 16:05 and 16:25 treated as one late-afternoon group — in kickoff order. Winner in gold, the "why they won" line, a box score link. Unplayed games show kickoff time and no link; an unplayed game whose kickoff is more than 12 hours past is hidden (the orphan-row case in §5).
+
+**"Why they won" rule.** Score the winner's three edges — EPA/play margin ÷ 0.10, turnover margin ÷ 1, explosive margin ÷ 2 — and take the highest if it scores ≥ 1.0.
 - turnovers → "TB turned it over 4 times" / "+2 turnover margin"
 - EPA → "+0.42 EPA/play edge"
 - explosives → "7 explosive plays to 2"
-- if the winner was behind on all three → "+0.25 EPA/play despite GB's 9 explosive plays"
-- nothing scoring 1.0 or more → "Close one: …" with the best available edge
+- winner trailing badly on another edge (that edge scores ≤ −2.0) → append "despite GB's 9 explosive plays"
+- **ties in score** → fixed priority: turnovers, then EPA, then explosives (7 of 272 2025 games tie, e.g. `2025_07_CAR_NYJ` at 2.0/2.0), so output never depends on iteration order
+- **winner negative on all three** (2 of 272 in 2025, e.g. `2025_13_ATL_NYJ`) → "Won it on special teams and field position" is wrong to assert, so: "Won despite a −1.58 EPA/play deficit"
+- nothing ≥ 1.0 → "Close one: …" with the best edge
 - tie game → "Tie game."
 
-Checked against all 15 finished week 1 games, which produce: turnovers for SEA–NE (+3) and CIN–TB (+4) and DET–NO (+2); EPA for SF–LA (+0.42), JAX–CLE (+0.52), BAL–IND (+0.43), ARI–LAC (+0.31), MIN–GB (+0.25, with the "despite GB's 9 explosive plays" clause), CHI–CAR (+0.23), BUF–HOU (+0.21), LV–MIA (+0.21), NYJ–TEN (+0.27), PIT–ATL (+0.11); explosives for NYG–DAL (4 to 0); and "Close one: 4 explosive plays to 3" for PHI–WAS, whose best edge scores 0.5. Each branch gets a test.
+Verified against all **16** week 1 games (week 1 is complete; DEN–KC finished 2026-09-14, KC 31 DEN 10): turnovers for SEA–NE (+3), CIN–TB (**+3**, TB turned it over 4 times) and DET–NO (+2); EPA for JAX–CLE (+0.52), KC–DEN (+0.50), BAL–IND (+0.43), SF–LA (+0.42), ARI–LAC (+0.31), NYJ–TEN (+0.27), MIN–GB (+0.25, with the despite clause), CHI–CAR (+0.23), BUF–HOU (+0.21), LV–MIA (+0.21), PIT–ATL (+0.11); explosives for NYG–DAL (4 to 0); "Close one: 4 explosive plays to 3" for PHI–WAS (best edge 0.50). Tests cover each branch and must not hardcode a game count.
 
-**Homepage strip** — directly under the "Updated … Through Week N" line, above the standings: the latest week's finals as small Tecmo score tiles that scroll sideways, each linking to its box score, plus that week's upcoming games with kickoff time, and a "Week N scores ›" link to `/scores`. The week shown advances as soon as the next week's first game is final. Its data reads join the homepage's protected set, so a failed read makes the page refuse to render rather than caching a half-empty homepage.
+**Homepage strip** — directly under the "Updated … Through Week N" line, above the standings: the latest week's finals as small Tecmo score tiles that scroll sideways, each linking to its box score, plus that week's upcoming games with kickoff time, and a "Week N scores ›" link. The week advances as soon as the next week's first game is final. Its reads must **throw** on error (use a `getTeamSchedule`-style read, `lib/data/games.ts:87` — not `hasScheduleForSeason`, `:110`, which swallows errors into `false`), so they join the homepage's protected set and a failure can't cache a half-empty homepage.
 
-Both read only `games` and `team_game_stats`; no further pipeline work.
+Both read only `games` and `team_game_stats`; no pipeline work beyond Phase 1.
 
 ## 9. Phase 0: Game Log score fix
 
-`aggregate_qb_weekly_stats` and its receiver/RB siblings (`scripts/ingest.py:1922-1969`) take each game's score from the last run or pass play, so points scored afterwards — a walk-off field goal, a defensive score after the last snap — are missing. Across 2020–2025 that is **17–31 wrong scores and 17–28 wrong W/L/T per season**, visible in every Game Log tab today.
+`_derive_game_context` (`scripts/ingest.py:1922-1969`), the helper used by all three weekly aggregators (`:1977`, `:2136`, `:2254`), takes each game's score from `max(total_home_score)` / `max(total_away_score)` over the **filtered** plays, so points scored after the last run or pass are missing. Replaying 2025 reproduces **31 wrong scores and 28 flipped W/L/T** — the top of the 17–31 / 17–28 range. (2026 week 1 has 0 of 16 wrong, so it cannot be spot-checked on current data.)
 
-Fix: results and scores come from `games`.
+**Recommended fix:** read score and result from `games` when the Game Log renders. It corrects all six seasons on deploy, with no production write.
 
-**Recommended implementation:** read the score and result from `games` when the Game Log renders, and stop trusting the stored columns. It fixes all six historical seasons the moment it deploys, with no production write and no re-ingest. The ingest keeps writing those columns (other code may read them), but they stop being the source of truth for display.
+`GameLogTab` currently receives `{ weeklyStats, position, season, teamId }`, `WeeklyRow` has **no `game_id`**, and `resultStr` (`components/player/GameLogTab.tsx:36-41`) reads `team_score`/`opponent_score`. So the fix adds a prop: a map from week to `{ game_id, team_score, opponent_score, result, opponent_id }`, and **the lookup key must be the weekly row's own `team_id`, not the page's `teamId`** — otherwise every week a traded player spent with his previous team gets the wrong opponent and score.
 
-**Alternative, not recommended for Phase 0:** correct the stored rows by re-ingesting 2020–2025. It needs Jon's approval for a production write and ~6 minutes of seed runs, and fixes nothing that the read-time join doesn't. Worth folding into the 2020–2025 backfill when that happens anyway.
+**Alternative, not recommended now:** re-ingest 2020–2025 to correct the stored columns. Needs Jon's approval for a production write, fixes nothing extra, and is best folded into the backfill.
 
-Box scores read scores from `games` regardless, so they are unaffected by the choice.
+## 10. Player-row work (PR 2)
 
-## 10. Player-row fixes (PR 2)
-
-Found while mocking this up against real data:
-1. **QB runs have no EPA or success rate.** `qb_weekly_stats` stores only rushing attempts/yards/TDs, so Josh Allen's 5 carries and 2 rushing TDs show "—". Add rushing EPA and success rate for QBs.
-2. **A receiver target is missing.** Play-by-play shows Keon Coleman with 2 targets in BUF–HOU; `receiver_weekly_stats` has 1. Find the cause in the weekly aggregation and fix it.
-3. **Target share divides by `team_targets`** from `team_game_stats` (BUF 29, HOU 37), never by a sum of stored rows.
-4. **Known and accepted:** nflverse credits 10 of Allen's 334 passing yards to no receiver (his receivers total 324), most likely a lateral. Player lines will not always sum to team totals; the plan confirms the cause and documents it rather than "fixing" it.
+1. **QB rushing EPA and success rate.** `qb_weekly_stats` stores only rushing attempts/yards/TDs, so Josh Allen's 5 carries and 2 rushing TDs show "—". Add `rush_epa_per_carry` and `rush_success_rate` (NUMERIC). `ensure_qb_weekly_stats_table` (`scripts/ingest.py:2393`) is `CREATE TABLE IF NOT EXISTS` only and cannot add columns, so this needs `ALTER TABLE … ADD COLUMN IF NOT EXISTS` in the style of `ensure_qb_season_stats_columns` (`:1546-1568`), plus the new columns in `upsert_qb_weekly_stats`'s `cols` list.
+2. **Target share** divides by `team_targets` from `team_game_stats` (§5) — never by a sum of stored rows.
+3. **Verified non-bugs, do not "fix":**
+   - Keon Coleman's second BUF–HOU target is the **failed 2-point conversion**, which official stats exclude. His weekly row's 1 target is correct. Adding 2-pt tries to targets would break `receiver_season_stats` against PFR and the frozen `__tests__/stats/fixtures/wr-te-2025-pool.json`.
+   - 10 of Allen's 334 passing yards belong to no receiver: `pass short left to 0-K.Coleman … for 1 yard. Lateral to 10-K.Shakir … for 10 yards` — `passing_yards` 11, `receiving_yards` 1. Player lines will not always sum to team totals.
+   - **WR/TE rushes (jet sweeps) appear in no weekly table**: `aggregate_rb_weekly_stats` filters to RB/FB rushers (`:2257-2264`) and `qb_weekly_stats` to QBs. The Rushing table therefore won't sum to team `rushing_attempts`. Documented in the page's data note with the lateral case.
 
 ## 11. Testing
 
 **Python (pytest):**
-- small made-up games covering every stored stat, plus overtime, ties, defensive and special-teams TDs, safeties, kneel-downs, penalty-wiped plays, 2-point tries, a lateral, a team with zero pass attempts, and a game with no plays yet
-- **golden tests** pinning real week 1 games: efficiency rows must match rbsdm exactly (BUF–HOU numbers in §4), traditional rows must match the official ESPN box score (BUF–HOU: 20/26 first downs, 409/381 yards, 3-9 and 7-16 on third down, 1-3 and 4-5 in the red zone, 10-85 and 7-106 penalties, 0/2 turnovers, 23:43 / 36:17 possession). Fixtures are a small extract of those games' plays, not a full-season file
-- season-agnostic: the same function run for a 2025 game produces sane output
+- made-up games covering every stored stat and the tricky cases: a 2-point try (kept in efficiency, excluded from targets and traditional counts), kneels, penalty-wiped plays, a strip-sack, a lateral, a defensive TD, a safety, a drive with no scrimmage play, a team with zero pass or zero rush attempts (synthetic only — 0 of 544 2025 team-games), and a game with no plays yet
+- **golden test** on real games: efficiency rows must match rbsdm exactly (§4's BUF–HOU numbers) and traditional rows the official ESPN box score (20/26 first downs, 409/381 yards, 3-9 / 7-16 third down, 1-3 / 4-5 red zone, 10-85 / 7-106 penalties, 0/2 turnovers, 23:43 / 36:17 possession). Use **NO–DET** as the overtime case (TOP sums to 68:26, result derives correctly)
+- **Fixture:** a committed parquet of all raw rows for 2–3 whole games (~180 rows each, ~40 columns). It must be the **complete** row set, not a pass/run extract — time of possession, drives, penalties and red zone all need kicking and `no_play` rows. `tests/` has no `conftest.py` or fixtures directory today, so the plan adds one; `scripts/requirements.txt` pins pandas 2.2.3 and pyarrow 18.1.0, and nothing in `.gitignore` excludes it
+- season-agnostic: the same function on a 2025 game gives sane output
 
-**Frontend (vitest):** each section renders from a fixture; the "stats arrive" state; not-found states; links present only on played games; the hook rule across all 15 week 1 games; the strip advancing to a new week; YPRR hidden when no route data and shown when present; an error in any protected read prevents a blank render.
+**Frontend (vitest, not run by CI — run locally before merge):** each section renders from a fixture; the "stats arrive", "box scores start with 2026" and not-found states; links only on played, covered, REG games; the hook rule for every branch; the strip advancing a week; YPRR hidden without route data and shown with it; a failing protected read prevents a blank render; null EPA renders grey, not amber.
 
 **After each merge:** compare three live box scores against rbsdm and ESPN before starting the next PR.
 
-## 12. Risks
+## 12. Risks and things visible on the page
 
-- **Numbers differ from the site's own team pages** until the play-filter unification follow-up. Called out in the glossary.
-- **Player lines don't sum to team totals** (§10.4). Documented on the page's data note.
-- **YPRR is empty for the current season.** nflverse publishes participation only after a season ends (2025's file appeared 2026-02-10), so the column hides itself for 2026 games until then. No free in-season source exists: Next Gen Stats and FTN charting carry no routes-run.
-- **Playoff games have no box score** while the ingest skips them.
-- **Backfill is a production write** and stays Jon's call.
+- **Two play counts that disagree, on purpose.** BUF–HOU shows rush plays **19** (efficiency, `rush == 1`) beside rushing attempts **21** (traditional, includes the kneel and a scramble). The page needs an on-page note, not just a glossary entry, or it reads as a bug.
+- **Numbers differ from this site's own team pages** until the filter-unification follow-up.
+- **First downs deliberately double-count** one rare play type to match ESPN (§4).
+- **A strip-sack appears in two "what it cost them" rows** (§4).
+- **Player lines don't sum to team totals** — laterals and WR/TE rushes (§10.3).
+- **YPRR is empty for the current season.** nflverse publishes participation only after a season ends (2025's file landed 2026-02-10), so the column hides itself for 2026. No free in-season source: Next Gen Stats and FTN charting carry no routes run.
+- **Playoffs and 2020–2025 have no box score** until the backfill; links are gated and direct visits get the message page.
+- **The backfill is a production write** and stays Jon's call.
 
 ## 13. Follow-ups (not in this work)
 
-Backfill 2020–2025; percentile colouring against all games since 2020; drives, scoring summary and biggest plays; a complete per-game player table with defence and kicking (approach B); win probability and other charts (the separate charts project); unify the site's play filters; preview pages for unplayed games; playoffs.
+Backfill 2020–2025; percentile colouring; drives, scoring summary and biggest plays; a complete per-game player table with defence and kicking; win probability and other charts; unify the site's play filters; clean up orphan `games` rows from reschedules; make `epaTextColor` null-safe; add vitest to CI; preview pages for unplayed games; playoffs.
+
+`.claude/CLAUDE.md` also needs two edits when this ships: the "Nav labels" line gains **Scores**, and "13 Supabase tables total" becomes 14 with `team_game_stats`.
