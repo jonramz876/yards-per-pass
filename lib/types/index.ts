@@ -345,6 +345,27 @@ export interface TeamGame {
   opponent_score: number | null;
 }
 
+/**
+ * One played regular-season game from one team's side, read from the `games`
+ * table (box score spec §9). The player Game Log shows these instead of a
+ * weekly stat row's stored team_score/opponent_score, which miss any points
+ * scored after the game's last run or pass.
+ */
+export interface GameResult {
+  game_id: string;
+  team_score: number;
+  opponent_score: number;
+  result: "W" | "L" | "T";
+  opponent_id: string;
+}
+
+/**
+ * Game results keyed by team, then week: `results["TEN"][5]`. Plain objects
+ * (never a Map) so it can cross the server → client boundary; the week keys
+ * arrive as strings, which JS object lookup treats the same as numbers.
+ */
+export type GameResultsByTeam = Record<string, Record<number, GameResult>>;
+
 export interface TeamDownDistanceStat {
   team_id: string;
   season: number;
