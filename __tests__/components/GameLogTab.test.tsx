@@ -30,7 +30,7 @@ function cellText(container: HTMLElement, rowIndex: number, col: number): string
 describe("GameLogTab — Routes column", () => {
   it("Routes shows an em dash when routes_run is null (no participation file)", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[{ ...base, ...noRoutes }]} position="WR" season={2026} teamId="SEA" />
+      <GameLogTab weeklyStats={[{ ...base, ...noRoutes }]} position="WR" season={2026} teamId="SEA" gameResults={{}} />
     );
     const col = routesColumn(container);
     expect(col).toBeGreaterThan(-1);
@@ -39,7 +39,7 @@ describe("GameLogTab — Routes column", () => {
 
   it("Routes shows the count when present", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" />
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} />
     );
     expect(cellText(container, 0, routesColumn(container))).toBe("31");
   });
@@ -50,7 +50,7 @@ describe("GameLogTab — Routes column", () => {
       { ...base, week: 2, routes_run: 31 },
     ];
     const { container } = render(
-      <GameLogTab weeklyStats={rows} position="WR" season={2026} teamId="SEA" />
+      <GameLogTab weeklyStats={rows} position="WR" season={2026} teamId="SEA" gameResults={{}} />
     );
     const col = routesColumn(container);
     fireEvent.click(container.querySelectorAll("thead th")[col]);

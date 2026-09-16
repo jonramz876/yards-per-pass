@@ -36,15 +36,23 @@ vi.mock("@/lib/data/rushing", () => ({
 }));
 
 vi.mock("@/components/player/PlayerPageContent", () => ({
-  default: () => null,
+  default: vi.fn(() => null),
+}));
+
+vi.mock("@/lib/data/games", () => ({
+  getGameResults: vi.fn(async () => ({})),
 }));
 
 vi.mock("@/components/ui/Breadcrumbs", () => ({
   default: () => null,
 }));
 
+import { render } from "@testing-library/react";
 import PlayerPage, { generateMetadata } from "@/app/player/[slug]/page";
-import { getPlayerBySlug } from "@/lib/data/players";
+import PlayerPageContent from "@/components/player/PlayerPageContent";
+import { getPlayerBySlug, getReceiverWeeklyStats } from "@/lib/data/players";
+import { getGameResults } from "@/lib/data/games";
+import type { ReceiverWeeklyStat } from "@/lib/types";
 
 const ROOT = path.resolve(__dirname, "../..");
 
@@ -111,5 +119,69 @@ describe("PlayerPage", () => {
       params: Promise.resolve({ slug: "no-such-player-xyz" }),
     });
     expect(String(meta.title)).toContain("Player Not Found");
+  });
+});
+
+describe("PlayerPage — Game Log results (box score spec §9)", () => {
+  // Tyler Lockett: current team LV, but his 2025 rows are TEN then LV.
+  const lockett = {
+    player_id: "00-0032211",
+    slug: "tyler-lockett",
+    player_name: "Tyler Lockett",
+    position: "WR",
+    current_team_id: "LV",
+    headshot_url: null,
+    jersey_number: null,
+  };
+  const row = (week: number, team_id: string) =>
+    ({ player_id: "00-0032211", season: 2025, week, team_id }) as unknown as ReceiverWeeklyStat;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getPlayerBySlug).mockResolvedValue(lockett);
+    vi.mocked(getReceiverWeeklyStats).mockResolvedValue([]);
+    vi.mocked(getGameResults).mockReset();
+    vi.mocked(getGameResults).mockResolvedValue({});
+  });
+
+  /** Render the page and return the props PlayerPageContent received. */
+  async function contentProps() {
+    render(
+      await PlayerPage({
+        params: Promise.resolve({ slug: "tyler-lockett" }),
+        searchParams: Promise.resolve({ season: "2025", tab: "game-log" }),
+      }),
+    );
+    const calls = vi.mocked(PlayerPageContent).mock.calls;
+    return calls[calls.length - 1][0];
+  }
+
+  it("fetches results for every team in the weekly rows, not the current team", async () => {
+    vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN"), row(7, "TEN"), row(14, "LV")]);
+    const results = {
+      TEN: { 5: { game_id: "2025_05_TEN_ARI", team_score: 22, opponent_score: 21, result: "W" as const, opponent_id: "ARI" } },
+    };
+    vi.mocked(getGameResults).mockResolvedValue(results);
+
+    const props = await contentProps();
+
+    expect(getGameResults).toHaveBeenCalledTimes(1);
+    const [ids, season] = vi.mocked(getGameResults).mock.calls[0];
+    expect([...ids].sort()).toEqual(["LV", "TEN"]);
+    expect(season).toBe(2025);
+    expect(props.gameResults).toEqual(results);
+  });
+
+  it("skips the read when the player has no weekly rows", async () => {
+    const props = await contentProps();
+    expect(getGameResults).not.toHaveBeenCalled();
+    expect(props.gameResults).toEqual({});
+  });
+
+  it("still renders when the games read fails; the Game Log keeps stored scores", async () => {
+    vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
+    vi.mocked(getGameResults).mockRejectedValue(new Error("Failed to fetch game results: fetch failed"));
+    const props = await contentProps();
+    expect(props.gameResults).toEqual({});
   });
 });

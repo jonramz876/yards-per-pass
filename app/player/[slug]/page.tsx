@@ -3,8 +3,9 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyStats, getTeamTopReceivers, getTeamStartingQB, getQBPassLocationStats } from "@/lib/data/players";
-import type { QBPassLocationStat } from "@/lib/types";
+import type { GameResultsByTeam, QBPassLocationStat } from "@/lib/types";
 import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
+import { getGameResults } from "@/lib/data/games";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getTeam } from "@/lib/data/teams";
@@ -142,6 +143,25 @@ export default async function PlayerPage({
     // Data fetch failed — page will render with empty data
   }
 
+  // Game Log scores come from `games` (box score spec §9). Look up every team
+  // the weekly rows name: a traded player's rows span teams, and
+  // player.current_team_id is not the team he played for in past seasons.
+  // If this read fails the Game Log falls back to each row's stored score, as
+  // before; player pages render per request, so nothing degraded is cached.
+  let gameResults: GameResultsByTeam = {};
+  const weeklyTeamIds = Array.from(
+    new Set(
+      (weeklyStats as { team_id?: unknown }[])
+        .map((row) => row?.team_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  );
+  if (weeklyTeamIds.length > 0) {
+    gameResults = await getGameResults(weeklyTeamIds, currentSeason).catch(
+      (): GameResultsByTeam => ({})
+    );
+  }
+
   const breadcrumbs = getBreadcrumbs(player.position, player.player_name);
 
   const jsonLd = {
@@ -175,6 +195,7 @@ export default async function PlayerPage({
           crossLinkReceivers={crossLinkReceivers}
           crossLinkQB={crossLinkQB}
           passLocationStats={passLocationStats}
+          gameResults={gameResults}
         />
       </Suspense>
     </div>

@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { QBWeeklyStat, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
+import type { GameResultsByTeam, QBWeeklyStat, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
 
@@ -13,7 +13,13 @@ interface GameLogTabProps {
   weeklyStats: WeeklyRow[];
   position: string;
   season: number;
+  /**
+   * The player's CURRENT team — only the sparkline colour. Never use it to
+   * look up games: a traded player's rows belong to other teams.
+   */
   teamId: string;
+  /** Official final scores from `games`, keyed by team then week (getGameResults). */
+  gameResults: GameResultsByTeam;
 }
 
 // ─── Column definitions per position ─────────────────────────────────────────

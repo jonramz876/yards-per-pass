@@ -13,6 +13,7 @@ import type {
   CrossLinkReceiver,
   CrossLinkQB,
   QBPassLocationStat,
+  GameResultsByTeam,
 } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
 import { isCardPosition } from "@/lib/stats/tecmo-card";
@@ -35,6 +36,8 @@ interface PlayerPageContentProps {
   crossLinkReceivers?: CrossLinkReceiver[];
   crossLinkQB?: CrossLinkQB | null;
   passLocationStats?: QBPassLocationStat[];
+  /** Official final scores for the Game Log, keyed by team then week. */
+  gameResults: GameResultsByTeam;
 }
 
 const TABS = [
@@ -60,6 +63,7 @@ export default function PlayerPageContent({
   crossLinkReceivers = [],
   crossLinkQB,
   passLocationStats = [],
+  gameResults,
 }: PlayerPageContentProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -201,6 +205,7 @@ export default function PlayerPageContent({
         position={position}
         season={season}
         teamId={player.current_team_id}
+        gameResults={gameResults}
       />
     );
   }
