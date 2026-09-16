@@ -30,7 +30,7 @@ Team roster spec: `docs/superpowers/specs/2026-03-18-review-team-roster-design.m
 - This is a Next.js 14 App Router project with TypeScript, Tailwind v4, and D3.js
 - Data lives in Supabase (PostgreSQL with RLS)
 - All stat computation happens in `scripts/ingest.py` — never compute stats client-side
-- Data fetching: `lib/data/queries.ts`, `lib/data/receivers.ts`, `lib/data/rushing.ts`, `lib/data/players.ts`, `lib/data/team-hub.ts`, `lib/data/run-gaps.ts`
+- Data fetching: `lib/data/queries.ts`, `lib/data/receivers.ts`, `lib/data/rushing.ts`, `lib/data/players.ts`, `lib/data/team-hub.ts`, `lib/data/run-gaps.ts`, `lib/data/games.ts` (schedule + official final scores — server-only, never import it from a `"use client"` file)
 - Fantasy points: `lib/stats/fantasy.ts` — PPR/Half/Standard scoring, computed client-side from existing stats
 - Nav labels: Team Tiers | Passing | Receiving | Rushing | Run Gaps | Glossary
 - Supabase has a 1000-row server limit — use `fetchAllRows()` from `lib/data/utils.ts` for large tables
