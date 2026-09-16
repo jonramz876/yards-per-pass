@@ -3,7 +3,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { GameResultsByTeam, QBWeeklyStat, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
+import type { GameResult, GameResultsByTeam, QBWeeklyStat, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
 
@@ -39,10 +39,27 @@ const fmtDec2 = (v: number) => (isNaN(v) ? "\u2014" : v.toFixed(2));
 const fmtPct = (v: number) => (isNaN(v) ? "\u2014" : (v * 100).toFixed(1) + "%");
 const fmtInt = (v: number) => (isNaN(v) ? "\u2014" : String(Math.round(v)));
 
-function resultStr(row: WeeklyRow): string {
+/**
+ * The schedule's result for this row's game. Looked up by the row's OWN team
+ * and week (box score spec \u00a79) and trusted only when the opponent matches, so
+ * a row can never borrow another game's score.
+ */
+function scheduleResult(row: WeeklyRow, gameResults: GameResultsByTeam): GameResult | undefined {
+  const game = gameResults?.[row.team_id]?.[row.week];
+  return game && game.opponent_id === row.opponent_id ? game : undefined;
+}
+
+/**
+ * "W 41-40" from the `games` table's final score. Falls back to the weekly
+ * row's stored score \u2014 which can miss points scored after the last run or
+ * pass \u2014 only when the schedule has no matching game (e.g. its read failed).
+ */
+function resultStr(row: WeeklyRow, gameResults: GameResultsByTeam): string {
+  const game = scheduleResult(row, gameResults);
+  if (game) return `${game.result} ${game.team_score}-${game.opponent_score}`;
   const ts = row.team_score;
   const os = row.opponent_score;
-  if (ts == null || os == null) return "\u2014";
+  if (ts == null || os == null || Number.isNaN(ts) || Number.isNaN(os)) return "\u2014";
   const w = ts > os ? "W" : ts < os ? "L" : "T";
   return `${w} ${ts}-${os}`;
 }
@@ -51,12 +68,14 @@ function homeAway(row: WeeklyRow): string {
   return row.home_away === "away" ? "@" : "vs";
 }
 
-const COMMON_COLS: ColDef[] = [
-  { key: "week", label: "Wk", numeric: true, sortable: true, getValue: (r) => r.week },
-  { key: "opponent", label: "Opp", getValue: (r) => r.opponent_id, sortable: true },
-  { key: "home_away", label: "H/A", getValue: (r) => homeAway(r) },
-  { key: "result", label: "Result", getValue: (r) => resultStr(r) },
-];
+function commonCols(gameResults: GameResultsByTeam): ColDef[] {
+  return [
+    { key: "week", label: "Wk", numeric: true, sortable: true, getValue: (r) => r.week },
+    { key: "opponent", label: "Opp", getValue: (r) => r.opponent_id, sortable: true },
+    { key: "home_away", label: "H/A", getValue: (r) => homeAway(r) },
+    { key: "result", label: "Result", getValue: (r) => resultStr(r, gameResults) },
+  ];
+}
 
 const QB_COLS: ColDef[] = [
   {
@@ -226,7 +245,7 @@ function VolumeSparkline({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function GameLogTab({ weeklyStats, position, season, teamId }: GameLogTabProps) {
+export default function GameLogTab({ weeklyStats, position, season, teamId, gameResults }: GameLogTabProps) {
   const teamColor = getTeamColor(teamId);
   const [sortKey, setSortKey] = useState<string>("week");
   const [sortDesc, setSortDesc] = useState(false);
@@ -235,7 +254,7 @@ export default function GameLogTab({ weeklyStats, position, season, teamId }: Ga
     () => position === "QB" ? QB_COLS : (position === "WR" || position === "TE") ? WR_COLS : RB_COLS,
     [position]
   );
-  const allCols = useMemo(() => [...COMMON_COLS, ...posCols], [posCols]);
+  const allCols = useMemo(() => [...commonCols(gameResults), ...posCols], [gameResults, posCols]);
 
   // Build sparkline data
   const epaData = useMemo(() => {
