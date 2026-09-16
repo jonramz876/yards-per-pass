@@ -157,9 +157,12 @@ export default async function PlayerPage({
     )
   );
   if (weeklyTeamIds.length > 0) {
-    gameResults = await getGameResults(weeklyTeamIds, currentSeason).catch(
-      (): GameResultsByTeam => ({})
-    );
+    try {
+      gameResults = await getGameResults(weeklyTeamIds, currentSeason);
+    } catch {
+      // Read failed (rejected or thrown): gameResults stays {} and the Game Log
+      // shows each row's stored score.
+    }
   }
 
   const breadcrumbs = getBreadcrumbs(player.position, player.player_name);

@@ -184,4 +184,13 @@ describe("PlayerPage — Game Log results (box score spec §9)", () => {
     const props = await contentProps();
     expect(props.gameResults).toEqual({});
   });
+
+  it("still renders when getGameResults throws instead of rejecting", async () => {
+    vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
+    vi.mocked(getGameResults).mockImplementation(() => {
+      throw new Error("sync failure before any promise exists");
+    });
+    const props = await contentProps();
+    expect(props.gameResults).toEqual({});
+  });
 });

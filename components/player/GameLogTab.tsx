@@ -39,14 +39,24 @@ const fmtDec2 = (v: number) => (isNaN(v) ? "\u2014" : v.toFixed(2));
 const fmtPct = (v: number) => (isNaN(v) ? "\u2014" : (v * 100).toFixed(1) + "%");
 const fmtInt = (v: number) => (isNaN(v) ? "\u2014" : String(Math.round(v)));
 
+/** A final score a visitor can read: a whole number, zero or more. */
+function isFinalScore(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 0;
+}
+
 /**
  * The schedule's result for this row's game. Looked up by the row's OWN team
  * and week (box score spec \u00a79) and trusted only when the opponent matches, so
- * a row can never borrow another game's score.
+ * a row can never borrow another game's score. A malformed entry (a score
+ * that isn't a whole number \u2265 0, or a result other than W/L/T) is ignored too,
+ * so the cell falls back to the stored score instead of printing it.
  */
 function scheduleResult(row: WeeklyRow, gameResults: GameResultsByTeam): GameResult | undefined {
   const game = gameResults?.[row.team_id]?.[row.week];
-  return game && game.opponent_id === row.opponent_id ? game : undefined;
+  if (!game || game.opponent_id !== row.opponent_id) return undefined;
+  if (!isFinalScore(game.team_score) || !isFinalScore(game.opponent_score)) return undefined;
+  if (game.result !== "W" && game.result !== "L" && game.result !== "T") return undefined;
+  return game;
 }
 
 /**

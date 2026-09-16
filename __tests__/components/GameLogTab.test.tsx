@@ -139,6 +139,26 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
     expect(resultFor(container, 1)).toBe("W 27-20");
   });
 
+  it("ignores a malformed schedule entry and falls back to the stored score", () => {
+    const malformed = {
+      SEA: { 1: { game_id: "2026_01_NE_SEA", team_score: null, opponent_score: NaN, result: "X", opponent_id: "NE" } },
+    } as unknown as GameResultsByTeam;
+    const { container } = render(
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={malformed} />
+    );
+    expect(resultFor(container, 1)).toBe("W 27-20");
+  });
+
+  it("ignores negative schedule scores and falls back to the stored score", () => {
+    const negative: GameResultsByTeam = {
+      SEA: { 1: { game_id: "2026_01_NE_SEA", team_score: -5, opponent_score: -3, result: "L", opponent_id: "NE" } },
+    };
+    const { container } = render(
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={negative} />
+    );
+    expect(resultFor(container, 1)).toBe("W 27-20");
+  });
+
   it("shows a dash when there is no schedule game and the stored score isn't a number", () => {
     const blank: ReceiverWeeklyStat = { ...base, team_score: NaN, opponent_score: NaN };
     const { container } = render(
