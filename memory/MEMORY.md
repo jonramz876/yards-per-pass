@@ -60,6 +60,14 @@
 - **Scope:** the guarantee covers the homepage's six primary reads only. Follow-up: `getPlayerSlugsByIds` (leader cards cached unlinked) and `hasScheduleForSeason` (preseason board cached on the wrong season) still swallow errors and can cache a degraded homepage; `app/sitemap.ts` swallows a failed `getAllPlayerSlugs` the same way.
 - Tests: `__tests__/app/home-page.test.tsx` (includes the incident reproduction).
 
+## Game Log scores (box scores Phase 0)
+
+- **The Game Log's Result cell reads the official final score from `games`**, not the weekly rows' stored `team_score`/`opponent_score`. Those stored columns come from `_derive_game_context` over *filtered* plays, which misses points scored after the last run or pass: **31 of 2025's 272 games are stored with the wrong score (28 with the wrong W/L/T)** — e.g. Josh Allen's 2025 week 1 is stored L 38-40, really W 41-40. The columns were NOT rewritten (no production write); anything else that reads them gets the wrong score. The backfill is the natural time to fix the stored values.
+- Flow: `app/player/[slug]/page.tsx` collects every distinct `team_id` in the weekly rows → `getGameResults(teamIds, season)` (`lib/data/games.ts`) → `{ [team_id]: { [week]: GameResult } }` → `PlayerPageContent` → `GameLogTab`. **Rows look themselves up by their own `team_id` + `week`, never `player.current_team_id`** (a traded player's rows span teams), and trust the entry only when the opponent matches.
+- Fallback: no matching schedule game, or the `games` read failed → the row's stored score, exactly as before. Player pages render per request, so nothing degraded is cached.
+- `GameResult.game_id` is there for box scores PR 3, which turns this Result cell into the box score link.
+- Tests: `__tests__/data/games.test.ts`, `__tests__/components/GameLogTab.test.tsx`, `__tests__/app/player-route.test.ts`.
+
 ## Known debt (2026-09-05)
 
 - 8 npm vulnerabilities (6 high: `next`, `@supabase/auth-js`, `glob`, `postcss`) fixable only by the **Next.js 14 → 16 major upgrade** — deliberate deferral, needs its own session.
