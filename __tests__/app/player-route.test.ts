@@ -178,19 +178,35 @@ describe("PlayerPage — Game Log results (box score spec §9)", () => {
     expect(props.gameResults).toEqual({});
   });
 
-  it("still renders when the games read fails; the Game Log keeps stored scores", async () => {
+  it("still renders when the games read fails; the Game Log keeps stored scores and the failure is logged", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
     vi.mocked(getGameResults).mockRejectedValue(new Error("Failed to fetch game results: fetch failed"));
     const props = await contentProps();
     expect(props.gameResults).toEqual({});
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("tyler-lockett");
+    expect(String(logged.mock.calls[0][0])).toContain("2025");
+    logged.mockRestore();
   });
 
   it("still renders when getGameResults throws instead of rejecting", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
     vi.mocked(getGameResults).mockImplementation(() => {
       throw new Error("sync failure before any promise exists");
     });
     const props = await contentProps();
     expect(props.gameResults).toEqual({});
+    expect(logged).toHaveBeenCalledTimes(1);
+    logged.mockRestore();
+  });
+
+  it("logs nothing when the games read succeeds", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
+    await contentProps();
+    expect(logged).not.toHaveBeenCalled();
+    logged.mockRestore();
   });
 });

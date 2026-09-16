@@ -147,7 +147,9 @@ export default async function PlayerPage({
   // the weekly rows name: a traded player's rows span teams, and
   // player.current_team_id is not the team he played for in past seasons.
   // If this read fails the Game Log falls back to each row's stored score, as
-  // before; player pages render per request, so nothing degraded is cached.
+  // before. Awaiting searchParams makes Next render this page per request, so
+  // a fallback render is never cached; moving the season into the URL path
+  // would change that.
   let gameResults: GameResultsByTeam = {};
   const weeklyTeamIds = Array.from(
     new Set(
@@ -159,9 +161,14 @@ export default async function PlayerPage({
   if (weeklyTeamIds.length > 0) {
     try {
       gameResults = await getGameResults(weeklyTeamIds, currentSeason);
-    } catch {
+    } catch (err) {
       // Read failed (rejected or thrown): gameResults stays {} and the Game Log
-      // shows each row's stored score.
+      // shows each row's stored score. Log it — the fallback is otherwise
+      // invisible, and the stored scores are wrong for some games.
+      console.error(
+        `Game Log: official scores unavailable for ${slug} (${currentSeason}); showing stored scores`,
+        err
+      );
     }
   }
 
