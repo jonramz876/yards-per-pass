@@ -394,8 +394,11 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     // the real table, so the read is broken (a dropped read policy, a renamed
     // table, a bad key) and PostgREST reports exactly that as 200-with-no-rows.
     // Spec §6: a failed read throws rather than caching "stats arrive shortly"
-    // onto every game page in every season. (A failed render is never cached;
-    // whether a previously rendered copy is then served is unmeasured.)
+    // onto every game page in every season. (A failed render is never cached,
+    // and measurement on the deployed site shows nothing else is either — the
+    // game route answers every request fresh, x-vercel-cache: MISS — so the
+    // visitor gets error.tsx rather than a stale good copy. See the note on
+    // loadBoxScore in app/game/[game_id]/page.tsx.)
     if (covered.length === 0) {
       throw new Error(
         `Box score: data_freshness lists ${seasons.length} season(s) (${seasons.join(", ")}) but none has a team_game_stats row; expected at least one, so the team_game_stats read is failing silently`
