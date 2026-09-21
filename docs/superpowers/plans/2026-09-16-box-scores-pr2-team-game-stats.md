@@ -18,7 +18,7 @@
 - **Never** use `DATABASE_URL`, never connect to the production database from this machine, never print or write a secret. `.env.local` holds the site's anon key; the Task 10 script reads it and prints nothing but row counts and stat values.
 - **NULL, never NaN, in every stored numeric column** (repo convention, MEMORY.md "Stored NaN instead of NULL" debt). Which `team_game_stats` columns can be NULL: the 17 rate columns in `TEAM_GAME_STATS_RATE_COLS` (`epa_per_play`, `success_rate`, `first_down_rate`, the pass/rush/early/late variants, `explosive_rate`, `yards_per_play`, `yards_per_pass`, `yards_per_rush`) when their denominator is 0, and `time_of_possession_seconds` when a team has drives but nflverse gave none a clock. Every count and yard total is 0 when a team had none; the three `epa_lost_*` sums are 0.0. On `qb_weekly_stats`, `rush_epa_per_carry` / `rush_success_rate` are NULL for a game with no carries.
 - **Match `scripts/ingest.py`'s patterns; do not refactor anything you were not asked to touch.** The file is CRLF in the working tree (`core.autocrlf=true`); the Edit tool matches on content, so anchor every edit on the exact text this plan quotes. Line numbers in this plan are as of `main` @ 5277094 (before any task) and are orientation only — later tasks shift them.
-- **Spec §4 is the definition of every number.** Three places this plan goes beyond its literal text, each documented in code and tests, none changing a verified number: (1) `def_st_tds` adds `kickoff_attempt == 1` to the `td_team == team and posteam != team` rule, because nflverse puts the **receiving** team in `posteam` on kickoffs (164 of 171 week-1 kickoff rows), so a kickoff-return TD would otherwise be missed; (2) `qb_spike` counts as a snap from scrimmage for 3rd/4th-down attempts and red-zone trips (0 spikes in BUF–HOU, so the golden numbers are unchanged); (3) turnovers stay keyed by `posteam` exactly as §4 says, so a punt the **receiving** team muffs (`2026_01_CHI_CAR`) is credited to nobody — recorded as a strict `xfail` test, not "fixed".
+- **Spec §4 is the definition of every number.** Three rules that are documented in spec §4 (commit 320687e) rather than in its original text are carried in code and tests, and none changes a verified number: (1) `def_st_tds` adds `kickoff_attempt == 1` to the `td_team == team and posteam != team` rule, because nflverse puts the **receiving** team in `posteam` on kickoffs (all 171 week-1 kickoff rows carry the receiving team in `posteam`), so a kickoff-return TD would otherwise be missed; (2) `qb_spike` counts as a snap from scrimmage for 3rd/4th-down attempts and red-zone trips (0 spikes in BUF–HOU, so the golden numbers are unchanged); (3) turnovers stay keyed by `posteam` exactly as §4 says, so a punt the **receiving** team muffs (`2026_01_CHI_CAR`) is credited to nobody — recorded as a strict `xfail` test, not "fixed". A fourth limitation, `2025_14_PHI_LAC` (a pick plus a **separate** lost fumble on one snap counts 1), is documented in spec §4 and in a comment beside the turnover rule but has **no test**: the second fumble lives in `fumbled_2_team`, a column the aggregator does not read and the fixture does not carry, so no synthetic row can model it.
 - **Fixture rules (spec §11):** the parquet holds every raw row of its games (kicks, `no_play`, timeouts) but only the 51 columns the new code reads; it is cut by the deterministic script in Task 1, carries no pandas metadata, and is committed, so no test ever depends on a scratch file. Nothing committed references any session scratchpad path.
 - **Quality gates:** chaos test (Task 7) before code review (Task 8); fix every CRASH/ERROR first. Docs/memory task (Task 9) before shipping.
 - **Ship:** branch `box-scores-pr2` (it already exists — this plan's commit is on it), one PR to `main`, CI polled with a background until-loop over `gh pr checks … --json bucket` (never `--watch`), `gh pr merge <n> --merge` once green, then `gh workflow run data-refresh.yml`, wait for it, read its log, verify with read-only REST GETs (Task 10).
@@ -35,7 +35,7 @@
 | `tests/test_team_game_stats_pipeline.py` | Create (Task 4) | DDL, upsert row typing, cleanup guard, `process_season` wiring (the slug-bug guard) |
 | `tests/test_qb_rushing_epa.py` | Create (Task 5) | Synthetic one-run-one-scramble QB, Allen/Stroud from the fixture, ALTER TABLE, upsert NULLs |
 | `tests/test_team_game_stats_smoke.py` | Create (Task 6) | Whole-file smoke check, skipped unless `YPP_PBP_PARQUET` is set |
-| `memory/MEMORY.md`, `.claude/CLAUDE.md` | Modify (Task 9) | New memory section; "13 Supabase tables total" → 14 with `team_game_stats` |
+| `memory/MEMORY.md`, `.claude/CLAUDE.md` | Modify (Task 9) | New memory section; "13 Supabase tables total" → the true **18** (the listed 13 plus `games`, `qb_pass_location_stats`, `team_down_distance_stats`, `team_situational_stats`, `team_game_stats`) |
 
 Out of scope: any `app/`, `components/`, `lib/` change (PR 3 adds the TypeScript types and page); `scripts/schema.sql` (the original 4-table bootstrap file; every later table is created by an `ensure_*` function, and this one is too); rewriting the 31 wrong stored weekly scores (backfill, spec §9).
 
@@ -69,7 +69,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" merge-base --is-ancestor origin/main box-scores-pr2
 ```
 
-Expected: exit code 0. If it exits 1, rebase: `git -C "<repo>" rebase origin/main` (the branch holds only this plan, so there is nothing to conflict).
+Expected: exit code 0. If it exits 1, rebase: `git -C "<repo>" rebase origin/main` (the branch holds only this plan, the spec amendment `320687e` and the pre-flight plan-fix commit, so there is nothing to conflict).
 
 - [ ] **Step 2: Find a full-column 2026 play-by-play file**
 
@@ -429,7 +429,17 @@ Append to the end of `tests/test_team_game_stats.py`:
 
 
 # ---------------------------------------------------------------------------
-# Golden: 2026_01_BUF_HOU — efficiency vs rbsdm, traditional vs ESPN (spec §4)
+# Golden: 2026_01_BUF_HOU (spec §4). Where each GOLD number comes from:
+#   * efficiency (plays, EPA/play, success rate, first-down rate, and their
+#     pass / rush / early / late splits) — verified against rbsdm.com;
+#   * traditional (first downs, 3rd/4th down, total plays and yards, net
+#     passing, comp/att, interceptions, sacks, rushing, red zone, penalties,
+#     turnovers, fumbles lost, defensive TDs, possession) — verified against the
+#     ESPN box score;
+#   * epa_lost_turnovers / epa_lost_sacks / epa_lost_penalties, the explosive
+#     counts (explosive_plays / _pass / _rush / _rate) and team_targets — no
+#     public source publishes these, so they were recomputed independently from
+#     the same play-by-play during the spec review.
 # ---------------------------------------------------------------------------
 
 def _eff(plays, epa, succ, fd):
@@ -528,7 +538,9 @@ class TestGoldenOtherGames:
         assert rows['time_of_possession_seconds'].sum() == 68 * 60 + 26
 
     def test_defensive_touchdowns_and_turnovers_tb_cin(self, team_game_rows):
-        """A pick-six each way; TB turned it over 4 times, CIN once (spec §8's +3 margin)."""
+        """A defensive TD each way — TB's is a pick-six (play 2805, Trotter 38 yards),
+        CIN's a strip-sack fumble return (play 545, Knight 27 yards). TB turned it over
+        4 times, CIN once (spec §8's +3 margin)."""
         tb = team_game_row(team_game_rows, TB_CIN, 'TB')
         cin = team_game_row(team_game_rows, TB_CIN, 'CIN')
         assert (tb['def_st_tds'], cin['def_st_tds']) == (1, 1)
@@ -541,6 +553,43 @@ class TestGoldenOtherGames:
         assert len(team_game_rows) == 6
         assert team_game_rows.groupby('game_id').size().to_dict() == {g: 2 for g in FIXTURE_GAMES}
         assert not team_game_rows.isna().any().any()
+
+
+class TestPartialDriveClock:
+    """time_of_possession_seconds is NULL only when EVERY drive is unreadable. When
+    only some are, the sum is silently short — so the aggregator logs a warning
+    naming the game and team (spec §4 time of possession)."""
+
+    def test_warns_when_only_some_drives_have_a_readable_clock(self, raw, caplog):
+        from ingest import aggregate_team_game_stats
+        plays = raw.game(raw.play(drive=1.0, drive_time_of_possession='2:30'),
+                         raw.play(drive=2.0, drive_time_of_possession='junk'))
+        with caplog.at_level('WARNING', logger='ingest'):
+            out = aggregate_team_game_stats(plays, 2026)
+        kc = team_game_row(out, '2026_01_KC_BUF', 'KC')
+        assert kc['total_drives'] == 2
+        assert kc['time_of_possession_seconds'] == 150   # the readable drive only
+        assert '2026_01_KC_BUF' in caplog.text
+        assert 'KC' in caplog.text
+        assert '1 of 2' in caplog.text
+
+    def test_no_warning_when_every_drive_has_a_clock(self, raw, caplog):
+        from ingest import aggregate_team_game_stats
+        plays = raw.game(raw.play(drive=1.0, drive_time_of_possession='2:30'),
+                         raw.play(drive=2.0, drive_time_of_possession='1:00'))
+        with caplog.at_level('WARNING', logger='ingest'):
+            aggregate_team_game_stats(plays, 2026)
+        assert 'drive_time_of_possession' not in caplog.text
+
+    def test_no_warning_when_no_drive_has_a_clock(self, raw, caplog):
+        """Every drive unreadable is the NULL case, already visible in the stored row."""
+        from ingest import aggregate_team_game_stats
+        plays = raw.game(raw.play(drive=1.0, drive_time_of_possession=None),
+                         raw.play(drive=2.0, drive_time_of_possession='junk'))
+        with caplog.at_level('WARNING', logger='ingest'):
+            out = aggregate_team_game_stats(plays, 2026)
+        assert team_game_row(out, '2026_01_KC_BUF', 'KC')['time_of_possession_seconds'] is None
+        assert 'drive_time_of_possession' not in caplog.text
 ```
 
 - [ ] **Step 2: Run the file to see the golden tests fail**
@@ -549,7 +598,7 @@ class TestGoldenOtherGames:
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_team_game_stats.py" -q -p no:cacheprovider
 ```
 
-Expected: the 3 `TestFixture` tests pass; every golden test fails or errors with `ImportError: cannot import name 'aggregate_team_game_stats' from 'ingest'` (the `team_game_rows` fixture) or `cannot import name 'TEAM_GAME_STATS_COLS'`.
+Expected: `4 failed, 3 passed, 120 errors`. The 3 passes are Task 1's `TestFixture` tests. The 120 errors are the parametrized golden tests plus `test_keys` / `test_output_shape` etc., which error in the `team_game_rows` fixture with `ImportError: cannot import name 'aggregate_team_game_stats' from 'ingest'`. The 4 failures are the tests that import inside their own body: `test_every_stored_column_has_a_golden_value` (`cannot import name 'TEAM_GAME_STATS_COLS'`) and the three `TestPartialDriveClock` tests.
 
 - [ ] **Step 3: Require the columns the new code reads**
 
@@ -714,8 +763,12 @@ def _team_game_costs(reg: pd.DataFrame) -> pd.DataFrame:
     off = reg[reg['posteam'].notna()].copy()
     off['is_int'] = (off['interception'] == 1).astype(int)
     # fumble_lost flags the PLAY; fumbled_1_team says who lost the ball. A pick the
-    # defence fumbles back is 1 turnover, not 2 (spec §4; known 1-of-544 limitation:
-    # a second, separate lost fumble recorded only in fumbled_2_team is not counted).
+    # defence fumbles back is 1 turnover, not 2 (spec §4).
+    # Known limitation (spec §4), 1 of 544 2025 team-games — 2025_14_PHI_LAC: when a
+    # pick AND a SEPARATE lost fumble happen on one snap, the second fumble is
+    # recorded only in fumbled_2_team, which this rule does not read, so it counts 1
+    # where 2 is right. There is no test for it: fumbled_2_team is not a column the
+    # aggregator reads or the fixture carries, so no synthetic row can reproduce it.
     off['is_fl'] = ((off['fumble_lost'] == 1) & (off['fumbled_1_team'] == off['posteam'])).astype(int)
     off['to_epa'] = off['epa'].where((off['is_int'] == 1) | (off['is_fl'] == 1), 0.0)
     off['sack_epa'] = off['epa'].where(off['sack'] == 1, 0.0)
@@ -897,6 +950,15 @@ def aggregate_team_game_stats(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
     # Possession: the summed clock of the team's drives; NULL only when it had
     # drives but nflverse gave none of them a drive_time_of_possession.
     frame['top_known'] = frame['top_known'].fillna(0)
+    # A PARTLY unreadable clock is the dangerous case: the unreadable drives fall out
+    # of the sum and possession is understated with nothing in the stored row to show
+    # it (all-unreadable is at least visible as NULL). Name the game and team.
+    for game_id, team_id, known, drives in zip(frame['game_id'], frame['team_id'],
+                                               frame['top_known'], frame['total_drives']):
+        if 0 < known < drives:
+            log.warning("%s %s: drive_time_of_possession readable on only %d of %d drives; "
+                        "time_of_possession_seconds is understated",
+                        game_id, team_id, int(known), int(drives))
     frame['time_of_possession_seconds'] = pd.Series([
         None if (drives > 0 and known == 0) else int(secs if pd.notna(secs) else 0)
         for drives, known, secs in zip(frame['total_drives'], frame['top_known'], frame['top_seconds'])
@@ -915,7 +977,7 @@ def aggregate_team_game_stats(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_team_game_stats.py" -q -p no:cacheprovider
 ```
 
-Expected: `124 passed` (3 fixture + 112 parametrized golden + 6 other BUF–HOU + 3 other games). If a golden value fails, the code deviates from spec §4 — fix the code; never change a number in `GOLD` (they are rbsdm/ESPN verified).
+Expected: `127 passed` (3 fixture + 112 parametrized golden + 6 other BUF–HOU + 3 other games + 3 partial-drive-clock). If a golden value fails, the code deviates from spec §4 — fix the code; never change a number in `GOLD`. The efficiency values are verified against rbsdm, the traditional values against the ESPN box score, and the three `epa_lost_*` values, the explosive counts and `team_targets` were recomputed independently from the same play-by-play during the spec review (the comment above `GOLD` says which is which).
 
 - [ ] **Step 6: Run the whole suite**
 
@@ -923,7 +985,7 @@ Expected: `124 passed` (3 fixture + 112 parametrized golden + 6 other BUF–HOU 
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests" -q -p no:cacheprovider
 ```
 
-Expected: `386 passed`.
+Expected: `389 passed`.
 
 - [ ] **Step 7: Commit**
 
@@ -944,7 +1006,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 
 **Interfaces:**
 - Consumes: `aggregate_team_game_stats`, `TEAM_GAME_STATS_COLS`, `TEAM_GAME_STATS_INT_COLS`, `TEAM_GAME_STATS_RATE_COLS` (Task 2); the `raw` fixture and `team_game_row` (Task 1).
-- Produces: nothing new in the code. These tests characterise the spec's edge cases; Task 2's implementation already satisfies them. **If one fails, the code deviates from spec §4 — fix the code and keep Task 2's golden tests green; never weaken a test.** Two are strict `xfail`s that document known limitations and must report XFAIL (an XPASS fails the run, which is the point: if the rule ever changes, the spec must change with it).
+- Produces: nothing new in the code. These tests characterise the spec's edge cases; Task 2's implementation already satisfies them. **If one fails, the code deviates from spec §4 — fix the code and keep Task 2's golden tests green; never weaken a test.** One is a strict `xfail` (the muffed punt) that documents a known limitation and must report XFAIL (an XPASS fails the run, which is the point: if the rule ever changes, the spec must change with it). The other documented limitation, `2025_14_PHI_LAC`, gets **no test** — it lives in `fumbled_2_team`, which is neither read by the aggregator nor carried by the fixture, so a synthetic row asserting it would contradict `test_pick_the_defence_fumbles_back_is_one_turnover` on identical input. It stays documented in spec §4 and in the comment beside the turnover rule in `_team_game_costs`.
 
 - [ ] **Step 1: Append the synthetic cases**
 
@@ -1070,14 +1132,11 @@ class TestTurnovers:
         assert row['net_passing_yards'] == 8 - 9
         assert row['total_yards'] == 8 - 9
 
-    @pytest.mark.xfail(strict=True, reason='spec section 4 known limitation (2025_14_PHI_LAC): a pick plus '
-                       'a separate lost fumble on the same snap lives only in fumbled_2_team, which is not '
-                       'trusted, so the rule counts 1 where 2 is right')
-    def test_pick_plus_separate_lost_fumble_on_one_snap(self, raw):
-        play = raw.play(interception=1.0, complete_pass=0.0, fumble=1.0, fumble_lost=1.0, fumbled_1_team='BUF',
-                        epa=-3.0, success=0.0, passing_yards=float('nan'), yards_gained=0.0)
-        row = _one(raw, play)
-        assert row['turnovers'] == 2
+    # Spec §4's other documented limitation, 2025_14_PHI_LAC (a pick plus a SEPARATE
+    # lost fumble on one snap counts 1), has no test on purpose: the second fumble is
+    # recorded only in fumbled_2_team, a column neither the aggregator nor the fixture
+    # carries, so the only row a test could build is the one above — identical input,
+    # opposite assertion. It is documented in spec §4 and in _team_game_costs.
 
     @pytest.mark.xfail(strict=True, reason='spec section 4 keys turnovers by posteam, so a punt the '
                        'RECEIVING team muffs (2026_01_CHI_CAR) is credited to nobody; ESPN charges the receiver')
@@ -1129,14 +1188,44 @@ class TestTraditional:
         assert row['total_yards'] == 12 - 6 + 3
         assert row['yards_per_play'] == approx(9 / 5)
 
-    def test_lateral_play_counts_the_passing_yards_column(self, raw):
-        """Allen's 1-yard pass with a 10-yard lateral is 11 passing yards for the team (spec §10.3)."""
-        row = _one(raw, raw.play(yards_gained=11.0, passing_yards=11.0))
-        assert (row['net_passing_yards'], row['total_yards'], row['team_targets']) == (11, 11, 1)
+    def test_lateral_keeps_every_passing_yard_in_the_team_total(self, raw):
+        """A real lateral: 2026_01_BUF_HOU play 385 — Allen to Coleman for 1, lateral to
+        Shakir for 10. nflverse records passing_yards 11 and yards_gained 11 but
+        receiving_yards only 1, so the receiver's line is 10 short of the team's
+        (spec §10.3). team_game_stats reads passing_yards, never receiving_yards, so the
+        play must land as ONE completion worth 11 passing yards — not one worth 1, not
+        two targets, and not a rush."""
+        row = _one(raw, raw.play(air_yards=4.0, yards_gained=11.0, passing_yards=11.0,
+                                 receiver_player_id='WR1'))
+        assert (row['completions'], row['attempts'], row['team_targets']) == (1, 1, 1)
+        assert (row['net_passing_yards'], row['total_yards']) == (11, 11)
+        assert (row['rushing_attempts'], row['rushing_yards']) == (0, 0)
 
-    def test_safety_is_just_a_bad_run(self, raw):
-        row = _one(raw, raw.rush(-3.0, yardline_100=99.0, epa=-2.0, success=0.0))
-        assert (row['rushing_attempts'], row['rushing_yards'], row['total_yards']) == (1, -3, -3)
+    def test_the_real_lateral_is_inside_the_golden_passing_total(self, pbp_fixture, team_game_rows):
+        """The same play, from the fixture. `receiving_yards` is deliberately not a
+        fixture column (the aggregator never reads it), so the proof that the team keeps
+        all 11 is BUF's stored 323 net passing yards: 313 if the receiver's 1 were used,
+        and 20 completions rather than 21 (spec §10.3)."""
+        play = pbp_fixture[(pbp_fixture['game_id'] == BUF_HOU) & (pbp_fixture['play_id'] == 385)]
+        assert len(play) == 1
+        assert play['complete_pass'].iloc[0] == 1
+        assert play['passing_yards'].iloc[0] == 11 and play['yards_gained'].iloc[0] == 11
+        buf = team_game_row(team_game_rows, BUF_HOU, 'BUF')
+        assert buf['net_passing_yards'] == 323
+        assert buf['completions'] == 20
+
+    def test_safety_is_a_run_tackled_in_the_offence_s_own_end_zone(self, raw):
+        """A real safety: the ball is on the KC 2 (yardline_100 98) and the carrier is
+        dropped in the end zone. The 2 points belong to the defence and are not a
+        team_game_stats column, so what must be true is what is NOT credited — no TD, no
+        turnover — while the drive and its clock still count. nflverse's `safety` flag is
+        not a column this aggregator reads, so the fixture does not carry it."""
+        row = _one(raw, raw.rush(-2.0, drive=1.0, yardline_100=98.0, epa=-2.6, success=0.0,
+                                 drive_time_of_possession='2:30'))
+        assert (row['rushing_attempts'], row['rushing_yards']) == (1, -2)
+        assert (row['total_plays'], row['total_yards']) == (1, -2)
+        assert (row['def_st_tds'], row['turnovers'], row['fumbles_lost']) == (0, 0, 0)
+        assert (row['total_drives'], row['time_of_possession_seconds']) == (1, 150)
 
     def test_third_and_fourth_down_exclude_no_play_rows(self, raw):
         """Attempts are snaps from scrimmage on that down; a wiped play is not one (spec §4)."""
@@ -1320,7 +1409,7 @@ class TestNullsAndEmptyInputs:
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_team_game_stats.py" -q -p no:cacheprovider -rxX
 ```
 
-Expected: `164 passed, 2 xfailed` — the two XFAILs are `test_pick_plus_separate_lost_fumble_on_one_snap` and `test_muffed_punt_charged_to_the_receiving_team`. Any FAILED or XPASS means the code deviates from spec §4: fix `scripts/ingest.py`, re-run, and confirm Task 2's golden tests still pass.
+Expected: `168 passed, 1 xfailed` — the one XFAIL is `test_muffed_punt_charged_to_the_receiving_team`. Any FAILED or XPASS means the code deviates from spec §4: fix `scripts/ingest.py`, re-run, and confirm Task 2's golden tests still pass.
 
 - [ ] **Step 3: Run the whole suite**
 
@@ -1328,7 +1417,7 @@ Expected: `164 passed, 2 xfailed` — the two XFAILs are `test_pick_plus_separat
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests" -q -p no:cacheprovider
 ```
 
-Expected: `426 passed, 2 xfailed`.
+Expected: `430 passed, 1 xfailed`.
 
 - [ ] **Step 4: Commit**
 
@@ -1337,7 +1426,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 ```
 
 ```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "test: synthetic games for every box score edge case in spec section 11" -m "2-pt tries, kneels, penalty-wiped plays, strip-sacks, the three fumble attributions, laterals, safeties, defensive and kickoff-return TDs, drive-level red zone, drives without a scrimmage play, zero pass/rush attempts, a team that never had the ball, no plays yet, playoff rows, a 2025 game. Two strict xfails document the known turnover limitations (2025_14_PHI_LAC, muffed punts)." -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "test: synthetic games for every box score edge case in spec section 11" -m "2-pt tries, kneels, penalty-wiped plays, strip-sacks, the three fumble attributions, laterals, safeties, defensive and kickoff-return TDs, drive-level red zone, drives without a scrimmage play, zero pass/rush attempts, a team that never had the ball, no plays yet, playoff rows, a 2025 game. A strict xfail documents the muffed-punt turnover limitation; the 2025_14_PHI_LAC one is documented in spec section 4 and in a comment beside the turnover rule, because it lives in fumbled_2_team and no synthetic row can model it." -m "Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
 ---
@@ -1464,6 +1553,8 @@ class TestUpsert:
         assert kc['rush_epa_per_play'] is None
         assert kc['yards_per_rush'] is None
         assert type(kc['week']) is int and type(kc['season']) is int
+        # INT column, NULL-able, so not in TEAM_GAME_STATS_INT_COLS — still an int here.
+        assert type(kc['time_of_possession_seconds']) is int
         buf = dict(zip(TEAM_GAME_STATS_COLS, [r for r in rows if r[1] == 'BUF'][0]))
         assert buf['epa_per_play'] is None
         assert buf['plays'] == 0
@@ -1566,7 +1657,7 @@ class TestProcessSeasonWiring:
         names = [c[0] for c in calls]
 
         agg = [c for c in calls if c[0] == 'aggregate_team_game_stats']
-        assert agg == [('aggregate_team_game_stats', (len(pbp_fixture), 2026), {})]  # RAW rows, not filter_plays' 375
+        assert agg == [('aggregate_team_game_stats', (len(pbp_fixture), 2026), {})]  # RAW rows, not filter_plays' 398
 
         up = [c for c in calls if c[0] == 'upsert_team_game_stats']
         assert len(up) == 1
@@ -1594,7 +1685,7 @@ class TestProcessSeasonWiring:
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_team_game_stats_pipeline.py" -q -p no:cacheprovider
 ```
 
-Expected: 9 failures/errors — `ImportError: cannot import name 'ensure_team_game_stats_table'` / `'upsert_team_game_stats'`, `TypeError: cleanup_stale_rows() got an unexpected keyword argument 'game_ids'`, and `AttributeError: … has no attribute 'upsert_team_game_stats'` from the wiring tests.
+Expected: `8 failed, 1 passed` — `ImportError: cannot import name 'ensure_team_game_stats_table'` / `'upsert_team_game_stats'`, `TypeError: cleanup_stale_rows() got an unexpected keyword argument 'game_ids'`, and `AttributeError: … has no attribute 'upsert_team_game_stats'` from the wiring tests. The one that already passes is `TestCleanup::test_omitted_parameter_deletes_nothing`: today's `cleanup_stale_rows` accepts the call without `game_ids` and touches no `team_game_stats` row, so that test is a regression guard on the new keyword being optional, not a red test.
 
 - [ ] **Step 3: Add the DDL and the upsert**
 
@@ -1699,7 +1790,10 @@ def upsert_team_game_stats(conn, df: pd.DataFrame):
     cols = TEAM_GAME_STATS_COLS
     # Plain-Python rows, as in ingest_schedules: NaN/None -> None (SQL NULL, never
     # 'NaN'::numeric), numpy ints/floats -> int/float (no psycopg2 adapter).
-    int_cols = set(TEAM_GAME_STATS_INT_COLS) | {'season', 'week'}
+    # time_of_possession_seconds is an INT column that can be NULL, so it is not in
+    # TEAM_GAME_STATS_INT_COLS — but when it is not NULL it must still arrive as an
+    # int, not 1423.0.
+    int_cols = set(TEAM_GAME_STATS_INT_COLS) | {'season', 'week', 'time_of_possession_seconds'}
     text_cols = {'game_id', 'team_id', 'opponent_id', 'home_away'}
     rows = []
     for values in df[cols].astype(object).itertuples(index=False, name=None):
@@ -1848,7 +1942,7 @@ Expected: `9 passed`.
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests" -q -p no:cacheprovider
 ```
 
-Expected: `435 passed, 2 xfailed`.
+Expected: `439 passed, 1 xfailed`.
 
 - [ ] **Step 8: Commit**
 
@@ -1869,7 +1963,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 - Test: `tests/test_qb_rushing_epa.py` (create); `tests/test_team_game_stats_pipeline.py` (one added assertion)
 
 **Interfaces:**
-- Consumes: the `raw` fixture, `pbp_fixture` (Task 1); the existing `filter_plays`, `_derive_game_context`, `_get_game_week_map`, `passer_rating`, `execute_values`, `log`.
+- Consumes: the `raw` fixture, `pbp_fixture` (Task 1); `_ratio(frame: pd.DataFrame, num: str, den: str) -> pd.Series` (Task 2 — the same helper the team rates use, so there is one NULL-safe division in the file); the existing `filter_plays`, `_derive_game_context`, `_get_game_week_map`, `passer_rating`, `execute_values`, `log`.
 - Produces: `aggregate_qb_weekly_stats(plays, roster, season)` returns two more columns, `rush_epa_per_carry` and `rush_success_rate` (Python floats, or `None` for a game with no carries; `dtype=object`), placed after `rush_tds` in its `cols`; `ensure_qb_weekly_stats_columns(conn)` (idempotent `ALTER TABLE … ADD COLUMN IF NOT EXISTS`, commits, not retried); `upsert_qb_weekly_stats` writes both columns; `process_season` calls `ensure_qb_weekly_stats_columns(conn)` right after `ensure_qb_weekly_stats_table(conn)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -2039,7 +2133,7 @@ class TestSchemaAndUpsert:
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_qb_rushing_epa.py" -q -p no:cacheprovider
 ```
 
-Expected: 8 failures — `KeyError: 'rush_epa_per_carry'` from the aggregation tests, `AttributeError: module 'ingest' has no attribute 'ensure_qb_weekly_stats_columns'`, and the upsert test failing on `'rush_epa_per_carry' in cols`.
+Expected: `7 failed, 1 passed` — `KeyError: 'rush_epa_per_carry'` from the aggregation tests, `AttributeError: module 'ingest' has no attribute 'ensure_qb_weekly_stats_columns'`, and the upsert test failing on `'rush_epa_per_carry' in cols`. The one that already passes is `TestFixtureQBs::test_existing_columns_unchanged`: it only touches columns the aggregator already produces, and it is there to prove Step 3's rewrite of the rush block does not move them.
 
 - [ ] **Step 3: Compute the two columns in `aggregate_qb_weekly_stats`**
 
@@ -2093,22 +2187,17 @@ In `scripts/ingest.py`, inside `aggregate_qb_weekly_stats`, replace the whole bl
     qb_game['rush_tds'] = qb_game['rush_tds'] + qb_game['scr_tds']
 
     # Rush EPA/carry and success rate over exactly the carries rush_attempts
-    # counts — designed runs plus scrambles (box score spec §10.1). None (SQL
-    # NULL, never NaN) for a game with no carries.
-    # dtype=object keeps the None: a plain list of floats and None becomes a
-    # float64 column with NaN, which upsert_qb_weekly_stats' .where() cannot
-    # turn back into NULL.
-    rush_epa_total = qb_game['rush_epa_sum'] + qb_game['scr_epa_sum']
-    rush_succ_total = qb_game['rush_succ'] + qb_game['scr_succ']
-    qb_game['rush_epa_per_carry'] = pd.Series([
-        float(e) / int(n) if n > 0 else None
-        for e, n in zip(rush_epa_total, qb_game['rush_attempts'])
-    ], index=qb_game.index, dtype=object)
-    qb_game['rush_success_rate'] = pd.Series([
-        float(s) / int(n) if n > 0 else None
-        for s, n in zip(rush_succ_total, qb_game['rush_attempts'])
-    ], index=qb_game.index, dtype=object)
+    # counts — designed runs plus scrambles (box score spec §10.1). _ratio (the
+    # team_game_stats helper) gives None (SQL NULL, never NaN) for a game with no
+    # carries and returns a dtype=object Series, so the None survives
+    # upsert_qb_weekly_stats' .where(notna, None).
+    qb_game['rush_epa_total'] = qb_game['rush_epa_sum'] + qb_game['scr_epa_sum']
+    qb_game['rush_succ_total'] = qb_game['rush_succ'] + qb_game['scr_succ']
+    qb_game['rush_epa_per_carry'] = _ratio(qb_game, 'rush_epa_total', 'rush_attempts')
+    qb_game['rush_success_rate'] = _ratio(qb_game, 'rush_succ_total', 'rush_attempts')
 ```
+
+`_ratio` is defined at module level in the `team_game_stats` section Task 2 added, further down the file than `aggregate_qb_weekly_stats`. That is fine — the name is looked up when the function runs, not when it is defined — but it does mean **Task 2 must be finished before this step**. The two helper columns (`rush_epa_total`, `rush_succ_total`) stay out of the aggregator's output: Step 4's `cols` list selects the stored columns only.
 
 - [ ] **Step 4: Add the columns to the aggregator's output**
 
@@ -2213,7 +2302,7 @@ Expected: `46 passed` (8 new + 29 existing weekly + 9 pipeline).
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests" -q -p no:cacheprovider
 ```
 
-Expected: `443 passed, 2 xfailed`.
+Expected: `447 passed, 1 xfailed`.
 
 - [ ] **Step 10: Commit**
 
@@ -2235,7 +2324,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 
 **Interfaces:**
 - Consumes: `aggregate_team_game_stats`, `TEAM_GAME_STATS_INT_COLS`, `TEAM_GAME_STATS_RATE_COLS` (Task 2).
-- Produces: a test module gated on the `YPP_PBP_PARQUET` environment variable. Without it every test is SKIPPED (CI has no network and the file grows weekly); with it the week-1 facts in spec §4/§5 are checked and every game in the file must aggregate without exceptions or NaN.
+- Produces: a test module gated on the `YPP_PBP_PARQUET` environment variable. Without it every test is SKIPPED (CI has no network and the file grows weekly); with it `TestWeekOne` checks the spec's week-1 facts against week-1 rows only, and `TestWholeFile` checks per-game properties (two rows per played REG game, no NaN, possession equal to that game's own clock) that stay true as weeks 2, 3 and the rest are added.
 
 - [ ] **Step 1: Create the test module**
 
@@ -2246,9 +2335,12 @@ local copy of play_by_play_2026.parquet:
 
     https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2026.parquet
 
-CI never sets it (no network, and the file grows every week). The week-1
-facts below come from the box score spec; nflverse can revise past weeks, so
-if one fails on a fresh download, check the spec's numbers before the code.
+CI never sets it (no network, and the file grows every week). The season moves
+on, so the split below is deliberate: TestWeekOne quotes the box score spec's
+WEEK-1 numbers and therefore filters the file to week 1, while TestWholeFile
+asserts only per-game properties that hold however many weeks have been played.
+nflverse can revise past weeks, so if a week-1 fact fails on a fresh download,
+check the spec's numbers before the code.
 """
 import os
 
@@ -2269,13 +2361,16 @@ def full_pbp():
 
 @pytest.fixture(scope='module')
 def week_one(full_pbp):
+    """Week 1 only — every number in TestWeekOne is a week-1 fact from the spec."""
     from ingest import aggregate_team_game_stats
     return aggregate_team_game_stats(full_pbp[full_pbp['week'] == 1], 2026)
 
 
 class TestWeekOne:
+    """Scoped to week 1: these are the spec's verified week-1 totals, not season totals."""
+
     def test_one_row_per_team_per_game(self, week_one):
-        assert len(week_one) == 32
+        assert len(week_one) == 32          # 16 week-1 games x 2
         assert week_one['game_id'].nunique() == 16
         assert week_one['team_id'].nunique() == 32
         assert week_one.groupby('game_id').size().eq(2).all()
@@ -2287,23 +2382,28 @@ class TestWeekOne:
             assert str(week_one[col].dtype).startswith('int'), col
 
     def test_spec_week_one_facts(self, week_one):
-        assert week_one['explosive_plays'].sum() == 182          # 163 without the scramble clause
+        assert week_one['explosive_plays'].sum() == 182          # week 1; 163 without the scramble clause
         top = week_one.groupby('game_id')['time_of_possession_seconds'].sum()
         assert top.drop(NO_DET).eq(3600).all()
         assert top[NO_DET] == 68 * 60 + 26
         short = week_one[week_one['early_plays'] + week_one['late_plays'] < week_one['plays']]
         assert set(short['team_id']) == {'BUF', 'MIN', 'NO', 'WAS'}  # each had a 2-point try
-        assert week_one['def_st_tds'].sum() == 3
-        assert week_one['total_drives'].sum() == 354
+        assert week_one['def_st_tds'].sum() == 3                 # week 1
+        assert week_one['total_drives'].sum() == 354             # week 1
         buf_hou = week_one[week_one['game_id'] == '2026_01_BUF_HOU'].set_index('team_id')
         assert buf_hou.loc['BUF', 'team_targets'] == 28 and buf_hou.loc['HOU', 'team_targets'] == 37
 
 
 class TestWholeFile:
+    """Per-game properties only. The file gains a week every Sunday, so nothing here
+    may be a season total or a fixed row count."""
+
     def test_every_played_game_aggregates_cleanly(self, full_pbp):
-        from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_INT_COLS, TEAM_GAME_STATS_RATE_COLS
+        from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_INT_COLS
         out = aggregate_team_game_stats(full_pbp, 2026)
         reg_games = full_pbp.loc[full_pbp['season_type'] == 'REG', 'game_id'].nunique()
+        assert out.groupby('game_id').size().eq(2).all()   # exactly 2 rows per game
+        assert out['game_id'].nunique() == reg_games       # every played REG game
         assert len(out) == 2 * reg_games
         assert not out[TEAM_GAME_STATS_INT_COLS + ['season', 'week']].isna().any().any()
         # A rate is NULL only when its denominator is 0
@@ -2312,6 +2412,20 @@ class TestWholeFile:
         assert out.loc[out['pass_epa_per_play'].isna(), 'pass_plays'].eq(0).all()
         assert out.loc[out['yards_per_play'].isna(), 'total_plays'].eq(0).all()
         assert (out['time_of_possession_seconds'] > 0).all()
+
+    def test_possession_sums_to_each_game_s_own_clock(self, full_pbp):
+        """Per game, never a season total: 60:00 in regulation, more only where the
+        file actually has overtime rows."""
+        from ingest import aggregate_team_game_stats
+        out = aggregate_team_game_stats(full_pbp, 2026)
+        top = out.groupby('game_id')['time_of_possession_seconds'].sum()
+        reg = full_pbp[full_pbp['season_type'] == 'REG']
+        overtime = set(reg.loc[reg['qtr'] >= 5, 'game_id'])
+        for game_id, seconds in top.items():
+            if game_id in overtime:
+                assert 3600 < seconds <= 3600 + 15 * 60, (game_id, seconds)
+            else:
+                assert seconds == 3600, (game_id, seconds)
 ```
 
 - [ ] **Step 2: Confirm it skips without the variable (what CI will see)**
@@ -2320,7 +2434,7 @@ class TestWholeFile:
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_team_game_stats_smoke.py" -q -p no:cacheprovider -rs
 ```
 
-Expected: `4 skipped`, each with the reason `set YPP_PBP_PARQUET to a full play_by_play_2026.parquet`.
+Expected: `5 skipped`, each with the reason `set YPP_PBP_PARQUET to a full play_by_play_2026.parquet`.
 
 - [ ] **Step 3: Download the current nflverse file into your scratchpad**
 
@@ -2336,7 +2450,7 @@ curl -L -o "<your scratchpad>/play_by_play_2026.parquet" https://github.com/nflv
 PYTHONDONTWRITEBYTECODE=1 YPP_PBP_PARQUET="<your scratchpad>/play_by_play_2026.parquet" py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests/test_team_game_stats_smoke.py" -q -p no:cacheprovider
 ```
 
-Expected: `4 passed`. The file may by now hold week 2 as well; `TestWeekOne` filters to week 1 and `TestWholeFile` accepts any number of games. If `test_spec_week_one_facts` fails on a freshly downloaded file while the committed fixture's tests (Tasks 2–3) still pass, nflverse has revised week-1 rows: report the difference rather than editing the numbers (they are the spec's).
+Expected: `5 passed`. The season has moved on since this plan was written: the release file now holds week 2 as well (2026-09-21: 30 REG games over weeks 1–2, week 3 in progress), and it gains a week every Sunday. That is fine by construction: `TestWeekOne` filters to week 1 before asserting any of the spec's week-1 numbers, and `TestWholeFile` asserts only per-game properties. If `test_spec_week_one_facts` fails on a freshly downloaded file while the committed fixture's tests (Tasks 2–3) still pass, nflverse has revised week-1 rows: report the difference rather than editing the numbers (they are the spec's). If a `TestWholeFile` assertion fails on a week-2-or-later game, that is a real bug in the aggregator — fix it with a regression test.
 
 - [ ] **Step 5: Run the whole suite with and without the variable**
 
@@ -2344,13 +2458,13 @@ Expected: `4 passed`. The file may by now hold week 2 as well; `TestWeekOne` fil
 PYTHONDONTWRITEBYTECODE=1 YPP_PBP_PARQUET="<your scratchpad>/play_by_play_2026.parquet" py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests" -q -p no:cacheprovider
 ```
 
-Expected: `447 passed, 2 xfailed`.
+Expected: `452 passed, 1 xfailed`.
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 py -3 -m pytest "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/tests" -q -p no:cacheprovider
 ```
 
-Expected: `443 passed, 4 skipped, 2 xfailed` — this is the CI outcome.
+Expected: `447 passed, 5 skipped, 1 xfailed` — this is the CI outcome.
 
 - [ ] **Step 6: Commit**
 
@@ -2359,7 +2473,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 ```
 
 ```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "test: whole-file smoke check for team_game_stats (opt-in via YPP_PBP_PARQUET)" -m "32 week-1 rows, no NaN, 182 explosives with scrambles, possession sums to 60:00 (68:26 in NO-DET), 354 drives, 3 defensive TDs, and every game in the file aggregates cleanly. Skipped in CI." -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "test: whole-file smoke check for team_game_stats (opt-in via YPP_PBP_PARQUET)" -m "Week-1 assertions are scoped to week 1 (32 rows, no NaN, 182 explosives with scrambles, possession 60:00 and 68:26 in NO-DET, 354 drives, 3 defensive TDs); whole-file assertions are per game (two rows per played REG game, possession equal to that game's own clock), so they stay true as the season adds weeks. Skipped in CI." -m "Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
 ---
@@ -2449,7 +2563,7 @@ before finishing and confirm `git status` shows no untracked chaos files.
 
 - [ ] **Step 2: Fix every CRASH and ERROR**
 
-For each finding: add a failing regression test to the matching file (`tests/test_team_game_stats.py` for aggregation, `tests/test_team_game_stats_pipeline.py` for DDL/upsert/cleanup/wiring, `tests/test_qb_rushing_epa.py` for QB rushing), run that file to see it fail, make the smallest fix in `scripts/ingest.py`, run it again. DEGRADED findings that match this plan's documented behaviour (the two xfails, the narrow fixture, NULL rates) need no change; note the rest in the PR description.
+For each finding: add a failing regression test to the matching file (`tests/test_team_game_stats.py` for aggregation, `tests/test_team_game_stats_pipeline.py` for DDL/upsert/cleanup/wiring, `tests/test_qb_rushing_epa.py` for QB rushing), run that file to see it fail, make the smallest fix in `scripts/ingest.py`, run it again. DEGRADED findings that match this plan's documented behaviour (the muffed-punt xfail, the `fumbled_2_team` limitation, the narrow fixture, NULL rates) need no change; note the rest in the PR description.
 
 - [ ] **Step 3: Re-verify and commit the fixes (skip if there were none)**
 
@@ -2479,7 +2593,7 @@ Use the superpowers:requesting-code-review skill with base `origin/main` and hea
 
 - `process_season` passes the **raw** `pbp` frame (not `plays`) to `aggregate_team_game_stats`; `ensure_team_game_stats_table` and `ensure_qb_weekly_stats_columns` run before the `try:` and commit themselves; the upsert and cleanup run inside it; `cleanup_stale_rows` keeps the empty-list guard.
 - No NaN and no numpy scalar can reach `execute_values` from `upsert_team_game_stats`; `rush_epa_per_carry`/`rush_success_rate` survive `upsert_qb_weekly_stats`' `.where(notna, None)` as `None`.
-- Every rule matches spec §4 word for word (efficiency filter, 2-pt kept, scramble clause, `fumbled_1_team` attribution, own-penalties sign flip, sack yards positive, sum-of-parts first downs, drive-level red zone, `drive` not `fixed_drive`, `team_targets` = the receiver aggregator's set), and the three documented departures are the only ones (kickoff clause in `def_st_tds`, `qb_spike` as a scrimmage snap, muffed-punt xfail).
+- Every rule matches spec §4 word for word (efficiency filter, 2-pt kept, scramble clause, `fumbled_1_team` attribution, own-penalties sign flip, sack yards positive, sum-of-parts first downs, drive-level red zone, `drive` not `fixed_drive`, `team_targets` = the receiver aggregator's set), and the only rules beyond §4's original text are the three now documented in spec §4 (commit 320687e): the kickoff clause in `def_st_tds`, `qb_spike` as a scrimmage snap, and the muffed-punt xfail.
 - pandas 2.2.3 compatibility: no pandas-3-only API, no chained assignment, no `str`-dtype assumption, no `groupby.apply`; the fixture has no pandas metadata.
 - No committed file references a scratchpad path; `REQUIRED_PBP_COLS` lists every raw column the new code reads; nothing outside the listed functions was refactored.
 
@@ -2511,11 +2625,13 @@ Line 49 reads:
 - Frontend tests: `npx vitest run` (413 tests / 24 files after the 2026-09-14 homepage-resilience change). Python: `py -3 -m pytest tests/ -q` (262 tests).
 ```
 
-Change the Python part so the line ends:
+Change the Python part so the line ends in this shape:
 
 ```markdown
-Python: `py -3 -m pytest tests/ -q` (449 tests: 443 pass, 4 skip without `YPP_PBP_PARQUET`, 2 strict xfails).
+Python: `py -3 -m pytest tests/ -q` (<TOTAL> tests: <PASSED> pass, <SKIPPED> skip without `YPP_PBP_PARQUET`, <XFAILED> strict xfail).
 ```
+
+**Insert the numbers from the final verification run, not from this plan.** The controller gives you the four totals when it dispatches this task; they come from the last whole-suite run without `YPP_PBP_PARQUET` (Task 6 Step 5's second command, re-run after Tasks 7 and 8). Tasks 7 and 8 are allowed to add regression tests, so any number written here in advance would be wrong. If you were not given them, run that command yourself and use what it prints.
 
 - [ ] **Step 2: Add the new section**
 
@@ -2525,13 +2641,13 @@ Insert after line 69 (`- Tests: \`__tests__/data/games.test.ts\`, \`__tests__/co
 
 ## team_game_stats + QB rushing EPA (box scores PR 2)
 
-- **`team_game_stats`** (14th table): one row per team per played REG game, key `(game_id, team_id)` + `season, week, opponent_id, home_away`; the 62 columns are `TEAM_GAME_STATS_COLS` in `scripts/ingest.py`. Built by `aggregate_team_game_stats(pbp, season)` from the **RAW** pbp frame (never `filter_plays` output — possession, drives, penalties and red zone need kicking and `no_play` rows). Efficiency set = `pass == 1 | rush == 1` with EPA present (2-pt KEPT, kneels drop out, penalty-wiped passes stay in with 0 yards); traditional set = official ESPN conventions (spec §4). Every column is pinned against rbsdm/ESPN for `2026_01_BUF_HOU` in `tests/test_team_game_stats.py` — never edit a `GOLD` value to make a test pass.
+- **`team_game_stats`** (18th Supabase table): one row per team per played REG game, key `(game_id, team_id)` + `season, week, opponent_id, home_away`; the 62 columns are `TEAM_GAME_STATS_COLS` in `scripts/ingest.py`. Built by `aggregate_team_game_stats(pbp, season)` from the **RAW** pbp frame (never `filter_plays` output — possession, drives, penalties and red zone need kicking and `no_play` rows). Efficiency set = `pass == 1 | rush == 1` with EPA present (2-pt KEPT, kneels drop out, penalty-wiped passes stay in with 0 yards); traditional set = official ESPN conventions (spec §4). Every column is pinned against rbsdm/ESPN for `2026_01_BUF_HOU` in `tests/test_team_game_stats.py` — never edit a `GOLD` value to make a test pass.
 - **Three play counts disagree on purpose**: efficiency plays (BUF 56) ≠ total plays (52 = rush att + pass att + sacks) ≠ rush plays (19) beside rushing attempts (21 = 19 + 1 kneel + 1 scramble). `first_downs` is the SUM of pass/rush/penalty parts (one play can be both), `sack_yards` is stored POSITIVE, `time_of_possession_seconds` sums `drive_time_of_possession` once per `drive` (never `fixed_drive`), `team_targets` is exactly the receiver aggregator's target set (the TGT% denominator).
-- **NULL policy**: counts/yards 0, `epa_lost_*` 0.0, the 17 rate columns (`TEAM_GAME_STATS_RATE_COLS`) None when the denominator is 0, `time_of_possession_seconds` None only for a team with drives but no clock. Those columns are built as `dtype=object` Series so None survives (a list of floats + None becomes float64/NaN → `'NaN'::numeric`); `upsert_team_game_stats` converts NaN→None and numpy→Python itself (same reasoning as `ingest_schedules`).
-- **Known limitations (strict xfails in `tests/test_team_game_stats.py`)**: turnovers are keyed by `posteam`, so a punt the RECEIVING team muffs (`2026_01_CHI_CAR`) is credited to nobody; a pick plus a separate lost fumble on one snap (`2025_14_PHI_LAC`) counts 1. `def_st_tds` adds a `kickoff_attempt == 1` clause to the spec's `td_team != posteam` rule because nflverse puts the receiving team in `posteam` on kickoffs; `qb_spike` counts as a scrimmage snap for 3rd/4th down and red zone.
+- **NULL policy**: counts/yards 0, `epa_lost_*` 0.0, the 17 rate columns (`TEAM_GAME_STATS_RATE_COLS`) None when the denominator is 0, `time_of_possession_seconds` None only for a team with drives but *no* readable clock — and when only SOME of a team's drives have one, the sum is short, so `aggregate_team_game_stats` logs a `WARNING` naming the game and team rather than understating possession silently. Those columns are built as `dtype=object` Series so None survives (a list of floats + None becomes float64/NaN → `'NaN'::numeric`); `upsert_team_game_stats` converts NaN→None and numpy→Python itself (same reasoning as `ingest_schedules`).
+- **Known limitations**: turnovers are keyed by `posteam`, so a punt the RECEIVING team muffs (`2026_01_CHI_CAR`) is credited to nobody — a strict xfail in `tests/test_team_game_stats.py`. A pick plus a *separate* lost fumble on one snap (`2025_14_PHI_LAC`) counts 1; that one has **no test**, because the second fumble lives in `fumbled_2_team`, a column the aggregator does not read and the fixture does not carry — it is documented in spec §4 and in a comment beside the turnover rule in `_team_game_costs`. Two further rules are in spec §4 as amended by commit 320687e: `def_st_tds` adds a `kickoff_attempt == 1` clause to the `td_team != posteam` rule because nflverse puts the receiving team in `posteam` on kickoffs (all 171 week-1 kickoff rows), and `qb_spike` counts as a scrimmage snap for 3rd/4th down and red zone.
 - `cleanup_stale_rows(..., game_ids=)` deletes `team_game_stats` rows whose game id is missing from the file (reschedules). `ensure_team_game_stats_table` runs with the other `ensure_*` calls (own commit, before the transaction). `game_id` has no FK to `games` on purpose (the schedules ingest may fail with a warning).
 - **QB rushing on `qb_weekly_stats`**: `rush_epa_per_carry` / `rush_success_rate` over exactly the carries `rush_attempts` counts (designed runs + scrambles, kneels out); NULL for a game with no carries. Columns added by `ensure_qb_weekly_stats_columns` (`ALTER TABLE … ADD COLUMN IF NOT EXISTS`). Week 1: Allen 5 carries → −0.46 / 40%, Stroud 2 → +0.73 / 50%. 2020–2025 rows stay NULL until the backfill.
-- Fixture: `tests/fixtures/pbp_2026_week1_games.parquet` — 567 raw rows × 51 columns (BUF_HOU, NO_DET overtime with TOP 68:26, TB_CIN pick-six each way), no pandas metadata, loaded by `tests/conftest.py`; synthetic raw rows come from the `raw` fixture (`RawPlays.play/rush/scramble/kneel/sack/no_play/kick/game`). `tests/test_team_game_stats_smoke.py` runs the whole nflverse file only when `YPP_PBP_PARQUET` is set (skipped in CI).
+- Fixture: `tests/fixtures/pbp_2026_week1_games.parquet` — 567 raw rows × 51 columns (BUF_HOU, NO_DET overtime with TOP 68:26, TB_CIN with a defensive TD each way — TB's a pick-six, CIN's a strip-sack fumble return), no pandas metadata, loaded by `tests/conftest.py`; synthetic raw rows come from the `raw` fixture (`RawPlays.play/rush/scramble/kneel/sack/no_play/kick/game`). `tests/test_team_game_stats_smoke.py` runs the whole nflverse file only when `YPP_PBP_PARQUET` is set (skipped in CI).
 ```
 
 - [ ] **Step 3: Update `.claude/CLAUDE.md`**
@@ -2542,11 +2658,13 @@ Line 50 reads:
 - 13 Supabase tables total (teams, team_season_stats, qb_season_stats, receiver_season_stats, rb_season_stats, rb_gap_stats, rb_gap_stats_weekly, def_gap_stats, data_freshness, player_slugs, qb_weekly_stats, receiver_weekly_stats, rb_weekly_stats)
 ```
 
-Change it to:
+That count has been wrong for a while — the list already omits four tables that `ensure_*` functions create (`games`, `qb_pass_location_stats`, `team_down_distance_stats`, `team_situational_stats`). With `team_game_stats` the true total is **18**, so replace the line with the complete list:
 
 ```markdown
-- 14 Supabase tables total (teams, team_season_stats, qb_season_stats, receiver_season_stats, rb_season_stats, rb_gap_stats, rb_gap_stats_weekly, def_gap_stats, data_freshness, player_slugs, qb_weekly_stats, receiver_weekly_stats, rb_weekly_stats, team_game_stats)
+- 18 Supabase tables total (teams, team_season_stats, qb_season_stats, receiver_season_stats, rb_season_stats, rb_gap_stats, rb_gap_stats_weekly, def_gap_stats, data_freshness, player_slugs, qb_weekly_stats, receiver_weekly_stats, rb_weekly_stats, games, qb_pass_location_stats, team_down_distance_stats, team_situational_stats, team_game_stats)
 ```
+
+(Spec §13 line 238 says the line "becomes 14"; it was counting from the same incomplete list. 18 is the number to write.)
 
 - [ ] **Step 4: Check MEMORY.md is still under 200 lines**
 
@@ -2554,7 +2672,7 @@ Change it to:
 wc -l "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/memory/MEMORY.md"
 ```
 
-Expected: about 121 lines (it was 111).
+Expected: about 119 lines (it was 110).
 
 - [ ] **Step 5: Commit**
 
@@ -2586,7 +2704,7 @@ Expected: `## box-scores-pr2` with no modified or untracked files (a leftover `t
 git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" log --oneline origin/main..box-scores-pr2
 ```
 
-Expected: the plan commit plus Tasks 1–6 and 9 (and 7/8 fix commits if any). Then run the suite one last time (Task 6 Step 5's second command, no `YPP_PBP_PARQUET`): `443 passed, 4 skipped, 2 xfailed` plus any regression tests you added.
+Expected, oldest first: the plan commit `716bff6`, the spec amendment `320687e`, the pre-flight plan-fix commit, then Tasks 1–6 and 9 (and 7/8 fix commits if any). Then run the suite one last time (Task 6 Step 5's second command, no `YPP_PBP_PARQUET`): `447 passed, 5 skipped, 1 xfailed` plus any regression tests Tasks 7 and 8 added. **Compare what it prints with the line Task 9 wrote into `memory/MEMORY.md`**; if they differ, correct that line and amend the docs commit before pushing.
 
 Check that a scheduled refresh is not about to collide with the fill (an in-progress run is fine — the dispatched run queues behind it; a run that started **before** the merge simply runs the old code):
 
@@ -2600,7 +2718,7 @@ gh run list --workflow data-refresh.yml --repo jonramz876/yards-per-pass --limit
 git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" push -u origin box-scores-pr2
 ```
 
-Write the PR description to `<your scratchpad>/pr-body.md`. It must contain: what the PR adds (`team_game_stats`, one row per team per REG game, 62 columns; QB rushing EPA/carry + success rate on `qb_weekly_stats`; no frontend change — PR 3 reads the table); how the numbers are verified (every column pinned against rbsdm/ESPN for BUF–HOU, NO–DET possession 68:26, TB–CIN defensive TDs, Allen −0.46/40%, whole-week smoke: 32 rows, 182 explosives, 354 drives); the local results (pytest counts with and without `YPP_PBP_PARQUET`); the three documented departures from spec §4's literal text (kickoff clause, `qb_spike`, muffed-punt xfail) and the `game_id`-without-FK decision; the chaos and review outcomes with anything declined; the deploy note (the first refresh creates the table and adds the two columns; nothing on the site reads them yet); and it must end with:
+Write the PR description to `<your scratchpad>/pr-body.md`. It must contain: what the PR adds (`team_game_stats`, one row per team per REG game, 62 columns; QB rushing EPA/carry + success rate on `qb_weekly_stats`; no frontend change — PR 3 reads the table); how the numbers are verified (every column pinned against rbsdm/ESPN for BUF–HOU, NO–DET possession 68:26, TB–CIN defensive TDs, Allen −0.46/40%, and the smoke check over the live nflverse file: week 1 gives 32 rows, 182 explosives and 354 drives, while every played game in the file — later weeks included — gets exactly two rows and a possession sum equal to its own clock); the local results (pytest counts with and without `YPP_PBP_PARQUET`); the three rules documented in spec §4 (commit 320687e) — the kickoff clause, `qb_spike` as a scrimmage snap, the muffed-punt xfail — plus the `fumbled_2_team` limitation that has no test, and the `game_id`-without-FK decision; the chaos and review outcomes with anything declined; the deploy note (the first refresh creates the table and adds the two columns; nothing on the site reads them yet); and it must end with:
 
 ```text
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -2654,7 +2772,7 @@ Expected: `"conclusion":"success"`. Then read the log for the new lines:
 gh run view <run id> --repo jonramz876/yards-per-pass --log | grep -E "team_game_stats|team game|rush_epa_per_carry|Season 2026 complete|ERROR|Traceback"
 ```
 
-Expected lines: `Ensured qb_weekly_stats has rush_epa_per_carry/rush_success_rate columns`, `Ensured team_game_stats table exists with RLS`, `Aggregated team game stats for 32 team-games (16 games)` (34/17 once week 2's Thursday game is in), `Upserted 32 team game rows`, `Season 2026 complete (through week N)`; no `ERROR`, no `Traceback`.
+Expected lines: `Ensured qb_weekly_stats has rush_epa_per_carry/rush_success_rate columns`, `Ensured team_game_stats table exists with RLS`, `Aggregated team game stats for <2G> team-games (<G> games)` and `Upserted <2G> team game rows`, and `Season 2026 complete (through week N)`; no `ERROR`, no `Traceback`. `<G>` is **every played 2026 REG game in the nflverse file at that moment**, not a fixed number: week 1 alone is 16 games / 32 team-games, and the season has since moved on (30 games over weeks 1–2 as of 2026-09-21, more every Sunday), so expect a number that matches the game count for the weeks the file holds. The two numbers must satisfy `<2G> = 2 × <G>` and `<G>` must equal the played-game count `verify_production.py` reports in Step 6.
 
 - [ ] **Step 6: Verify with read-only REST reads**
 
@@ -2703,26 +2821,38 @@ def num(v):
 
 problems = []
 
-# 1. One row per team for every played 2026 REG game (32 for week 1; 34 once
-#    week 2's Thursday game is in), and the id set matches `games` with scores.
+# 1. EXACTLY two rows for every played 2026 REG game, and none for anything else.
+#    Never a fixed season total: the season adds a week every Sunday. The two
+#    fixed facts are "2 rows per played game" and "week 1 has 32".
 rows = get('team_game_stats', season='eq.2026', select='*', order='game_id.asc,team_id.asc', limit=1000)
 played = get('games', season='eq.2026', game_type='eq.REG', home_score='not.is.null',
-             select='game_id,home_team,away_team', limit=1000)
+             select='game_id,home_team,away_team,week', limit=1000)
 expected_pairs = sorted((g['game_id'], t) for g in played for t in (g['away_team'], g['home_team']))
 actual_pairs = sorted((r['game_id'], r['team_id']) for r in rows)
-print(f'team_game_stats 2026 rows: {len(rows)} (played REG games in `games`: {len(played)})')
-if len(rows) < 32:
-    problems.append(f'expected at least 32 rows, got {len(rows)}')
+per_game = {}
+for r in rows:
+    per_game[r['game_id']] = per_game.get(r['game_id'], 0) + 1
+weeks = sorted({r['week'] for r in rows})
+print(f'team_game_stats 2026: {len(rows)} rows over {len(per_game)} games, weeks {weeks} '
+      f'(played REG games in `games`: {len(played)})')
+bad = sorted(g for g, n in per_game.items() if n != 2)
+if bad:
+    problems.append(f'games without exactly 2 rows: {[(g, per_game[g]) for g in bad[:5]]}')
+week_one_rows = [r for r in rows if r['week'] == 1]
+if len(week_one_rows) != 32:
+    problems.append(f'week 1 must have 32 rows (16 games x 2), got {len(week_one_rows)}')
 if actual_pairs != expected_pairs:
     problems.append(f'row keys differ from played games: missing {sorted(set(expected_pairs) - set(actual_pairs))[:5]}, '
                     f'extra {sorted(set(actual_pairs) - set(expected_pairs))[:5]}')
 
 # 2. The BUF-HOU rows equal what the committed fixture computes locally.
+#    drop=False keeps team_id in the columns, so the TEAM_GAME_STATS_COLS loop
+#    below can still read local.loc[team, 'team_id'].
 import pandas as pd
 from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_COLS
 from conftest import FIXTURE_PATH
 local = aggregate_team_game_stats(pd.read_parquet(FIXTURE_PATH), 2026)
-local = local[local['game_id'] == '2026_01_BUF_HOU'].set_index('team_id')
+local = local[local['game_id'] == '2026_01_BUF_HOU'].set_index('team_id', drop=False)
 live = {r['team_id']: r for r in rows if r['game_id'] == '2026_01_BUF_HOU'}
 for team in ('BUF', 'HOU'):
     if team not in live:
@@ -2781,13 +2911,13 @@ py -3 "<your scratchpad>/verify_production.py" "C:/Users/jonra/OneDrive/Desktop/
 Expected output:
 
 ```text
-team_game_stats 2026 rows: 32 (played REG games in `games`: 16)
+team_game_stats 2026: <2G> rows over <G> games, weeks [1, 2, …] (played REG games in `games`: <G>)
 BUF-HOU golden rows compared column by column against the fixture computation
 Allen week 1: rush_attempts=5 rush_epa_per_carry=-0.4626… rush_success_rate=0.4
 OK: production matches
 ```
 
-(34 rows / 17 games if week 2's Thursday game has been played and ingested; if `games` shows more played games than `team_game_stats` has rows, nflverse has not published those plays yet — re-run after the next refresh.) Exit code 1 with a `PROBLEMS:` list means production disagrees with the local computation: treat every line as a bug to explain before PR 3 starts.
+The row count is **not** fixed: the season has moved on since this plan was written (weeks 1–2 played as of 2026-09-21) and a week is added every Sunday. What the script actually asserts is week-independent — every played REG game has exactly 2 rows, the `(game_id, team_id)` set equals the played games in `games`, week 1 has 32 rows, and BUF–HOU matches the fixture computation column by column. The `games` count and the `team_game_stats` game count must be equal; if `games` shows more played games than `team_game_stats` covers, nflverse has not published those plays yet — re-run after the next refresh. Exit code 1 with a `PROBLEMS:` list means production disagrees with the local computation: treat every line as a bug to explain before PR 3 starts.
 
 - [ ] **Step 7: If the refresh failed**
 
