@@ -2,9 +2,14 @@
 // score links (box score spec §6, §7). Imports the Supabase server client:
 // never import this module from a "use client" file.
 //
-// Every read here throws on a query error. The page turns that into a thrown
-// render (ISR keeps the last good copy) instead of a cached empty shell; the
-// team and player pages catch the seasons probe and simply render no links.
+// Every read here throws on a query error, and every read has a deadline
+// (BOX_SCORE_READ_DEADLINE_MS) so a slow database is a caught error rather
+// than a killed invocation. The page turns a throw into a failed render
+// instead of a cached empty shell: what is known is that a failed render is
+// never cached, so a Supabase blip cannot freeze "no stats" onto a game page.
+// Whether Vercel then serves a previously rendered copy of that URL has NOT
+// been measured (the route builds as a plain dynamic function) -- do not lean
+// on it. The team and player pages catch the seasons probe and render no links.
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
 import { getGame, getTeamSchedule, type GameRecord } from "@/lib/data/games";
@@ -54,6 +59,34 @@ export const TEAM_GAME_NUMERIC = [
 // reads it from, and moving the definition must not move every import.
 export { GAME_ID_PATTERN, normalizeGameId } from "@/lib/stats/box-score";
 
+/**
+ * How long one box score assembly gets, in milliseconds.
+ *
+ * Nothing on this route had a deadline. A `ready` view is 8 PostgREST requests
+ * in 4 serial waves, and there is deliberately no loading.tsx, so TTFB is the
+ * whole chain: a merely SLOW Supabase (not a failed one -- pooler saturation,
+ * a busy plan) ran past Vercel's function limit and the invocation was killed.
+ * app/game/[game_id]/error.tsx only catches throws from inside the invocation,
+ * so the one failure mode this route built an error boundary for was the one
+ * it could not see; the visitor got Vercel's untemplated 504 after burning ten
+ * seconds first.
+ *
+ * 5s is ONE budget for the whole assembly rather than one per request: the
+ * waves are serial, so a per-request deadline would multiply by four and
+ * overrun the same limit. Vercel's Node default is 10s (Hobby) / 15s (Pro), so
+ * this leaves at least 5s for cold start, render and response, and no
+ * maxDuration override is needed. It is far above any healthy read -- the
+ * whole chain normally settles well under a second. The repo already had the
+ * pattern: lib/og/tecmo-card-image.tsx uses AbortSignal.timeout(4000).
+ *
+ * supabase-js turns an aborted fetch into a PostgREST-shaped error rather than
+ * a rejection, so every `if (error) throw` below is already the handler.
+ */
+export const BOX_SCORE_READ_DEADLINE_MS = 5000;
+
+/** A fresh deadline for one assembly; give it to every read of that assembly. */
+export const boxScoreDeadline = (): AbortSignal => AbortSignal.timeout(BOX_SCORE_READ_DEADLINE_MS);
+
 /** A `games` row with both scores present. */
 export type PlayedGame = GameRecord & { home_score: number; away_score: number };
 
@@ -99,7 +132,10 @@ export type BoxScoreData =
  * the table would be, once the backfill lands). Newest first. Throws on a
  * query error.
  */
-export async function getBoxScoreSeasons(candidates: number[]): Promise<number[]> {
+export async function getBoxScoreSeasons(
+  candidates: number[],
+  signal: AbortSignal = boxScoreDeadline()
+): Promise<number[]> {
   const usable = (s: unknown): s is number => Number.isInteger(s) && (s as number) > 0;
   const seasons = Array.from(new Set((candidates ?? []).filter(usable)));
   // Dropping a candidate fires no query, so without this line the whole site's
@@ -122,7 +158,8 @@ export async function getBoxScoreSeasons(candidates: number[]): Promise<number[]
         .from("team_game_stats")
         .select("game_id")
         .eq("season", season)
-        .limit(1);
+        .limit(1)
+        .abortSignal(signal);
       if (error) throw new Error(`Failed to fetch box score seasons: ${error.message}`);
       return (data?.length ?? 0) > 0 ? season : null;
     })
@@ -133,7 +170,7 @@ export async function getBoxScoreSeasons(candidates: number[]): Promise<number[]
 /** One hour, matching the site's ISR cadence. */
 const BOX_SCORE_SEASONS_TTL_MS = 60 * 60 * 1000;
 /** key = JSON of the candidate list, so two lists can never collide. */
-const boxScoreSeasonsMemo = new Map<string, { at: number; value: number[] }>();
+const boxScoreSeasonsMemo = new Map<string, { at: number; promise: Promise<number[]> }>();
 
 /**
  * getBoxScoreSeasons for the link gate on pages that render per request.
@@ -169,22 +206,43 @@ export async function getBoxScoreSeasonsCached(candidates: number[]): Promise<nu
   // (box score links quietly wrong, on one instance, for an hour) is close to
   // undebuggable. Both consumers only call .includes() today; this makes that
   // structural instead of a convention.
-  if (hit && now - hit.at < BOX_SCORE_SEASONS_TTL_MS) return [...hit.value];
-  // Awaited rather than stored as a promise: a rejection propagates to the
-  // caller's .catch and nothing is written, so the next render tries again.
-  const value = await getBoxScoreSeasons(list);
+  if (hit && now - hit.at < BOX_SCORE_SEASONS_TTL_MS) return [...(await hit.promise)];
+  // The PROMISE is stored, not the resolved value. Storing the value only
+  // after awaiting it kept a rejection out of the memo -- the right goal --
+  // but it also recorded nothing while the probe was in flight, so every
+  // request arriving in that window was a miss and fired its own
+  // seasons.length parallel limit(1) queries. On a cold lambda, or at the
+  // instant the hour rolls over, 20 concurrent team-page views cost 20 x 7 =
+  // 140 PostgREST requests for 7 answers, on the route this memo exists to
+  // make cheap. Vercel spins instances up freely, so that window recurs often.
+  const promise = getBoxScoreSeasons(list);
+  boxScoreSeasonsMemo.set(key, { at: now, promise });
+  // A rejection is still never memoised: the entry goes the moment the probe
+  // fails, so the next render retries. The guard keeps a later entry under the
+  // same key (a retry already in flight) from being deleted by this one's
+  // failure, and attaching the handler here also marks the rejection handled,
+  // so sharing the promise can never raise an unhandled rejection.
+  promise.catch(() => {
+    if (boxScoreSeasonsMemo.get(key)?.promise === promise) boxScoreSeasonsMemo.delete(key);
+  });
   for (const k of Array.from(boxScoreSeasonsMemo.keys())) {
     const entry = boxScoreSeasonsMemo.get(k);
     if (entry && now - entry.at >= BOX_SCORE_SEASONS_TTL_MS) boxScoreSeasonsMemo.delete(k);
   }
-  boxScoreSeasonsMemo.set(key, { at: now, value });
-  return [...value];
+  return [...(await promise)];
 }
 
 /** Both teams' team_game_stats rows for one game (0, 1 or 2 rows). */
-export async function getTeamGameStats(gameId: string): Promise<TeamGameStat[]> {
+export async function getTeamGameStats(
+  gameId: string,
+  signal: AbortSignal = boxScoreDeadline()
+): Promise<TeamGameStat[]> {
   const supabase = createServerClient();
-  const { data, error } = await supabase.from("team_game_stats").select("*").eq("game_id", gameId);
+  const { data, error } = await supabase
+    .from("team_game_stats")
+    .select("*")
+    .eq("game_id", gameId)
+    .abortSignal(signal);
   if (error) throw new Error(`Failed to fetch team game stats for ${gameId}: ${error.message}`);
   return (data ?? []).map((row) =>
     parseNumericFields<TeamGameStat>(row as unknown as TeamGameStat, TEAM_GAME_NUMERIC)
@@ -201,7 +259,8 @@ export async function getTeamGameStats(gameId: string): Promise<TeamGameStat[]> 
 export async function getGamePlayerLines(
   season: number,
   week: number,
-  teamIds: string[]
+  teamIds: string[],
+  signal: AbortSignal = boxScoreDeadline()
 ): Promise<GamePlayerLines> {
   const supabase = createServerClient();
   const weekly = async <T,>(table: string, numeric: string[]): Promise<T[]> => {
@@ -210,7 +269,8 @@ export async function getGamePlayerLines(
       .select("*")
       .eq("season", season)
       .eq("week", week)
-      .in("team_id", teamIds);
+      .in("team_id", teamIds)
+      .abortSignal(signal);
     if (error) throw new Error(`Failed to fetch ${table} for ${season} week ${week}: ${error.message}`);
     return (data ?? []).map((row) => parseNumericFields<T>(row as unknown as T, numeric));
   };
@@ -232,7 +292,8 @@ export async function getGamePlayerLines(
     const { data, error } = await supabase
       .from("player_slugs")
       .select("player_id, player_name, position, slug")
-      .in("player_id", ids);
+      .in("player_id", ids)
+      .abortSignal(signal);
     if (error) throw new Error(`Failed to fetch player identities: ${error.message}`);
     for (const row of (data ?? []) as PlayerIdentity[]) {
       if (typeof row?.player_id !== "string") continue;
@@ -254,7 +315,11 @@ export async function getGamePlayerLines(
  * decides between "uncovered" and "pending". Every read throws on failure.
  */
 export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
-  const game = await getGame(gameId);
+  // One deadline for the whole assembly, threaded into every read below (and
+  // into the two that live in lib/data/games.ts): the waves are serial, so a
+  // deadline per request would multiply by four.
+  const signal = boxScoreDeadline();
+  const game = await getGame(gameId, signal);
   if (!game) return { state: "not-found" };
   // A team cannot play itself. The row is corrupt, and every side of a box
   // score built from it would be a lie: .find below matches the SAME
@@ -278,9 +343,9 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
   // Deliberate: moving the game_type check above this Promise.all would cost
   // the common (regular-season) case a serial round trip. Leave it.
   const [awaySchedule, homeSchedule, statRows] = await Promise.all([
-    getTeamSchedule(game.away_team, game.season),
-    getTeamSchedule(game.home_team, game.season),
-    getTeamGameStats(gameId),
+    getTeamSchedule(game.away_team, game.season, signal),
+    getTeamSchedule(game.home_team, game.season, signal),
+    getTeamGameStats(gameId, signal),
   ]);
   const records: GameRecords = {
     away: recordThroughWeek(awaySchedule, game.week),
@@ -298,11 +363,23 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
   const away = statRows.find((r) => r.team_id === game.away_team);
   const home = statRows.find((r) => r.team_id === game.home_team);
   if (!away || !home) {
+    // One row rather than none: the ingest upserts both teams together, so the
+    // aggregation already ran and produced something corrupt (or a team id no
+    // longer matches after a relocation). "pending" stays the least wrong
+    // state — there is nothing to render either way — but it promises stats
+    // "within a few hours" that are never coming, and until now nothing
+    // anywhere recorded that, on any game, for ever.
+    if (statRows.length > 0) {
+      console.warn(
+        `Box score ${gameId}: ${statRows.length} team_game_stats row(s) but none for ` +
+          `${!away ? game.away_team : game.home_team}; rendering as pending`
+      );
+    }
     // Does this game's own season have box scores at all? One limit(1) probe
     // settles the common case — a covered season whose rows for this game are
     // not written yet, every Sunday evening for ~16 games at once — without
     // the data_freshness read and the N probes below.
-    const ownSeason = await getBoxScoreSeasons([game.season]);
+    const ownSeason = await getBoxScoreSeasons([game.season], signal);
     if (ownSeason.length > 0) return { state: "pending", game: played, records };
 
     const seasons = await getAvailableSeasons();
@@ -311,13 +388,14 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     if (seasons.length === 0) {
       throw new Error("Box score: no seasons from data_freshness (query failed or table empty)");
     }
-    const covered = await getBoxScoreSeasons(seasons);
+    const covered = await getBoxScoreSeasons(seasons, signal);
     // Same rule one table over: data_freshness lists seasons, yet not one of
     // them has a team_game_stats row. Since PR 2 shipped that cannot be true of
     // the real table, so the read is broken (a dropped read policy, a renamed
     // table, a bad key) and PostgREST reports exactly that as 200-with-no-rows.
-    // Spec §6: a failed read throws, so ISR keeps the last good copy instead of
-    // caching "stats arrive shortly" on every game page in every season.
+    // Spec §6: a failed read throws rather than caching "stats arrive shortly"
+    // onto every game page in every season. (A failed render is never cached;
+    // whether a previously rendered copy is then served is unmeasured.)
     if (covered.length === 0) {
       throw new Error(
         `Box score: data_freshness lists ${seasons.length} season(s) (${seasons.join(", ")}) but none has a team_game_stats row; expected at least one, so the team_game_stats read is failing silently`
@@ -331,11 +409,68 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     const firstSeason = Math.min(...covered);
     const newest = Math.max(...covered);
     if (!covered.includes(game.season) && game.season < newest) {
-      return { state: "uncovered", game: played, records, reason: "season", firstSeason };
+      return {
+        state: "uncovered",
+        game: played,
+        records,
+        reason: "season",
+        // Name a first season only when the game really precedes it. Coverage
+        // is membership, so a season missing from the MIDDLE of the backfill
+        // lands here too — and with 2020-2024 and 2026 covered, a 2025 game
+        // would read "Box scores start with the 2020 season", which is false
+        // on its own screen (2025 is after 2020) and whose only takeaway
+        // ("this game is too old") is wrong. The page already has a neutral
+        // heading for null.
+        firstSeason: game.season < firstSeason ? firstSeason : null,
+      };
     }
     return { state: "pending", game: played, records };
   }
 
-  const lines = await getGamePlayerLines(game.season, game.week, [game.away_team, game.home_team]);
+  const lines = await getGamePlayerLines(game.season, game.week, [game.away_team, game.home_team], signal);
   return { state: "ready", game: played, records, away, home, lines };
+}
+
+/** Everything generateMetadata needs, and nothing it does not (spec §6). */
+export interface BoxScoreMeta {
+  /** null when the address has no page: unknown id, a corrupt row, or no final score. */
+  game: PlayedGame | null;
+  /** True only when both team_game_stats rows are there — the one indexable state. */
+  ready: boolean;
+}
+
+/**
+ * The cheap read behind generateMetadata: the `games` row, plus — only for a
+ * played regular-season game — whether both team_game_stats rows exist.
+ *
+ * generateMetadata used to call getBoxScore, which is 8 PostgREST requests in
+ * 4 serial waves, and then read only the `games` row and the state off it:
+ * both team schedules, both stat rows, three weekly tables and player_slugs
+ * were fetched and thrown away on every render of a route that renders per
+ * request. This is 1 request for an unknown, unplayed or playoff game and 2
+ * for every other, and it answers exactly the two questions the title,
+ * description, canonical and robots decision need.
+ *
+ * It applies getBoxScore's rules in getBoxScore's order, so the two cannot
+ * disagree about which addresses have a page: a corrupt self-play row and a
+ * game without both scores have none (the page 404s them), a playoff game has
+ * a page but never a box score, and "ready" is both rows present. `ready` is
+ * also exactly the indexable state: uncovered and pending are both a 200
+ * message page, and the route marks both noindex.
+ *
+ * Every read throws on failure, on the same deadline as the full assembly.
+ */
+export async function getBoxScoreMeta(gameId: string): Promise<BoxScoreMeta> {
+  const signal = boxScoreDeadline();
+  const game = await getGame(gameId, signal);
+  if (!game || game.home_team === game.away_team) return { game: null, ready: false };
+  if (game.home_score === null || game.away_score === null) return { game: null, ready: false };
+  const played = game as PlayedGame;
+  // Playoffs are out of scope (spec §2): no rows ever come, so do not ask.
+  if (normalizeGameType(game.game_type) !== "REG") return { game: played, ready: false };
+  const statRows = await getTeamGameStats(gameId, signal);
+  const ready =
+    statRows.some((r) => r.team_id === game.away_team) &&
+    statRows.some((r) => r.team_id === game.home_team);
+  return { game: played, ready };
 }

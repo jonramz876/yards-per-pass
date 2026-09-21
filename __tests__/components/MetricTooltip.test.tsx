@@ -9,7 +9,7 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
   it.each([
     ["EPA / play", "the way nflfastR and rbsdm.com do"],
     ["Success rate", "EPA above zero"],
-    ["1st down rate", "penalty on a wiped play"],
+    ["1st down rate", "penalty-wiped plays included"],
     ["Explosive plays", "QB scrambles of 10+ yards count as explosive runs"],
     ["Toxic differential", "Turnover margin plus explosive-play margin"],
   ])("defines %s, and the popup a visitor opens says so", async (metric, fragment) => {
@@ -35,6 +35,35 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
       // it stands for would reach the visitor as "—".
       expect(popup!.textContent).not.toMatch(/\\u[0-9a-fA-F]{4}/);
     });
+  });
+
+  // The arithmetic on this page has 609 tests; the prose explaining it had
+  // almost none, and shipped a definition that stated the opposite of what the
+  // metric does. These two cases are the prose's tests: each pins a claim the
+  // code either makes true or does not.
+  it("puts penalty first downs INSIDE the 1st down rate, where the data has them", () => {
+    // scripts/ingest.py's efficiency set filters on (pass | rush) + EPA present
+    // + a possessing team — there is no no_play exclusion — and then counts
+    // first_down == 1, which nflverse sets for a penalty first down too. The
+    // page's own numbers say the same: BUF 36% x 56 plays = 20 = 13 passing +
+    // 5 rushing + 2 penalty. A definition that excludes them is false.
+    const text = DEFINITION_TEXT["1st down rate"];
+    expect(text).toContain("penalty-wiped plays included");
+    expect(text).not.toMatch(/not in it|isn’t in it|aren’t in it|excluded|leaves out/i);
+    // ...and it must still warn that the Team stats total is a different set,
+    // so rate x plays need not land on it (HOU: 32% x 79 = 25 against 26).
+    expect(text).toContain("Team stats");
+    expect(text).toMatch(/need not agree|can disagree/);
+  });
+
+  it("defines Tgt Share by team targets, which is what the ingest divides by", () => {
+    // scripts/ingest.py:1114-1123 divides a receiver's targets by the team's
+    // TOTAL TARGETS (target_plays, :1066: a receiver charged, a pass attempt,
+    // no sack, no scramble) — never by pass attempts. The old wording sent a
+    // reader to 6/29 for a number the site computes as 6/28.
+    const text = DEFINITION_TEXT["Tgt Share"];
+    expect(text).toMatch(/team\S* targets/i);
+    expect(text).not.toMatch(/pass attempts/i);
   });
 
   it("defines every tooltip key the box score actually asks for", () => {

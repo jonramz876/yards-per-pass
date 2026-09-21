@@ -7,7 +7,7 @@ let result: { data: unknown; error: unknown } = { data: [], error: null };
 
 vi.mock("@/lib/supabase/server", () => {
   const builder: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "or", "order", "limit", "range"]) {
+  for (const m of ["select", "eq", "or", "order", "limit", "range", "abortSignal"]) {
     builder[m] = (...a: unknown[]) => {
       calls.push([m, ...a]);
       return builder;
@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/server", () => {
   };
 });
 
-import { getGameResults, getGame, getPlayedRegularSeasonGameIds } from "@/lib/data/games";
+import { getGameResults, getGame, getTeamSchedule, getPlayedRegularSeasonGameIds } from "@/lib/data/games";
 
 /** A `games` row as PostgREST returns it (defaults: 2025 week 1, BAL 40 @ BUF 41). */
 function game(over: Record<string, unknown>) {
@@ -302,5 +302,33 @@ describe("getPlayedRegularSeasonGameIds (sitemap)", () => {
     expect(await getPlayedRegularSeasonGameIds(2026)).toEqual([
       "2026_01_BUF_HOU", "2026_02_DET_BUF", "2026_03_NE_SEA",
     ]);
+  });
+});
+
+describe("read deadlines (box score spec §6)", () => {
+  // The box score page runs 8 PostgREST requests in 4 serial waves and starts
+  // with these two, so both take the caller's deadline. Every other caller
+  // (the team hub, the player page) passes nothing and gets the behaviour it
+  // had: an optional signal, never a default one imposed site-wide.
+  it("getGame forwards a caller's AbortSignal, and adds none without one", async () => {
+    result = { data: [game({})], error: null };
+    await getGame("2025_01_BAL_BUF");
+    expect(calls.some((c) => c[0] === "abortSignal")).toBe(false);
+
+    calls.length = 0;
+    const signal = AbortSignal.timeout(5000);
+    expect((await getGame("2025_01_BAL_BUF", signal))!.game_id).toBe("2025_01_BAL_BUF");
+    expect(calls).toContainEqual(["abortSignal", signal]);
+  });
+
+  it("getTeamSchedule forwards a caller's AbortSignal, and adds none without one", async () => {
+    result = { data: [game({})], error: null };
+    await getTeamSchedule("BUF", 2025);
+    expect(calls.some((c) => c[0] === "abortSignal")).toBe(false);
+
+    calls.length = 0;
+    const signal = AbortSignal.timeout(5000);
+    await getTeamSchedule("BUF", 2025, signal);
+    expect(calls).toContainEqual(["abortSignal", signal]);
   });
 });

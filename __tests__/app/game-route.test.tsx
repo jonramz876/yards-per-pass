@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/data/box-score", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/data/box-score")>()),
   getBoxScore: vi.fn(),
+  getBoxScoreMeta: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -24,7 +25,7 @@ vi.mock("@/components/ui/MetricTooltip", () => ({
 
 import GamePage, { generateMetadata } from "@/app/game/[game_id]/page";
 import * as gameRoute from "@/app/game/[game_id]/page";
-import { getBoxScore, type BoxScoreData } from "@/lib/data/box-score";
+import { getBoxScore, getBoxScoreMeta, type BoxScoreData } from "@/lib/data/box-score";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { BUF_HOU_GAME, BUF_STATS, HOU_STATS, BUF_HOU_LINES } from "../fixtures/box-score-buf-hou";
 
@@ -37,6 +38,8 @@ const meta = (game_id: string) => generateMetadata({ params: Promise.resolve({ g
 
 beforeEach(() => {
   vi.mocked(getBoxScore).mockReset();
+  vi.mocked(getBoxScoreMeta).mockReset();
+  vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: BUF_HOU_GAME, ready: true });
   vi.mocked(hasNoDatabase).mockReset();
   vi.mocked(hasNoDatabase).mockReturnValue(false);
 });
@@ -95,6 +98,14 @@ describe("GamePage — states (spec §6)", () => {
     expect(container.textContent).not.toContain("null");
     expect(screen.getByText("Box scores aren\u2019t available for this season")).toBeTruthy();
     expect(container.querySelector('[data-game-message] a[href="/team/BUF"]')).not.toBeNull();
+    // A gap in the middle of the backfill must name no year AT ALL: "Box
+    // scores start with the 2020 season" over a 2025 game contradicts itself
+    // on its own screen. The data layer decides (firstSeason null); this pins
+    // what the sentence the visitor reads then says -- no test composed the
+    // two layers before.
+    const heading = container.querySelector("[data-game-message] h1, [data-game-message] h2")?.textContent ?? container.textContent!;
+    expect(heading).not.toMatch(/(19|20)\d\d/);
+    expect(heading).not.toContain("start");
   });
 
   it("playoff game → scoreboard + regular-season-only message", async () => {
@@ -198,12 +209,15 @@ describe("GamePage — 2026_01_BUF_HOU renders the golden values", () => {
     expect(Array.from(allen.querySelectorAll("td")).map((td) => td.textContent)).toEqual([
       "Josh Allen", "20/29", "334", "2", "0", "2", "130.5", "+0.56", "+8.1", "47%", "13.2",
     ]);
-    expect(allen.querySelectorAll("td")[7].className).toContain("text-green-700");
+    expect(allen.querySelectorAll("td")[7].className).toContain("text-green-600");
 
     const rushing = container.querySelector('[data-player-table="rushing"]')!;
     const cook = rushing.querySelector('[data-player-id="00-0038545"]')!;
     expect(cook.querySelectorAll("td")[0].textContent).toBe("James CookRB");
-    expect(cook.querySelectorAll("td")[5].className).toContain("text-amber-600");
+    // Player EPA takes the leaderboards' colour, not the team band's: Cook's
+    // −0.01 EPA/CAR is red here exactly as it is on the RB leaderboard.
+    expect(cook.querySelectorAll("td")[5].className).toContain("text-red-600");
+    expect(cook.querySelectorAll("td")[5].className).not.toContain("amber");
     const allenRush = rushing.querySelector('[data-player-id="00-0034857"]')!;
     expect(Array.from(allenRush.querySelectorAll("td")).map((td) => td.textContent)).toEqual([
       "Josh AllenQB", "5", "24", "2", "4.8", `${M}0.46`, "40%",
@@ -211,13 +225,34 @@ describe("GamePage — 2026_01_BUF_HOU renders the golden values", () => {
     expect(allenRush.querySelectorAll("td")[5].className).toContain("text-red-600");
 
     const receiving = container.querySelector('[data-player-table="receiving"]')!;
-    expect(receiving.textContent).toContain("28 team targets");
-    expect(receiving.textContent).toContain("37 team targets");
+    // Scoped to the sub-header row that owns it, and pinned to one TGT% cell
+    // per team. Nothing bound the denominator to its team: swapping the two
+    // values in the page's teamTargets map recomputed every TGT% on the page
+    // against the other team's count, and both unscoped "N team targets"
+    // strings stayed present, so all 609 tests stayed green.
+    expect(receiving.querySelector('[data-team-row="BUF"]')!.textContent).toContain("28 team targets");
+    expect(receiving.querySelector('[data-team-row="HOU"]')!.textContent).toContain("37 team targets");
+    const kincaid = receiving.querySelector('[data-player-id="00-0038557"]')!;
+    expect(kincaid.querySelectorAll("td")[5].textContent).toBe("21.4%");
+    const collins = receiving.querySelector('[data-player-id="00-0036908"]')!;
+    expect(collins.querySelectorAll("td")[5].textContent).toBe("27.0%");
     expect(receiving.textContent).not.toContain("YPRR");
     expect(receiving.querySelector('[data-player-id="00-0038557"] a')?.textContent).toBe("Dalton Kincaid");
     expect(receiving.textContent).toContain("Player lines won\u2019t always add up to team totals.");
     expect(receiving.textContent).toContain("10 of Josh Allen\u2019s 334 passing yards");
     expect(receiving.querySelector(".overflow-x-auto")).not.toBeNull();
+  });
+
+  it("drops the whole play-count footnote when there is no difference to explain", async () => {
+    // playCountNote returns "" for a game whose counts all match; the bold
+    // "Why the play counts differ." lead must go with it rather than stand
+    // over nothing.
+    const even = { ...BUF_STATS, plays: 52, total_plays: 52, rushing_attempts: 19, rush_plays: 19 };
+    const evenHome = { ...HOU_STATS, plays: 73, total_plays: 73, rushing_attempts: 31, rush_plays: 31 };
+    vi.mocked(getBoxScore).mockResolvedValue({ ...READY, away: even, home: evenHome });
+    const { container } = render(await page("2026_01_BUF_HOU"));
+    const teamStats = container.querySelector('[data-section="team-stats"]')!;
+    expect(teamStats.textContent).not.toContain("Why the play counts differ.");
   });
 
   it("null EPA renders a grey dash, never amber", async () => {
@@ -234,32 +269,59 @@ describe("GamePage — 2026_01_BUF_HOU renders the golden values", () => {
 });
 
 describe("GamePage generateMetadata", () => {
-  it("ready → winner-first title, canonical, indexable", async () => {
-    vi.mocked(getBoxScore).mockResolvedValue(READY);
+  // The cheap path: metadata needs the `games` row and one yes/no (are both
+  // team_game_stats rows there?), so it reads exactly that -- 2 PostgREST
+  // requests -- where it used to run the whole 8-request assembly and throw
+  // away both schedules, both stat rows, three weekly tables and player_slugs.
+  // The rendered output must not move, so it is pinned WHOLE here, not by
+  // substring: a cheap path that quietly drops the canonical or the
+  // description would otherwise still pass.
+  it("ready → winner-first title, canonical, indexable, without the full assembly", async () => {
+    vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: BUF_HOU_GAME, ready: true });
     const m = await meta("2026_01_BUF_HOU");
-    expect(m.title).toBe("Bills 36, Texans 31 — 2026 Week 1 box score");
-    expect(m.alternates?.canonical).toBe("https://yardsperpass.com/game/2026_01_BUF_HOU");
-    expect("robots" in m).toBe(false);
-    expect(String(m.description)).toContain("Buffalo Bills at Houston Texans");
+    expect(m).toEqual({
+      title: "Bills 36, Texans 31 — 2026 Week 1 box score",
+      description:
+        "Buffalo Bills at Houston Texans, 2026 Week 1: EPA per play, success rate, explosive plays and the official box score, with every passer, rusher and receiver.",
+      alternates: { canonical: "https://yardsperpass.com/game/2026_01_BUF_HOU" },
+    });
+    expect(getBoxScoreMeta).toHaveBeenCalledWith("2026_01_BUF_HOU");
+    expect(getBoxScore).not.toHaveBeenCalled();
   });
 
-  it("uncovered → noindex; pending → indexable; unknown → not-found title", async () => {
-    vi.mocked(getBoxScore).mockResolvedValue({ state: "uncovered", reason: "season", firstSeason: 2026, game: { ...BUF_HOU_GAME, season: 2025 }, records: RECORDS });
+  it("every state without a box score on the page is noindex — pending included", async () => {
+    // pending is a game that went final hours ago whose play-by-play has not
+    // landed. Both link gates already point at it, so ~16 thin "stats arrive
+    // shortly" pages went live to crawlers every Sunday night, on the URLs
+    // that hold the real box score hours later. `follow` and a re-crawl are
+    // what the "it will have content later" difference is for.
+    vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: { ...BUF_HOU_GAME, season: 2025 }, ready: false });
     expect((await meta("2025_01_BUF_HOU")).robots).toEqual({ index: false, follow: true });
-    vi.mocked(getBoxScore).mockResolvedValue({ state: "pending", game: BUF_HOU_GAME, records: RECORDS });
-    expect("robots" in (await meta("2026_01_BUF_HOU"))).toBe(false);
-    vi.mocked(getBoxScore).mockResolvedValue({ state: "not-found" });
+    vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: BUF_HOU_GAME, ready: false });
+    expect((await meta("2026_01_BUF_HOU")).robots).toEqual({ index: false, follow: true });
+  });
+
+  it("unknown id and junk address → not-found title, and junk fires no read", async () => {
+    vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: null, ready: false });
     expect(String((await meta("2026_01_BUF_HOU")).title)).toContain("Game Not Found");
     expect(String((await meta("junk")).title)).toContain("Game Not Found");
+    expect(getBoxScoreMeta).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed metadata read throws, unless there is no database", async () => {
+    vi.mocked(getBoxScoreMeta).mockRejectedValue(new Error("Failed to fetch game 2026_01_BUF_HOU: fetch failed"));
+    await expect(meta("2026_01_BUF_HOU")).rejects.toThrow("Failed to fetch game");
+    vi.mocked(hasNoDatabase).mockReturnValue(true);
+    expect(String((await meta("2026_01_BUF_HOU")).title)).toContain("Game Not Found");
   });
 
   it("home winner is named first", async () => {
-    vi.mocked(getBoxScore).mockResolvedValue({ ...READY, game: { ...BUF_HOU_GAME, away_score: 20, home_score: 27 } });
+    vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: { ...BUF_HOU_GAME, away_score: 20, home_score: 27 }, ready: true });
     expect((await meta("2026_01_BUF_HOU")).title).toBe("Texans 27, Bills 20 — 2026 Week 1 box score");
   });
 
   it("a blank game_type falls back to the week label, never a double space", async () => {
-    vi.mocked(getBoxScore).mockResolvedValue({ ...READY, game: { ...BUF_HOU_GAME, game_type: "" } });
+    vi.mocked(getBoxScoreMeta).mockResolvedValue({ game: { ...BUF_HOU_GAME, game_type: "" }, ready: true });
     const title = String((await meta("2026_01_BUF_HOU")).title);
     expect(title).toBe("Bills 36, Texans 31 — 2026 Week 1 box score");
     expect(title).not.toContain("  ");

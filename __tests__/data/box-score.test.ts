@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase/server", () => ({
       const calls: unknown[][] = [];
       chains.push({ table, calls });
       const builder: Record<string, unknown> = {};
-      for (const m of ["select", "eq", "in", "limit", "order", "or", "range"]) {
+      for (const m of ["select", "eq", "in", "limit", "order", "or", "range", "abortSignal"]) {
         builder[m] = (...a: unknown[]) => {
           calls.push([m, ...a]);
           return builder;
@@ -40,7 +40,9 @@ vi.mock("@/lib/data/queries", () => ({
 }));
 
 import {
+  BOX_SCORE_READ_DEADLINE_MS,
   getBoxScore,
+  getBoxScoreMeta,
   getBoxScoreSeasons,
   getBoxScoreSeasonsCached,
   getGamePlayerLines,
@@ -64,6 +66,41 @@ function wireRow(team: "BUF" | "HOU"): Record<string, unknown> {
 }
 
 const chainsFor = (table: string) => chains.filter((c) => c.table === table);
+const signalsUsed = () =>
+  chains.map((c) => (c.calls.find((call) => call[0] === "abortSignal") ?? [])[1]);
+
+// Transcribed by hand from scripts/ingest.py's TEAM_GAME_STATS_RATE_COLS (17)
+// and TEAM_GAME_STATS_SUM_COLS (3) -- NOT derived from TEAM_GAME_NUMERIC, which
+// is the list under test. wireRow above builds its wire FROM that list, so the
+// one failure this layer can really have (a NUMERIC column missing from it) is
+// unrepresentable there: drop success_rate and wireRow stops stringifying it
+// too, the suite stays green, and the live page renders Success rate as an em
+// dash on all 544 games of a season with nothing logged. This is the guard PR
+// 2's pytest golden gives itself in test_every_stored_column_has_a_golden_value.
+const PR2_NUMERIC = [
+  // TEAM_GAME_STATS_RATE_COLS -- NULL when the denominator is 0
+  "epa_per_play",
+  "success_rate",
+  "first_down_rate",
+  "pass_epa_per_play",
+  "pass_success_rate",
+  "pass_first_down_rate",
+  "rush_epa_per_play",
+  "rush_success_rate",
+  "rush_first_down_rate",
+  "early_epa_per_play",
+  "early_success_rate",
+  "late_epa_per_play",
+  "late_success_rate",
+  "explosive_rate",
+  "yards_per_play",
+  "yards_per_pass",
+  "yards_per_rush",
+  // TEAM_GAME_STATS_SUM_COLS -- EPA sums, 0.0 when the team had no such plays
+  "epa_lost_turnovers",
+  "epa_lost_sacks",
+  "epa_lost_penalties",
+];
 
 beforeEach(() => {
   for (const k of Object.keys(results)) delete results[k];
@@ -140,6 +177,28 @@ describe("getBoxScoreSeasons", () => {
   it("throws on a query error", async () => {
     results.team_game_stats = { data: null, error: { message: "fetch failed" } };
     await expect(getBoxScoreSeasons([2026])).rejects.toThrow("Failed to fetch box score seasons: fetch failed");
+  });
+});
+
+describe("TEAM_GAME_NUMERIC is the DDL's NUMERIC list, checked against an independent copy", () => {
+  it("holds exactly the 20 NUMERIC columns scripts/ingest.py writes", () => {
+    expect([...TEAM_GAME_NUMERIC].sort()).toEqual([...PR2_NUMERIC].sort());
+    expect(PR2_NUMERIC).toHaveLength(20);
+  });
+
+  it("parses every NUMERIC column of a wire row built from the independent list", async () => {
+    const row: Record<string, unknown> = { ...BUF_STATS };
+    for (const col of PR2_NUMERIC) {
+      const v = row[col];
+      row[col] = v === null ? null : String(v);
+    }
+    results.team_game_stats = { data: [row], error: null };
+    const [parsed] = await getTeamGameStats("2026_01_BUF_HOU");
+    const out = parsed as unknown as Record<string, unknown>;
+    for (const col of PR2_NUMERIC) {
+      expect(typeof out[col], col + " is still a string: is it in TEAM_GAME_NUMERIC?").not.toBe("string");
+    }
+    expect(out.epa_per_play).toBeCloseTo(0.278, 6);
   });
 });
 
@@ -257,8 +316,8 @@ describe("getBoxScore", () => {
     expect(out.away.epa_per_play).toBeCloseTo(0.278, 6);
     expect(out.lines.qbs).toHaveLength(1);
     expect(out.lines.players.q1.slug).toBe("josh-allen");
-    expect(getTeamSchedule).toHaveBeenCalledWith("BUF", 2026);
-    expect(getTeamSchedule).toHaveBeenCalledWith("HOU", 2026);
+    expect(getTeamSchedule).toHaveBeenCalledWith("BUF", 2026, expect.any(AbortSignal));
+    expect(getTeamSchedule).toHaveBeenCalledWith("HOU", 2026, expect.any(AbortSignal));
     // No coverage probe was needed.
     expect(chainsFor("team_game_stats")).toHaveLength(1);
     expect(getAvailableSeasons).not.toHaveBeenCalled();
@@ -344,20 +403,37 @@ describe("getBoxScore", () => {
         : calls.some((c) => c[0] === "limit")
           ? { data: [{ game_id: "x" }], error: null }
           : { data: [], error: null };
-    expect(await getBoxScore("2025_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: 2024 });
+    // uncovered is the state; the first covered season is 2024, which is
+    // BEFORE this game, so naming it would print "Box scores start with the
+    // 2024 season" over a 2025 game. null, and the page's neutral heading.
+    expect(await getBoxScore("2025_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: null });
   });
 
-  it("a non-contiguous backfill (2020-2024 and 2026 covered, 2025 not) names the earliest covered season", async () => {
-    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2025_14_PHI_LAC", season: 2025, week: 14, away_team: "PHI", home_team: "LAC", away_score: 19, home_score: 22 });
+  it("a non-contiguous backfill: the gap year names no season, a genuinely older game names 2020", async () => {
+    // 2020-2024 and 2026 covered, 2025 not. "Box scores start with the 2020
+    // season" over a 2025 game is false on its own screen -- 2025 is AFTER
+    // 2020 -- and the only thing a visitor takes from it ("this game is too
+    // old") is wrong. Name a first season only when the game really precedes
+    // it; the page already has a neutral heading for null.
+    const COVERED = [2026, 2024, 2023, 2022, 2021, 2020];
+    const backfill = (calls: unknown[][]) => {
+      const seasonCall = calls.find((c) => c[0] === "eq" && c[1] === "season");
+      const isProbe = seasonCall !== undefined && calls.some((c) => c[0] === "limit");
+      if (!isProbe) return { data: [], error: null };
+      return COVERED.includes(seasonCall![2] as number)
+        ? { data: [{ game_id: "x" }], error: null }
+        : { data: [], error: null };
+    };
     vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025, 2024, 2023, 2022, 2021, 2020]);
-    results.team_game_stats = (calls) =>
-      calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2025)
-        ? { data: [], error: null }
-        : calls.some((c) => c[0] === "limit")
-          ? { data: [{ game_id: "x" }], error: null }
-          : { data: [], error: null };
-    // firstSeason is the earliest covered season; Math.max would answer 2026.
-    expect(await getBoxScore("2025_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: 2020 });
+    results.team_game_stats = backfill;
+
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2025_14_PHI_LAC", season: 2025, week: 14, away_team: "PHI", home_team: "LAC", away_score: 19, home_score: 22 });
+    expect(await getBoxScore("2025_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: null });
+
+    // A 2019 game really is before the backfill, so naming 2020 is true and
+    // useful. firstSeason is the EARLIEST covered season; Math.max would say 2026.
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2019_14_PHI_LAC", season: 2019, week: 14, away_team: "PHI", home_team: "LAC", away_score: 19, home_score: 22 });
+    expect(await getBoxScore("2019_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: 2020 });
   });
 
   it("a season newer than every covered one → pending (the ingest has not reached it yet)", async () => {
@@ -368,6 +444,24 @@ describe("getBoxScore", () => {
         ? { data: [{ game_id: "x" }], error: null }
         : { data: [], error: null };
     expect((await getBoxScore("2027_01_BUF_HOU")).state).toBe("pending");
+  });
+
+  it("logs a half-written game instead of silently promising stats that are not coming", async () => {
+    // The ingest upserts both teams together, so ONE row means the aggregation
+    // already ran and produced something corrupt (or a team id no longer
+    // matches after a relocation). The page then says "stats arrive ... within
+    // a few hours" forever, and nothing anywhere records why.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "limit")
+        ? { data: [{ game_id: "x" }], error: null }
+        : { data: [wireRow("BUF")], error: null };
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("pending");
+    const logged = warn.mock.calls.map((c) => c.join(" ")).join(" | ");
+    expect(logged).toContain("2026_01_BUF_HOU");
+    expect(logged).toContain("HOU");
+    warn.mockRestore();
   });
 
   it("playoff game → uncovered / playoffs with the regular-season records", async () => {
@@ -494,6 +588,35 @@ describe("getBoxScoreSeasonsCached — the link gate's hourly memo", () => {
     expect(chainsFor("team_game_stats")).toHaveLength(2);
   });
 
+  it("de-duplicates concurrent misses: 20 cold views cost one probe per season, not 20", async () => {
+    // The value was awaited and only THEN stored, deliberately, so a rejection
+    // could never be memoised -- right goal, wrong mechanism. Nothing was
+    // recorded while the probe was in flight, so every request arriving in
+    // that window was a miss and fired its own seasons.length parallel
+    // limit(1) queries: on a cold lambda, or at the instant the hour rolls
+    // over, 20 concurrent team-page views cost 20 x 7 = 140 PostgREST requests
+    // for 7 answers, on the route the memo exists to make cheap.
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    const all = await Promise.all(
+      Array.from({ length: 20 }, () => getBoxScoreSeasonsCached([2026, 2025]))
+    );
+    expect(chainsFor("team_game_stats")).toHaveLength(2);
+    for (const a of all) expect(a).toEqual([2026, 2025]);
+    // ...and every caller still gets its own copy, in flight or not.
+    expect(all[0]).not.toBe(all[1]);
+  });
+
+  it("deletes an in-flight entry that rejects, so a rejection is still never memoised", async () => {
+    results.team_game_stats = { data: null, error: { message: "fetch failed" } };
+    const settled = await Promise.allSettled([
+      getBoxScoreSeasonsCached([2022]),
+      getBoxScoreSeasonsCached([2022]),
+    ]);
+    expect(settled.map((s) => s.status)).toEqual(["rejected", "rejected"]);
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    expect(await getBoxScoreSeasonsCached([2022])).toEqual([2022]);
+  });
+
   it("is not used by getBoxScore's own pending-vs-uncovered probe", async () => {
     // Memoise "2026 is covered", then take the rows away. getBoxScore's own
     // probe has to read live: were it memoised it would answer "pending".
@@ -506,5 +629,142 @@ describe("getBoxScoreSeasonsCached — the link gate's hourly memo", () => {
       "none has a team_game_stats row"
     );
     expect(chainsFor("team_game_stats").length).toBeGreaterThan(1);
+  });
+});
+
+describe("read deadlines -- a slow database must reach error.tsx, not a Vercel 504", () => {
+  it("gives every read of one box score the same deadline", async () => {
+    // Nothing on this page had one. A `ready` view is 8 PostgREST requests in
+    // 4 serial waves and there is deliberately no loading.tsx, so TTFB IS the
+    // whole chain: a merely slow Supabase (not a failed one) ran past the
+    // function limit and the invocation was killed. error.tsx only catches
+    // throws from INSIDE the invocation, so the one failure mode this PR built
+    // an error boundary for was the one it could not see.
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = { data: [wireRow("HOU"), wireRow("BUF")], error: null };
+    results.qb_weekly_stats = { data: [{ player_id: "q1", team_id: "BUF" }], error: null };
+    results.player_slugs = { data: [], error: null };
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("ready");
+
+    const signals = signalsUsed();
+    expect(signals.length).toBeGreaterThan(3);
+    for (const s of signals) expect(s).toBeInstanceOf(AbortSignal);
+    // ONE budget for the whole assembly, not one per request: the chain is 4
+    // serial waves, so per-request deadlines multiply and 4 x the budget is
+    // exactly what overruns the platform limit.
+    expect(new Set(signals).size).toBe(1);
+    // The two reads that live in lib/data/games.ts are on the same critical
+    // path (waves 1 and 2) and take the same deadline.
+    expect(getGame).toHaveBeenCalledWith("2026_01_BUF_HOU", signals[0]);
+    expect(getTeamSchedule).toHaveBeenCalledWith("BUF", 2026, signals[0]);
+  });
+
+  it("turns a read past the deadline into a thrown error, never a hang", async () => {
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    // supabase-js turns an aborted fetch into a PostgREST-shaped error rather
+    // than a rejection (postgrest-js, PostgrestBuilder.then's catch), so this
+    // is exactly what a timed-out read looks like from here. The existing
+    // rethrow in the page then hands it to error.tsx.
+    results.team_game_stats = {
+      data: null,
+      error: { message: "TimeoutError: The operation was aborted due to timeout" },
+    };
+    await expect(getBoxScore("2026_01_BUF_HOU")).rejects.toThrow("The operation was aborted");
+  });
+
+  it("budgets the assembly comfortably inside Vercel's default function limit", () => {
+    // Vercel's Node default is 10s (Hobby) / 15s (Pro). The budget has to leave
+    // room for cold start, render and response on top of it.
+    expect(BOX_SCORE_READ_DEADLINE_MS).toBeGreaterThanOrEqual(3000);
+    expect(BOX_SCORE_READ_DEADLINE_MS).toBeLessThanOrEqual(6000);
+  });
+
+  it("gives the link gate's own probe a deadline too", async () => {
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    await getBoxScoreSeasons([2026, 2025]);
+    const signals = signalsUsed();
+    expect(signals).toHaveLength(2);
+    for (const s of signals) expect(s).toBeInstanceOf(AbortSignal);
+  });
+});
+
+describe("getBoxScoreMeta -- the cheap path generateMetadata needs", () => {
+  it("reads the games row and the stat rows, and nothing else", async () => {
+    // generateMetadata only ever used the `games` row and the coverage verdict,
+    // yet it paid for both team schedules, both stat rows, three weekly tables
+    // and player_slugs -- the whole 8-request assembly, a second time, on a
+    // route that renders per request.
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = { data: [wireRow("HOU"), wireRow("BUF")], error: null };
+    expect(await getBoxScoreMeta("2026_01_BUF_HOU")).toEqual({ game: BUF_HOU_GAME, ready: true });
+    expect(getTeamSchedule).not.toHaveBeenCalled();
+    expect(getAvailableSeasons).not.toHaveBeenCalled();
+    expect(chains.map((c) => c.table)).toEqual(["team_game_stats"]);
+    expect(getGame).toHaveBeenCalledWith("2026_01_BUF_HOU", expect.any(AbortSignal));
+  });
+
+  it("has no page for an unknown id, an unplayed game, or a team playing itself", async () => {
+    vi.mocked(getGame).mockResolvedValue(null);
+    expect(await getBoxScoreMeta("2026_01_BUF_HOU")).toEqual({ game: null, ready: false });
+    expect(chains).toHaveLength(0);
+
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, home_score: null });
+    expect(await getBoxScoreMeta("2026_01_BUF_HOU")).toEqual({ game: null, ready: false });
+
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, home_team: "BUF" });
+    expect(await getBoxScoreMeta("2026_01_BUF_HOU")).toEqual({ game: null, ready: false });
+    expect(chains).toHaveLength(0);
+  });
+
+  it("is not ready for a playoff game, and asks the database nothing more about it", async () => {
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2026_19_BUF_HOU", game_type: "WC", week: 19 });
+    const meta = await getBoxScoreMeta("2026_19_BUF_HOU");
+    expect(meta.ready).toBe(false);
+    expect(meta.game).not.toBeNull();
+    expect(chains).toHaveLength(0);
+  });
+
+  it("is not ready when a team's row is missing -- pending and uncovered are both noindex", async () => {
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = { data: [wireRow("BUF")], error: null };
+    expect(await getBoxScoreMeta("2026_01_BUF_HOU")).toMatchObject({ ready: false });
+    results.team_game_stats = { data: [], error: null };
+    expect(await getBoxScoreMeta("2026_01_BUF_HOU")).toMatchObject({ ready: false });
+  });
+
+  it("answers the same question getBoxScore answers, so the two cannot drift", async () => {
+    // Two implementations of "does this address have a page, and is it ready?"
+    // is how a cheap path goes wrong. Same inputs, same verdict.
+    const ready = () => {
+      vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+      results.team_game_stats = (calls) =>
+        calls.some((c) => c[0] === "limit")
+          ? { data: [{ game_id: "2026_01_BUF_HOU" }], error: null }
+          : { data: [wireRow("HOU"), wireRow("BUF")], error: null };
+      results.qb_weekly_stats = { data: [], error: null };
+    };
+    ready();
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("ready");
+    expect((await getBoxScoreMeta("2026_01_BUF_HOU")).ready).toBe(true);
+
+    // pending: the season has rows, this game's are not written yet.
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "limit")
+        ? { data: [{ game_id: "2026_01_NE_SEA" }], error: null }
+        : { data: [], error: null };
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("pending");
+    expect((await getBoxScoreMeta("2026_01_BUF_HOU")).ready).toBe(false);
+
+    // no page at all
+    vi.mocked(getGame).mockResolvedValue(null);
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("not-found");
+    expect((await getBoxScoreMeta("2026_01_BUF_HOU")).game).toBeNull();
+  });
+
+  it("throws on a failed read, exactly as getBoxScore does", async () => {
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = { data: null, error: { message: "fetch failed" } };
+    await expect(getBoxScoreMeta("2026_01_BUF_HOU")).rejects.toThrow("Failed to fetch team game stats");
   });
 });

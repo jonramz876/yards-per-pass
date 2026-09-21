@@ -14,7 +14,7 @@ import type {
   TeamGame,
   TeamGameStat,
 } from "@/lib/types";
-import { EM_DASH, epaTextColor } from "@/lib/stats/formatters";
+import { EM_DASH, epaLeaderboardColor, epaTextColor } from "@/lib/stats/formatters";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 
 /* ─── Numbers ─── */
@@ -72,12 +72,38 @@ export function fmtClock(seconds: number | null | undefined): string {
 }
 
 /**
- * Tailwind text colour for an EPA cell at the site's thresholds (≥ +0.02
+ * Tailwind text colour for a TEAM EPA cell at the site's thresholds (≥ +0.02
  * green, ≥ −0.02 amber, else red). null / NaN → grey, never amber:
  * epaTextColor guards isNaN only, and isNaN(null) is false (spec §6).
+ *
+ * The ±0.02 band is calibrated to a team's EPA/play, which is what
+ * epaTextColor is used for elsewhere on the site
+ * (components/team/SituationalDashboard.tsx). The box score's comparison rows
+ * shade the better side rather than colouring the number, so nothing on this
+ * page reads it today; player cells take epaPlayerCellClass below.
  */
 export function epaCellClass(v: number | null | undefined): string {
   return isNum(v) ? epaTextColor(v) : "text-gray-400";
+}
+
+/**
+ * Tailwind text colour for a PLAYER EPA cell — EPA/DB, EPA/CAR, EPA/TGT.
+ *
+ * A plain sign split (epaLeaderboardColor), which is what every other player
+ * table on this site uses: QBLeaderboard, RBLeaderboard and
+ * ReceiverLeaderboard. Through epaCellClass the box score used the team band
+ * instead, so James Cook's −0.01 EPA/CAR printed amber here and red on the RB
+ * leaderboard — the site disagreeing with itself about one player's one
+ * number. The band is also calibrated to the wrong baseline for two of the
+ * three columns (league-average EPA/carry is about −0.10, EPA/target is
+ * positive), so it called a better-than-average carry bad and a
+ * worse-than-average target good.
+ *
+ * The null / NaN → grey guard stays HERE: epaLeaderboardColor has none of its
+ * own, and it is a spec §6 requirement (a dashed cell is grey, never amber).
+ */
+export function epaPlayerCellClass(v: number | null | undefined): string {
+  return isNum(v) ? epaLeaderboardColor(v) : "text-gray-400";
 }
 
 /* ─── Game identity: the one rule per `games` column ─── */
@@ -127,14 +153,22 @@ export interface WinLossTie {
 
 /**
  * A team's record through `week` of one regular season, counted from its
- * `games` rows: played REG games with a week at or before `week`. Playoff
- * rows and later weeks are ignored, so a playoff game shows the full
- * regular-season record.
+ * `games` rows: played REG games with a week from 1 to `week`. Playoff rows
+ * and later weeks are ignored, so a playoff game shows the full regular-season
+ * record.
+ *
+ * `g.week < 1` is the clause that matters in production. toTeamGame
+ * (lib/data/games.ts) coalesces a NULL week to 0 on purpose — throwing there
+ * would take a whole team hub down — so by the time a schedule reaches here a
+ * corrupt week is 0, not null: isNum(0) is true and 0 > week is false for
+ * every week, and the row was counted into the record printed in the
+ * scoreboard band of every box score page of that season, on both a week-1 and
+ * a week-18 game. `!isNum(g.week)` only ever fires for a non-numeric week.
  */
 export function recordThroughWeek(schedule: TeamGame[], week: number): WinLossTie {
   const rec: WinLossTie = { wins: 0, losses: 0, ties: 0 };
   for (const g of schedule ?? []) {
-    if (!g || normalizeGameType(g.game_type) !== "REG" || !g.played || !isNum(g.week) || g.week > week) continue;
+    if (!g || normalizeGameType(g.game_type) !== "REG" || !g.played || !isNum(g.week) || g.week < 1 || g.week > week) continue;
     if (g.result === "W") rec.wins += 1;
     else if (g.result === "L") rec.losses += 1;
     else if (g.result === "T") rec.ties += 1;
@@ -563,9 +597,19 @@ export function buildComparison(away: TeamGameStat, home: TeamGameStat): Compari
 
 /* ─── On-page notes (spec §12: things that look odd on purpose) ─── */
 
-/** Legend above the first section; the page renders the "Shaded" chip before it. */
+/**
+ * Legend above the FIRST section, rendered once for all four; the page puts
+ * the "Shaded" chip before it.
+ *
+ * The play-filter sentence names its sections because it is not true of all of
+ * them: Efficiency, What it cost them and Early vs late downs come from the
+ * nflfastR/rbsdm set, while Team stats is raw play-by-play under the official
+ * box-score conventions (spec §4's "Traditional set"). Unscoped, it sat over
+ * the one section it was false of — and over the one a reader most needs it to
+ * be right about, since Team stats is where the second play count lives.
+ */
 export const LEGEND_TEXT =
-  "= the better side of each row. Rows with no clear \u201cbetter\u201d (plays, drives, attempts, penalties, possession) aren\u2019t shaded. These numbers use the nflfastR/rbsdm play filter, so a team\u2019s EPA/play here can differ from its season figure on the team pages.";
+  "= the better side of each row. Rows with no clear \u201cbetter\u201d (plays, drives, attempts, penalties, possession) aren\u2019t shaded. Efficiency, What it cost them and Early vs late downs use the nflfastR/rbsdm play filter, so a team\u2019s EPA/play here can differ from its season figure on the team pages; Team stats follows the official box-score conventions instead.";
 
 export const STRIP_SACK_NOTE = "A strip-sack counts in both the sack row and the turnover row.";
 
@@ -573,18 +617,44 @@ export const STRIP_SACK_NOTE = "A strip-sack counts in both the sack row and the
  * "Why the play counts differ", worded from this game's own numbers: the
  * efficiency plays, the official total plays, and rush plays beside rushing
  * attempts. Illustrated with the team whose counts differ (away first).
+ *
+ * Only the clauses that are TRUE of that team are emitted, and "" when neither
+ * count differs for either team (the page drops a falsy footnote). The two
+ * play counts move in opposite directions — a kneel pushes the official total
+ * above the efficiency count, a penalty-wiped or 2-point row pushes the
+ * efficiency count above the official total — so a game with one of each lands
+ * on plays === total_plays while the rushing halves still differ. Asserting
+ * both clauses whenever either differed printed "BUF has 52 plays there and 52
+ * in the official total above": a note whose whole job is "these look like
+ * bugs but aren't", pointing at two identical numbers.
+ *
+ * A difference it cannot print is not a difference either: both values must be
+ * numbers, or the sentence reads "BUF has — plays there".
  */
 export function playCountNote(away: TeamGameStat, home: TeamGameStat): string {
-  const pick =
-    [away, home].find((t) => t.plays !== t.total_plays || t.rushing_attempts !== t.rush_plays) ?? away;
+  const differs = (a: number | null | undefined, b: number | null | undefined) =>
+    isNum(a) && isNum(b) && a !== b;
+  const playsDiffer = (t: TeamGameStat) => differs(t.plays, t.total_plays);
+  const rushDiffers = (t: TeamGameStat) => differs(t.rushing_attempts, t.rush_plays);
+  const pick = [away, home].find((t) => playsDiffer(t) || rushDiffers(t));
+  if (!pick) return "";
   const id = pick.team_id;
-  return (
+  const lead =
     `Efficiency counts every run and dropback the way nflfastR and rbsdm.com do, including sacks, scrambles, ` +
-    `plays wiped out by penalties and 2-point tries, so ${id} has ${fmtInt(pick.plays)} plays there and ` +
-    `${fmtInt(pick.total_plays)} in the official total above. Rushing attempts count kneel-downs and QB scrambles, ` +
-    `while rush plays are the designed runs in that efficiency set, which is why ${id} shows ` +
-    `${fmtInt(pick.rushing_attempts)} attempts and ${fmtInt(pick.rush_plays)} rush plays.`
-  );
+    `plays wiped out by penalties and 2-point tries`;
+  const parts = [
+    playsDiffer(pick)
+      ? `${lead}, so ${id} has ${fmtInt(pick.plays)} plays there and ${fmtInt(pick.total_plays)} in the official total above.`
+      : `${lead}.`,
+  ];
+  if (rushDiffers(pick)) {
+    parts.push(
+      `Rushing attempts count kneel-downs and QB scrambles, while rush plays are the designed runs in ` +
+        `that efficiency set, which is why ${id} shows ${fmtInt(pick.rushing_attempts)} attempts and ` +
+        `${fmtInt(pick.rush_plays)} rush plays.`
+    );
+  }
+  return parts.join(" ");
 }
 
 /**
@@ -592,6 +662,14 @@ export function playCountNote(away: TeamGameStat, home: TeamGameStat): string {
  * team's QB passing yards minus its receivers' yards, when positive, is the
  * yardage no receiver was credited with (a lateral, or a catch by a player
  * outside the receiving positions). Always ends with the rushing-table half.
+ *
+ * It opens with the TGT% denominator, which spec §5 flags in bold as a trap:
+ * team_targets counts throws with a receiver charged (ingest.py's
+ * _team_game_targets — pass_attempt, a receiver, no sack, no scramble, no
+ * 2-point try), so it is 28 for BUF where Team stats reads Comp/Att 20/29 and
+ * the site's own "Tgt Share" definition would send a reader to 6/29. Phrased
+ * "can differ": a game where every attempt had a receiver has no gap to
+ * explain, and a note must never assert a difference that is not there.
  */
 export function receivingNote(lines: GamePlayerLines, awayId: string, homeId: string): string {
   const gaps: string[] = [];
@@ -610,9 +688,12 @@ export function receivingNote(lines: GamePlayerLines, awayId: string, homeId: st
         `(yards after a lateral, or a catch by a lineman or quarterback)`
     );
   }
+  const targets =
+    `TGT% is a share of the team targets above \u2014 the throws charged to a receiver \u2014 not of the ` +
+    `pass attempts in Team stats, so the two counts can differ.`;
   const lead =
     gaps.length > 0 ? `${gaps.join("; ")}, and runs` : "Yards gained after a lateral belong to no receiver, and runs";
-  return `${lead} by receivers and kneel-downs don\u2019t appear in the rushing table.`;
+  return `${targets} ${lead} by receivers and kneel-downs don\u2019t appear in the rushing table.`;
 }
 
 /* ─── Player tables (type A: one table per stat type, both teams inside) ─── */

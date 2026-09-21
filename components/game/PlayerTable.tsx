@@ -2,11 +2,11 @@
 // spec §6): a PASSING / RUSHING / RECEIVING band, a sub-header row per team
 // (team-colour square + abbreviation, "· 28 team targets" on Receiving), the
 // away team's rows first. Names link to player pages with a small grey
-// position tag; EPA cells take the site's colour thresholds with null / NaN
+// position tag; EPA cells take the leaderboards' colour rule with null / NaN
 // in grey. The table scrolls sideways in its own container on phones.
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
-import { epaCellClass, type PlayerTableModel } from "@/lib/stats/box-score";
+import { epaPlayerCellClass, type PlayerTableModel } from "@/lib/stats/box-score";
 
 const PIXEL = "font-[family-name:var(--font-pixel)]";
 const PANEL_BG = "#0f172a";
@@ -85,7 +85,7 @@ export default function PlayerTable({ model, footnote }: PlayerTableProps) {
                       <td
                         key={model.columns[i + 1] ?? i}
                         className={`whitespace-nowrap px-2.5 py-1.5 text-right ${
-                          "epa" in cell ? epaCellClass(cell.epa) : "text-gray-900"
+                          "epa" in cell ? epaPlayerCellClass(cell.epa) : "text-gray-900"
                         }`}
                       >
                         {cell.text}

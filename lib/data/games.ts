@@ -155,19 +155,25 @@ function toTeamGame(row: GameRow, teamId: string): TeamGame {
  */
 export async function getTeamSchedule(
   teamId: string,
-  season: number
+  season: number,
+  signal?: AbortSignal
 ): Promise<TeamGame[]> {
   const supabase = createServerClient();
   // .or() takes a raw PostgREST filter string, so the id is interpolated, not
   // bound — team codes are alphanumeric, and anything else is stripped.
   const safeId = teamId.replace(/[^A-Za-z0-9]/g, "");
-  const { data, error } = await supabase
+  const query = supabase
     .from("games")
     .select("*")
     .eq("season", season)
     .or(`home_team.eq.${safeId},away_team.eq.${safeId}`)
     .order("week", { ascending: true })
     .order("gameday", { ascending: true });
+  // Optional, never a default: the box score page is 8 PostgREST requests in 4
+  // serial waves and hands this one its own assembly deadline, while the team
+  // hub keeps exactly the behaviour it had (lib/data/box-score.ts,
+  // BOX_SCORE_READ_DEADLINE_MS).
+  const { data, error } = await (signal ? query.abortSignal(signal) : query);
 
   if (error) throw new Error(`Failed to fetch schedule: ${error.message}`);
   if (!data) return [];
@@ -258,9 +264,11 @@ export interface GameRecord {
  * Throws on a query error (box score spec §6: a failed read must not render
  * as "not found").
  */
-export async function getGame(gameId: string): Promise<GameRecord | null> {
+export async function getGame(gameId: string, signal?: AbortSignal): Promise<GameRecord | null> {
   const supabase = createServerClient();
-  const { data, error } = await supabase.from("games").select("*").eq("game_id", gameId).limit(1);
+  const query = supabase.from("games").select("*").eq("game_id", gameId).limit(1);
+  // Optional deadline; see getTeamSchedule above.
+  const { data, error } = await (signal ? query.abortSignal(signal) : query);
   if (error) throw new Error(`Failed to fetch game ${gameId}: ${error.message}`);
   const row = ((data ?? []) as unknown as GameRow[])[0];
   if (!row) return null;
@@ -281,9 +289,13 @@ export async function getGame(gameId: string): Promise<GameRecord | null> {
 
 /**
  * Ids of every played regular-season game of one season (both scores
- * present), for the sitemap's box score URLs. Paginated with fetchAllRows:
- * one season is 272 rows, under the 1000-row cap, but the helper costs
- * nothing and keeps this safe if it is ever called across seasons.
+ * present), for the sitemap's box score URLs. Read through fetchAllRows, but
+ * it is one season — 272 rows, under the 1000-row cap — so it never actually
+ * paginates, and that is the only reason this is safe. fetchAllRows pages with
+ * .range() and NO .order(), and Postgres does not promise a stable row order
+ * between two unordered scans (synchronize_seqscans is on by default), so a
+ * call that really did paginate could duplicate and skip rows. Do not reuse
+ * this across seasons without giving the helper an .order() first.
  *
  * Rejects with fetchAllRows' raw PostgREST object rather than an Error, like
  * every other caller of that helper. A handler must therefore use a bare

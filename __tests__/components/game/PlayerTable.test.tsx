@@ -33,7 +33,9 @@ describe("PlayerTable", () => {
     expect(cook.querySelector("a")?.textContent).toBe("James Cook");
     expect(cook.querySelector("td")?.textContent).toBe("James CookRB");
     expect(Array.from(cook.querySelectorAll("td")).slice(1).map((td) => td.textContent)).toEqual(["13", "57", "0", "4.4", `${M}0.01`, "38%"]);
-    expect(cook.querySelectorAll("td")[5].className).toContain("text-amber-600");
+    // The leaderboards' sign split, not the team band: Cook's −0.01 EPA/CAR
+    // is red here and red on the RB leaderboard.
+    expect(cook.querySelectorAll("td")[5].className).toContain("text-red-600");
     expect(cook.querySelectorAll("td")[1].className).toContain("text-gray-900");
     const allen = container.querySelector('[data-player-id="00-0034857"]')!;
     expect(allen.querySelectorAll("td")[5].className).toContain("text-red-600");
@@ -60,13 +62,16 @@ describe("PlayerTable", () => {
     expect(container.querySelector("[data-empty-team]")?.textContent).toBe("No passing line for BUF");
   });
 
-  // Spec §11: a null EPA renders grey, not amber. epaCellClass(null) is pinned
-  // in the stats test, but the wiring that decides whether it is called at all
-  // — `"epa" in cell ? epaCellClass(cell.epa) : "text-gray-900"` — was only
-  // ever exercised with real numbers, so changing it to `cell.epa != null ? …`
-  // would render a null EPA in near-black with nothing failing. Same class as
-  // the 2026-09-11 crash the spec names.
-  it("renders a null or NaN EPA grey, never amber and never near-black", () => {
+  // Spec §11: a null EPA renders grey, not amber. epaPlayerCellClass(null) is
+  // pinned in the stats test, but the wiring that decides whether it is called
+  // at all — `"epa" in cell ? epaPlayerCellClass(cell.epa) : "text-gray-900"` —
+  // was only ever exercised with real numbers, so changing it to
+  // `cell.epa != null ? …` would render a null EPA in near-black with nothing
+  // failing. Same class as the 2026-09-11 crash the spec names.
+  //
+  // The real-number case is the leaderboards' colour now, not the team band's:
+  // −0.01 is red here exactly as it is on the RB leaderboard.
+  it("renders a null or NaN EPA grey, and a real one in the leaderboards' colour", () => {
     const row = (id: string, name: string, epaCell: PlayerCell, ypc: string) => ({
       player_id: id, name, position: "RB", slug: null,
       cells: [{ text: "13" }, { text: "57" }, { text: "0" }, { text: ypc }, epaCell, { text: "38%" }] as PlayerCell[],
@@ -91,7 +96,8 @@ describe("PlayerTable", () => {
       expect(epaClass(id), id).not.toContain("amber");
       expect(epaClass(id), id).not.toContain("text-gray-900");
     }
-    expect(epaClass("p-real")).toContain("text-amber-600");
+    expect(epaClass("p-real")).toContain("text-red-600");
+    expect(epaClass("p-real")).not.toContain("amber");
     // This model carries the numeric cells the guard below needs; it used to
     // run against two empty teams, where no formatting path could produce the
     // words it looks for.

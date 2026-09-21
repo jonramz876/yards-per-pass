@@ -10,6 +10,7 @@ import {
   fmtPair,
   fmtClock,
   epaCellClass,
+  epaPlayerCellClass,
   recordThroughWeek,
   formatRecord,
   formatGameDate,
@@ -28,6 +29,7 @@ import {
   buildReceivingTable,
   type ComparisonRow,
 } from "@/lib/stats/box-score";
+import { epaLeaderboardColor } from "@/lib/stats/formatters";
 import type { GamePlayerLines, TeamGame, TeamGameStat } from "@/lib/types";
 import {
   BUF_HOU_GAME,
@@ -94,6 +96,25 @@ describe("number formatting", () => {
     expect(epaCellClass(NaN)).toBe("text-gray-400");
     expect(epaCellClass(undefined)).toBe("text-gray-400");
   });
+
+  it("colours a PLAYER EPA cell the way every other player table on the site does", () => {
+    // epaCellClass wraps epaTextColor's +/-0.02 neutral band -- the right
+    // reference for a team's EPA/play, the wrong one for a player. James
+    // Cook's -0.01 EPA/CAR printed amber here and red on the RB leaderboard,
+    // which uses epaLeaderboardColor. Keep the null/NaN grey guard:
+    // epaLeaderboardColor has none of its own, and isNaN(null) is false.
+    expect(epaPlayerCellClass(0.56)).toBe("text-green-600");
+    expect(epaPlayerCellClass(-0.01)).toBe("text-red-600");
+    expect(epaPlayerCellClass(-0.46)).toBe("text-red-600");
+    expect(epaPlayerCellClass(0)).toBe("text-gray-700");
+    expect(epaPlayerCellClass(null)).toBe("text-gray-400");
+    expect(epaPlayerCellClass(NaN)).toBe("text-gray-400");
+    expect(epaPlayerCellClass(undefined)).toBe("text-gray-400");
+    // ...and it is the leaderboards' own rule, not a second copy of it.
+    for (const v of [-0.46, -0.01, 0, 0.09, 0.56]) {
+      expect(epaPlayerCellClass(v)).toBe(epaLeaderboardColor(v));
+    }
+  });
 });
 
 describe("records from the schedule (spec §6)", () => {
@@ -112,6 +133,18 @@ describe("records from the schedule (spec §6)", () => {
     expect(recordThroughWeek(all, 2)).toEqual({ wins: 1, losses: 1, ties: 0 });
     expect(recordThroughWeek(all, 19)).toEqual({ wins: 1, losses: 1, ties: 1 });
     expect(recordThroughWeek([], 5)).toEqual({ wins: 0, losses: 0, ties: 0 });
+  });
+
+  it("ignores a week-0 row, which is what toTeamGame makes of a NULL week", () => {
+    // lib/data/games.ts coalesces a NULL week to 0 on purpose (throwing there
+    // would take a team hub down), so the guard written for a corrupt week --
+    // !isNum(g.week) -- could never see one: isNum(0) is true and 0 > week is
+    // false for every week, so the row was counted into the record shown on
+    // every box score page of that season.
+    const [wk1] = scheduleFor("BUF");
+    const week0: TeamGame = { ...wk1, game_id: "2026_00_BUF_XXX", week: 0, played: true, result: "L" };
+    expect(recordThroughWeek([wk1, week0], 1)).toEqual({ wins: 1, losses: 0, ties: 0 });
+    expect(recordThroughWeek([wk1, week0], 18)).toEqual({ wins: 1, losses: 0, ties: 0 });
   });
 
   it("formats the ties leg only when there is one", () => {
@@ -520,6 +553,26 @@ describe("printed value and shaded side always agree (property)", () => {
 });
 
 describe("on-page notes (spec §12) come from the game's own numbers", () => {
+  it("scopes the legend's play-filter sentence to the sections it is true of", () => {
+    // The legend renders ONCE, above all four sections. "These numbers use the
+    // nflfastR/rbsdm play filter" is true of Efficiency, What it cost them and
+    // Early vs late downs, and false of Team stats, which is raw play-by-play
+    // under the official box-score conventions (spec section 4's "Traditional
+    // set") -- the very section a reader is most likely to read it against,
+    // since that is where the second play count lives.
+    expect(LEGEND_TEXT).not.toContain("These numbers use");
+    expect(LEGEND_TEXT).toContain(
+      "Efficiency, What it cost them and Early vs late downs use the nflfastR/rbsdm play filter"
+    );
+    expect(LEGEND_TEXT).toContain("Team stats follows the official box-score conventions");
+    expect(LEGEND_TEXT).toContain("team pages");
+    // Every section it names is a section the page actually renders, so
+    // renaming one cannot leave the legend describing a heading that is gone.
+    for (const title of buildComparison(BUF_STATS, HOU_STATS).map((s) => s.title)) {
+      expect(LEGEND_TEXT, `the legend does not name the "${title}" section`).toContain(title);
+    }
+  });
+
   it("explains the three play counts with the away team's figures", () => {
     const note = playCountNote(BUF_STATS, HOU_STATS);
     expect(note).toContain("so BUF has 56 plays there and 52 in the official total above");
@@ -529,6 +582,52 @@ describe("on-page notes (spec §12) come from the game's own numbers", () => {
   it("picks the team whose counts differ when the away team's match", () => {
     const away = teamRow({ plays: 52, rush_plays: 21 });
     expect(playCountNote(away, HOU_STATS)).toContain("HOU has 79 plays there and 73");
+  });
+
+  it("emits only the clause that is true when one count matches and the other does not", () => {
+    // plays and total_plays move in opposite directions (a kneel pushes the
+    // official total up, a penalty-wiped or 2-point row pushes the efficiency
+    // count up), so a game with one of each cancels while the rushing halves
+    // still differ. The note used to assert BOTH clauses whenever EITHER
+    // differed, printing "BUF has 52 plays there and 52 in the official total
+    // above" -- a note whose whole job is "these look like bugs but aren't"
+    // pointing at two identical numbers.
+    const evenPlays = teamRow({ plays: 52, total_plays: 52, rushing_attempts: 21, rush_plays: 19 });
+    const a = playCountNote(evenPlays, HOU_STATS);
+    expect(a).not.toContain("52 in the official total above");
+    expect(a).not.toContain("plays there");
+    expect(a).toContain("shows 21 attempts and 19 rush plays");
+
+    const evenRush = teamRow({ plays: 56, total_plays: 52, rushing_attempts: 19, rush_plays: 19 });
+    const b = playCountNote(evenRush, HOU_STATS);
+    expect(b).toContain("BUF has 56 plays there and 52 in the official total above");
+    expect(b).not.toContain("rush plays");
+  });
+
+  it("says nothing at all when neither count differs for either team", () => {
+    const away = teamRow({ plays: 52, total_plays: 52, rushing_attempts: 19, rush_plays: 19 });
+    const home = teamRow({ team_id: "HOU", plays: 73, total_plays: 73, rushing_attempts: 31, rush_plays: 31 });
+    expect(playCountNote(away, home)).toBe("");
+  });
+
+  it("claims no difference it cannot print: a null count is not a difference", () => {
+    const away = teamRow({ plays: null as unknown as number, total_plays: 52, rushing_attempts: 21, rush_plays: 19 });
+    const note = playCountNote(away, HOU_STATS);
+    expect(note).not.toContain("plays there");
+    expect(note).not.toContain(DASH);
+    expect(note).toContain("shows 21 attempts and 19 rush plays");
+  });
+
+  it("names the TGT% denominator, which is not the pass attempts in Team stats", () => {
+    // Spec section 5 flags this in bold: team_targets is 28 for BUF where
+    // Comp/Att reads 20/29, and the site's own "Tgt Share" definition sent a
+    // reader to 6/29 for a cell the page computes as 6/28.
+    const note = receivingNote(BUF_HOU_LINES, "BUF", "HOU");
+    expect(note).toContain("TGT%");
+    expect(note).toMatch(/team targets/);
+    expect(note).toContain("pass attempts");
+    // ...phrased so it never asserts a gap a particular game may not have.
+    expect(note).toContain("can differ");
   });
 
   it("names the uncredited passing yards (Allen's lateral) and the rushing-table gap", () => {
@@ -541,7 +640,9 @@ describe("on-page notes (spec §12) come from the game's own numbers", () => {
   it("falls back to a generic sentence when every yard is credited", () => {
     const lines: GamePlayerLines = { ...BUF_HOU_LINES, qbs: [qb(ALLEN, "BUF", { passing_yards: 324 })] };
     expect(receivingNote(lines, "BUF", "HOU")).toBe(
-      "Yards gained after a lateral belong to no receiver, and runs by receivers and kneel-downs don\u2019t appear in the rushing table."
+      "TGT% is a share of the team targets above \u2014 the throws charged to a receiver \u2014 not of " +
+        "the pass attempts in Team stats, so the two counts can differ. Yards gained after a lateral " +
+        "belong to no receiver, and runs by receivers and kneel-downs don\u2019t appear in the rushing table."
     );
   });
 
