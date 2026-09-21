@@ -72,8 +72,8 @@ export interface GameRecords {
  * Everything the page needs, in one of five states (spec §6):
  * - not-found: no such game id
  * - unplayed: scheduled, no final score yet (the page 404s; nothing links to it)
- * - uncovered: played, but no box score will come — a season before the
- *   first covered one (2020–2025 until the backfill) or a playoff game
+ * - uncovered: played, but no box score will come — a season with no rows of
+ *   its own, older than the newest covered one (2020–2025 until the backfill), or a playoff game
  * - pending: played in a covered season, team_game_stats rows not written yet
  * - ready: both teams' rows and the player lines
  */
@@ -224,6 +224,13 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
   const away = statRows.find((r) => r.team_id === game.away_team);
   const home = statRows.find((r) => r.team_id === game.home_team);
   if (!away || !home) {
+    // Does this game's own season have box scores at all? One limit(1) probe
+    // settles the common case — a covered season whose rows for this game are
+    // not written yet, every Sunday evening for ~16 games at once — without
+    // the data_freshness read and the N probes below.
+    const ownSeason = await getBoxScoreSeasons([game.season]);
+    if (ownSeason.length > 0) return { state: "pending", game: played, records };
+
     const seasons = await getAvailableSeasons();
     // getAvailableSeasons returns [] on a query error; a real database always
     // has data_freshness rows, so empty means the read failed (homepage rule).
@@ -231,8 +238,25 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
       throw new Error("Box score: no seasons from data_freshness (query failed or table empty)");
     }
     const covered = await getBoxScoreSeasons(seasons);
-    const firstSeason = covered.length > 0 ? Math.min(...covered) : null;
-    if (firstSeason !== null && game.season < firstSeason) {
+    // Same rule one table over: data_freshness lists seasons, yet not one of
+    // them has a team_game_stats row. Since PR 2 shipped that cannot be true of
+    // the real table, so the read is broken (a dropped read policy, a renamed
+    // table, a bad key) and PostgREST reports exactly that as 200-with-no-rows.
+    // Spec §6: a failed read throws, so ISR keeps the last good copy instead of
+    // caching "stats arrive shortly" on every game page in every season.
+    if (covered.length === 0) {
+      throw new Error(
+        `Box score: data_freshness lists ${seasons.length} season(s) (${seasons.join(", ")}) but none has a team_game_stats row; expected at least one, so the team_game_stats read is failing silently`
+      );
+    }
+    // Coverage is membership, not a threshold (spec §6: "a season with no
+    // team_game_stats"): a season missing from the middle of the backfill has
+    // no box score coming. A season newer than every covered one is still
+    // pending, though — `games` carries next season's schedule as soon as the
+    // league publishes it, long before the ingest reaches it.
+    const firstSeason = Math.min(...covered);
+    const newest = Math.max(...covered);
+    if (!covered.includes(game.season) && game.season < newest) {
       return { state: "uncovered", game: played, records, reason: "season", firstSeason };
     }
     return { state: "pending", game: played, records };

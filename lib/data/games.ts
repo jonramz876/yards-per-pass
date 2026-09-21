@@ -199,6 +199,11 @@ export async function getGame(gameId: string): Promise<GameRecord | null> {
  * present), for the sitemap's box score URLs. Paginated with fetchAllRows:
  * one season is 272 rows, under the 1000-row cap, but the helper costs
  * nothing and keeps this safe if it is ever called across seasons.
+ *
+ * Rejects with fetchAllRows' raw PostgREST object rather than an Error, like
+ * every other caller of that helper. A handler must therefore use a bare
+ * `catch {}` (app/sitemap.ts) or app/page.tsx's wrapping idiom; a
+ * `catch (e) { if (e instanceof Error) ... }` would silently take the wrong branch.
  */
 export async function getPlayedRegularSeasonGameIds(season: number): Promise<string[]> {
   const rows = await fetchAllRows("games", "game_id,game_type,home_score,away_score", { season });

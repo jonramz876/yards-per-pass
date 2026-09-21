@@ -89,10 +89,12 @@ describe("normalizeGameId", () => {
 describe("getBoxScoreSeasons", () => {
   it("probes each candidate with limit 1 and keeps the seasons that have rows, newest first", async () => {
     results.team_game_stats = (calls) =>
-      calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2026)
+      calls.some((c) => c[0] === "eq" && c[1] === "season" && (c[2] === 2026 || c[2] === 2024))
         ? { data: [{ game_id: "2026_01_BUF_HOU" }], error: null }
         : { data: [], error: null };
-    expect(await getBoxScoreSeasons([2025, 2026, 2024])).toEqual([2026]);
+    // Two covered seasons, given oldest first, pin the descending sort: an
+    // unsorted or ascending implementation would answer [2024, 2026].
+    expect(await getBoxScoreSeasons([2025, 2024, 2026])).toEqual([2026, 2024]);
     const probes = chainsFor("team_game_stats");
     expect(probes).toHaveLength(3);
     for (const p of probes) {
@@ -193,7 +195,9 @@ describe("getBoxScore", () => {
     results.team_game_stats = (calls) =>
       calls.some((c) => c[0] === "limit")
         ? { data: [{ game_id: "2026_01_BUF_HOU" }], error: null }
-        : { data: [wireRow("BUF"), wireRow("HOU")], error: null };
+        // Home row first, on purpose: the query has no .order(), so PostgREST
+        // row order is arbitrary and the rows must be matched by team_id.
+        : { data: [wireRow("HOU"), wireRow("BUF")], error: null };
     results.qb_weekly_stats = { data: [{ player_id: "q1", team_id: "BUF" }], error: null };
     results.player_slugs = { data: [{ player_id: "q1", player_name: "Josh Allen", position: "QB", slug: "josh-allen" }], error: null };
   };
@@ -205,10 +209,15 @@ describe("getBoxScore", () => {
     expect(chains).toHaveLength(0);
   });
 
-  it("no final score → unplayed", async () => {
+  it("no final score → unplayed, carrying the game; one missing score is enough", async () => {
     vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, home_score: null, away_score: null });
     const out = await getBoxScore("2026_01_BUF_HOU");
-    expect(out.state).toBe("unplayed");
+    expect(out).toMatchObject({ state: "unplayed", game: { game_id: "2026_01_BUF_HOU" } });
+    // A half-written schedules ingest leaves one score null; that is not played.
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, away_score: null });
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("unplayed");
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, home_score: null });
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("unplayed");
     expect(chains).toHaveLength(0);
   });
 
@@ -252,10 +261,63 @@ describe("getBoxScore", () => {
     expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("pending");
   });
 
-  it("played game with no covered season at all (before PR 2's first refresh) → pending", async () => {
+  it("one game with no rows, in a season that has them → pending, settled by its own season's probe", async () => {
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "limit") ? { data: [{ game_id: "2026_01_NE_SEA" }], error: null } : { data: [], error: null };
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("pending");
+    // The game's own season answers it: the game's rows, then one probe. No
+    // data_freshness read and no probe of the other seasons.
+    expect(chainsFor("team_game_stats")).toHaveLength(2);
+    expect(getAvailableSeasons).not.toHaveBeenCalled();
+  });
+
+  // Behaviour change (review IMPORTANT-2). This used to return "pending", which
+  // was right only before PR 2's first refresh, when no season had rows yet.
+  // Production now holds team_game_stats rows, so every probe coming back empty
+  // means the read is broken (a dropped read policy, a renamed table, a bad
+  // key) and PostgREST reports exactly that as 200-with-no-rows. Spec §6: a
+  // failed read throws, so ISR keeps the last good copy instead of caching
+  // "stats arrive shortly" on every game page in every season.
+  it("data_freshness lists seasons but no season has rows → throws instead of pending", async () => {
     vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
     results.team_game_stats = { data: [], error: null };
-    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("pending");
+    await expect(getBoxScore("2026_01_BUF_HOU")).rejects.toThrow(/none has a team_game_stats row/);
+  });
+
+  it("a season inside the covered range with no rows of its own → uncovered, not pending", async () => {
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2025_14_PHI_LAC", season: 2025, week: 14, away_team: "PHI", home_team: "LAC", away_score: 19, home_score: 22 });
+    vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025, 2024]);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2025)
+        ? { data: [], error: null }
+        : calls.some((c) => c[0] === "limit")
+          ? { data: [{ game_id: "x" }], error: null }
+          : { data: [], error: null };
+    expect(await getBoxScore("2025_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: 2024 });
+  });
+
+  it("a non-contiguous backfill (2020-2024 and 2026 covered, 2025 not) names the earliest covered season", async () => {
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2025_14_PHI_LAC", season: 2025, week: 14, away_team: "PHI", home_team: "LAC", away_score: 19, home_score: 22 });
+    vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025, 2024, 2023, 2022, 2021, 2020]);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2025)
+        ? { data: [], error: null }
+        : calls.some((c) => c[0] === "limit")
+          ? { data: [{ game_id: "x" }], error: null }
+          : { data: [], error: null };
+    // firstSeason is the earliest covered season; Math.max would answer 2026.
+    expect(await getBoxScore("2025_14_PHI_LAC")).toMatchObject({ state: "uncovered", reason: "season", firstSeason: 2020 });
+  });
+
+  it("a season newer than every covered one → pending (the ingest has not reached it yet)", async () => {
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2027_01_BUF_HOU", season: 2027 });
+    vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025]);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2026)
+        ? { data: [{ game_id: "x" }], error: null }
+        : { data: [], error: null };
+    expect((await getBoxScore("2027_01_BUF_HOU")).state).toBe("pending");
   });
 
   it("playoff game → uncovered / playoffs with the regular-season records", async () => {
