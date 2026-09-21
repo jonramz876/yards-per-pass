@@ -207,3 +207,391 @@ class TestPartialDriveClock:
             out = aggregate_team_game_stats(plays, 2026)
         assert team_game_row(out, '2026_01_KC_BUF', 'KC')['time_of_possession_seconds'] is None
         assert 'drive_time_of_possession' not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Synthetic games — every tricky case in spec §11
+# ---------------------------------------------------------------------------
+
+def _one(raw, *frames, season=2026):
+    """Aggregate a synthetic game and return KC's row (the away team in the defaults)."""
+    from ingest import aggregate_team_game_stats
+    out = aggregate_team_game_stats(raw.game(*frames), season)
+    return team_game_row(out, out['game_id'].iloc[0], 'KC')
+
+
+class TestEfficiencySet:
+    def test_kneel_is_not_an_efficiency_play_but_is_a_rushing_attempt(self, raw):
+        row = _one(raw, raw.play(), raw.rush(3.0), raw.kneel())
+        assert row['plays'] == 2
+        assert row['rush_plays'] == 1
+        assert row['rushing_attempts'] == 2  # ESPN counts the kneel as a carry
+        assert row['rushing_yards'] == 2     # 3 - 1
+
+    def test_two_point_try_is_kept_and_has_no_down(self, raw):
+        """2-pt stays in the efficiency set; early + late come up one short (spec §4)."""
+        two_pt = raw.play(two_point_attempt=1.0, down=float('nan'), yardline_100=2.0, complete_pass=0.0,
+                          yards_gained=0.0, passing_yards=float('nan'), epa=-0.95, success=0.0)
+        row = _one(raw, raw.play(down=1.0), raw.play(down=3.0), two_pt)
+        assert row['plays'] == 3
+        assert row['early_plays'] + row['late_plays'] == 2
+        # ...but official counts exclude it
+        assert row['attempts'] == 2
+        assert row['completions'] == 2
+        assert row['team_targets'] == 2
+        assert row['total_plays'] == 2
+
+    def test_penalty_wiped_pass_counts_for_epa_but_never_explodes(self, raw):
+        """nflverse keeps pass = 1 on a wiped pass, with EPA from the flag and 0 yards."""
+        wiped = raw.no_play(**{'pass': 1.0}, complete_pass=0.0, yards_gained=0.0, epa=-0.8, success=0.0)
+        row = _one(raw, raw.play(yards_gained=25.0, passing_yards=25.0), wiped)
+        assert row['plays'] == 2
+        assert row['explosive_plays'] == 1
+        assert row['attempts'] == 1
+        assert row['penalties'] == 1
+
+    def test_success_and_first_down_rates(self, raw):
+        row = _one(raw, raw.play(epa=0.4, success=1.0, first_down=1.0, first_down_pass=1.0),
+                   raw.play(epa=-0.4, success=0.0), raw.rush(2.0, epa=-0.1, success=0.0), raw.rush(12.0, epa=0.9, success=1.0, first_down=1.0, first_down_rush=1.0))
+        assert row['success_rate'] == approx(0.5)
+        assert row['first_down_rate'] == approx(0.5)
+        assert row['pass_success_rate'] == approx(0.5)
+        assert row['rush_first_down_rate'] == approx(0.5)
+        assert row['epa_per_play'] == approx(0.2)
+
+    def test_early_and_late_downs(self, raw):
+        row = _one(raw, raw.play(down=1.0, epa=0.1), raw.play(down=2.0, epa=0.3), raw.play(down=3.0, epa=-0.5), raw.play(down=4.0, epa=0.9))
+        assert (row['early_plays'], row['late_plays']) == (2, 2)
+        assert row['early_epa_per_play'] == approx(0.2)
+        assert row['late_epa_per_play'] == approx(0.2)
+
+
+class TestExplosives:
+    def test_thresholds(self, raw):
+        row = _one(raw,
+                   raw.play(yards_gained=20.0, passing_yards=20.0),   # explosive pass
+                   raw.play(yards_gained=19.0, passing_yards=19.0),   # not
+                   raw.play(yards_gained=30.0, passing_yards=30.0, complete_pass=0.0),  # incomplete: not
+                   raw.rush(10.0),                                    # explosive rush
+                   raw.rush(9.0))                                     # not
+        assert (row['explosive_pass'], row['explosive_rush'], row['explosive_plays']) == (1, 1, 2)
+        assert row['explosive_rate'] == approx(2 / 5)
+
+    def test_scramble_is_an_explosive_run_but_a_pass_play(self, raw):
+        """pass = 1, rush = 0 on scrambles: EPA sits in the pass split, the 10+ yards in explosive_rush."""
+        row = _one(raw, raw.scramble(12.0, epa=1.1), raw.play(epa=0.3))
+        assert (row['pass_plays'], row['rush_plays']) == (2, 0)
+        assert row['pass_epa_per_play'] == approx(0.7)
+        assert (row['explosive_rush'], row['explosive_pass']) == (1, 0)
+        assert row['rushing_attempts'] == 1   # a scramble is a carry in the official count
+        assert row['attempts'] == 1           # ...and not a pass attempt
+        assert row['team_targets'] == 1
+
+
+class TestTurnovers:
+    def test_interception_and_own_lost_fumble(self, raw):
+        pick = raw.play(interception=1.0, complete_pass=0.0, epa=-4.0, success=0.0, passing_yards=float('nan'), yards_gained=0.0)
+        lost = raw.rush(2.0, fumble=1.0, fumble_lost=1.0, fumbled_1_team='KC', fumbled_1_player_id='RB1', epa=-3.0, success=0.0)
+        row = _one(raw, pick, lost, raw.play())
+        assert (row['turnovers'], row['interceptions'], row['fumbles_lost']) == (2, 1, 1)
+        assert row['epa_lost_turnovers'] == approx(-7.0)
+
+    def test_pick_the_defence_fumbles_back_is_one_turnover(self, raw):
+        """interception AND fumble_lost on one row, but BUF (the defence) fumbled: 1, not 2 (spec §4)."""
+        play = raw.play(interception=1.0, complete_pass=0.0, fumble=1.0, fumble_lost=1.0, fumbled_1_team='BUF',
+                        epa=-2.5, success=0.0, passing_yards=float('nan'), yards_gained=0.0)
+        row = _one(raw, play)
+        assert (row['turnovers'], row['interceptions'], row['fumbles_lost']) == (1, 1, 0)
+        assert row['epa_lost_turnovers'] == approx(-2.5)  # counted once
+
+    def test_defensive_fumble_the_offence_recovers_is_not_a_giveaway(self, raw):
+        """fumble_lost = 1 with fumbled_1_team = the defence: nothing for the offence (spec §4)."""
+        play = raw.play(fumble=1.0, fumble_lost=1.0, fumbled_1_team='BUF', epa=0.9)
+        row = _one(raw, play)
+        assert (row['turnovers'], row['fumbles_lost']) == (0, 0)
+        assert row['epa_lost_turnovers'] == 0.0
+
+    def test_fumble_recovered_by_the_offence_itself_is_not_a_turnover(self, raw):
+        play = raw.rush(3.0, fumble=1.0, fumble_lost=0.0, fumbled_1_team='KC', fumbled_1_player_id='RB1', epa=-0.7)
+        row = _one(raw, play)
+        assert (row['turnovers'], row['fumbles_lost']) == (0, 0)
+
+    def test_strip_sack_counts_in_both_cost_rows(self, raw):
+        """A strip-sack is a sack AND a turnover; the overlap is intended (spec §4)."""
+        strip = raw.sack(9.0, fumble=1.0, fumble_lost=1.0, fumbled_1_team='KC', fumbled_1_player_id='QB1', epa=-5.0)
+        row = _one(raw, strip, raw.play())
+        assert (row['sacks'], row['sack_yards'], row['turnovers']) == (1, 9, 1)
+        assert row['epa_lost_sacks'] == approx(-5.0)
+        assert row['epa_lost_turnovers'] == approx(-5.0)
+        assert row['net_passing_yards'] == 8 - 9
+        assert row['total_yards'] == 8 - 9
+
+    # Spec §4's other documented limitation, 2025_14_PHI_LAC (a pick plus a SEPARATE
+    # lost fumble on one snap counts 1), has no test on purpose: the second fumble is
+    # recorded only in fumbled_2_team, a column neither the aggregator nor the fixture
+    # carries, so the only row a test could build is the one above — identical input,
+    # opposite assertion. It is documented in spec §4 and in _team_game_costs.
+
+    @pytest.mark.xfail(strict=True, reason='spec section 4 keys turnovers by posteam, so a punt the '
+                       'RECEIVING team muffs (2026_01_CHI_CAR) is credited to nobody; ESPN charges the receiver')
+    def test_muffed_punt_charged_to_the_receiving_team(self, raw):
+        from ingest import aggregate_team_game_stats
+        muff = raw.kick('punt', posteam='KC', defteam='BUF', fumble=1.0, fumble_lost=1.0, fumbled_1_team='BUF', epa=2.0)
+        out = aggregate_team_game_stats(raw.game(raw.play(), muff), 2026)
+        assert team_game_row(out, '2026_01_KC_BUF', 'BUF')['turnovers'] == 1
+
+
+class TestPenalties:
+    def test_own_flags_only_with_the_sign_flip(self, raw):
+        """Offence flag: its EPA counts as is. Defence flag: the EPA is the opponent's gain, so subtract.
+        The opponent's flags are theirs (spec §4)."""
+        own_offence = raw.no_play(penalty_team='KC', penalty_yards=10.0, epa=-1.2)
+        own_defence = raw.no_play(posteam='BUF', defteam='KC', penalty_team='KC', penalty_yards=15.0, epa=0.8)
+        theirs = raw.no_play(penalty_team='BUF', penalty_yards=5.0, epa=0.4)
+        row = _one(raw, raw.play(), own_offence, own_defence, theirs)
+        assert (row['penalties'], row['penalty_yards']) == (2, 25)
+        assert row['epa_lost_penalties'] == approx(-1.2 - 0.8)
+
+    def test_penalty_first_down_lives_on_the_no_play_row(self, raw):
+        """A defensive flag that moves the chains is first_down_penalty on a no_play row."""
+        dpi = raw.no_play(penalty_team='BUF', penalty_yards=22.0, epa=1.5, first_down=1.0, first_down_penalty=1.0)
+        row = _one(raw, raw.play(first_down=1.0, first_down_pass=1.0), dpi)
+        assert (row['first_downs'], row['first_downs_pass'], row['first_downs_penalty']) == (2, 1, 1)
+
+    def test_first_downs_are_the_sum_of_parts(self, raw):
+        """One play can be a rush AND a penalty first down; only the sum reaches ESPN (spec §4)."""
+        both = raw.rush(6.0, first_down=1.0, first_down_rush=1.0, first_down_penalty=1.0, penalty=1.0,
+                        penalty_team='BUF', penalty_yards=5.0)
+        row = _one(raw, both)
+        assert row['first_downs'] == 2
+
+
+class TestTraditional:
+    def test_passing_rushing_and_totals(self, raw):
+        row = _one(raw,
+                   raw.play(yards_gained=12.0, passing_yards=12.0),
+                   raw.play(complete_pass=0.0, yards_gained=0.0, passing_yards=float('nan'), epa=-0.4, success=0.0),
+                   raw.sack(6.0),
+                   raw.rush(5.0), raw.rush(-2.0))
+        assert (row['completions'], row['attempts'], row['sacks'], row['sack_yards']) == (1, 2, 1, 6)
+        assert row['net_passing_yards'] == 12 - 6
+        assert row['yards_per_pass'] == approx(6 / 3)   # net passing / (attempts + sacks)
+        assert (row['rushing_attempts'], row['rushing_yards']) == (2, 3)
+        assert row['yards_per_rush'] == approx(1.5)
+        assert row['total_plays'] == 2 + 1 + 2
+        assert row['total_yards'] == 12 - 6 + 3
+        assert row['yards_per_play'] == approx(9 / 5)
+
+    def test_lateral_keeps_every_passing_yard_in_the_team_total(self, raw):
+        """A real lateral: 2026_01_BUF_HOU play 385 — Allen to Coleman for 1, lateral to
+        Shakir for 10. nflverse records passing_yards 11 and yards_gained 11 but
+        receiving_yards only 1, so the receiver's line is 10 short of the team's
+        (spec §10.3). team_game_stats reads passing_yards, never receiving_yards, so the
+        play must land as ONE completion worth 11 passing yards — not one worth 1, not
+        two targets, and not a rush."""
+        row = _one(raw, raw.play(air_yards=4.0, yards_gained=11.0, passing_yards=11.0,
+                                 receiver_player_id='WR1'))
+        assert (row['completions'], row['attempts'], row['team_targets']) == (1, 1, 1)
+        assert (row['net_passing_yards'], row['total_yards']) == (11, 11)
+        assert (row['rushing_attempts'], row['rushing_yards']) == (0, 0)
+
+    def test_the_real_lateral_is_inside_the_golden_passing_total(self, pbp_fixture, team_game_rows):
+        """The same play, from the fixture. `receiving_yards` is deliberately not a
+        fixture column (the aggregator never reads it), so the proof that the team keeps
+        all 11 is BUF's stored 323 net passing yards: 313 if the receiver's 1 were used,
+        and 20 completions rather than 21 (spec §10.3)."""
+        play = pbp_fixture[(pbp_fixture['game_id'] == BUF_HOU) & (pbp_fixture['play_id'] == 385)]
+        assert len(play) == 1
+        assert play['complete_pass'].iloc[0] == 1
+        assert play['passing_yards'].iloc[0] == 11 and play['yards_gained'].iloc[0] == 11
+        buf = team_game_row(team_game_rows, BUF_HOU, 'BUF')
+        assert buf['net_passing_yards'] == 323
+        assert buf['completions'] == 20
+
+    def test_safety_is_a_run_tackled_in_the_offence_s_own_end_zone(self, raw):
+        """A real safety: the ball is on the KC 2 (yardline_100 98) and the carrier is
+        dropped in the end zone. The 2 points belong to the defence and are not a
+        team_game_stats column, so what must be true is what is NOT credited — no TD, no
+        turnover — while the drive and its clock still count. nflverse's `safety` flag is
+        not a column this aggregator reads, so the fixture does not carry it."""
+        row = _one(raw, raw.rush(-2.0, drive=1.0, yardline_100=98.0, epa=-2.6, success=0.0,
+                                 drive_time_of_possession='2:30'))
+        assert (row['rushing_attempts'], row['rushing_yards']) == (1, -2)
+        assert (row['total_plays'], row['total_yards']) == (1, -2)
+        assert (row['def_st_tds'], row['turnovers'], row['fumbles_lost']) == (0, 0, 0)
+        assert (row['total_drives'], row['time_of_possession_seconds']) == (1, 150)
+
+    def test_third_and_fourth_down_exclude_no_play_rows(self, raw):
+        """Attempts are snaps from scrimmage on that down; a wiped play is not one (spec §4)."""
+        row = _one(raw,
+                   raw.play(down=3.0, first_down=1.0, first_down_pass=1.0),
+                   raw.play(down=3.0, complete_pass=0.0, yards_gained=0.0, epa=-0.6, success=0.0),
+                   raw.no_play(down=3.0),
+                   raw.kneel(down=3.0),
+                   raw.rush(1.0, down=4.0, first_down=1.0, first_down_rush=1.0),
+                   raw.kick('punt', down=4.0))
+        assert (row['third_down_att'], row['third_down_conv']) == (3, 1)
+        assert (row['fourth_down_att'], row['fourth_down_conv']) == (1, 1)
+
+    def test_touchdown_is_a_conversion(self, raw):
+        td = raw.play(down=3.0, yards_gained=15.0, passing_yards=15.0, pass_touchdown=1.0, td_team='KC', first_down=1.0, first_down_pass=1.0)
+        row = _one(raw, td)
+        assert (row['third_down_att'], row['third_down_conv']) == (1, 1)
+
+
+class TestRedZone:
+    def test_trip_and_touchdown_are_drive_level(self, raw):
+        row = _one(raw,
+                   raw.play(drive=1.0, yardline_100=40.0),
+                   raw.play(drive=1.0, yardline_100=18.0),
+                   raw.rush(2.0, drive=1.0, yardline_100=4.0, rush_touchdown=1.0, td_team='KC', first_down=1.0, first_down_rush=1.0),
+                   raw.kick('extra_point', drive=1.0, yardline_100=15.0),
+                   raw.play(drive=2.0, yardline_100=19.0),
+                   raw.play(drive=2.0, yardline_100=12.0, complete_pass=0.0, yards_gained=0.0),
+                   raw.kick('field_goal', drive=2.0, yardline_100=12.0),
+                   raw.play(drive=3.0, yardline_100=60.0))
+        assert (row['red_zone_trips'], row['red_zone_tds']) == (2, 1)
+
+    def test_extra_point_from_the_15_is_not_a_trip(self, raw):
+        """Play-level counting gives BUF 6 trips because XPs snap from the 15 (spec §4)."""
+        row = _one(raw, raw.play(drive=1.0, yardline_100=45.0, yards_gained=45.0, passing_yards=45.0, pass_touchdown=1.0, td_team='KC'),
+                   raw.kick('extra_point', drive=1.0, yardline_100=15.0))
+        assert row['red_zone_trips'] == 0
+
+    def test_red_zone_pick_six_is_not_credited_to_the_offence(self, raw):
+        pick_six = raw.play(drive=1.0, yardline_100=10.0, interception=1.0, complete_pass=0.0, yards_gained=0.0,
+                            passing_yards=float('nan'), epa=-9.0, success=0.0, td_team='BUF')
+        row = _one(raw, raw.play(drive=1.0, yardline_100=30.0), pick_six)
+        assert (row['red_zone_trips'], row['red_zone_tds']) == (1, 0)
+        assert row['turnovers'] == 1
+
+    def test_two_point_try_is_not_a_trip(self, raw):
+        two_pt = raw.play(drive=1.0, two_point_attempt=1.0, down=float('nan'), yardline_100=2.0, complete_pass=0.0, yards_gained=0.0, passing_yards=float('nan'))
+        row = _one(raw, raw.play(drive=1.0, yardline_100=35.0, yards_gained=35.0, passing_yards=35.0, pass_touchdown=1.0, td_team='KC'), two_pt)
+        assert row['red_zone_trips'] == 0
+
+
+class TestDrivesAndPossession:
+    def test_drive_without_a_scrimmage_play_still_owns_its_clock(self, raw):
+        """TEN drive 6 in week 1 is a kickoff then a turnover on the return (spec §4)."""
+        row = _one(raw,
+                   raw.kick('kickoff', drive=1.0, drive_time_of_possession='0:05'),
+                   raw.kick('kickoff', drive=2.0, drive_time_of_possession='0:10'),
+                   raw.play(drive=2.0, drive_time_of_possession='0:10'),
+                   raw.play(drive=2.0, drive_time_of_possession='0:10'))
+        assert row['total_drives'] == 2
+        assert row['time_of_possession_seconds'] == 15
+
+    def test_rows_with_a_null_drive_are_ignored(self, raw):
+        """4 week-1 rows have a posteam but no drive (XPs after a defensive TD, END GAME)."""
+        row = _one(raw, raw.play(drive=1.0, drive_time_of_possession='1:00'),
+                   raw.kick('extra_point', drive=float('nan'), drive_time_of_possession=None))
+        assert row['total_drives'] == 1
+        assert row['time_of_possession_seconds'] == 60
+
+    def test_possession_is_null_when_no_drive_has_a_clock(self, raw):
+        row = _one(raw, raw.play(drive=1.0, drive_time_of_possession=None), raw.play(drive=2.0, drive_time_of_possession='junk'))
+        assert row['total_drives'] == 2
+        assert row['time_of_possession_seconds'] is None
+
+    def test_overtime_clock_is_just_more_seconds(self, raw):
+        row = _one(raw, raw.play(drive=1.0, drive_time_of_possession='36:51'), raw.play(drive=2.0, drive_time_of_possession='31:35'))
+        assert row['time_of_possession_seconds'] == 68 * 60 + 26
+
+
+class TestDefensiveAndSpecialTeamsTouchdowns:
+    def test_pick_six_goes_to_the_defence(self, raw):
+        from ingest import aggregate_team_game_stats
+        pick_six = raw.play(interception=1.0, complete_pass=0.0, yards_gained=0.0, passing_yards=float('nan'), epa=-8.0, success=0.0, td_team='BUF')
+        out = aggregate_team_game_stats(raw.game(pick_six), 2026)
+        assert team_game_row(out, '2026_01_KC_BUF', 'BUF')['def_st_tds'] == 1
+        assert team_game_row(out, '2026_01_KC_BUF', 'KC')['def_st_tds'] == 0
+
+    def test_kickoff_return_touchdown_counts_even_though_posteam_is_the_returner(self, raw):
+        """nflverse puts the RECEIVING team in posteam on kickoffs, so td_team == posteam there."""
+        row = _one(raw, raw.kick('kickoff', posteam='KC', defteam='BUF', td_team='KC', epa=6.0, yards_gained=100.0))
+        assert row['def_st_tds'] == 1
+
+    def test_offensive_touchdown_is_not_counted(self, raw):
+        row = _one(raw, raw.play(yards_gained=30.0, passing_yards=30.0, pass_touchdown=1.0, td_team='KC'))
+        assert row['def_st_tds'] == 0
+
+
+class TestTargets:
+    def test_team_targets_match_the_receiver_aggregator_set(self, raw):
+        """A receiver on a non-sack, non-scramble pass attempt, 2-pt excluded (spec §5)."""
+        row = _one(raw,
+                   raw.play(receiver_player_id='WR1'),
+                   raw.play(receiver_player_id='TE1', complete_pass=0.0, yards_gained=0.0),
+                   raw.play(receiver_player_id=None, complete_pass=0.0, yards_gained=0.0),   # throwaway
+                   raw.sack(5.0, receiver_player_id=None),
+                   raw.scramble(8.0),
+                   raw.play(receiver_player_id='WR1', two_point_attempt=1.0, down=float('nan'), yardline_100=2.0, complete_pass=0.0, yards_gained=0.0))
+        assert row['team_targets'] == 2
+
+
+class TestNullsAndEmptyInputs:
+    def test_zero_pass_attempts_leave_pass_rates_null(self, raw):
+        row = _one(raw, raw.rush(4.0), raw.rush(6.0))
+        assert row['pass_plays'] == 0
+        for col in ('pass_epa_per_play', 'pass_success_rate', 'pass_first_down_rate', 'yards_per_pass'):
+            assert row[col] is None, col
+        assert (row['attempts'], row['completions'], row['team_targets'], row['net_passing_yards']) == (0, 0, 0, 0)
+        assert row['rush_epa_per_play'] is not None
+
+    def test_zero_rush_attempts_leave_rush_rates_null(self, raw):
+        row = _one(raw, raw.play(), raw.play())
+        assert row['rush_plays'] == 0
+        for col in ('rush_epa_per_play', 'rush_success_rate', 'rush_first_down_rate', 'yards_per_rush'):
+            assert row[col] is None, col
+        assert (row['rushing_attempts'], row['rushing_yards']) == (0, 0)
+
+    def test_team_that_never_had_the_ball_still_gets_a_row(self, raw):
+        from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_INT_COLS, TEAM_GAME_STATS_RATE_COLS
+        out = aggregate_team_game_stats(raw.game(raw.play(), raw.rush(3.0)), 2026)
+        buf = team_game_row(out, '2026_01_KC_BUF', 'BUF')
+        assert (buf['opponent_id'], buf['home_away'], buf['week']) == ('KC', 'home', 1)
+        for col in TEAM_GAME_STATS_INT_COLS:
+            assert buf[col] == 0, col
+        for col in TEAM_GAME_STATS_RATE_COLS:
+            assert buf[col] is None, col
+        assert buf['time_of_possession_seconds'] == 0
+        assert buf['epa_lost_turnovers'] == 0.0
+
+    def test_no_plays_yet_returns_an_empty_frame_with_the_columns(self, raw):
+        from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_COLS
+        empty = raw.game(raw.play()).iloc[0:0]
+        out = aggregate_team_game_stats(empty, 2026)
+        assert len(out) == 0
+        assert list(out.columns) == TEAM_GAME_STATS_COLS
+        assert len(aggregate_team_game_stats(pd.DataFrame(), 2026)) == 0
+
+    def test_playoff_rows_are_skipped(self, raw):
+        from ingest import aggregate_team_game_stats
+        post = raw.play(game_id='2026_19_KC_BUF', week=19, season_type='POST')
+        out = aggregate_team_game_stats(raw.game(post, raw.play()), 2026)
+        assert out['game_id'].tolist() == ['2026_01_KC_BUF', '2026_01_KC_BUF']
+
+    def test_nulls_in_flag_columns_do_not_crash(self, raw):
+        """Game-start rows have NaN in nearly every column."""
+        blank = raw.play(play_type=None, posteam=None, defteam=None, down=float('nan'), drive=float('nan'),
+                         **{'pass': 0.0}, pass_attempt=float('nan'), rush_attempt=float('nan'), sack=float('nan'),
+                         complete_pass=float('nan'), two_point_attempt=float('nan'), kickoff_attempt=float('nan'),
+                         first_down=float('nan'), epa=-0.0, yards_gained=float('nan'), yardline_100=float('nan'),
+                         drive_time_of_possession=None, passer_player_id=None, receiver_player_id=None)
+        row = _one(raw, blank, raw.play(), raw.rush(5.0))
+        assert row['plays'] == 2
+        assert row['total_drives'] == 1
+
+    def test_season_agnostic(self, raw):
+        """A 2025 game gives the same shape; season and week come from the call and the rows."""
+        row = _one(raw, raw.play(game_id='2025_07_KC_BUF', season=2025, week=7), raw.rush(4.0, game_id='2025_07_KC_BUF', season=2025, week=7), season=2025)
+        assert (row['season'], row['week'], row['game_id']) == (2025, 7, '2025_07_KC_BUF')
+        assert row['plays'] == 2
+
+    def test_rows_are_sorted_by_game_then_away_home(self, raw):
+        from ingest import aggregate_team_game_stats
+        second = raw.play(game_id='2026_01_SF_LA', home_team='LA', away_team='SF', posteam='SF', defteam='LA')
+        out = aggregate_team_game_stats(raw.game(second, raw.play()), 2026)
+        assert list(zip(out['game_id'], out['team_id'])) == [
+            ('2026_01_KC_BUF', 'KC'), ('2026_01_KC_BUF', 'BUF'), ('2026_01_SF_LA', 'SF'), ('2026_01_SF_LA', 'LA')]
