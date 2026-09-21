@@ -46,13 +46,19 @@ export const revalidate = 3600;
 /**
  * Load the page's data. A real database error must never become a cached empty
  * page: rethrowing fails the render instead, and a failed render is never
- * cached — the homepage's rule. What happens next is deliberately NOT claimed
- * here. The route builds as a plain dynamic function (`f`, no entry in
- * prerender-manifest.json) and /api/revalidate purges /game after every
- * ingest, so "ISR keeps the last good copy" was asserted in three comments and
- * measured nowhere; the honest statement is that the visitor gets error.tsx.
- * Task 15 reads x-vercel-cache on a deployed game URL and this comment gets
- * the answer. Only the placeholder build has no database (hasNoDatabase), and
+ * cached — the homepage's rule. What happens next was measured on the deployed
+ * site (2026-09-21), and the answer is that nothing is cached at all: three
+ * consecutive requests to /game/2026_01_BUF_HOU each returned
+ * `x-vercel-cache: MISS` with `cache-control: private, no-cache, no-store,
+ * max-age=0, must-revalidate` and `age: 0`. So `revalidate = 3600` above buys
+ * nothing today, there is no stale copy to fall back on, and a failed read
+ * means this visitor gets error.tsx — which is still the right trade, because
+ * the alternative is showing numbers we cannot stand behind. If the page ever
+ * needs to be cheap or resilient, making it genuinely cacheable is the fix,
+ * and the first thing to check is what opts it out of the full route cache
+ * (supabase-js sends its reads with `cache: "no-store"`, and the reads now
+ * carry an AbortSignal, either of which forces dynamic rendering).
+ * Only the placeholder build has no database (hasNoDatabase), and
  * then the game simply isn't there. Do not add an in-render retry: error.tsx
  * already covers the failure, so a retry would only delay it.
  *
