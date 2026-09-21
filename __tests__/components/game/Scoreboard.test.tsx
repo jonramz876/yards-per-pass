@@ -25,6 +25,14 @@ describe("Scoreboard", () => {
     expect(container.querySelector("[data-scoreboard-score]")?.textContent).toBe("36–31");
   });
 
+  it("puts the away team first, the order spec §6 requires (away @ home)", () => {
+    const { container } = render(<Scoreboard model={model} />);
+    const sides = Array.from(container.querySelectorAll("[data-scoreboard-team]"));
+    expect(sides.map((el) => el.getAttribute("data-scoreboard-team"))).toEqual(["away", "home"]);
+    const scores = Array.from(container.querySelectorAll("[data-score]"));
+    expect(scores.map((el) => el.getAttribute("data-score"))).toEqual(["away", "home"]);
+  });
+
   it("omits the date when unknown and the logo when the team is unknown", () => {
     const { container } = render(
       <Scoreboard model={{ ...model, dateLabel: "", away: { ...model.away, logo: "", winner: false }, home: { ...model.home, winner: false } }} />
