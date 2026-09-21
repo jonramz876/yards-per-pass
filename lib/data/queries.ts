@@ -98,5 +98,13 @@ export async function getAvailableSeasons(): Promise<number[]> {
     .order("season", { ascending: false });
 
   if (error) return [];
-  return (data || []).map((r: { season: number }) => r.season);
+  // Coerced, not trusted: this is the single place a season leaves the
+  // database, and every downstream gate asks Number.isInteger of it. If
+  // data_freshness.season ever arrived as text (a column type change, a view
+  // swap), an uncoerced value would make every one of those checks false and
+  // take every box score link on the site dark — with no query fired and
+  // nothing logged. getBoxScoreSeasons logs whatever still fails here.
+  return (data || [])
+    .map((r: { season: unknown }) => Number(r.season))
+    .filter((s: number) => Number.isInteger(s) && s > 0);
 }

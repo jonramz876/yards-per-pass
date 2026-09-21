@@ -1,16 +1,25 @@
 // components/ui/ErrorState.tsx
 "use client";
 
+import { Fragment } from "react";
+import Link from "next/link";
+
 interface ErrorStateProps {
   title?: string;
   message?: string;
   reset: () => void;
+  /**
+   * Somewhere else worth going while this page is broken. Optional and empty
+   * by default, so every existing caller renders exactly what it did before.
+   */
+  links?: { href: string; label: string }[];
 }
 
 export default function ErrorState({
   title = "Unable to load data",
   message = "Something went wrong loading this page. Try refreshing, or come back in a few minutes.",
   reset,
+  links,
 }: ErrorStateProps) {
   return (
     <div className="max-w-4xl mx-auto px-6 md:px-12 py-16 text-center">
@@ -32,6 +41,18 @@ export default function ErrorState({
           Report issue
         </a>
       </div>
+      {links && links.length > 0 && (
+        <p className="mt-6 text-sm text-gray-500">
+          {links.map((l, i) => (
+            <Fragment key={l.href}>
+              {i > 0 && <span className="px-2 text-gray-300">·</span>}
+              <Link href={l.href} className="font-medium text-navy transition-colors hover:text-nflred">
+                {l.label}
+              </Link>
+            </Fragment>
+          ))}
+        </p>
+      )}
     </div>
   );
 }

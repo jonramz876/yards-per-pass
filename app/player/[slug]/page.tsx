@@ -6,6 +6,7 @@ import { getPlayerBySlug, getQBWeeklyStats, getReceiverWeeklyStats, getRBWeeklyS
 import type { GameResultsByTeam, QBPassLocationStat } from "@/lib/types";
 import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getGameResults } from "@/lib/data/games";
+import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getTeam } from "@/lib/data/teams";
@@ -87,6 +88,34 @@ export default async function PlayerPage({
   const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
+
+  if (seasons.length === 0) {
+    // getAvailableSeasons swallows its own query error and returns [], and the
+    // probe below then short-circuits without querying, throwing, or reaching
+    // its catch — so the links would vanish with nothing logged at all.
+    console.error("Player page: no seasons from data_freshness; Game Log results will not link");
+  }
+
+  // Box score links (spec §7) render only for seasons with team_game_stats
+  // rows. Started here so the probe overlaps the stat reads below; the handler
+  // is attached at once so a rejection is never unhandled. On failure the
+  // Game Log simply shows unlinked results (logged), and nothing degraded is
+  // cached. This route reads searchParams, so it renders on every request:
+  // the probe goes through the hourly memo instead of costing one limit(1)
+  // query per covered season per view. A rejection is never memoised.
+  //
+  // try/catch inside, not .catch() outside: a .catch() hangs off the call's
+  // RETURN value, so a throw that happens BEFORE the promise exists escapes it
+  // and 500s the whole player hub with nothing logged — safe only by the
+  // probe's `async` keyword. The Game Log hit this exact bug in an earlier PR.
+  const boxScoreSeasonsPromise = (async (): Promise<number[]> => {
+    try {
+      return await getBoxScoreSeasonsCached(seasons);
+    } catch (err: unknown) {
+      console.error(`Player page: box score seasons unavailable for ${slug}; Game Log results will not link`, err);
+      return [];
+    }
+  })();
 
   // Fetch position-specific data in parallel — catch errors so page doesn't 500
   let seasonStats: unknown[] = [];
@@ -172,6 +201,8 @@ export default async function PlayerPage({
     }
   }
 
+  const boxScoreSeasons = await boxScoreSeasonsPromise;
+
   const breadcrumbs = getBreadcrumbs(player.position, player.player_name);
 
   const jsonLd = {
@@ -206,6 +237,7 @@ export default async function PlayerPage({
           crossLinkQB={crossLinkQB}
           passLocationStats={passLocationStats}
           gameResults={gameResults}
+          boxScoreSeasons={boxScoreSeasons}
         />
       </Suspense>
     </div>

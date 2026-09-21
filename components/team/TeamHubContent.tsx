@@ -17,9 +17,11 @@ import SituationalDashboard from "@/components/team/SituationalDashboard";
 interface TeamHubContentProps {
   team: Team;
   data: TeamHubData;
+  /** Seasons with box scores — played tiles in them link to /game/<id> (spec §7). */
+  boxScoreSeasons: number[];
 }
 
-export default function TeamHubContent({ team, data }: TeamHubContentProps) {
+export default function TeamHubContent({ team, data, boxScoreSeasons }: TeamHubContentProps) {
   const breadcrumbs = [
     { label: "Team Tiers", href: "/teams" },
     { label: team.name },
@@ -51,6 +53,7 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           secondaryColor={team.secondaryColor}
           teamStats={data.teamStats}
           upcomingSeason={data.upcomingSeason}
+          boxScoreSeasons={boxScoreSeasons}
         />
 
         {/* The viewed season's schedule & results, with its record. */}
@@ -60,6 +63,7 @@ export default function TeamHubContent({ team, data }: TeamHubContentProps) {
           primaryColor={team.primaryColor}
           secondaryColor={team.secondaryColor}
           teamStats={data.teamStats}
+          boxScoreSeasons={boxScoreSeasons}
         />
 
         <PassingSection

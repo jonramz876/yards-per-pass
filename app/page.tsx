@@ -5,6 +5,7 @@ import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getPlayerSlugsByIds } from "@/lib/data/players";
 import { hasScheduleForSeason } from "@/lib/data/games";
+import { hasNoDatabase } from "@/lib/supabase/server";
 import { getTeam } from "@/lib/data/teams";
 import TecmoStandings from "@/components/team/TecmoStandings";
 import type { TeamSeasonStat, PlayerSlug } from "@/lib/types";
@@ -18,22 +19,6 @@ function buildSlugMap(slugs: PlayerSlug[]): Map<string, string> {
   const m = new Map<string, string>();
   for (const s of slugs) m.set(s.player_id, s.slug);
   return m;
-}
-
-/* ------------------------------------------------------------------ */
-/*  No-database check — CI and local builds                            */
-/* ------------------------------------------------------------------ */
-/**
- * True when there is no real database behind the Supabase env vars: the fake
- * URL that .github/workflows/ci.yml (and the local build command in
- * memory/MEMORY.md) passes to `next build`, or no URL at all. Only then is an
- * empty homepage the right render. Next inlines NEXT_PUBLIC_* vars when it
- * compiles, so in a real build this is effectively fixed at build time; only
- * under vitest is the variable read again on each call.
- */
-function hasNoDatabase(): boolean {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return !url || /^https?:\/\/placeholder\.supabase\.co(\/|$)/i.test(url.trim());
 }
 
 /* ------------------------------------------------------------------ */

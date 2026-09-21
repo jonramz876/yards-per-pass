@@ -43,6 +43,11 @@ vi.mock("@/lib/data/games", () => ({
   getGameResults: vi.fn(async () => ({})),
 }));
 
+vi.mock("@/lib/data/box-score", () => ({
+  getBoxScoreSeasons: vi.fn(async () => []),
+  getBoxScoreSeasonsCached: vi.fn(async () => []),
+}));
+
 vi.mock("@/components/ui/Breadcrumbs", () => ({
   default: () => null,
 }));
@@ -52,6 +57,8 @@ import PlayerPage, { generateMetadata } from "@/app/player/[slug]/page";
 import PlayerPageContent from "@/components/player/PlayerPageContent";
 import { getPlayerBySlug, getReceiverWeeklyStats } from "@/lib/data/players";
 import { getGameResults } from "@/lib/data/games";
+import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { getAvailableSeasons } from "@/lib/data/queries";
 import type { ReceiverWeeklyStat } from "@/lib/types";
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -207,6 +214,75 @@ describe("PlayerPage — Game Log results (box score spec §9)", () => {
     vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
     await contentProps();
     expect(logged).not.toHaveBeenCalled();
+    logged.mockRestore();
+  });
+});
+
+describe("PlayerPage — box score link gate (box score spec §7)", () => {
+  const allen = {
+    player_id: "00-0034857",
+    slug: "josh-allen",
+    player_name: "Josh Allen",
+    position: "QB",
+    current_team_id: "BUF",
+    headshot_url: null,
+    jersey_number: 17,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getPlayerBySlug).mockResolvedValue(allen);
+    vi.mocked(getBoxScoreSeasonsCached).mockReset();
+    vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026]);
+  });
+
+  async function contentProps() {
+    render(
+      await PlayerPage({
+        params: Promise.resolve({ slug: "josh-allen" }),
+        searchParams: Promise.resolve({ tab: "game-log" }),
+      }),
+    );
+    const calls = vi.mocked(PlayerPageContent).mock.calls;
+    return calls[calls.length - 1][0];
+  }
+
+  it("probes the available seasons through the memo and passes the covered ones down", async () => {
+    const props = await contentProps();
+    expect(getBoxScoreSeasonsCached).toHaveBeenCalledWith([2026, 2025]);
+    expect(props.boxScoreSeasons).toEqual([2026]);
+  });
+
+  it("renders unlinked (and logs) when the probe fails", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("Failed to fetch box score seasons: fetch failed"));
+    const props = await contentProps();
+    expect(props.boxScoreSeasons).toEqual([]);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("josh-allen");
+    logged.mockRestore();
+  });
+
+  // Chaos DEGRADED 2: the .catch() hung off the call's return value, so a throw
+  // before the promise existed 500'd the whole player hub with nothing logged.
+  it("renders unlinked (and logs) when the probe throws synchronously", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getBoxScoreSeasonsCached).mockImplementation((() => {
+      throw new Error("probe threw before returning a promise");
+    }) as unknown as typeof getBoxScoreSeasonsCached);
+    const props = await contentProps();
+    expect(props.boxScoreSeasons).toEqual([]);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("josh-allen");
+    logged.mockRestore();
+  });
+
+  it("logs the silent path: no seasons from data_freshness means no links", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
+    await contentProps();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
     logged.mockRestore();
   });
 });

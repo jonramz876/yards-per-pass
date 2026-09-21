@@ -12,15 +12,18 @@ import type {
   QBPassLocationStat,
 } from "@/lib/types";
 
-const QB_WEEKLY_NUMERIC = [
+// Exported for lib/data/box-score.ts, which reads the same three tables by game.
+export const QB_WEEKLY_NUMERIC = [
   "epa_per_dropback",
   "cpoe",
   "success_rate",
   "adot",
   "passer_rating",
   "ypa",
+  "rush_epa_per_carry",
+  "rush_success_rate",
 ];
-const RECEIVER_WEEKLY_NUMERIC = [
+export const RECEIVER_WEEKLY_NUMERIC = [
   "epa_per_target",
   "catch_rate",
   "yac",
@@ -29,7 +32,7 @@ const RECEIVER_WEEKLY_NUMERIC = [
   "air_yards",
   "yards_per_route_run",
 ];
-const RB_WEEKLY_NUMERIC = [
+export const RB_WEEKLY_NUMERIC = [
   "epa_per_carry",
   "success_rate",
   "yards_per_carry",

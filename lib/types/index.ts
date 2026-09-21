@@ -236,6 +236,14 @@ export interface QBWeeklyStat {
   rush_attempts: number;
   rush_yards: number;
   rush_tds: number;
+  /**
+   * EPA per carry and success rate over exactly the carries `rush_attempts`
+   * counts (designed runs + scrambles, kneels excluded) — box score spec
+   * §10.1, added by PR 2. Null for a game with no carries, and on every row
+   * ingested before PR 2 (2020–2025 until the backfill).
+   */
+  rush_epa_per_carry: number | null;
+  rush_success_rate: number | null;
   fumbles: number;
   fumbles_lost: number;
 }
@@ -365,6 +373,107 @@ export interface GameResult {
  * arrive as strings, which JS object lookup treats the same as numbers.
  */
 export type GameResultsByTeam = Record<string, Record<number, GameResult>>;
+
+/**
+ * One team's row of `team_game_stats` for one game (box score spec §5), as
+ * scripts/ingest.py's aggregate_team_game_stats writes it. Counts and yard
+ * totals are 0 when the team had none, never null. The NUMERIC columns arrive
+ * from PostgREST as strings and go through parseNumericFields, so they are
+ * numbers or null: the rate columns are null when their denominator was 0,
+ * the three epa_lost_* sums are 0 when there was nothing to lose, and
+ * time_of_possession_seconds is null only when nflverse gave none of the
+ * team's drives a clock. Every render of a nullable column guards
+ * `val == null || Number.isNaN(val)`.
+ */
+export interface TeamGameStat {
+  game_id: string;
+  team_id: string;
+  season: number;
+  week: number;
+  opponent_id: string;
+  home_away: "home" | "away";
+  // efficiency (nflfastR / rbsdm play set)
+  plays: number;
+  epa_per_play: number | null;
+  success_rate: number | null;
+  first_down_rate: number | null;
+  pass_plays: number;
+  pass_epa_per_play: number | null;
+  pass_success_rate: number | null;
+  pass_first_down_rate: number | null;
+  rush_plays: number;
+  rush_epa_per_play: number | null;
+  rush_success_rate: number | null;
+  rush_first_down_rate: number | null;
+  early_plays: number;
+  early_epa_per_play: number | null;
+  early_success_rate: number | null;
+  late_plays: number;
+  late_epa_per_play: number | null;
+  late_success_rate: number | null;
+  explosive_plays: number;
+  explosive_rate: number | null;
+  explosive_pass: number;
+  explosive_rush: number;
+  // what it cost them (EPA sums)
+  epa_lost_turnovers: number;
+  epa_lost_sacks: number;
+  epa_lost_penalties: number;
+  // traditional (official box-score conventions)
+  first_downs: number;
+  first_downs_pass: number;
+  first_downs_rush: number;
+  first_downs_penalty: number;
+  third_down_att: number;
+  third_down_conv: number;
+  fourth_down_att: number;
+  fourth_down_conv: number;
+  total_plays: number;
+  total_yards: number;
+  total_drives: number;
+  yards_per_play: number | null;
+  net_passing_yards: number;
+  completions: number;
+  attempts: number;
+  yards_per_pass: number | null;
+  interceptions: number;
+  sacks: number;
+  /** Stored positive (11 = eleven yards lost). */
+  sack_yards: number;
+  rushing_yards: number;
+  rushing_attempts: number;
+  yards_per_rush: number | null;
+  red_zone_trips: number;
+  red_zone_tds: number;
+  penalties: number;
+  penalty_yards: number;
+  turnovers: number;
+  fumbles_lost: number;
+  def_st_tds: number;
+  time_of_possession_seconds: number | null;
+  /** Denominator for TGT% in the receiving table (spec §5). */
+  team_targets: number;
+}
+
+/** What a player line needs from `player_slugs`: name, position tag and page link. */
+export interface PlayerIdentity {
+  player_id: string;
+  player_name: string;
+  position: string;
+  slug: string | null;
+}
+
+/**
+ * The weekly rows behind a box score's player tables (spec §6): both teams'
+ * QB, receiver and RB rows for that season + week, plus the identity of every
+ * player_id they name — the weekly tables store no name or position.
+ */
+export interface GamePlayerLines {
+  qbs: QBWeeklyStat[];
+  receivers: ReceiverWeeklyStat[];
+  rbs: RBWeeklyStat[];
+  players: Record<string, PlayerIdentity>;
+}
 
 export interface TeamDownDistanceStat {
   team_id: string;

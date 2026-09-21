@@ -35,6 +35,12 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
       "How often a play generates positive EPA (Expected Points Added > 0). This is the nflverse EPA-based definition, which may differ slightly from PFR\u2019s yardage-based formula (40%/50%/100% of needed yards). QB success rate on this site excludes sacks from the denominator.",
   },
   {
+    term: "First Downs (Box Score)",
+    id: "first-downs",
+    definition:
+      "A team\u2019s total first downs on a game\u2019s box score, counted as passing + rushing + penalty first downs. One play can set two of those at once \u2014 a run that reaches the line to gain and also draws a defensive penalty \u2014 so the total deliberately double-counts that rare case. It is what ESPN shows, and it keeps the total equal to the sum of its own sub-rows; summing the raw first-down flag instead comes up 1\u20133 short in about one game in six.",
+  },
+  {
     term: "aDOT (Average Depth of Target)",
     definition:
       "Average distance in yards a QB throws downfield. Higher = more aggressive. Computed on true pass attempts only (sacks and scrambles excluded).",

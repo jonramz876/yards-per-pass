@@ -38,6 +38,8 @@ interface PlayerPageContentProps {
   passLocationStats?: QBPassLocationStat[];
   /** Official final scores for the Game Log, keyed by team then week. */
   gameResults: GameResultsByTeam;
+  /** Seasons with box scores — Game Log results in them link to /game/<id> (spec §7). */
+  boxScoreSeasons: number[];
 }
 
 const TABS = [
@@ -64,6 +66,7 @@ export default function PlayerPageContent({
   crossLinkQB,
   passLocationStats = [],
   gameResults,
+  boxScoreSeasons,
 }: PlayerPageContentProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -206,6 +209,7 @@ export default function PlayerPageContent({
         season={season}
         teamId={player.current_team_id}
         gameResults={gameResults}
+        boxScoreSeasons={boxScoreSeasons}
       />
     );
   }

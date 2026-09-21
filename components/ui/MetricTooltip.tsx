@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const METRIC_DEFINITIONS: Record<string, string> = {
+export const METRIC_DEFINITIONS: Record<string, string> = {
   "EPA/Play":
     "Points added per play \u2014 the best single measure of QB impact. Covers passing and rushing. Above 0 = above average.",
   "EPA/DB":
@@ -44,8 +44,13 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   ADOT: "Average Depth of Target \u2014 how far downfield a receiver is targeted on average. Higher = more of a deep threat.",
   "YAC/Rec":
     "Yards after catch per reception. Measures a receiver\u2019s ability to gain yards with the ball in their hands.",
+  // Divided by the team's TARGETS, not its pass attempts: scripts/ingest.py
+  // builds target_share from target_plays (a receiver charged, a pass attempt,
+  // no sack, no scramble), so the denominator is smaller than Comp/Att's and a
+  // reader working from "pass attempts" gets a different number than the site
+  // prints. Same denominator as the box score's TGT% column.
   "Tgt Share":
-    "Percentage of team pass attempts directed at this receiver. Higher = more involved in the passing game.",
+    "Percentage of the team's targets \u2014 throws charged to a receiver \u2014 aimed at this one. Higher = more involved in the passing game.",
   YPR: "Yards per reception. Total receiving yards \u00f7 receptions. A simple per-catch efficiency measure.",
   YPRR: "Yards Per Route Run \u2014 receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted.",
   TPRR: "Targets Per Route Run \u2014 targets divided by routes run. Measures how often a receiver gets targeted on each route they run.",
@@ -76,6 +81,26 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   TCH: "Total touches \u2014 carries + receptions. Measures overall involvement in the offense.",
   "TCH/G":
     "Touches per game \u2014 (carries + receptions) \u00f7 games played. Measures per-game workload.",
+  // Box score page (spec §4 definitions). "EPA / play" and "Success rate" are
+  // the team-level, nflfastR-style versions — the QB entries above exclude sacks.
+  "EPA / play":
+    "Expected points added per play: how much each snap moved the offense\u2019s expected points. Counts every run and dropback, the way nflfastR and rbsdm.com do.",
+  "Success rate": "Share of plays that gained expected points (EPA above zero).",
+  // The efficiency set filters on (pass | rush) + EPA present + a possessing
+  // team and counts first_down == 1 (scripts/ingest.py, _team_game_efficiency).
+  // There is NO no_play exclusion, and nflverse sets first_down for a penalty
+  // first down too, so penalty-wiped plays and flag-awarded first downs are
+  // both inside this rate. The page's own numbers say so: BUF 36% x 56 plays
+  // = 20 = 13 passing + 5 rushing + 2 penalty. The Team stats "1st downs" row
+  // applies the official box-score rule to a different set of plays (and
+  // deliberately double-counts a run that also drew a flag, to match ESPN), so
+  // rate x plays need not land on it: HOU is 32% x 79 = 25 against 26.
+  "1st down rate":
+    "Share of plays that gained a first down, over the same runs and dropbacks EPA/play counts \u2014 penalty-wiped plays included, so a first down the flag awarded counts here too. The Team stats \u201c1st downs\u201d row follows the official box-score rule over a different set of plays, so the two need not agree.",
+  "Explosive plays":
+    "Runs of 10+ yards and completions of 20+ yards. QB scrambles of 10+ yards count as explosive runs.",
+  "Toxic differential":
+    "Turnover margin plus explosive-play margin, using the explosive plays counted above.",
 };
 
 interface MetricTooltipProps {

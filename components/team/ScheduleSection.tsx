@@ -8,6 +8,7 @@
 import Link from "next/link";
 import type { TeamGame, TeamSeasonStat } from "@/lib/types";
 import { textColorForBackground } from "@/lib/stats/formatters";
+import { normalizeGameId } from "@/lib/stats/box-score";
 import { getTeam } from "@/lib/data/teams";
 
 interface ScheduleSectionProps {
@@ -23,6 +24,12 @@ interface ScheduleSectionProps {
    * record belongs to the viewed stats season, not to the season being shown.
    */
   upcomingSeason?: number;
+  /**
+   * Seasons that have box scores (team_game_stats rows), from
+   * getBoxScoreSeasons. A played regular-season tile in one of them links its
+   * score line to /game/<game_id>; everything else stays unlinked (spec §7).
+   */
+  boxScoreSeasons: number[];
 }
 
 const PIXEL = "font-[family-name:var(--font-pixel)]";
@@ -158,6 +165,28 @@ function gameTitle(game: TeamGame): string {
   return parts.join(" · ");
 }
 
+/**
+ * Box score link for a tile (spec §7): only a played regular-season game in a
+ * season that has box scores. Unplayed and playoff tiles never link.
+ */
+function boxScoreHref(game: TeamGame, boxScoreSeasons: number[]): string | null {
+  if (!game.played || game.game_type !== "REG") return null;
+  // Shape, not just blankness: a game_id with a space ("2026_03_BUF LAC") used
+  // to be linked and then 404'd by normalizeGameId at the other end. The rule
+  // is the one /game/ itself applies, so nothing can link to an address that
+  // has no page (spec §7). A row that fails it renders as an unlinked tile.
+  const id = normalizeGameId(game.game_id);
+  if (!id) return null;
+  if (!Array.isArray(boxScoreSeasons) || !boxScoreSeasons.includes(Number(game.season))) return null;
+  return `/game/${id}`;
+}
+
+/** "Box score: BUF 36, HOU 31" — away team first, as the scoreboard reads. */
+function boxScoreTitle(game: TeamGame): string {
+  if (game.away_score == null || game.home_score == null) return "Box score";
+  return `Box score: ${game.away_team} ${game.away_score}, ${game.home_team} ${game.home_score}`;
+}
+
 function skinFor(game: TeamGame): TileSkin {
   if (!game.played) return UPCOMING_TILE;
   if (game.result === "W") return WIN_TILE;
@@ -174,7 +203,7 @@ function stateFor(game: TeamGame): string {
 
 /* ─── Tiles ─── */
 
-function GameTile({ game, isNext }: { game: TeamGame; isNext: boolean }) {
+function GameTile({ game, isNext, href }: { game: TeamGame; isNext: boolean; href: string | null }) {
   const skin = skinFor(game);
   const fg = textColorForBackground(skin.bg);
   const border = isNext && !game.played ? NEXT_BORDER : skin.border;
@@ -206,15 +235,32 @@ function GameTile({ game, isNext }: { game: TeamGame; isNext: boolean }) {
       </div>
 
       {game.played ? (
-        <div
-          className="mt-1.5 flex items-baseline justify-center gap-1 leading-none"
-          style={{ color: skin.accent }}
-        >
-          <span className={`${PIXEL} text-[7px] lg:text-[9px]`}>{game.result}</span>
-          <span className="text-[10px] lg:text-xs font-bold">
-            {game.team_score}-{game.opponent_score}
-          </span>
-        </div>
+        href ? (
+          // The opponent above already links to their team page and links can't
+          // nest, so the score line is the box score link (spec §7).
+          <Link
+            href={href}
+            data-box-score-link
+            title={boxScoreTitle(game)}
+            className="mt-1.5 flex items-baseline justify-center gap-1 leading-none underline decoration-dotted decoration-[1.5px] underline-offset-[3px] hover:decoration-solid"
+            style={{ color: skin.accent }}
+          >
+            <span className={`${PIXEL} text-[7px] lg:text-[9px]`}>{game.result}</span>
+            <span className="text-[10px] lg:text-xs font-bold">
+              {game.team_score}-{game.opponent_score}
+            </span>
+          </Link>
+        ) : (
+          <div
+            className="mt-1.5 flex items-baseline justify-center gap-1 leading-none"
+            style={{ color: skin.accent }}
+          >
+            <span className={`${PIXEL} text-[7px] lg:text-[9px]`}>{game.result}</span>
+            <span className="text-[10px] lg:text-xs font-bold">
+              {game.team_score}-{game.opponent_score}
+            </span>
+          </div>
+        )
       ) : (
         // Kickoff line is dropped entirely when the game has no scheduled time.
         time && (
@@ -251,6 +297,7 @@ export default function ScheduleSection({
   secondaryColor,
   teamStats,
   upcomingSeason,
+  boxScoreSeasons,
 }: ScheduleSectionProps) {
   // No schedule rows (pre-backfill season) → the section is omitted entirely.
   if (schedule.length === 0) return null;
@@ -276,7 +323,12 @@ export default function ScheduleSection({
     if (regWeeks.has(week)) {
       for (const game of regGames.filter((g) => g.week === week)) {
         regTiles.push(
-          <GameTile key={game.game_id} game={game} isNext={game.game_id === nextGameId} />
+          <GameTile
+            key={game.game_id}
+            game={game}
+            isNext={game.game_id === nextGameId}
+            href={boxScoreHref(game, boxScoreSeasons)}
+          />
         );
       }
     } else {
@@ -316,7 +368,12 @@ export default function ScheduleSection({
         {regTiles}
         {/* Playoff tiles append after the regular-season grid */}
         {postGames.map((game) => (
-          <GameTile key={game.game_id} game={game} isNext={game.game_id === nextGameId} />
+          <GameTile
+            key={game.game_id}
+            game={game}
+            isNext={game.game_id === nextGameId}
+            href={boxScoreHref(game, boxScoreSeasons)}
+          />
         ))}
       </div>
     </div>
