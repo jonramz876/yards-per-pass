@@ -20,7 +20,7 @@ Today nothing links to a game: `games` holds the schedule and final scores, the 
 | Game chart (win probability / drives) | Not in v1 — the later charts project |
 | Definitions | nflfastR / rbsdm standard (§4) |
 | Team comparison sections | Efficiency core, traditional team stats, what it cost them, early vs late downs |
-| Team comparison layout | `AWAY | stat | HOME` stat sheet, better side shaded, section bands like the team pages, detail values in parentheses: `+0.28 (56)`, `8 (15%)` |
+| Team comparison layout | `AWAY | stat | HOME` stat sheet, better side shaded, section bands like the team pages, detail values in parentheses: `+0.28 (56)`, `8 (14%)` |
 | Extra efficiency row | Toxic differential (turnover margin + explosive margin), using this page's explosive definition so it reconciles with the row above |
 | Player lines layout | Type A: one table per stat type (passing, rushing, receiving) with both teams' rows inside |
 | Receiving columns | Adds target share (TGT%) and Y/TGT; YPRR shown **only when route data exists** |
