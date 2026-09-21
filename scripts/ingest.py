@@ -3657,6 +3657,10 @@ def aggregate_team_game_stats(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
 
 def ensure_team_game_stats_table(conn):
     """Create team_game_stats (box score spec §5) if it doesn't exist. NOT @retry."""
+    # Adding a column later: CREATE TABLE IF NOT EXISTS is a no-op against the
+    # existing production table, so editing the body below alone would pass every
+    # test and silently do nothing live — add an ALTER TABLE ... ADD COLUMN IF NOT
+    # EXISTS function instead, the way ensure_qb_season_stats_columns does.
     with conn.cursor() as cur:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_game_stats (
@@ -3902,7 +3906,9 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
                 (season, game_ids),
             )
             if cur.rowcount > 0:
-                log.info("Cleaned up %d stale team_game_stats rows", cur.rowcount)
+                log.warning("Removed %d stale team_game_stats row(s) for games no longer in "
+                            "the season's play-by-play (reschedule, or an upstream data gap)",
+                            cur.rowcount)
 
 
 @retry(max_retries=2, delay=3)

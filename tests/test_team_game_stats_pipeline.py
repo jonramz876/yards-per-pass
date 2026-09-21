@@ -3,7 +3,6 @@ box score spec §5 ("How it runs", "Stale rows")."""
 import math
 
 import pandas as pd
-import pytest
 
 from conftest import FIXTURE_GAMES
 
@@ -58,6 +57,37 @@ class TestEnsureTable:
         assert 'CREATE POLICY "public_read" ON team_game_stats FOR SELECT USING (true)' in ddl
         assert conn.commits == 1
         assert conn.rollbacks == 0
+
+    def test_ddl_column_types_match_their_category(self):
+        """Column presence alone would still pass with a rate column typed INT,
+        or a name that only appears inside an index definition — parse the SQL
+        type declared for each column instead. The one property here that could
+        otherwise only fail against real Postgres."""
+        import re
+        from ingest import (
+            ensure_team_game_stats_table, TEAM_GAME_STATS_INT_COLS,
+            TEAM_GAME_STATS_RATE_COLS, TEAM_GAME_STATS_SUM_COLS,
+        )
+        conn = _FakeConn()
+        ensure_team_game_stats_table(conn)
+        create_sql = next(sql for sql, _ in conn.calls
+                          if 'CREATE TABLE IF NOT EXISTS team_game_stats' in sql)
+
+        def sql_type(col):
+            m = re.search(rf'\b{re.escape(col)}\s+(\w+)', create_sql)
+            assert m, f'{col} not found in CREATE TABLE body'
+            return m.group(1)
+
+        int_cols = set(TEAM_GAME_STATS_INT_COLS) | {'season', 'week', 'time_of_possession_seconds'}
+        numeric_cols = set(TEAM_GAME_STATS_RATE_COLS) | set(TEAM_GAME_STATS_SUM_COLS)
+        text_cols = {'game_id', 'team_id', 'opponent_id', 'home_away'}
+
+        for col in int_cols:
+            assert sql_type(col) == 'INT', col
+        for col in numeric_cols:
+            assert sql_type(col) == 'NUMERIC', col
+        for col in text_cols:
+            assert sql_type(col) == 'TEXT', col
 
 
 class TestUpsert:
@@ -217,6 +247,12 @@ class TestProcessSeasonWiring:
         assert len(df) == 6 and sorted(df['game_id'].unique()) == sorted(FIXTURE_GAMES)
 
         assert names.index('ensure_team_game_stats_table') < names.index('upsert_team_game_stats')
+        # ensure_team_game_stats_table commits its own DDL — inside the try: block
+        # it would prematurely commit a half-written season and defeat the
+        # rollback, so it must precede the FIRST upsert of the transaction, not
+        # just upsert_team_game_stats.
+        first_upsert = next(n for n in names if n.startswith('upsert_'))
+        assert names.index('ensure_team_game_stats_table') < names.index(first_upsert)
         assert names.index('ensure_qb_weekly_stats_table') < names.index('ensure_qb_weekly_stats_columns') < names.index('upsert_qb_weekly_stats')
 
         cleanup = [c for c in calls if c[0] == 'cleanup_stale_rows'][0]
