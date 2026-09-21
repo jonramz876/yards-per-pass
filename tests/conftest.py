@@ -74,6 +74,8 @@ class RawPlays:
     @staticmethod
     def play(**overrides) -> pd.DataFrame:
         """A completed pass (see _RAW_PLAY_DEFAULTS)."""
+        unknown = set(overrides) - set(RAW_PBP_COLUMNS)
+        assert not unknown, f"unknown column(s): {sorted(unknown)}"
         row = dict(_RAW_PLAY_DEFAULTS)
         row.update(overrides)
         return pd.DataFrame([row], columns=RAW_PBP_COLUMNS)

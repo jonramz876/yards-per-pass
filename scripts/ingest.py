@@ -96,6 +96,11 @@ REQUIRED_PBP_COLS = [
     'receiver_player_id', 'receiver_player_name',
     'receiving_yards', 'yards_after_catch',
     'total_home_score', 'total_away_score',
+    # box scores (team_game_stats): read from RAW rows, so they must exist
+    'pass', 'rush', 'first_down', 'first_down_pass', 'first_down_rush', 'first_down_penalty',
+    'down', 'drive', 'yardline_100', 'td_team', 'kickoff_attempt',
+    'penalty', 'penalty_team', 'penalty_yards', 'fumbled_1_team',
+    'drive_time_of_possession',
 ]
 
 # --- Run gap mapping ---
@@ -3256,6 +3261,351 @@ def ingest_schedules(conn, season: int):
         log.error("Schedules ingest for %d FAILED — rolled back", season)
         raise
     log.info("Upserted %d schedule rows for %d", len(rows), season)
+
+
+# --- team_game_stats: one row per team per game (box score spec §4/§5) ---
+
+# Play types that are a snap from scrimmage. no_play (penalty-wiped) rows,
+# kicks and timeouts are not.
+_SCRIMMAGE_PLAY_TYPES = ('pass', 'run', 'qb_kneel', 'qb_spike')
+
+TEAM_GAME_STATS_COLS = [
+    'game_id', 'team_id', 'season', 'week', 'opponent_id', 'home_away',
+    # efficiency (nflfastR / rbsdm play set)
+    'plays', 'epa_per_play', 'success_rate', 'first_down_rate',
+    'pass_plays', 'pass_epa_per_play', 'pass_success_rate', 'pass_first_down_rate',
+    'rush_plays', 'rush_epa_per_play', 'rush_success_rate', 'rush_first_down_rate',
+    'early_plays', 'early_epa_per_play', 'early_success_rate',
+    'late_plays', 'late_epa_per_play', 'late_success_rate',
+    'explosive_plays', 'explosive_rate', 'explosive_pass', 'explosive_rush',
+    # what it cost them
+    'epa_lost_turnovers', 'epa_lost_sacks', 'epa_lost_penalties',
+    # traditional (official box-score conventions)
+    'first_downs', 'first_downs_pass', 'first_downs_rush', 'first_downs_penalty',
+    'third_down_att', 'third_down_conv', 'fourth_down_att', 'fourth_down_conv',
+    'total_plays', 'total_yards', 'total_drives', 'yards_per_play',
+    'net_passing_yards', 'completions', 'attempts', 'yards_per_pass',
+    'interceptions', 'sacks', 'sack_yards',
+    'rushing_yards', 'rushing_attempts', 'yards_per_rush',
+    'red_zone_trips', 'red_zone_tds', 'penalties', 'penalty_yards',
+    'turnovers', 'fumbles_lost', 'def_st_tds', 'time_of_possession_seconds',
+    # for the player tables (target share denominator)
+    'team_targets',
+]
+
+# Counts and yard totals: 0 when the team had none, never NULL.
+TEAM_GAME_STATS_INT_COLS = [
+    'plays', 'pass_plays', 'rush_plays', 'early_plays', 'late_plays',
+    'explosive_plays', 'explosive_pass', 'explosive_rush',
+    'first_downs', 'first_downs_pass', 'first_downs_rush', 'first_downs_penalty',
+    'third_down_att', 'third_down_conv', 'fourth_down_att', 'fourth_down_conv',
+    'total_plays', 'total_yards', 'total_drives', 'net_passing_yards',
+    'completions', 'attempts', 'interceptions', 'sacks', 'sack_yards',
+    'rushing_yards', 'rushing_attempts', 'red_zone_trips', 'red_zone_tds',
+    'penalties', 'penalty_yards', 'turnovers', 'fumbles_lost', 'def_st_tds',
+    'team_targets',
+]
+
+# EPA sums: 0.0 when the team had no such plays (BUF lost 0.00 EPA to turnovers).
+TEAM_GAME_STATS_SUM_COLS = ['epa_lost_turnovers', 'epa_lost_sacks', 'epa_lost_penalties']
+
+# Rates: NULL when the denominator is 0 (a team with no rush plays has no rush EPA/play).
+TEAM_GAME_STATS_RATE_COLS = [
+    'epa_per_play', 'success_rate', 'first_down_rate',
+    'pass_epa_per_play', 'pass_success_rate', 'pass_first_down_rate',
+    'rush_epa_per_play', 'rush_success_rate', 'rush_first_down_rate',
+    'early_epa_per_play', 'early_success_rate', 'late_epa_per_play', 'late_success_rate',
+    'explosive_rate', 'yards_per_play', 'yards_per_pass', 'yards_per_rush',
+]
+
+
+def _ratio(frame: pd.DataFrame, num: str, den: str) -> pd.Series:
+    """num / den per row as Python floats; None where den is 0 (stored as NULL,
+    never NaN). dtype=object keeps the None — a plain list of floats and None
+    would become a float64 column with NaN."""
+    return pd.Series([float(n) / float(d) if d else None for n, d in zip(frame[num], frame[den])],
+                     index=frame.index, dtype=object)
+
+
+def _top_seconds(value):
+    """'12:34' -> 754. None for a missing or unparseable drive_time_of_possession."""
+    if pd.isna(value):
+        return None
+    parts = str(value).split(':')
+    if len(parts) != 2:
+        return None
+    try:
+        return int(parts[0]) * 60 + int(parts[1])
+    except ValueError:
+        return None
+
+
+def _team_game_frame(reg: pd.DataFrame) -> pd.DataFrame:
+    """One row per (game_id, team_id) for every game in the frame — both teams,
+    even one that never had the ball — with week, opponent_id and home_away."""
+    games = reg.groupby('game_id').agg(
+        week=('week', 'first'),
+        home_team=('home_team', 'first'),
+        away_team=('away_team', 'first'),
+    ).reset_index().dropna(subset=['home_team', 'away_team'])
+    home = games.rename(columns={'home_team': 'team_id', 'away_team': 'opponent_id'})
+    home['home_away'] = 'home'
+    away = games.rename(columns={'away_team': 'team_id', 'home_team': 'opponent_id'})
+    away['home_away'] = 'away'
+    frame = pd.concat([home, away], ignore_index=True)
+    return frame[['game_id', 'team_id', 'week', 'opponent_id', 'home_away']]
+
+
+def _team_game_efficiency(reg: pd.DataFrame) -> pd.DataFrame:
+    """Efficiency set (spec §4): pass == 1 or rush == 1, EPA present, a possessing
+    team. Kneels drop out on their own (pass = rush = 0); 2-point tries are KEPT
+    (they have a null down, so early + late can be one short of plays)."""
+    eff = reg[((reg['pass'] == 1) | (reg['rush'] == 1)) & reg['epa'].notna() & reg['posteam'].notna()].copy()
+    eff['succ'] = (eff['success'] == 1).astype(int)
+    eff['fd'] = (eff['first_down'] == 1).astype(int)
+    # Scrambles are pass plays for EPA (pass = 1, rush = 0) but explosive RUNS.
+    # Both rules are penalty-safe: no_play rows have yards_gained 0.
+    eff['expl_pass'] = ((eff['complete_pass'] == 1) & (eff['yards_gained'] >= 20)).astype(int)
+    eff['expl_rush'] = (((eff['rush'] == 1) | (eff['qb_scramble'] == 1)) & (eff['yards_gained'] >= 10)).astype(int)
+
+    def sums(sub: pd.DataFrame, prefix: str, first_down: bool) -> pd.DataFrame:
+        spec = {
+            f'{prefix}plays': ('epa', 'size'),
+            f'{prefix}epa_sum': ('epa', 'sum'),
+            f'{prefix}succ_sum': ('succ', 'sum'),
+        }
+        if first_down:
+            spec[f'{prefix}fd_sum'] = ('fd', 'sum')
+        return sub.groupby(['game_id', 'posteam']).agg(**spec)
+
+    parts = [
+        sums(eff, '', True),
+        sums(eff[eff['pass'] == 1], 'pass_', True),
+        sums(eff[eff['rush'] == 1], 'rush_', True),
+        sums(eff[eff['down'].isin([1, 2])], 'early_', False),
+        sums(eff[eff['down'].isin([3, 4])], 'late_', False),
+        eff.groupby(['game_id', 'posteam']).agg(
+            explosive_pass=('expl_pass', 'sum'),
+            explosive_rush=('expl_rush', 'sum'),
+        ),
+    ]
+    out = pd.concat(parts, axis=1).reset_index().rename(columns={'posteam': 'team_id'})
+    out['explosive_plays'] = out['explosive_pass'].fillna(0) + out['explosive_rush'].fillna(0)
+    return out
+
+
+def _team_game_costs(reg: pd.DataFrame) -> pd.DataFrame:
+    """Turnovers (attributed by fumbled_1_team, spec §4) and the EPA lost to
+    turnovers, sacks and the team's OWN penalties."""
+    off = reg[reg['posteam'].notna()].copy()
+    off['is_int'] = (off['interception'] == 1).astype(int)
+    # fumble_lost flags the PLAY; fumbled_1_team says who lost the ball. A pick the
+    # defence fumbles back is 1 turnover, not 2 (spec §4).
+    # Known limitation (spec §4), 1 of 544 2025 team-games — 2025_14_PHI_LAC: when a
+    # pick AND a SEPARATE lost fumble happen on one snap, the second fumble is
+    # recorded only in fumbled_2_team, which this rule does not read, so it counts 1
+    # where 2 is right. There is no test for it: fumbled_2_team is not a column the
+    # aggregator reads or the fixture carries, so no synthetic row can reproduce it.
+    off['is_fl'] = ((off['fumble_lost'] == 1) & (off['fumbled_1_team'] == off['posteam'])).astype(int)
+    off['to_epa'] = off['epa'].where((off['is_int'] == 1) | (off['is_fl'] == 1), 0.0)
+    off['sack_epa'] = off['epa'].where(off['sack'] == 1, 0.0)
+    own = off.groupby(['game_id', 'posteam']).agg(
+        interceptions=('is_int', 'sum'),
+        fumbles_lost=('is_fl', 'sum'),
+        epa_lost_turnovers=('to_epa', 'sum'),
+        epa_lost_sacks=('sack_epa', 'sum'),
+    ).reset_index().rename(columns={'posteam': 'team_id'})
+    own['turnovers'] = own['interceptions'] + own['fumbles_lost']
+
+    # This team's own flags only (penalty_team == team), on offence AND defence.
+    # EPA belongs to the possessing team, so a flag while defending is subtracted.
+    pen = reg[(reg['penalty'] == 1) & reg['penalty_team'].notna()].copy()
+    pen['signed_epa'] = pen['epa'].fillna(0.0).where(pen['posteam'] == pen['penalty_team'], -pen['epa'].fillna(0.0))
+    flags = pen.groupby(['game_id', 'penalty_team']).agg(
+        penalties=('penalty', 'size'),
+        penalty_yards=('penalty_yards', lambda s: s.fillna(0).sum()),
+        epa_lost_penalties=('signed_epa', 'sum'),
+    ).reset_index().rename(columns={'penalty_team': 'team_id'})
+    return own.merge(flags, on=['game_id', 'team_id'], how='outer')
+
+
+def _team_game_traditional(reg: pd.DataFrame) -> pd.DataFrame:
+    """Official box-score counts (spec §4 traditional set), from RAW rows."""
+    off = reg[reg['posteam'].notna()].copy()
+    no2 = off[off['two_point_attempt'] != 1].copy()
+    no2['is_att'] = ((no2['pass_attempt'] == 1) & (no2['sack'] != 1)).astype(int)
+    no2['is_comp'] = (no2['complete_pass'] == 1).astype(int)
+    no2['is_rush'] = (no2['rush_attempt'] == 1).astype(int)
+    passing = no2.groupby(['game_id', 'posteam']).agg(
+        attempts=('is_att', 'sum'),
+        completions=('is_comp', 'sum'),
+        passing_yards=('passing_yards', lambda s: s.fillna(0).sum()),
+        rushing_attempts=('is_rush', 'sum'),
+        rushing_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
+    )
+
+    off['is_sack'] = (off['sack'] == 1).astype(int)
+    off['sack_yds'] = off['yards_gained'].fillna(0).where(off['sack'] == 1, 0.0)
+    off['fdp'] = (off['first_down_pass'] == 1).astype(int)
+    off['fdr'] = (off['first_down_rush'] == 1).astype(int)
+    off['fdn'] = (off['first_down_penalty'] == 1).astype(int)
+    misc = off.groupby(['game_id', 'posteam']).agg(
+        sacks=('is_sack', 'sum'),
+        sack_yards_raw=('sack_yds', 'sum'),
+        first_downs_pass=('fdp', 'sum'),
+        first_downs_rush=('fdr', 'sum'),
+        first_downs_penalty=('fdn', 'sum'),
+        total_drives=('drive', 'nunique'),
+    )
+
+    # 3rd / 4th down: snaps from scrimmage on that down (no_play excluded), a
+    # conversion when the play earned a first down (a TD counts).
+    scrim = off[off['play_type'].isin(_SCRIMMAGE_PLAY_TYPES) & (off['two_point_attempt'] != 1)].copy()
+    scrim['conv'] = (scrim['first_down'] == 1).astype(int)
+    downs = {}
+    for down, prefix in ((3, 'third'), (4, 'fourth')):
+        d = scrim[scrim['down'] == down].groupby(['game_id', 'posteam']).agg(
+            att=('conv', 'size'), conv=('conv', 'sum'),
+        )
+        downs[f'{prefix}_down_att'] = d['att']
+        downs[f'{prefix}_down_conv'] = d['conv']
+    downs = pd.DataFrame(downs)
+
+    # Red zone is drive-level: a trip once any scrimmage snap starts inside the
+    # 20; a score when that drive ends in a TD by THIS team (td_team), so a
+    # red-zone pick-six is not credited to the offence.
+    rz_drives = scrim[(scrim['yardline_100'] <= 20) & scrim['drive'].notna()][['game_id', 'posteam', 'drive']].drop_duplicates()
+    td_drives = off[(off['td_team'] == off['posteam']) & off['drive'].notna()][['game_id', 'posteam', 'drive']].drop_duplicates()
+    td_drives['rz_td'] = 1
+    rz = rz_drives.merge(td_drives, on=['game_id', 'posteam', 'drive'], how='left')
+    red_zone = rz.groupby(['game_id', 'posteam']).agg(
+        red_zone_trips=('drive', 'size'),
+        red_zone_tds=('rz_td', lambda s: int(s.fillna(0).sum())),
+    )
+
+    # Time of possession: one drive_time_of_possession per (game, team, drive)
+    # over ALL raw rows — a drive with no scrimmage play still owns its clock.
+    top = off[off['drive'].notna()].groupby(['game_id', 'posteam', 'drive'])['drive_time_of_possession'].first()
+    top = top.map(_top_seconds).reset_index()
+    top_sum = top.groupby(['game_id', 'posteam'])['drive_time_of_possession'].agg(
+        top_seconds=lambda s: s.dropna().sum(),
+        top_known=lambda s: s.notna().sum(),
+    )
+
+    # Defensive / special-teams TDs: credited to a team that did not have the
+    # ball. nflverse sets posteam to the RECEIVING team on kickoffs, so a
+    # kickoff-return TD has td_team == posteam and needs the kickoff clause.
+    tds = reg[reg['td_team'].notna()]
+    dst = tds[(tds['posteam'] != tds['td_team']) | (tds['kickoff_attempt'] == 1)]
+    def_st = dst.groupby(['game_id', 'td_team']).size().rename('def_st_tds')
+    def_st.index = def_st.index.set_names(['game_id', 'posteam'])
+
+    out = pd.concat([passing, misc, downs, red_zone, top_sum, def_st], axis=1).reset_index()
+    return out.rename(columns={'posteam': 'team_id'})
+
+
+def _team_game_targets(reg: pd.DataFrame) -> pd.DataFrame:
+    """team_targets: exactly the plays aggregate_receiver_weekly_stats counts
+    (filter_plays' play types, no 2-pt, a receiver, a non-sack non-scramble pass
+    attempt), so every player's target share sums to 100%."""
+    tgt = reg[
+        reg['play_type'].isin(['pass', 'run', 'qb_kneel']) &
+        (reg['two_point_attempt'] != 1) &
+        reg['receiver_player_id'].notna() &
+        (reg['pass_attempt'] == 1) &
+        (reg['sack'] != 1) &
+        (reg['qb_scramble'] != 1) &
+        reg['posteam'].notna()
+    ]
+    return tgt.groupby(['game_id', 'posteam']).size().rename('team_targets').reset_index().rename(columns={'posteam': 'team_id'})
+
+
+def aggregate_team_game_stats(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
+    """One row per team per regular-season game from RAW play-by-play (box score
+    spec §4/§5). Takes the unfiltered frame, like aggregate_team_stats' pbp
+    argument: time of possession, drives, penalties and red zone need the
+    kicking and no_play rows that filter_plays drops.
+
+    Counts and yard totals are 0 when a team had none; EPA sums are 0.0; rates
+    are None (SQL NULL, never NaN) when their denominator is 0.
+    """
+    if pbp.empty or 'season_type' not in pbp.columns:
+        return pd.DataFrame(columns=TEAM_GAME_STATS_COLS)
+    reg = pbp[pbp['season_type'] == 'REG']
+    if reg.empty:
+        return pd.DataFrame(columns=TEAM_GAME_STATS_COLS)
+
+    frame = _team_game_frame(reg)
+    for part in (_team_game_efficiency(reg), _team_game_costs(reg),
+                 _team_game_traditional(reg), _team_game_targets(reg)):
+        frame = frame.merge(part, on=['game_id', 'team_id'], how='left')
+
+    # Derived totals (spec §4): sack yards are negative in the raw data and only
+    # enter total/net yards that way; the stored sack_yards is positive.
+    frame['sack_yards_raw'] = frame['sack_yards_raw'].fillna(0.0)
+    frame['passing_yards'] = frame['passing_yards'].fillna(0.0)
+    frame['rushing_yards'] = frame['rushing_yards'].fillna(0.0)
+    frame['net_passing_yards'] = frame['passing_yards'] + frame['sack_yards_raw']
+    frame['total_yards'] = frame['net_passing_yards'] + frame['rushing_yards']
+    frame['sack_yards'] = -frame['sack_yards_raw']
+    for c in ('attempts', 'sacks', 'rushing_attempts'):
+        frame[c] = frame[c].fillna(0)
+    frame['total_plays'] = frame['rushing_attempts'] + frame['attempts'] + frame['sacks']
+    frame['dropbacks'] = frame['attempts'] + frame['sacks']
+    # Sum of parts on purpose: one play can be a rush AND a penalty first down,
+    # and only the sum reaches ESPN's total (spec §4).
+    frame['first_downs'] = (frame['first_downs_pass'].fillna(0) + frame['first_downs_rush'].fillna(0)
+                            + frame['first_downs_penalty'].fillna(0))
+
+    for c in TEAM_GAME_STATS_INT_COLS:
+        frame[c] = frame[c].fillna(0).astype(int)
+    for c in TEAM_GAME_STATS_SUM_COLS:
+        frame[c] = frame[c].fillna(0.0).astype(float)
+    for c in ('epa_sum', 'succ_sum', 'fd_sum', 'pass_epa_sum', 'pass_succ_sum', 'pass_fd_sum',
+              'rush_epa_sum', 'rush_succ_sum', 'rush_fd_sum', 'early_epa_sum', 'early_succ_sum',
+              'late_epa_sum', 'late_succ_sum'):
+        frame[c] = frame[c].fillna(0.0)
+
+    frame['epa_per_play'] = _ratio(frame, 'epa_sum', 'plays')
+    frame['success_rate'] = _ratio(frame, 'succ_sum', 'plays')
+    frame['first_down_rate'] = _ratio(frame, 'fd_sum', 'plays')
+    frame['pass_epa_per_play'] = _ratio(frame, 'pass_epa_sum', 'pass_plays')
+    frame['pass_success_rate'] = _ratio(frame, 'pass_succ_sum', 'pass_plays')
+    frame['pass_first_down_rate'] = _ratio(frame, 'pass_fd_sum', 'pass_plays')
+    frame['rush_epa_per_play'] = _ratio(frame, 'rush_epa_sum', 'rush_plays')
+    frame['rush_success_rate'] = _ratio(frame, 'rush_succ_sum', 'rush_plays')
+    frame['rush_first_down_rate'] = _ratio(frame, 'rush_fd_sum', 'rush_plays')
+    frame['early_epa_per_play'] = _ratio(frame, 'early_epa_sum', 'early_plays')
+    frame['early_success_rate'] = _ratio(frame, 'early_succ_sum', 'early_plays')
+    frame['late_epa_per_play'] = _ratio(frame, 'late_epa_sum', 'late_plays')
+    frame['late_success_rate'] = _ratio(frame, 'late_succ_sum', 'late_plays')
+    frame['explosive_rate'] = _ratio(frame, 'explosive_plays', 'plays')
+    frame['yards_per_play'] = _ratio(frame, 'total_yards', 'total_plays')
+    frame['yards_per_pass'] = _ratio(frame, 'net_passing_yards', 'dropbacks')
+    frame['yards_per_rush'] = _ratio(frame, 'rushing_yards', 'rushing_attempts')
+
+    # Possession: the summed clock of the team's drives; NULL only when it had
+    # drives but nflverse gave none of them a drive_time_of_possession.
+    frame['top_known'] = frame['top_known'].fillna(0)
+    # A PARTLY unreadable clock is the dangerous case: the unreadable drives fall out
+    # of the sum and possession is understated with nothing in the stored row to show
+    # it (all-unreadable is at least visible as NULL). Name the game and team.
+    for game_id, team_id, known, drives in zip(frame['game_id'], frame['team_id'],
+                                               frame['top_known'], frame['total_drives']):
+        if 0 < known < drives:
+            log.warning("%s %s: drive_time_of_possession readable on only %d of %d drives; "
+                        "time_of_possession_seconds is understated",
+                        game_id, team_id, int(known), int(drives))
+    frame['time_of_possession_seconds'] = pd.Series([
+        None if (drives > 0 and known == 0) else int(secs if pd.notna(secs) else 0)
+        for drives, known, secs in zip(frame['total_drives'], frame['top_known'], frame['top_seconds'])
+    ], index=frame.index, dtype=object)
+
+    frame['season'] = season
+    frame['week'] = frame['week'].astype(int)
+    frame = frame.sort_values(['game_id', 'home_away']).reset_index(drop=True)
+    log.info("Aggregated team game stats for %d team-games (%d games)", len(frame), frame['game_id'].nunique())
+    return frame[TEAM_GAME_STATS_COLS]
 
 
 def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None, dd_team_ids: list = None, sit_team_ids: list = None):
