@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 14.2 App Router, React 18, TypeScript 5.9, Tailwind v4 (arbitrary values), `next/image` + `next/link`, Supabase (`@supabase/supabase-js` via `createServerClient`), base-ui tooltips through `components/ui/MetricTooltip.tsx`, vitest 4 + @testing-library/react (jsdom), `gh` CLI, Vercel.
 
-**Spec:** `docs/superpowers/specs/2026-09-15-box-scores-design.md`. PR 3 = §3 "Phase 1 … PR 3: `/game/[game_id]` + schedule-tile and Game Log links". Binding: §6 (page order, records, player tables, the EPA null guard, states, rendering, mobile), §7 (links, the season gate and threading to client components), §11 "Frontend (vitest…)", §12 (the on-page notes), §4 for what every number means. §8 is PR 4 — not built here, but the scoreboard, the record helper and the team colours are reusable pieces it will take. The column names come from PR 2's plan, `docs/superpowers/plans/2026-09-16-box-scores-pr2-team-game-stats.md` (`TEAM_GAME_STATS_COLS` and its NULL policy in the Global Constraints; the two `qb_weekly_stats` columns from its Task 5).
+**Spec:** `docs/superpowers/specs/2026-09-15-box-scores-design.md`. PR 3 = §3 "Phase 1 … PR 3: `/game/[game_id]` + schedule-tile and Game Log links". Binding: §6 (page order, records, player tables, the EPA null guard, states, rendering, mobile), §7 (links, the season gate and threading to client components), §11 "Frontend (vitest…)", §12 (the on-page notes), §4 for what every number means. §11's frontend list includes two PR 4 items — the hook rule for every branch and the strip advancing a week — which are out of scope here. §8 is PR 4 — not built here, but the scoreboard, the record helper and the team colours are reusable pieces it will take. The column names come from PR 2's plan, `docs/superpowers/plans/2026-09-16-box-scores-pr2-team-game-stats.md` (`TEAM_GAME_STATS_COLS` and its NULL policy in the Global Constraints; the two `qb_weekly_stats` columns from its Task 5).
 
 ## Global Constraints
 
@@ -23,7 +23,8 @@
 - **Copy is the approved mockup's, verbatim** (section titles, row labels, tooltip texts, message headings, notes) as transcribed in Tasks 2, 5 and 7. Numbers never use the pixel font (site convention). Negative numbers print a typographic minus (U+2212, "−0.26"), the way the mockup and the golden values in this plan read; a value that rounds to zero prints unsigned ("0.0", never "-0.0").
 - **Quality gates as tasks:** chaos test (Task 11) before the final code review (Task 12); a "rate it + 3 domain experts" pass after it (Task 13); docs/memory (Task 14) before shipping (Task 15). Fix every CRASH/ERROR before moving on.
 - **Ship gate:** this PR does not merge until PR 2 is merged **and** production `team_game_stats` has 2026 rows (Task 15 checks with a read-only REST GET using the anon key from `.env.local`, printing only counts — never the key, never `DATABASE_URL`). Branch `box-scores-pr3` from the then-current `main`; one PR; CI polled with a background until-loop over `gh pr checks <n> --json bucket` (never `--watch`); `gh pr merge <n> --merge` once green; wait for the Vercel production deploy (commit status context `Vercel`); verify on yardsperpass.com.
-- **Commits:** stage files by name; end every commit message with `Co-Authored-By: Claude <noreply@anthropic.com>` (if your session's attribution reminder names a specific model, use that line instead).
+- **Commits:** stage files by name. End every commit message in this plan with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` — that line, not the generic one the commit commands below still carry.
+- **`first_down_rate`, `pass_first_down_rate` and `rush_first_down_rate` are stored but not shown.** rbsdm publishes 1st% as the third of its four numbers and PR 2 stores all three variants, but the approved mockup's Efficiency section does not have a 1st%-rate row, so the page does not render one. They stay typed, fixtured and parsed so adding three rows later is a display-only change. Do not add the rows in this PR.
 - **Line numbers** in this plan are as of `main` @ a1f4cfe (Phase 0 and PR 2 merged; PR 2 changed only scripts/ingest.py, tests/, docs and memory, so no frontend line moved) and are orientation only; anchor every edit on the quoted text. `scripts/ingest.py` and `tests/` are PR 2's — do not touch them.
 
 ## File Structure
@@ -64,7 +65,7 @@ Out of scope: `/scores` and the homepage strip (PR 4, spec §8); percentile colo
 ### Task 1: Branch, plan commit, shared types, `hasNoDatabase` move
 
 **Files:**
-- Create: `docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md` (this plan — the controller places it; Step 1 commits it)
+- Create: `docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md` (this plan — already committed at `30557ed`; Step 1 only confirms it)
 - Modify: `lib/types/index.ts` (`QBWeeklyStat` ends at line 241; `GameResultsByTeam` is line 367)
 - Modify: `lib/supabase/server.ts` (17 lines; append)
 - Modify: `app/page.tsx` (import block lines 2–10; `hasNoDatabase` block lines 23–37)
@@ -80,35 +81,13 @@ Out of scope: `/scores` and the homepage strip (PR 4, spec §8); percentile colo
   - `export function hasNoDatabase(): boolean` from `@/lib/supabase/server` (same body as before; `app/page.tsx` now imports it).
   - `export const QB_WEEKLY_NUMERIC`, `RECEIVER_WEEKLY_NUMERIC`, `RB_WEEKLY_NUMERIC` from `@/lib/data/players` (Task 3 reads the weekly tables with them).
 
-- [ ] **Step 1: Create the branch from the current `main` and commit the plan**
+- [ ] **Step 1: Confirm the branch and the already-committed plan**
 
 ```bash
 git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" status --short --branch
 ```
 
-Expected: a clean tree (no `M`/`??` lines). If PR 2's work is still checked out with uncommitted files, stop — it must be committed or stashed by its own session first.
-
-```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" fetch origin
-```
-
-```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" switch -c box-scores-pr3 origin/main
-```
-
-Expected: `Switched to a new branch 'box-scores-pr3'`. The plan file must already sit at `docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md` (the controller moves it there from `.superpowers/sdd/pr3-plan-draft.md`, which is git-ignored). Confirm, then commit it:
-
-```bash
-ls "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md"
-```
-
-```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" add docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md
-```
-
-```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "docs: implementation plan for box scores PR 3 (/game page + links)" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
-```
+Expected: `## box-scores-pr3` and no `M`/`??` lines. The branch already exists off `main` and the plan is already committed at `30557ed` — do **not** re-create the branch and do **not** re-commit the plan. If `git status` shows a different branch, run `git switch box-scores-pr3` first. Skip straight to Step 2.
 
 - [ ] **Step 2: Write the failing test for `hasNoDatabase`**
 
@@ -867,6 +846,7 @@ import {
   buildScoreboard,
   betterSide,
   buildComparison,
+  LEGEND_TEXT,
   playCountNote,
   receivingNote,
   buildPassingTable,
@@ -1041,6 +1021,8 @@ describe("comparison sections — 2026_01_BUF_HOU golden (spec §4 / mockup)", (
       ["explosive-rush", "3 (16%)", "4 (13%)", "home"],
       ["toxic", "+2 (TO +2, expl 0)", `${M}2 (TO ${M}2, expl 0)`, "away"],
     ]);
+    // Spec §2's "8 (15%)" illustration is 8/52 (traditional plays); the stored
+    // explosive_rate is 8/56 = 14%, per PR 2's GOLD. 14% is correct.
   });
 
   it("Efficiency labels, details, sub-rows and tooltips read as the mockup", () => {
@@ -1303,6 +1285,7 @@ describe("player tables — edge cases", () => {
     expect(buildRushingTable(empty, "BUF", "HOU").teams.map((t) => t.rows.length)).toEqual([0, 0]);
     expect(buildReceivingTable(empty, "BUF", "HOU", {}).columns).toHaveLength(11);
     expect(receivingNote(empty, "BUF", "HOU")).toContain("Yards gained after a lateral");
+    expect(LEGEND_TEXT).toContain("team pages");
   });
 });
 ```
@@ -1817,7 +1800,7 @@ export function buildComparison(away: TeamGameStat, home: TeamGameStat): Compari
 
 /** Legend above the first section; the page renders the "Shaded" chip before it. */
 export const LEGEND_TEXT =
-  "= the better side of each row. Rows with no clear \u201cbetter\u201d (plays, drives, attempts, penalties, possession) aren\u2019t shaded.";
+  "= the better side of each row. Rows with no clear \u201cbetter\u201d (plays, drives, attempts, penalties, possession) aren\u2019t shaded. These numbers use the nflfastR/rbsdm play filter, so a team\u2019s EPA/play here can differ from its season figure on the team pages.";
 
 export const STRIP_SACK_NOTE = "A strip-sack counts in both the sack row and the turnover row.";
 
@@ -2817,6 +2800,9 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
   if (game.home_score === null || game.away_score === null) return { state: "unplayed", game };
   const played = game as PlayedGame;
 
+  // A playoff game pays for a getTeamGameStats read the check below discards.
+  // Deliberate: moving the game_type check above this Promise.all would cost
+  // the common (regular-season) case a serial round trip. Leave it.
   const [awaySchedule, homeSchedule, statRows] = await Promise.all([
     getTeamSchedule(game.away_team, game.season),
     getTeamSchedule(game.home_team, game.season),
@@ -3225,7 +3211,7 @@ Create `__tests__/components/MetricTooltip.test.tsx` (the real base-ui tooltip r
 ```tsx
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import MetricTooltip from "@/components/ui/MetricTooltip";
+import MetricTooltip, { METRIC_DEFINITIONS as DEFINITION_TEXT } from "@/components/ui/MetricTooltip";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 describe("MetricTooltip — box score definitions (spec §4)", () => {
@@ -3234,13 +3220,14 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
     ["Success rate", "EPA above zero"],
     ["Explosive plays", "QB scrambles of 10+ yards count as explosive runs"],
     ["Toxic differential", "Turnover margin plus explosive-play margin"],
-  ])("defines %s", (metric) => {
+  ])("defines %s", (metric, fragment) => {
     render(
       <TooltipProvider>
         <MetricTooltip metric={metric} />
       </TooltipProvider>
     );
     expect(screen.getByLabelText(`What is ${metric}?`)).toBeTruthy();
+    expect(DEFINITION_TEXT[metric]).toContain(fragment);
   });
 
   it("renders nothing for an unknown metric", () => {
@@ -3260,11 +3247,11 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
 node "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/node_modules/vitest/vitest.mjs" run --root "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" __tests__/components/game/ComparisonSection.test.tsx __tests__/components/MetricTooltip.test.tsx
 ```
 
-Expected: `ComparisonSection.test.tsx` fails to load (`Failed to resolve import "@/components/game/ComparisonSection"`); in `MetricTooltip.test.tsx` the four `defines …` tests FAIL (`Unable to find a label with the text of: What is EPA / play?` — `MetricTooltip` returns null for an unknown key) and `renders nothing for an unknown metric` passes.
+Expected: `ComparisonSection.test.tsx` fails to load (`Failed to resolve import "@/components/game/ComparisonSection"`); `MetricTooltip.test.tsx` also fails to load, because `METRIC_DEFINITIONS` is still module-private (`does not provide an export named 'METRIC_DEFINITIONS'`) — Step 3 adds the `export`. With only that export added and the definitions still missing, the four `defines …` tests FAIL (`Unable to find a label with the text of: What is EPA / play?` — `MetricTooltip` returns null for an unknown key) and `renders nothing for an unknown metric` passes.
 
 - [ ] **Step 3: Add the definitions**
 
-In `components/ui/MetricTooltip.tsx`, change the end of `METRIC_DEFINITIONS`
+In `components/ui/MetricTooltip.tsx`, change `const METRIC_DEFINITIONS: Record<string, string> = {` to `export const METRIC_DEFINITIONS: Record<string, string> = {` (the test imports it to pin the definition text), then change the end of the map
 
 ```ts
   "TCH/G":
@@ -3495,12 +3482,12 @@ describe("PlayerTable", () => {
       ...receiving,
       teams: receiving.teams.map((t, i) => (i === 0 ? { ...t, rows: t.rows.map((r) => (r.player_id === "00-0038557" ? { ...r, slug: null } : r)) } : t)),
     };
-    const { container } = render(<PlayerTable model={model} footnote="Player lines won't always add up." />);
+    const { container } = render(<PlayerTable model={model} footnote="Footnote text." />);
     expect(container.querySelector('[data-team-row="BUF"]')?.textContent).toBe("BUF · 28 team targets");
     const kincaid = container.querySelector('[data-player-id="00-0038557"]')!;
     expect(kincaid.querySelector("a")).toBeNull();
     expect(kincaid.querySelector("td")?.textContent).toBe("Dalton KincaidTE");
-    expect(container.querySelector("p")?.textContent).toBe("Player lines won't always add up.");
+    expect(container.querySelector("p")?.textContent).toBe("Footnote text.");
   });
 
   it("says so when a team has no line, and never prints undefined or NaN", () => {
@@ -3771,6 +3758,7 @@ describe("GamePage — states (spec §6)", () => {
     expect(container.querySelector("[data-scoreboard]")).not.toBeNull();
     expect(container.querySelector("[data-scoreboard-label]")?.textContent).toMatch(/^WEEK 14 · MON DEC 8/);
     expect(screen.getByText("Box scores start with the 2026 season")).toBeTruthy();
+    expect(container.textContent).toContain("Team stats and player lines for earlier games aren\u2019t available yet.");
     expect(container.querySelector('[data-game-message="uncovered"]')).not.toBeNull();
     expect(container.querySelector('[data-game-message] a[href="/team/PHI"]')?.textContent).toContain("Philadelphia Eagles");
     expect(container.querySelector('[data-game-message] a[href="/team/LAC"]')?.textContent).toContain("Los Angeles Chargers");
@@ -3786,6 +3774,7 @@ describe("GamePage — states (spec §6)", () => {
     const { container } = render(await page("2026_19_BUF_HOU"));
     expect(container.querySelector("[data-scoreboard-label]")?.textContent).toMatch(/^WILD CARD/);
     expect(screen.getByText("Box scores cover regular-season games for now")).toBeTruthy();
+    expect(container.textContent).toContain("Playoff games don\u2019t have team stats or player lines here yet.");
   });
 
   it("played 2026 game without stats yet → 'Stats arrive once play-by-play is published'", async () => {
@@ -3958,6 +3947,7 @@ Page order (spec §6): scoreboard → legend → Efficiency → Team stats (with
 // Generated on demand and revalidated hourly (no generateStaticParams: the id
 // list would need a database read at build time, and a Supabase blip would
 // then fail every build). /api/revalidate refreshes /game after each ingest.
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getBoxScore, normalizeGameId, type BoxScoreData } from "@/lib/data/box-score";
@@ -3987,9 +3977,10 @@ export const revalidate = 3600;
  * gets error.tsx) — the homepage's rule. Only the placeholder build has no
  * database (hasNoDatabase), and then the game simply isn't there. Do not add
  * an in-render retry: Next 14 replays identical fetches from a per-render
- * memo, failures included.
+ * memo, failures included. React's cache() is what makes generateMetadata and
+ * the page share one read instead of relying on that memo.
  */
-async function loadBoxScore(rawId: string): Promise<BoxScoreData> {
+const loadBoxScore = cache(async (rawId: string): Promise<BoxScoreData> => {
   const gameId = normalizeGameId(rawId);
   if (!gameId) return { state: "not-found" };
   try {
@@ -4002,7 +3993,7 @@ async function loadBoxScore(rawId: string): Promise<BoxScoreData> {
     }
     return { state: "not-found" };
   }
-}
+});
 
 function teamName(id: string): string {
   return getTeam(id)?.name ?? id;
@@ -4020,6 +4011,9 @@ export async function generateMetadata({
   const { game_id } = await params;
   const data = await loadBoxScore(game_id);
   if (data.state === "not-found" || data.state === "unplayed") {
+    // The root layout's template appends " — Yards Per Pass" again, so this tab
+    // double-suffixes. Every other route does the same (player, team, card);
+    // keep it consistent here and fix all four together or not at all.
     return { title: "Game Not Found — Yards Per Pass" };
   }
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
@@ -4046,6 +4040,9 @@ export default async function GamePage({ params }: { params: Promise<{ game_id: 
   // Unknown ids and games without a final score have no page (spec §6).
   if (data.state === "not-found" || data.state === "unplayed") notFound();
 
+  // No `today` argument: the date label's year suffix is decided against
+  // render-time "now", so a page cached across New Year can omit the year for
+  // an hour. Harmless at revalidate = 3600 — deliberate, do not "fix" it.
   const scoreboard = buildScoreboard(data.game, data.records.away, data.records.home);
   const awayId = data.game.away_team;
   const homeId = data.game.home_team;
@@ -4060,7 +4057,7 @@ export default async function GamePage({ params }: { params: Promise<{ game_id: 
       <GameMessage
         kind="uncovered"
         heading={`Box scores start with the ${data.firstSeason} season`}
-        body="Team stats and player lines for earlier games aren\u2019t available yet."
+        body={"Team stats and player lines for earlier games aren’t available yet."}
         links={teamLinks}
       />
     );
@@ -4069,7 +4066,7 @@ export default async function GamePage({ params }: { params: Promise<{ game_id: 
       <GameMessage
         kind="uncovered"
         heading="Box scores cover regular-season games for now"
-        body="Playoff games don\u2019t have team stats or player lines here yet."
+        body={"Playoff games don’t have team stats or player lines here yet."}
         links={teamLinks}
       />
     );
@@ -4078,7 +4075,7 @@ export default async function GamePage({ params }: { params: Promise<{ game_id: 
       <GameMessage
         kind="pending"
         heading="Stats arrive once play-by-play is published"
-        body="That\u2019s usually within a few hours of the final whistle."
+        body={"That’s usually within a few hours of the final whistle."}
       />
     );
   } else {
@@ -4115,7 +4112,7 @@ export default async function GamePage({ params }: { params: Promise<{ game_id: 
           model={buildReceivingTable(data.lines, awayId, homeId, teamTargets)}
           footnote={
             <>
-              <b className="font-semibold text-slate-700">Player lines won\u2019t always add up to team totals.</b>{" "}
+              <b className="font-semibold text-slate-700">{"Player lines won’t always add up to team totals."}</b>{" "}
               {receivingNote(data.lines, awayId, homeId)}
             </>
           }
@@ -4399,12 +4396,14 @@ Expected: in `ScheduleSection.test.tsx` the 17 existing tests pass and 2 of the 
  */
 function boxScoreHref(game: TeamGame, boxScoreSeasons: number[]): string | null {
   if (!game.played || game.game_type !== "REG") return null;
+  if (!game.game_id || !game.game_id.trim()) return null;
   if (!Array.isArray(boxScoreSeasons) || !boxScoreSeasons.includes(Number(game.season))) return null;
   return `/game/${game.game_id}`;
 }
 
 /** "Box score: BUF 36, HOU 31" — away team first, as the scoreboard reads. */
 function boxScoreTitle(game: TeamGame): string {
+  if (game.away_score == null || game.home_score == null) return "Box score";
   return `Box score: ${game.away_team} ${game.away_score}, ${game.home_team} ${game.home_score}`;
 }
 
@@ -4470,6 +4469,8 @@ with
         )
       ) : (
 ```
+
+The tile wrapper already carries `title={gameTitle(game)}`, so the score line ends up with a `title` nested inside another one — deliberate: hovering the score says what the link does, hovering the tile says what the game was. Leave both.
 
 (d) In the component's destructuring change
 
@@ -4877,7 +4878,7 @@ describe("PlayerPage — box score link gate (box score spec §7)", () => {
 node "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/node_modules/vitest/vitest.mjs" run --root "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" __tests__/components/GameLogTab.test.tsx __tests__/app/player-route.test.ts
 ```
 
-Expected: `GameLogTab.test.tsx` — the 12 existing tests pass; "links the schedule result…" and "works after the props cross…" FAIL (`Cannot read properties of null (reading 'getAttribute')` — no link is rendered), the other two new tests pass by accident. `player-route.test.ts` — the 11 existing tests pass; both new tests FAIL (`props.boxScoreSeasons` is `undefined`; `getBoxScoreSeasons` not called).
+Expected: `GameLogTab.test.tsx` — the 12 existing tests pass; "links the schedule result…" FAILS with `Cannot read properties of null (reading 'getAttribute')` and "works after the props cross…" FAILS with `expected undefined to be '/game/2025_05_TEN_ARI'`; the other two new tests pass by accident. `player-route.test.ts` — the 11 existing tests pass; both new tests FAIL (`props.boxScoreSeasons` is `undefined`; `getBoxScoreSeasons` not called).
 
 - [ ] **Step 3: `GameLogTab` — the prop and the link**
 
@@ -4926,12 +4927,12 @@ insert:
                           Array.isArray(boxScoreSeasons) &&
                           boxScoreSeasons.includes(Number(r.season));
                         return (
-                          <td key={col.key} className="px-2.5 py-1.5 text-left whitespace-nowrap">
+                          <td key={col.key} className="px-2.5 py-1.5 text-left whitespace-nowrap text-gray-900">
                             {linked ? (
                               <Link
                                 href={`/game/${game.game_id}`}
                                 data-box-score-link
-                                title="Box score"
+                                title={`Box score: ${game.team_score}-${game.opponent_score}`}
                                 className="text-navy hover:text-nflred font-medium underline decoration-dotted underline-offset-[3px] transition-colors"
                               >
                                 {String(raw)}
@@ -5136,6 +5137,8 @@ to
 beforeEach(() => {
   vi.mocked(getAllPlayerSlugs).mockReset();
   vi.mocked(getDataFreshness).mockReset();
+  vi.mocked(getAvailableSeasons).mockReset();
+  vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025]);
   vi.mocked(getBoxScoreSeasons).mockReset();
   vi.mocked(getBoxScoreSeasons).mockResolvedValue([]);
   vi.mocked(getPlayedRegularSeasonGameIds).mockReset();
@@ -5173,6 +5176,7 @@ describe("sitemap — box score pages (box score spec §6)", () => {
     vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
     vi.mocked(getPlayedRegularSeasonGameIds).mockRejectedValue(new Error("boom"));
     expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    vi.mocked(getPlayedRegularSeasonGameIds).mockResolvedValue(["2026_01_BUF_HOU"]);
     vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("boom"));
     expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
   });
@@ -5224,6 +5228,10 @@ insert
   // team_game_stats rows (box score spec §6). Same documented exception as the
   // slugs above: a failed read silently drops every game URL until the next
   // rebuild (memory/MEMORY.md, "Homepage resilience" follow-ups).
+  // This is a serial chain: getAvailableSeasons, then one limit(1) probe per
+  // candidate season, then one game-id read per covered season (1 + N + M
+  // round trips, N = 7 and M = 1 today). Do not stack more reads on it in PR 4
+  // without parallelising it first.
   let gameIds: string[] = [];
   try {
     const covered = await getBoxScoreSeasons(await getAvailableSeasons());
@@ -5349,21 +5357,29 @@ Cases (add any others you think of):
 1. normalizeGameId / the page: "", "   ", "2026_01_buf_hou", "2026_01_BUF_HOU/",
    "2026_01_BUF_HOU%20", a 500-char id, "2026_01_BU_HOU", "2026_01_BUF_HOUX",
    "2026_01_LA_SF", "0000_00_AAA_AAA", "../../etc/passwd", "<script>", unicode
-   digits, null / undefined params.
+   digits, null / undefined params, and real historical ids that must render
+   the uncovered message page, not 404 and not a blank shell:
+   "2025_14_PHI_LAC", "2020_01_HOU_KC", plus a real playoff id "2025_19_..."
+   from the games table (the playoff branch of "uncovered").
 2. getBoxScore: games row with home_team === away_team; season as a string
    ("2026"); week null / 0 / 99; game_type null / "" / "post" (lower case);
    scores "36"/"31" strings, negative, 0-0; team_game_stats returning 3 rows,
    rows for the wrong teams, rows whose team_id is lower case; a row with every
-   NUMERIC as "NaN" and every count null; time_of_possession_seconds 0 / 5000 /
-   negative; team_targets 0 / null; getAvailableSeasons returning [2026] but no
-   probe hits; getTeamSchedule returning rows from another season.
+   NUMERIC as "NaN" and every count null;
+   time_of_possession_seconds 0 / 5000 / negative; team_targets 0 / null;
+   getAvailableSeasons returning [2026] but no probe hits; getTeamSchedule
+   returning rows from another season; a real unplayed game ("2026_02_NYG_LA",
+   both scores null — must notFound(), never render); team_game_stats returning
+   ZERO rows for a played covered game (the "pending" state) and ONE row
+   (only the away team present).
 3. buildComparison / notes with both rows identical, both rows all-null,
    plays 0, total_plays 0, explosive counts larger than plays, turnovers
    negative, first downs that don't sum, 1000-play teams.
 4. Player lines: 0 rows; 150 receiver rows on one team; duplicate player_ids
    across tables (a QB who also has an rb row); a player_id with no slug row;
-   names with apostrophes and dots (D'Andre, Amon-Ra St. Brown, "C.J."); slug
-   null / ""; position null / "FB" / lower case; targets 0 with receptions > 0;
+   names with apostrophes and dots (D'Andre, Amon-Ra St. Brown, "C.J."); a
+   60-character player_name and a single-character one; player_name null / "";
+   slug null / ""; position null / "FB" / lower case; targets 0 with receptions > 0;
    catch_rate > 1; carries 0 with yards; rush_attempts null on a QB;
    routes_run 0 (not null) on one row; yards_per_route_run null with routes;
    every EPA column null / NaN / Infinity / "0.5" (a string that escaped
@@ -5417,7 +5433,23 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 
 - [ ] **Step 1: Request the review**
 
-Use the superpowers:requesting-code-review skill with base `origin/main` and head `box-scores-pr3`. Give the reviewer spec §6, §7, §11 (frontend), §12 and this plan's Global Constraints as the requirements, and ask it to check specifically:
+First write the review package to the scratchpad as **per-file diffs**, never one whole-branch blob (PR 2's whole-branch package was ~317 KB and stalled a reviewer — its ledger's ruling was "switch the final review to opus and slice the diff by file"):
+
+```bash
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" fetch origin
+```
+
+```bash
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" diff --stat origin/main...box-scores-pr3
+```
+
+Then one file per slice, e.g.:
+
+```bash
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" diff origin/main...box-scores-pr3 -- lib/stats/box-score.ts > "<your scratchpad>/review-lib-stats.diff"
+```
+
+Group the slices into four packages — (a) `lib/stats/box-score.ts` + its test, (b) `lib/data/box-score.ts` + `lib/data/games.ts` + their tests, (c) `components/game/*` + `MetricTooltip` + their tests, (d) the page, `sitemap.ts`, `revalidate`, and the Tasks 8–9 link edits + their tests — and use the superpowers:requesting-code-review skill **with model `opus`**, one dispatch per package, each told to write findings incrementally to its own scratchpad file so a stall loses nothing. Give every reviewer spec §6, §7, §11 (frontend), §12 and this plan's Global Constraints as the requirements, and ask it to check specifically:
 
 - No `"use client"` file imports `lib/data/box-score.ts`, `lib/data/games.ts`, `lib/data/queries.ts` or `lib/data/players.ts`; `ScheduleSection`, `TeamHubContent`, `GameLogTab` and `PlayerPageContent` receive `boxScoreSeasons` as a plain array; nothing non-serializable crosses server → client.
 - Every numeric render goes through `isNum` / the `fmt*` helpers; `epaTextColor` is only reached through `epaCellClass`; no `.toFixed` on a possibly-null value anywhere in the new code.
@@ -5449,19 +5481,24 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 
 - [ ] **Step 1: Self-rate against the mockup and the spec**
 
-Render the page locally against the BUF–HOU fixture the way `__tests__/app/game-route.test.tsx` does, and against the live database if PR 2's rows exist (`npm run dev` with `.env.local`, then open `http://localhost:3000/game/2026_01_BUF_HOU`, `/game/2025_14_PHI_LAC`, `/team/BUF` and `/player/josh-allen?tab=game-log` in the Browser pane at desktop width and at phone width — the comparison sections must fit 390px with no sideways scroll, the player tables must scroll inside their own container). Write down: a rating 1–10 against the approved mockup and spec §6/§7/§12, what would make it a 10, and why it isn't already.
+Render the page locally against the BUF–HOU fixture the way `__tests__/app/game-route.test.tsx` does, and against the live database if PR 2's rows exist (start the dev server with Bash and `run_in_background: true` — `npm --prefix "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" run dev` — wait for "Ready" in its output, then drive `http://localhost:3000/game/2026_01_BUF_HOU`, `/game/2025_14_PHI_LAC`, `/team/BUF` and `/player/josh-allen?tab=game-log` in the Browser pane via `navigate`, at desktop width and then `resize_window` preset `mobile`; stop the background server when done — the comparison sections must fit 390px with no sideways scroll, the player tables must scroll inside their own container). Write down: a rating 1–10 against the approved mockup and spec §6/§7/§12, what would make it a 10, and why it isn't already.
 
 - [ ] **Step 2: Dispatch the three experts**
 
-Use the Agent tool (`general-purpose`) three times in one message, all `run_in_background: true`, with this prompt — one dispatch per role, substituting that role's text for `[ROLE]`:
+Use the Agent tool (`general-purpose`) three times in one message, all `run_in_background: true`, model `opus` (PR 2's ledger: sonnet's whole-branch review stalled and opus caught what it missed), with this prompt — one dispatch per role, substituting that role's text for `[ROLE]`:
 
 ```text
 You are reviewing box scores PR 3 on the Yards Per Pass NFL analytics site
 (repo C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass,
-branch box-scores-pr3; `git diff origin/main...box-scores-pr3` is the change).
-Read the spec docs/superpowers/specs/2026-09-15-box-scores-design.md (sections
-4, 6, 7, 11, 12) and the plan docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md
-first. Do not modify files; read-only.
+branch box-scores-pr3). The change is already written out for you as per-file
+diffs in <your scratchpad>/review-*.diff — read those, not one whole-branch
+diff, and read the source files directly when you need more context. Read
+spec docs/superpowers/specs/2026-09-15-box-scores-design.md sections 4, 6, 7,
+11 and 12 in full; from the plan
+docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md read only its
+Global Constraints (lines 13-28) and the task whose area you are reviewing.
+Do not modify files; read-only. Write your findings to
+<your scratchpad>/expert-<role>.md as you go, so a stall loses nothing.
 
 Your role: [ROLE]
 
@@ -5497,16 +5534,17 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 **Files:**
 - Modify: `memory/MEMORY.md` (the "Frontend tests:" line under "Local dev on Jon's machine"; a new section after PR 2's `## team_game_stats + QB rushing EPA (box scores PR 2)` section if it exists, otherwise after `## Game Log scores (box scores Phase 0)`)
 - Modify: `.claude/CLAUDE.md` (the "Data fetching:" line)
+- Modify: `app/glossary/page.tsx` (one new `TERMS` entry; the file has no test)
 
 - [ ] **Step 1: Update the test counts in `memory/MEMORY.md`**
 
-The line that begins `- Frontend tests: \`npx vitest run\`` reads, on `main`:
+`memory/MEMORY.md` line 49 currently reads (its Python half is PR 2's — leave it exactly as you find it):
 
 ```markdown
-- Frontend tests: `npx vitest run` (413 tests / 24 files after the 2026-09-14 homepage-resilience change). Python: `py -3 -m pytest tests/ -q` (262 tests).
+- Frontend tests: `npx vitest run` (413 tests / 24 files after the 2026-09-14 homepage-resilience change). Python: `py -3 -m pytest tests/ -q` (459 tests: 453 pass, 5 skip without `YPP_PBP_PARQUET`, 1 strict xfail).
 ```
 
-Replace only its frontend parenthetical (leave whatever PR 2 wrote for the Python part) so it reads `(541 tests / 34 files after box scores PR 3)` — or the real numbers from Task 10 Step 5 if chaos or review fixes added tests.
+Its frontend figure is already stale — the branch before this PR measures 437 tests / 25 files, because Phase 0's `games.test.ts` was never written back. Replace only the frontend parenthetical with the real numbers Task 10 Step 5 printed, i.e. `(541 tests / 34 files after box scores PR 3)`, or whatever chaos and review fixes made it.
 
 - [ ] **Step 2: Add the new section**
 
@@ -5522,7 +5560,7 @@ Insert, after the PR 2 memory section (or after the "Game Log scores (box scores
 - `/api/revalidate` also revalidates `/game` (layout) — the data-refresh workflow calls it after every ingest, so "pending" pages refresh within a refresh cycle. The sitemap lists `/game/<id>` for played REG games of covered seasons inside its documented error-swallowing try/catch.
 - Tooltips: `MetricTooltip` keys `EPA / play`, `Success rate`, `Explosive plays` (scrambles count), `Toxic differential`. Copy, labels and section order are the approved mockup's (2026-09-16); the mockup itself was session scratch and is gone — the plan is the durable transcription.
 - Tests: `__tests__/stats/box-score.test.ts`, `__tests__/data/box-score.test.ts`, `__tests__/data/games.test.ts`, `__tests__/components/game/*.test.tsx`, `__tests__/components/MetricTooltip.test.tsx`, `__tests__/app/game-route.test.tsx`, `__tests__/app/team-route.test.tsx`, plus the link tests in `ScheduleSection.test.tsx`, `GameLogTab.test.tsx`, `player-route.test.ts`, `sitemap.test.ts`.
-- Follow-ups (spec §13): `/scores` + homepage strip (PR 4 reuses `Scoreboard` / `buildScoreboard`), percentile colouring, the 2020–2025 backfill (the message page names the first covered season from data), an OG image for game pages, making `epaTextColor` itself null-safe, and glossary entries for the box score definitions (spec §4 says the glossary notes the first-down double count; nothing on `/glossary` does yet — the page carries the notes instead).
+- Follow-ups (spec §13): `/scores` + homepage strip (PR 4 reuses `Scoreboard` / `buildScoreboard`), percentile colouring, the 2020–2025 backfill (the message page names the first covered season from data), an OG image for game pages, making `epaTextColor` itself null-safe, and the remaining glossary entries for the box score definitions (`/glossary` gains only the first-down double-count entry spec §4 explicitly asks for; EPA / play, success rate, explosive plays and toxic differential stay on the page's own tooltips and notes for now).
 ```
 
 - [ ] **Step 3: Update `.claude/CLAUDE.md`**
@@ -5539,7 +5577,34 @@ Change it to:
 - Data fetching: `lib/data/queries.ts`, `lib/data/receivers.ts`, `lib/data/rushing.ts`, `lib/data/players.ts`, `lib/data/team-hub.ts`, `lib/data/run-gaps.ts`, `lib/data/games.ts` (schedule + official final scores — server-only, never import it from a `"use client"` file), `lib/data/box-score.ts` (the `/game/[game_id]` page and the box score link gate — server-only; its pure builders are in `lib/stats/box-score.ts`)
 ```
 
-- [ ] **Step 4: Check MEMORY.md is still under 200 lines**
+Leave the rest of `.claude/CLAUDE.md` alone: line 50 already reads "18 Supabase tables total (… team_game_stats)" (PR 2 did it; the spec §13 note about "13 → 14" is stale), and the "Nav labels" line gains **Scores** only in PR 4.
+
+- [ ] **Step 4: Add the one glossary entry spec §4 asks for**
+
+Spec §4 says the glossary notes the first-down double count ("We store the sum of parts so the total always equals its own sub-rows and matches ESPN, and the glossary notes it"). `app/glossary/page.tsx` has no test file, so this is a copy-only change with no test. In its `TERMS` array, directly after the `"Success Rate"` entry in the `Core Stats` section
+
+```ts
+  {
+    term: "Success Rate",
+    definition:
+      "How often a play generates positive EPA (Expected Points Added > 0). This is the nflverse EPA-based definition, which may differ slightly from PFR\u2019s yardage-based formula (40%/50%/100% of needed yards). QB success rate on this site excludes sacks from the denominator.",
+  },
+```
+
+insert:
+
+```ts
+  {
+    term: "First Downs (Box Score)",
+    id: "first-downs",
+    definition:
+      "A team\u2019s total first downs on a game\u2019s box score, counted as passing + rushing + penalty first downs. One play can set two of those at once \u2014 a run that reaches the line to gain and also draws a defensive penalty \u2014 so the total deliberately double-counts that rare case. It is what ESPN shows, and it keeps the total equal to the sum of its own sub-rows; summing the raw first-down flag instead comes up 1\u20133 short in about one game in six.",
+  },
+```
+
+Only this one entry: the other box score glossary entries stay on the follow-up list.
+
+- [ ] **Step 5: Check MEMORY.md is still under 200 lines**
 
 ```bash
 wc -l "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/memory/MEMORY.md"
@@ -5547,10 +5612,10 @@ wc -l "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per
 
 Expected: under 200 (about 130 with PR 2's section in place). If it is over, trim the oldest "Week 1 2026 audit" follow-up bullets that are already marked resolved, never this section.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" add memory/MEMORY.md .claude/CLAUDE.md
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" add memory/MEMORY.md .claude/CLAUDE.md app/glossary/page.tsx
 ```
 
 ```bash
@@ -5568,10 +5633,10 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 - [ ] **Step 1: The gate — PR 2 merged and production has 2026 rows**
 
 ```bash
-gh pr list --repo jonramz876/yards-per-pass --state merged --search "box scores PR 2" --json number,title,mergedAt
+gh pr list --repo jonramz876/yards-per-pass --state merged --head box-scores-pr2 --json number,title,mergedAt
 ```
 
-Expected: one merged PR titled `feat: team_game_stats + QB rushing EPA (box scores PR 2)`. If the list is empty, stop: this PR waits for PR 2.
+Expected: exactly one row — PR **#18**, `feat: team_game_stats — per-game team box score data (box scores PR 2)`, merged 2026-09-21. If the list is empty, stop: this PR waits for PR 2.
 
 Save this as `<your scratchpad>/check_production.py`:
 
@@ -5630,7 +5695,7 @@ print('OK: gate met')
 py -3 "<your scratchpad>/check_production.py" "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass"
 ```
 
-Expected (as of 2026-09-21, weeks 1–3 played): `team_game_stats 2026 rows: 96 covering weeks [1, 2, 3]` or more, `2026_01_BUF_HOU rows: 2`, `OK: gate met`. The "played games without rows yet" line lists games whose play-by-play the refresh has not caught up with (the last game of the newest week for a few hours) — fine, those pages show the "Stats arrive" message. `GATE NOT MET` means stop: run `gh workflow run data-refresh.yml --repo jonramz876/yards-per-pass --ref main`, wait for it (PR 2's Task 10 Step 5 shows how), and re-run this script. Keep the unplayed game id it prints for Step 6.
+Expected (as of 2026-09-21, weeks 1–2 played): `team_game_stats 2026 rows: 62 covering weeks [1, 2]` or more — 2 rows per played REG game — `played 2026 REG games in games: 31`, `2026_01_BUF_HOU rows: 2`, `OK: gate met`. The "played games without rows yet" line lists games whose play-by-play the refresh has not caught up with (the last game of the newest week for a few hours) — fine, those pages show the "Stats arrive" message. `GATE NOT MET` means **stop and report to Jon**. Do not dispatch `data-refresh.yml` — it is a production write and needs his go-ahead. Paste the script's output and wait. Keep the unplayed game id it prints for Step 6.
 
 - [ ] **Step 2: Pre-flight**
 
@@ -5678,7 +5743,7 @@ Never use `gh pr checks --watch` (it has exited early on this repo). Poll in the
 until [ "$(gh pr checks <n> --repo jonramz876/yards-per-pass --json bucket --jq 'map(select(.bucket == "pending")) | length')" = "0" ]; do sleep 60; done; gh pr checks <n> --repo jonramz876/yards-per-pass --json name,bucket
 ```
 
-Expected when it finishes: `lint-and-build` and `test-python` both `"bucket":"pass"` (CI does not run vitest — Task 10 Step 5 was the vitest gate). On a failure: `gh run view <run id from the checks output> --repo jonramz876/yards-per-pass --log-failed`, fix it with a test, re-run the four local commands, push, poll again.
+Expected when it finishes: four checks, all `"bucket":"pass"` — `Vercel`, `Vercel Preview Comments`, `lint-and-build` and `test-python` (PR 2 got exactly these four). CI does not run vitest — Task 10 Step 5 was the vitest gate. On a failure: `gh run view <run id from the checks output> --repo jonramz876/yards-per-pass --log-failed`, fix it with a test, re-run the four local commands, push, poll again.
 
 - [ ] **Step 5: Merge and wait for the production deploy**
 
@@ -5693,8 +5758,10 @@ gh pr view <n> --repo jonramz876/yards-per-pass --json mergeCommit --jq '.mergeC
 Poll the merge commit's Vercel status in the background until it is `success`:
 
 ```bash
-until [ "$(gh api repos/jonramz876/yards-per-pass/commits/<merge sha>/status --jq '[.statuses[] | select(.context == "Vercel") | .state] | last')" = "success" ]; do sleep 60; done; gh api repos/jonramz876/yards-per-pass/commits/<merge sha>/status --jq '.statuses[] | select(.context == "Vercel") | {state, target_url}'
+until [ -n "$(gh api repos/jonramz876/yards-per-pass/commits/<merge sha>/status --jq '[.statuses[] | select(.context == "Vercel") | .state] | map(select(. == "success" or . == "failure" or . == "error")) | last')" ]; do sleep 60; done; gh api repos/jonramz876/yards-per-pass/commits/<merge sha>/status --jq '.statuses[] | select(.context == "Vercel") | {state, target_url}'
 ```
+
+If the printed `state` is not `success`, do NOT proceed to Step 6 — follow the failure note below.
 
 A `failure` state means the production build failed (a transient Supabase error during prerender fails the deploy — the previous deployment stays live): open the `target_url`, and if the log shows `Error occurred prerendering page`, click **Redeploy** in Vercel and poll again. No `/api/revalidate` call is needed: the new deployment's build prerenders all 32 team pages with the new code (their tiles link at once), player and game pages render on demand, and the data-refresh workflow already calls `/api/revalidate` (now including `/game`) after every ingest.
 
@@ -5711,10 +5778,10 @@ curl -s "https://yardsperpass.com/game/2026_01_BUF_HOU" -o "<your scratchpad>/bu
 Expected: `200`. Then check the golden values are in the file (each `grep -c` must print at least 1):
 
 ```bash
-grep -c "WEEK 1 · SUN SEP 13" "<your scratchpad>/buf-hou.html"
+grep -c "WEEK 1<!-- --> · SUN SEP 13" "<your scratchpad>/buf-hou.html"
 ```
 
-and likewise for: `>36<` and `>31<` inside the scoreboard, `1-0`, `0-1`, `+0.28`, `(56)`, `+0.07`, `(79)`, `−0.26` (U+2212), `41%`, `48%`, `(TO +2, expl 0)`, `3-9`, `7-16`, `409`, `381`, `7.9`, `5.2`, `323`, `257`, `20/29`, `26/38`, `10.4`, `6.3`, `2-11`, `3-17`, `10-85`, `7-106`, `23:43`, `36:17`, `−7.0`, `−3.3`, `−8.7`, `−8.5`, `−9.7`, `(45)`, `(59)`, `(10)`, `(20)`, `Josh Allen`, `130.5`, `+8.1`, `13.2`, `C.J. Stroud`, `106.7`, `James Cook`, `−0.46`, `David Montgomery`, `Woody Marks`, `+0.73`, `Dalton Kincaid`, `21.4%`, `21.7`, `28 team targets`, `37 team targets`, `Nico Collins`, `27.0%`, `Why the play counts differ`, `A strip-sack counts in both`, `won’t always add up`, `data-better="away"`, and that `YPRR` does **not** appear (`grep -c YPRR` prints 0). The scoreboard's records read `1-0` / `0-1` even though weeks 2–3 have been played: records are counted through the game's week.
+and likewise for: `>36<` and `>31<` inside the scoreboard, `1-0`, `0-1`, `+0.28`, `(56)`, `+0.07`, `(79)`, `−0.26` (U+2212), `41%`, `48%`, `(TO +2, expl 0)`, `3-9`, `7-16`, `409`, `381`, `7.9`, `5.2`, `323`, `257`, `20/29`, `26/38`, `10.4`, `6.3`, `2-11`, `3-17`, `10-85`, `7-106`, `23:43`, `36:17`, `−7.0`, `−3.3`, `−8.7`, `−8.5`, `−9.7`, `(45)`, `(59)`, `(10)`, `(20)`, `Josh Allen`, `130.5`, `+8.1`, `13.2`, `C.J. Stroud`, `106.7`, `James Cook`, `−0.46`, `David Montgomery`, `Woody Marks`, `+0.73`, `Dalton Kincaid`, `21.4%`, `21.7`, `28 team targets`, `37 team targets`, `Nico Collins`, `27.0%`, `Why the play counts differ`, `A strip-sack counts in both`, `won’t always add up`, `differ from its season figure`, `data-better="away"`, and that `YPRR` does **not** appear (`grep -c YPRR` prints 0). The scoreboard's records read `1-0` / `0-1` even though week 2 has been played: records are counted through the game's week.
 
 The message states and the 404:
 
@@ -5722,7 +5789,7 @@ The message states and the 404:
 curl -s "https://yardsperpass.com/game/2025_14_PHI_LAC" -o "<your scratchpad>/phi-lac.html" -w "%{http_code}\n"
 ```
 
-Expected: `200`; the file contains `Box scores start with the 2026 season`, `WEEK 14 · MON DEC 8, 2025`, `PHI`, `LAC`, `href="/team/PHI"`, `href="/team/LAC"`, and `<meta name="robots" content="noindex, follow"`.
+Expected: `200`; the file contains `Box scores start with the 2026 season`, `aren’t available yet`, `WEEK 14<!-- --> · MON DEC 8, 2025`, `PHI`, `LAC`, `href="/team/PHI"`, `href="/team/LAC"`, and `<meta name="robots" content="noindex, follow"`.
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" "https://yardsperpass.com/game/<the unplayed 2026 game id from Step 1>"
@@ -5736,7 +5803,7 @@ The links (the team page is prerendered by the deploy; the player page renders p
 curl -s "https://yardsperpass.com/team/BUF" | grep -c 'href="/game/2026_01_BUF_HOU"'
 ```
 
-Expected: `1` (and `grep -c 'data-box-score-link'` prints one per played BUF game — 3 as of week 3, more later; a BUF game whose stats are pending still links, and its page shows the "Stats arrive" message).
+Expected: `1` (and `curl -s "https://yardsperpass.com/team/BUF" | grep -o 'data-box-score-link' | wc -l` prints one per played BUF game — the page is a single line of HTML, so `grep -c` would always print 1; it is **2** as of week 2, and grows each week. A BUF game whose stats are pending still links, and its page shows the "Stats arrive" message.)
 
 ```bash
 curl -s "https://yardsperpass.com/player/josh-allen?tab=game-log" | grep -c 'href="/game/2026_01_BUF_HOU"'
@@ -5754,7 +5821,7 @@ Expected: `0` — nothing links for 2025 until a backfill.
 curl -s "https://yardsperpass.com/sitemap.xml" | grep -c "/game/2026_"
 ```
 
-Expected: the number of played 2026 regular-season games that have rows (Step 1's `played` count minus its `missing` count; 48 once weeks 1–3 are fully ingested).
+Expected: Step 1's `played` count minus its `missing` count — **31** as of week 2, rising by ~16 a week.
 
 The newest week: open the box score of the most recent final on the team page of a team that played last (the highest-week `data-box-score-link` on `/team/<id>`). It must be either a full page or the "Stats arrive once play-by-play is published" message — never an error page or a blank one. If it shows the message for more than ~6 hours after the game, check `gh run list --workflow data-refresh.yml --limit 3` for a failed refresh.
 
@@ -5768,6 +5835,21 @@ Compare three pages, reading each value off the live page:
 
 Any mismatch is a bug in this PR or in PR 2's numbers — record it in the program ledger and fix before PR 4 starts.
 
+- [ ] **Step 7b: The revert trigger**
+
+Revert this PR (`gh pr revert` is not a thing — open a revert PR from the merge commit with `git revert -m 1 <merge sha>`, then ship it the same way) if any of these is true after the deploy:
+
+- `/team/<any id>` or `/player/<any slug>` returns a non-200, or renders with its schedule or Game Log missing — the link gate is in the render path of two pages that worked before this PR, and that is the only regression risk this change carries.
+- `/game/2026_01_BUF_HOU` returns 500, or renders the scoreboard with an empty body (an empty shell is the one thing spec §6 forbids; a *message* body is fine).
+- Step 6's `/game/<unplayed id>` returns 200 instead of 404 — a page for a game that has not happened.
+- A number on `/game/2026_01_BUF_HOU` disagrees with rbsdm or ESPN by more than rounding, and the cause is in this PR's display code rather than PR 2's stored values.
+
+Everything else — a pending page that should be ready, a missing sitemap entry, a link that did not appear — waits for the next data refresh or a follow-up commit. Do not revert for those.
+
 - [ ] **Step 8: Hand off**
 
 Report the PR number, the merge commit, the Vercel deployment URL, Step 1's counts, the Step 6 check results (each expected value, found or not) and the Step 7 comparison. PR 4 (`/scores` + the homepage strip) may start once every check passes; it reuses `Scoreboard` / `buildScoreboard`, `recordThroughWeek` and `getBoxScoreSeasons` from this PR.
+
+- [ ] **Step 9: Append PR 3 to the program ledger**
+
+Add one line to `.superpowers/sdd/box-scores-program.md` in the same shape as PR 2's last entry: the date, "PR 3 SHIPPED", the PR number and merge commit, what the live verification found, and "Next: PR 4". `.superpowers/` is git-ignored, so this file is never staged and never committed — just write it.
