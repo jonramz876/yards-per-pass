@@ -47,5 +47,5 @@ Team roster spec: `docs/superpowers/specs/2026-03-18-review-team-roster-design.m
 - Elite archetypes (Complete Passer, Alpha WR1, Elite TE1, Three-Down Back) require no axis below 30th percentile
 - Players below threshold see "Not enough data to qualify" — no radar, no chips, no bars
 - VS League Average section shows the minimum threshold (e.g., "200+ routes · 85 WRs")
-- 13 Supabase tables total (teams, team_season_stats, qb_season_stats, receiver_season_stats, rb_season_stats, rb_gap_stats, rb_gap_stats_weekly, def_gap_stats, data_freshness, player_slugs, qb_weekly_stats, receiver_weekly_stats, rb_weekly_stats)
+- 18 Supabase tables total (teams, team_season_stats, qb_season_stats, receiver_season_stats, rb_season_stats, rb_gap_stats, rb_gap_stats_weekly, def_gap_stats, data_freshness, player_slugs, qb_weekly_stats, receiver_weekly_stats, rb_weekly_stats, games, qb_pass_location_stats, team_down_distance_stats, team_situational_stats, team_game_stats)
 - Automated pipeline: `.github/workflows/data-refresh.yml` runs every 4 hours at :17 UTC September–February (6/day) and once daily at 13:17 UTC March–August (offseason skip + keepalive); concurrency group `data-refresh` means refreshes queue and never overlap
