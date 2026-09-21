@@ -91,6 +91,7 @@ describe("PlayerPageContent → PlayerHeader hasCard wiring", () => {
         position={position}
         tab="game-log"
         gameResults={{}}
+        boxScoreSeasons={[]}
       />,
     );
   }

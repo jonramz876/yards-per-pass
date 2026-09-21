@@ -20,6 +20,12 @@ interface GameLogTabProps {
   teamId: string;
   /** Official final scores from `games`, keyed by team then week (getGameResults). */
   gameResults: GameResultsByTeam;
+  /**
+   * Seasons that have box scores (getBoxScoreSeasons). A Result cell links to
+   * /game/<game_id> only when its schedule result exists (a played,
+   * regular-season game) and the row's season is in this list (spec §7).
+   */
+  boxScoreSeasons: number[];
 }
 
 // ─── Column definitions per position ─────────────────────────────────────────
@@ -255,7 +261,7 @@ function VolumeSparkline({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function GameLogTab({ weeklyStats, position, season, teamId, gameResults }: GameLogTabProps) {
+export default function GameLogTab({ weeklyStats, position, season, teamId, gameResults, boxScoreSeasons }: GameLogTabProps) {
   const teamColor = getTeamColor(teamId);
   const [sortKey, setSortKey] = useState<string>("week");
   const [sortDesc, setSortDesc] = useState(false);
@@ -437,6 +443,31 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
                             >
                               {String(raw)}
                             </Link>
+                          </td>
+                        );
+                      }
+                      if (col.key === "result") {
+                        // Box score link (spec §7). scheduleResult is only set for a
+                        // played regular-season game; the season gate is the list prop.
+                        const game = scheduleResult(r, gameResults);
+                        const linked =
+                          game !== undefined &&
+                          Array.isArray(boxScoreSeasons) &&
+                          boxScoreSeasons.includes(Number(r.season));
+                        return (
+                          <td key={col.key} className="px-2.5 py-1.5 text-left whitespace-nowrap text-gray-900">
+                            {linked ? (
+                              <Link
+                                href={`/game/${game.game_id}`}
+                                data-box-score-link
+                                title={`Box score: ${game.team_score}-${game.opponent_score}`}
+                                className="text-navy hover:text-nflred font-medium underline decoration-dotted underline-offset-[3px] transition-colors"
+                              >
+                                {String(raw)}
+                              </Link>
+                            ) : (
+                              String(raw ?? "\u2014")
+                            )}
                           </td>
                         );
                       }

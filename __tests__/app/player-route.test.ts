@@ -43,6 +43,10 @@ vi.mock("@/lib/data/games", () => ({
   getGameResults: vi.fn(async () => ({})),
 }));
 
+vi.mock("@/lib/data/box-score", () => ({
+  getBoxScoreSeasons: vi.fn(async () => []),
+}));
+
 vi.mock("@/components/ui/Breadcrumbs", () => ({
   default: () => null,
 }));
@@ -52,6 +56,7 @@ import PlayerPage, { generateMetadata } from "@/app/player/[slug]/page";
 import PlayerPageContent from "@/components/player/PlayerPageContent";
 import { getPlayerBySlug, getReceiverWeeklyStats } from "@/lib/data/players";
 import { getGameResults } from "@/lib/data/games";
+import { getBoxScoreSeasons } from "@/lib/data/box-score";
 import type { ReceiverWeeklyStat } from "@/lib/types";
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -207,6 +212,52 @@ describe("PlayerPage — Game Log results (box score spec §9)", () => {
     vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);
     await contentProps();
     expect(logged).not.toHaveBeenCalled();
+    logged.mockRestore();
+  });
+});
+
+describe("PlayerPage — box score link gate (box score spec §7)", () => {
+  const allen = {
+    player_id: "00-0034857",
+    slug: "josh-allen",
+    player_name: "Josh Allen",
+    position: "QB",
+    current_team_id: "BUF",
+    headshot_url: null,
+    jersey_number: 17,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getPlayerBySlug).mockResolvedValue(allen);
+    vi.mocked(getBoxScoreSeasons).mockReset();
+    vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
+  });
+
+  async function contentProps() {
+    render(
+      await PlayerPage({
+        params: Promise.resolve({ slug: "josh-allen" }),
+        searchParams: Promise.resolve({ tab: "game-log" }),
+      }),
+    );
+    const calls = vi.mocked(PlayerPageContent).mock.calls;
+    return calls[calls.length - 1][0];
+  }
+
+  it("probes the available seasons and passes the covered ones down", async () => {
+    const props = await contentProps();
+    expect(getBoxScoreSeasons).toHaveBeenCalledWith([2026, 2025]);
+    expect(props.boxScoreSeasons).toEqual([2026]);
+  });
+
+  it("renders unlinked (and logs) when the probe fails", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getBoxScoreSeasons).mockRejectedValue(new Error("Failed to fetch box score seasons: fetch failed"));
+    const props = await contentProps();
+    expect(props.boxScoreSeasons).toEqual([]);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("josh-allen");
     logged.mockRestore();
   });
 });

@@ -30,7 +30,7 @@ function cellText(container: HTMLElement, rowIndex: number, col: number): string
 describe("GameLogTab — Routes column", () => {
   it("Routes shows an em dash when routes_run is null (no participation file)", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[{ ...base, ...noRoutes }]} position="WR" season={2026} teamId="SEA" gameResults={{}} />
+      <GameLogTab weeklyStats={[{ ...base, ...noRoutes }]} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} />
     );
     const col = routesColumn(container);
     expect(col).toBeGreaterThan(-1);
@@ -39,7 +39,7 @@ describe("GameLogTab — Routes column", () => {
 
   it("Routes shows the count when present", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} />
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} />
     );
     expect(cellText(container, 0, routesColumn(container))).toBe("31");
   });
@@ -50,7 +50,7 @@ describe("GameLogTab — Routes column", () => {
       { ...base, week: 2, routes_run: 31 },
     ];
     const { container } = render(
-      <GameLogTab weeklyStats={rows} position="WR" season={2026} teamId="SEA" gameResults={{}} />
+      <GameLogTab weeklyStats={rows} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} />
     );
     const col = routesColumn(container);
     fireEvent.click(container.querySelectorAll("thead th")[col]);
@@ -89,14 +89,14 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
 
   it("shows the schedule's final score, not the stored one", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[lockettWk5]} position="WR" season={2025} teamId="TEN" gameResults={schedule} />
+      <GameLogTab weeklyStats={[lockettWk5]} position="WR" season={2025} teamId="TEN" gameResults={schedule} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 5)).toBe("W 22-21");
   });
 
   it("looks each row up by its own team, never the player's current team", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[lockettWk5, lockettWk14]} position="WR" season={2025} teamId="LV" gameResults={schedule} />
+      <GameLogTab weeklyStats={[lockettWk5, lockettWk14]} position="WR" season={2025} teamId="LV" gameResults={schedule} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 5)).toBe("W 22-21"); // TEN's week 5 — not LV's "L 6-40"
     expect(resultFor(container, 14)).toBe("L 17-24");
@@ -105,7 +105,7 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
   it("works after the results cross the server → client boundary (week keys become strings)", () => {
     const serialized = JSON.parse(JSON.stringify(schedule)) as GameResultsByTeam;
     const { container } = render(
-      <GameLogTab weeklyStats={[lockettWk5]} position="WR" season={2025} teamId="LV" gameResults={serialized} />
+      <GameLogTab weeklyStats={[lockettWk5]} position="WR" season={2025} teamId="LV" gameResults={serialized} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 5)).toBe("W 22-21");
   });
@@ -117,14 +117,14 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
       DAL: { 4: { game_id: "2025_04_GB_DAL", team_score: 40, opponent_score: 40, result: "T", opponent_id: "GB" } },
     };
     const { container } = render(
-      <GameLogTab weeklyStats={[dal]} position="WR" season={2025} teamId="DAL" gameResults={tie} />
+      <GameLogTab weeklyStats={[dal]} position="WR" season={2025} teamId="DAL" gameResults={tie} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 4)).toBe("T 40-40");
   });
 
   it("falls back to the stored score when the schedule has no game for the row", () => {
     const { container } = render(
-      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} />
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 1)).toBe("W 27-20");
   });
@@ -134,7 +134,7 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
       SEA: { 1: { game_id: "2025_01_SF_SEA", team_score: 13, opponent_score: 17, result: "L", opponent_id: "SF" } },
     };
     const { container } = render(
-      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={otherGame} />
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={otherGame} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 1)).toBe("W 27-20");
   });
@@ -144,7 +144,7 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
       SEA: { 1: { game_id: "2026_01_NE_SEA", team_score: null, opponent_score: NaN, result: "X", opponent_id: "NE" } },
     } as unknown as GameResultsByTeam;
     const { container } = render(
-      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={malformed} />
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={malformed} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 1)).toBe("W 27-20");
   });
@@ -154,7 +154,7 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
       SEA: { 1: { game_id: "2026_01_NE_SEA", team_score: -5, opponent_score: -3, result: "L", opponent_id: "NE" } },
     };
     const { container } = render(
-      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={negative} />
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={negative} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 1)).toBe("W 27-20");
   });
@@ -162,8 +162,68 @@ describe("GameLogTab — Result comes from the schedule (box score spec §9)", (
   it("shows a dash when there is no schedule game and the stored score isn't a number", () => {
     const blank: ReceiverWeeklyStat = { ...base, team_score: NaN, opponent_score: NaN };
     const { container } = render(
-      <GameLogTab weeklyStats={[blank]} position="WR" season={2026} teamId="SEA" gameResults={{}} />
+      <GameLogTab weeklyStats={[blank]} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} />
     );
     expect(resultFor(container, 1)).toBe("—");
+  });
+});
+
+describe("GameLogTab — Result links to the box score (box score spec §7)", () => {
+  const schedule: GameResultsByTeam = {
+    TEN: { 5: { game_id: "2025_05_TEN_ARI", team_score: 22, opponent_score: 21, result: "W", opponent_id: "ARI" } },
+  };
+  const wk5: ReceiverWeeklyStat = {
+    ...base, player_id: "00-0032211", season: 2025, week: 5, team_id: "TEN", opponent_id: "ARI",
+    home_away: "away", result: "L", team_score: 19, opponent_score: 21,
+  };
+
+  function resultCell(container: HTMLElement, week: number): HTMLTableCellElement {
+    const headers = Array.from(container.querySelectorAll("thead th"));
+    const col = headers.findIndex((th) => (th.textContent ?? "").startsWith("Result"));
+    const row = Array.from(container.querySelectorAll("tbody tr")).find(
+      (tr) => tr.querySelectorAll("td").length > 2 && tr.querySelector("td")?.textContent === String(week)
+    )!;
+    return row.querySelectorAll("td")[col];
+  }
+
+  it("links the schedule result when the row's season has box scores", () => {
+    const { container } = render(
+      <GameLogTab weeklyStats={[wk5]} position="WR" season={2025} teamId="TEN" gameResults={schedule} boxScoreSeasons={[2026, 2025]} />
+    );
+    const link = resultCell(container, 5).querySelector("a[data-box-score-link]")!;
+    expect(link.getAttribute("href")).toBe("/game/2025_05_TEN_ARI");
+    expect(link.textContent).toBe("W 22-21");
+  });
+
+  it("links nothing for a season without box scores (2025 until the backfill) or an empty list", () => {
+    for (const seasons of [[2026], []]) {
+      const { container } = render(
+        <GameLogTab weeklyStats={[wk5]} position="WR" season={2025} teamId="TEN" gameResults={schedule} boxScoreSeasons={seasons} />
+      );
+      const cell = resultCell(container, 5);
+      expect(cell.querySelector("a")).toBeNull();
+      expect(cell.textContent).toBe("W 22-21");
+    }
+  });
+
+  it("never links a stored-score fallback, even in a covered season", () => {
+    const { container } = render(
+      <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[2026]} />
+    );
+    const cell = resultCell(container, 1);
+    expect(cell.querySelector("a")).toBeNull();
+    expect(cell.textContent).toBe("W 27-20");
+  });
+
+  it("works after the props cross the server → client boundary, and with no list at runtime", () => {
+    const serialized = JSON.parse(JSON.stringify({ schedule, seasons: [2025] }));
+    const { container } = render(
+      <GameLogTab weeklyStats={[wk5]} position="WR" season={2025} teamId="TEN" gameResults={serialized.schedule} boxScoreSeasons={serialized.seasons} />
+    );
+    expect(resultCell(container, 5).querySelector("a")?.getAttribute("href")).toBe("/game/2025_05_TEN_ARI");
+    const { container: none } = render(
+      <GameLogTab weeklyStats={[wk5]} position="WR" season={2025} teamId="TEN" gameResults={schedule} boxScoreSeasons={undefined as unknown as number[]} />
+    );
+    expect(resultCell(none, 5).textContent).toBe("W 22-21");
   });
 });
