@@ -24,7 +24,6 @@
 - **Quality gates as tasks:** chaos test (Task 11) before the final code review (Task 12); a "rate it + 3 domain experts" pass after it (Task 13); docs/memory (Task 14) before shipping (Task 15). Fix every CRASH/ERROR before moving on.
 - **Ship gate:** this PR does not merge until PR 2 is merged **and** production `team_game_stats` has 2026 rows (Task 15 checks with a read-only REST GET using the anon key from `.env.local`, printing only counts — never the key, never `DATABASE_URL`). Branch `box-scores-pr3` from the then-current `main`; one PR; CI polled with a background until-loop over `gh pr checks <n> --json bucket` (never `--watch`); `gh pr merge <n> --merge` once green; wait for the Vercel production deploy (commit status context `Vercel`); verify on yardsperpass.com.
 - **Commits:** stage files by name. End every commit message in this plan with `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>` — that line, not the generic one the commit commands below still carry.
-- **`first_down_rate`, `pass_first_down_rate` and `rush_first_down_rate` are stored but not shown.** rbsdm publishes 1st% as the third of its four numbers and PR 2 stores all three variants, but the approved mockup's Efficiency section does not have a 1st%-rate row, so the page does not render one. They stay typed, fixtured and parsed so adding three rows later is a display-only change. Do not add the rows in this PR.
 - **Line numbers** in this plan are as of `main` @ a1f4cfe (Phase 0 and PR 2 merged; PR 2 changed only scripts/ingest.py, tests/, docs and memory, so no frontend line moved) and are orientation only; anchor every edit on the quoted text. `scripts/ingest.py` and `tests/` are PR 2's — do not touch them.
 
 ## File Structure
@@ -1016,6 +1015,9 @@ describe("comparison sections — 2026_01_BUF_HOU golden (spec §4 / mockup)", (
       ["success", "41%", "48%", "home"],
       ["success-pass", "46%", "52%", "home"],
       ["success-rush", "32%", "42%", "home"],
+      ["first-down-rate", "36%", "32%", "away"],
+      ["first-down-rate-pass", "43%", "33%", "away"],
+      ["first-down-rate-rush", "21%", "29%", "home"],
       ["explosive", "8 (14%)", "8 (10%)", null],
       ["explosive-pass", "5 (14%)", "4 (8%)", "away"],
       ["explosive-rush", "3 (16%)", "4 (13%)", "home"],
@@ -1031,11 +1033,13 @@ describe("comparison sections — 2026_01_BUF_HOU golden (spec §4 / mockup)", (
     expect(byKey.epa).toMatchObject({ label: "EPA / play", labelDetail: "(plays)", tooltip: "EPA / play" });
     expect(byKey["epa-pass"]).toMatchObject({ label: "Passing", sub: true });
     expect(byKey.success).toMatchObject({ label: "Success rate", tooltip: "Success rate" });
+    expect(byKey["first-down-rate"]).toMatchObject({ label: "1st down rate", tooltip: "1st down rate" });
+    expect(byKey["first-down-rate-rush"]).toMatchObject({ label: "Rushing", sub: true });
     expect(byKey.explosive).toMatchObject({ label: "Explosive plays", labelDetail: "(rate)", tooltip: "Explosive plays" });
     expect(byKey["explosive-pass"]).toMatchObject({ label: "Passing", labelDetail: "(20+ yd completion)", sub: true });
     expect(byKey["explosive-rush"]).toMatchObject({ label: "Rushing", labelDetail: "(10+ yd run)", sub: true });
     expect(byKey.toxic).toMatchObject({ label: "Toxic differential", labelDetail: "(turnovers + explosives)", tooltip: "Toxic differential" });
-    expect(rows.filter((r) => r.tooltip).map((r) => r.tooltip)).toEqual(["EPA / play", "Success rate", "Explosive plays", "Toxic differential"]);
+    expect(rows.filter((r) => r.tooltip).map((r) => r.tooltip)).toEqual(["EPA / play", "Success rate", "1st down rate", "Explosive plays", "Toxic differential"]);
   });
 
   it("Team stats", () => {
@@ -1107,12 +1111,14 @@ describe("comparison sections — edge cases", () => {
   });
 
   it("shows dashes and no shading when a rate column is null (a team with no rush plays)", () => {
-    const home = teamRow({ team_id: "HOU", rush_plays: 0, rush_epa_per_play: null, rush_success_rate: null, yards_per_rush: null, explosive_rush: 0, rushing_attempts: 0, rushing_yards: 0 });
+    const home = teamRow({ team_id: "HOU", rush_plays: 0, rush_epa_per_play: null, rush_success_rate: null, rush_first_down_rate: null, yards_per_rush: null, explosive_rush: 0, rushing_attempts: 0, rushing_yards: 0 });
     const rows = buildComparison(BUF_STATS, home);
     const eff = Object.fromEntries(rows[0].rows.map((r) => [r.key, r]));
     expect(cell(eff["epa-rush"].home)).toBe(`${DASH} (0)`);
     expect(eff["epa-rush"].better).toBeNull();
     expect(cell(eff["success-rush"].home)).toBe(DASH);
+    expect(cell(eff["first-down-rate-rush"].home)).toBe(DASH);
+    expect(eff["first-down-rate-rush"].better).toBeNull();
     expect(cell(eff["explosive-rush"].home)).toBe(`0 (${DASH})`);
     const team = Object.fromEntries(rows[1].rows.map((r) => [r.key, r]));
     expect(cell(team["yards-per-rush"].home)).toBe(DASH);
@@ -1714,6 +1720,9 @@ export function buildComparison(away: TeamGameStat, home: TeamGameStat): Compari
         pct("success", "Success rate", (t) => t.success_rate, { tooltip: "Success rate" }),
         pct("success-pass", "Passing", (t) => t.pass_success_rate, { sub: true }),
         pct("success-rush", "Rushing", (t) => t.rush_success_rate, { sub: true }),
+        pct("first-down-rate", "1st down rate", (t) => t.first_down_rate, { tooltip: "1st down rate" }),
+        pct("first-down-rate-pass", "Passing", (t) => t.pass_first_down_rate, { sub: true }),
+        pct("first-down-rate-rush", "Rushing", (t) => t.rush_first_down_rate, { sub: true }),
         explosive("explosive", "Explosive plays", (t) => t.explosive_plays, (t) => (isNum(t.explosive_rate) ? t.explosive_rate : null), {
           labelDetail: "(rate)",
           tooltip: "Explosive plays",
@@ -3109,7 +3118,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 ```
 
 ---
-### Task 5: `ComparisonSection` and the four tooltip definitions
+### Task 5: `ComparisonSection` and the five tooltip definitions
 
 **Files:**
 - Modify: `components/ui/MetricTooltip.tsx` (the `METRIC_DEFINITIONS` map ends at line 79 with the `"TCH/G"` entry)
@@ -3118,7 +3127,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 
 **Interfaces:**
 - Consumes: `ComparisonRow`, `ComparisonSectionModel`, `Side`, `StatCell`, `buildComparison` (Task 2); `MetricTooltip` (`@/components/ui/MetricTooltip`, a client component the server section may render).
-- Produces: `default export ComparisonSection({ section, awayId, homeId, footnote? }: { section: ComparisonSectionModel; awayId: string; homeId: string; footnote?: ReactNode })`, server-renderable. Data hooks: `[data-section="<key>"]`, `[data-row="<row key>"]`, `data-better="away"|"home"` on a shaded row. `METRIC_DEFINITIONS` gains the keys `"EPA / play"`, `"Success rate"`, `"Explosive plays"`, `"Toxic differential"` (Task 2's rows name exactly these).
+- Produces: `default export ComparisonSection({ section, awayId, homeId, footnote? }: { section: ComparisonSectionModel; awayId: string; homeId: string; footnote?: ReactNode })`, server-renderable. Data hooks: `[data-section="<key>"]`, `[data-row="<row key>"]`, `data-better="away"|"home"` on a shaded row. `METRIC_DEFINITIONS` gains the keys `"EPA / play"`, `"Success rate"`, `"1st down rate"`, `"Explosive plays"`, `"Toxic differential"` (Task 2's rows name exactly these).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3187,7 +3196,7 @@ describe("ComparisonSection", () => {
   it("renders a tooltip on the rows that carry one, label details and suffixes", () => {
     const { container } = renderSection(efficiency);
     expect(Array.from(container.querySelectorAll("[data-tooltip]")).map((e) => e.getAttribute("data-tooltip"))).toEqual([
-      "EPA / play", "Success rate", "Explosive plays", "Toxic differential",
+      "EPA / play", "Success rate", "1st down rate", "Explosive plays", "Toxic differential",
     ]);
     expect(container.querySelector('[data-row="epa"] td:nth-child(2)')?.textContent).toBe("EPA / play(plays)");
     const downs = buildComparison(BUF_STATS, HOU_STATS)[3];
@@ -3218,6 +3227,7 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
   it.each([
     ["EPA / play", "the way nflfastR and rbsdm.com do"],
     ["Success rate", "EPA above zero"],
+    ["1st down rate", "penalty on a wiped play"],
     ["Explosive plays", "QB scrambles of 10+ yards count as explosive runs"],
     ["Toxic differential", "Turnover margin plus explosive-play margin"],
   ])("defines %s", (metric, fragment) => {
@@ -3247,7 +3257,7 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
 node "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/node_modules/vitest/vitest.mjs" run --root "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" __tests__/components/game/ComparisonSection.test.tsx __tests__/components/MetricTooltip.test.tsx
 ```
 
-Expected: `ComparisonSection.test.tsx` fails to load (`Failed to resolve import "@/components/game/ComparisonSection"`); `MetricTooltip.test.tsx` also fails to load, because `METRIC_DEFINITIONS` is still module-private (`does not provide an export named 'METRIC_DEFINITIONS'`) — Step 3 adds the `export`. With only that export added and the definitions still missing, the four `defines …` tests FAIL (`Unable to find a label with the text of: What is EPA / play?` — `MetricTooltip` returns null for an unknown key) and `renders nothing for an unknown metric` passes.
+Expected: `ComparisonSection.test.tsx` fails to load (`Failed to resolve import "@/components/game/ComparisonSection"`); `MetricTooltip.test.tsx` also fails to load, because `METRIC_DEFINITIONS` is still module-private (`does not provide an export named 'METRIC_DEFINITIONS'`) — Step 3 adds the `export`. With only that export added and the definitions still missing, the five `defines …` tests FAIL (`Unable to find a label with the text of: What is EPA / play?` — `MetricTooltip` returns null for an unknown key) and `renders nothing for an unknown metric` passes.
 
 - [ ] **Step 3: Add the definitions**
 
@@ -3269,6 +3279,8 @@ to
   "EPA / play":
     "Expected points added per play: how much each snap moved the offense\u2019s expected points. Counts every run and dropback, the way nflfastR and rbsdm.com do.",
   "Success rate": "Share of plays that gained expected points (EPA above zero).",
+  "1st down rate":
+    "Share of plays that gained a first down. Counts the same runs and dropbacks as EPA/play, so a first down awarded by a penalty on a wiped play is not in it \u2014 the Team stats section counts those.",
   "Explosive plays":
     "Runs of 10+ yards and completions of 20+ yards. QB scrambles of 10+ yards count as explosive runs.",
   "Toxic differential":
@@ -3396,7 +3408,7 @@ export default function ComparisonSection({ section, awayId, homeId, footnote }:
 node "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/node_modules/vitest/vitest.mjs" run --root "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" __tests__/components/game/ComparisonSection.test.tsx __tests__/components/MetricTooltip.test.tsx
 ```
 
-Expected: PASS — 5 tests in each file.
+Expected: PASS — 5 tests in `ComparisonSection.test.tsx`, 6 in `MetricTooltip.test.tsx` (the five `defines …` cases plus the unknown-metric one).
 
 - [ ] **Step 6: Type check, lint, commit**
 
@@ -3417,7 +3429,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 ```
 
 ```bash
-git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "feat: AWAY | stat | HOME comparison section with box score tooltips" -m "ComparisonSection renders a buildComparison section on the mockup's 28/1fr/28 band and table, shading the better side. MetricTooltip gains the team-level EPA / play, Success rate, Explosive plays (scrambles count) and Toxic differential definitions (box score spec section 4)." -m "Co-Authored-By: Claude <noreply@anthropic.com>"
+git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" commit -m "feat: AWAY | stat | HOME comparison section with box score tooltips" -m "ComparisonSection renders a buildComparison section on the mockup's 28/1fr/28 band and table, shading the better side. MetricTooltip gains the team-level EPA / play, Success rate, 1st down rate, Explosive plays (scrambles count) and Toxic differential definitions (box score spec section 4)." -m "Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
 
 ---
@@ -3844,7 +3856,7 @@ describe("GamePage — 2026_01_BUF_HOU renders the golden values", () => {
     expect(cells("cost-turnovers")).toEqual(["0.0", "EPA lost to turnovers", `${M}7.0`]);
     expect(cells("early-epa")).toEqual(["+0.30(45)", "Early downs(1st–2nd) EPA / play", "+0.10(59)"]);
     expect(Array.from(container.querySelectorAll("[data-tooltip]")).map((e) => e.getAttribute("data-tooltip"))).toEqual([
-      "EPA / play", "Success rate", "Explosive plays", "Toxic differential",
+      "EPA / play", "Success rate", "1st down rate", "Explosive plays", "Toxic differential",
     ]);
     const teamStats = container.querySelector('[data-section="team-stats"]')!;
     expect(teamStats.textContent).toContain("Why the play counts differ.");
@@ -5286,7 +5298,7 @@ Expected: only the four pre-existing warnings (`ComparisonTool.tsx` 179:6, `QBLe
 node "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass/node_modules/vitest/vitest.mjs" run --root "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass"
 ```
 
-Expected: `Test Files 34 passed`, `Tests 541 passed` — `main` has 25 files / 437 tests; this PR adds 9 files (`data/supabase-server`, `stats/box-score`, `data/box-score`, `components/game/Scoreboard`, `components/game/ComparisonSection`, `components/MetricTooltip`, `components/game/PlayerTable`, `app/game-route`, `app/team-route`) and 104 tests. If PR 2 has merged first and `main` moved, the baseline is whatever `main` reports plus these.
+Expected: `Test Files 34 passed`, `Tests 542 passed` — `main` has 25 files / 437 tests; this PR adds 9 files (`data/supabase-server`, `stats/box-score`, `data/box-score`, `components/game/Scoreboard`, `components/game/ComparisonSection`, `components/MetricTooltip`, `components/game/PlayerTable`, `app/game-route`, `app/team-route`) and 105 tests (the extra one over the original 104 is MetricTooltip's fifth `defines …` case, for `1st down rate`). If PR 2 has merged first and `main` moved, the baseline is whatever `main` reports plus these.
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build-only npm --prefix "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass" run build
@@ -5496,7 +5508,8 @@ diff, and read the source files directly when you need more context. Read
 spec docs/superpowers/specs/2026-09-15-box-scores-design.md sections 4, 6, 7,
 11 and 12 in full; from the plan
 docs/superpowers/plans/2026-09-16-box-scores-pr3-game-page.md read only its
-Global Constraints (lines 13-28) and the task whose area you are reviewing.
+Global Constraints section — the bulleted block under that heading — and the
+task whose area you are reviewing.
 Do not modify files; read-only. Write your findings to
 <your scratchpad>/expert-<role>.md as you go, so a stall loses nothing.
 
@@ -5544,7 +5557,7 @@ git -C "C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-pe
 - Frontend tests: `npx vitest run` (413 tests / 24 files after the 2026-09-14 homepage-resilience change). Python: `py -3 -m pytest tests/ -q` (459 tests: 453 pass, 5 skip without `YPP_PBP_PARQUET`, 1 strict xfail).
 ```
 
-Its frontend figure is already stale — the branch before this PR measures 437 tests / 25 files, because Phase 0's `games.test.ts` was never written back. Replace only the frontend parenthetical with the real numbers Task 10 Step 5 printed, i.e. `(541 tests / 34 files after box scores PR 3)`, or whatever chaos and review fixes made it.
+Its frontend figure is already stale — the branch before this PR measures 437 tests / 25 files, because Phase 0's `games.test.ts` was never written back. Replace only the frontend parenthetical with the real numbers Task 10 Step 5 printed, i.e. `(542 tests / 34 files after box scores PR 3)`, or whatever chaos and review fixes made it.
 
 - [ ] **Step 2: Add the new section**
 
@@ -5558,7 +5571,7 @@ Insert, after the PR 2 memory section (or after the "Game Log scores (box scores
 - **Pure builders live in `lib/stats/box-score.ts`** (no Supabase; safe in client code): `fmt*` (typographic minus U+2212, no signed zero, em dash for null/NaN/Infinity), `epaCellClass` (the null-safe wrapper around `epaTextColor` — never call `epaTextColor` with a possibly-null value), `buildScoreboard`, `buildComparison` (rows + `better` side, compared at display precision), `playCountNote` / `receivingNote` (worded from the game's own numbers), `buildPassingTable` / `buildRushingTable` / `buildReceivingTable` (yards desc → volume desc → name; QB rushing rows use PR 2's `rush_epa_per_carry` / `rush_success_rate`; TGT% = targets ÷ `team_targets`; YPRR only when any row has `routes_run`). The only arithmetic on the page is presentation the spec defines from stored columns. Golden fixture `__tests__/fixtures/box-score-buf-hou.ts` pins 2026_01_BUF_HOU (rbsdm/ESPN values) — never edit it to make a test pass.
 - **Links (spec §7):** `getBoxScoreSeasons(candidates)` probes each season with `limit(1)` (never a bare `select season` — the 1000-row cap would drop seasons after the backfill). The team and player pages fetch it server-side and pass `boxScoreSeasons: number[]` (a required prop) to `ScheduleSection` / `GameLogTab`; a played REG game in a covered season links its score line / Result cell to `/game/<id>`; playoff, unplayed and uncovered games never link. A failed probe logs and renders no links (the team page is ISR, so that lasts up to an hour).
 - `/api/revalidate` also revalidates `/game` (layout) — the data-refresh workflow calls it after every ingest, so "pending" pages refresh within a refresh cycle. The sitemap lists `/game/<id>` for played REG games of covered seasons inside its documented error-swallowing try/catch.
-- Tooltips: `MetricTooltip` keys `EPA / play`, `Success rate`, `Explosive plays` (scrambles count), `Toxic differential`. Copy, labels and section order are the approved mockup's (2026-09-16); the mockup itself was session scratch and is gone — the plan is the durable transcription.
+- Tooltips: `MetricTooltip` keys `EPA / play`, `Success rate`, `1st down rate` (the efficiency play set, so penalty first downs are not in it), `Explosive plays` (scrambles count), `Toxic differential`. Copy, labels and section order are the approved mockup's (2026-09-16); the mockup itself was session scratch and is gone — the plan is the durable transcription.
 - Tests: `__tests__/stats/box-score.test.ts`, `__tests__/data/box-score.test.ts`, `__tests__/data/games.test.ts`, `__tests__/components/game/*.test.tsx`, `__tests__/components/MetricTooltip.test.tsx`, `__tests__/app/game-route.test.tsx`, `__tests__/app/team-route.test.tsx`, plus the link tests in `ScheduleSection.test.tsx`, `GameLogTab.test.tsx`, `player-route.test.ts`, `sitemap.test.ts`.
 - Follow-ups (spec §13): `/scores` + homepage strip (PR 4 reuses `Scoreboard` / `buildScoreboard`), percentile colouring, the 2020–2025 backfill (the message page names the first covered season from data), an OG image for game pages, making `epaTextColor` itself null-safe, and the remaining glossary entries for the box score definitions (`/glossary` gains only the first-down double-count entry spec §4 explicitly asks for; EPA / play, success rate, explosive plays and toxic differential stay on the page's own tooltips and notes for now).
 ```
@@ -5676,13 +5689,13 @@ rows = get('team_game_stats', season='eq.2026', select='game_id,team_id,week', l
 played = get('games', season='eq.2026', game_type='eq.REG', home_score='not.is.null',
              select='game_id,week', order='week.desc,game_id.asc', limit=1000)
 unplayed = get('games', season='eq.2026', game_type='eq.REG', home_score='is.null',
-               select='game_id,week', order='week.asc,game_id.asc', limit=1)
+               select='game_id,week', order='week.desc,game_id.desc', limit=1)
 weeks = sorted({r['week'] for r in rows})
 print(f'team_game_stats 2026 rows: {len(rows)} covering weeks {weeks}')
 print(f'played 2026 REG games in `games`: {len(played)}; latest week {played[0]["week"] if played else None}')
 missing = sorted({g['game_id'] for g in played} - {r['game_id'] for r in rows})
 print(f'played games without team_game_stats rows yet: {len(missing)} {missing[:5]}')
-print(f'an unplayed 2026 game id for the 404 check: {unplayed[0]["game_id"] if unplayed else None}')
+print(f'an unplayed 2026 game id for the 404 check (latest week, so it cannot go final mid-verification): {unplayed[0]["game_id"] if unplayed else None}')
 buf = [r for r in rows if r['game_id'] == '2026_01_BUF_HOU']
 print(f'2026_01_BUF_HOU rows: {len(buf)}')
 if len(rows) < 32 or len(buf) != 2:
@@ -5781,7 +5794,7 @@ Expected: `200`. Then check the golden values are in the file (each `grep -c` mu
 grep -c "WEEK 1<!-- --> · SUN SEP 13" "<your scratchpad>/buf-hou.html"
 ```
 
-and likewise for: `>36<` and `>31<` inside the scoreboard, `1-0`, `0-1`, `+0.28`, `(56)`, `+0.07`, `(79)`, `−0.26` (U+2212), `41%`, `48%`, `(TO +2, expl 0)`, `3-9`, `7-16`, `409`, `381`, `7.9`, `5.2`, `323`, `257`, `20/29`, `26/38`, `10.4`, `6.3`, `2-11`, `3-17`, `10-85`, `7-106`, `23:43`, `36:17`, `−7.0`, `−3.3`, `−8.7`, `−8.5`, `−9.7`, `(45)`, `(59)`, `(10)`, `(20)`, `Josh Allen`, `130.5`, `+8.1`, `13.2`, `C.J. Stroud`, `106.7`, `James Cook`, `−0.46`, `David Montgomery`, `Woody Marks`, `+0.73`, `Dalton Kincaid`, `21.4%`, `21.7`, `28 team targets`, `37 team targets`, `Nico Collins`, `27.0%`, `Why the play counts differ`, `A strip-sack counts in both`, `won’t always add up`, `differ from its season figure`, `data-better="away"`, and that `YPRR` does **not** appear (`grep -c YPRR` prints 0). The scoreboard's records read `1-0` / `0-1` even though week 2 has been played: records are counted through the game's week.
+and likewise for: `>36<` and `>31<` inside the scoreboard, `1-0`, `0-1`, `+0.28`, `(56)`, `+0.07`, `(79)`, `−0.26` (U+2212), `41%`, `48%`, `1st down rate`, `36%`, `32%`, `(TO +2, expl 0)`, `3-9`, `7-16`, `409`, `381`, `7.9`, `5.2`, `323`, `257`, `20/29`, `26/38`, `10.4`, `6.3`, `2-11`, `3-17`, `10-85`, `7-106`, `23:43`, `36:17`, `−7.0`, `−3.3`, `−8.7`, `−8.5`, `−9.7`, `(45)`, `(59)`, `(10)`, `(20)`, `Josh Allen`, `130.5`, `+8.1`, `13.2`, `C.J. Stroud`, `106.7`, `James Cook`, `−0.46`, `David Montgomery`, `Woody Marks`, `+0.73`, `Dalton Kincaid`, `21.4%`, `21.7`, `28 team targets`, `37 team targets`, `Nico Collins`, `27.0%`, `Why the play counts differ`, `A strip-sack counts in both`, `won’t always add up`, `differ from its season figure`, `data-better="away"`, and that `YPRR` does **not** appear (`grep -c YPRR` prints 0). The scoreboard's records read `1-0` / `0-1` even though week 2 has been played: records are counted through the game's week.
 
 The message states and the 404:
 
@@ -5800,16 +5813,16 @@ Expected: `404`. Also `https://yardsperpass.com/game/not-a-game` → `404`.
 The links (the team page is prerendered by the deploy; the player page renders per request):
 
 ```bash
-curl -s "https://yardsperpass.com/team/BUF" | grep -c 'href="/game/2026_01_BUF_HOU"'
+curl -s "https://yardsperpass.com/team/BUF" | grep -o 'href="/game/2026_01_BUF_HOU"' | wc -l
 ```
 
-Expected: `1` (and `curl -s "https://yardsperpass.com/team/BUF" | grep -o 'data-box-score-link' | wc -l` prints one per played BUF game — the page is a single line of HTML, so `grep -c` would always print 1; it is **2** as of week 2, and grows each week. A BUF game whose stats are pending still links, and its page shows the "Stats arrive" message.)
+Expected: at least 1 (and `curl -s "https://yardsperpass.com/team/BUF" | grep -o 'data-box-score-link' | wc -l` prints one per played BUF game — the page is a single line of HTML, so `grep -c` would always print 1; it is **2** as of week 2, and grows each week. A BUF game whose stats are pending still links, and its page shows the "Stats arrive" message.)
 
 ```bash
-curl -s "https://yardsperpass.com/player/josh-allen?tab=game-log" | grep -c 'href="/game/2026_01_BUF_HOU"'
+curl -s "https://yardsperpass.com/player/josh-allen?tab=game-log" | grep -o 'href="/game/2026_01_BUF_HOU"' | wc -l
 ```
 
-Expected: `1`.
+Expected: at least 1.
 
 ```bash
 curl -s "https://yardsperpass.com/player/josh-allen?season=2025&tab=game-log" | grep -c 'data-box-score-link'
@@ -5823,7 +5836,7 @@ curl -s "https://yardsperpass.com/sitemap.xml" | grep -c "/game/2026_"
 
 Expected: Step 1's `played` count minus its `missing` count — **31** as of week 2, rising by ~16 a week.
 
-The newest week: open the box score of the most recent final on the team page of a team that played last (the highest-week `data-box-score-link` on `/team/<id>`). It must be either a full page or the "Stats arrive once play-by-play is published" message — never an error page or a blank one. If it shows the message for more than ~6 hours after the game, check `gh run list --workflow data-refresh.yml --limit 3` for a failed refresh.
+The newest week: open the box score of the most recent final on the team page of a team that played last (the highest-week `data-box-score-link` on `/team/<id>`). It must be either a full page or the "Stats arrive once play-by-play is published" message — never an error page or a blank one. If it shows the message for more than ~6 hours after the game, check `gh run list --workflow data-refresh.yml --limit 3` for a failed refresh (read-only — never `gh workflow run`; a refresh is Jon's call).
 
 - [ ] **Step 7: Three live box scores against the references (spec §11)**
 
