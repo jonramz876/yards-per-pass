@@ -3614,7 +3614,137 @@ def aggregate_team_game_stats(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
     return frame[TEAM_GAME_STATS_COLS]
 
 
-def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None, dd_team_ids: list = None, sit_team_ids: list = None):
+def ensure_team_game_stats_table(conn):
+    """Create team_game_stats (box score spec §5) if it doesn't exist. NOT @retry."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS team_game_stats (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                game_id TEXT NOT NULL,
+                team_id TEXT NOT NULL REFERENCES teams(id),
+                season INT NOT NULL,
+                week INT NOT NULL,
+                opponent_id TEXT REFERENCES teams(id),
+                home_away TEXT,
+                plays INT,
+                epa_per_play NUMERIC,
+                success_rate NUMERIC,
+                first_down_rate NUMERIC,
+                pass_plays INT,
+                pass_epa_per_play NUMERIC,
+                pass_success_rate NUMERIC,
+                pass_first_down_rate NUMERIC,
+                rush_plays INT,
+                rush_epa_per_play NUMERIC,
+                rush_success_rate NUMERIC,
+                rush_first_down_rate NUMERIC,
+                early_plays INT,
+                early_epa_per_play NUMERIC,
+                early_success_rate NUMERIC,
+                late_plays INT,
+                late_epa_per_play NUMERIC,
+                late_success_rate NUMERIC,
+                explosive_plays INT,
+                explosive_rate NUMERIC,
+                explosive_pass INT,
+                explosive_rush INT,
+                epa_lost_turnovers NUMERIC,
+                epa_lost_sacks NUMERIC,
+                epa_lost_penalties NUMERIC,
+                first_downs INT,
+                first_downs_pass INT,
+                first_downs_rush INT,
+                first_downs_penalty INT,
+                third_down_att INT,
+                third_down_conv INT,
+                fourth_down_att INT,
+                fourth_down_conv INT,
+                total_plays INT,
+                total_yards INT,
+                total_drives INT,
+                yards_per_play NUMERIC,
+                net_passing_yards INT,
+                completions INT,
+                attempts INT,
+                yards_per_pass NUMERIC,
+                interceptions INT,
+                sacks INT,
+                sack_yards INT,
+                rushing_yards INT,
+                rushing_attempts INT,
+                yards_per_rush NUMERIC,
+                red_zone_trips INT,
+                red_zone_tds INT,
+                penalties INT,
+                penalty_yards INT,
+                turnovers INT,
+                fumbles_lost INT,
+                def_st_tds INT,
+                time_of_possession_seconds INT,
+                team_targets INT,
+                UNIQUE (game_id, team_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_team_game_stats_season_week ON team_game_stats(season, week);
+            CREATE INDEX IF NOT EXISTS idx_team_game_stats_team_season ON team_game_stats(team_id, season);
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                ALTER TABLE team_game_stats ENABLE ROW LEVEL SECURITY;
+            EXCEPTION WHEN others THEN NULL;
+            END $$;
+        """)
+        cur.execute("""
+            DO $$ BEGIN
+                CREATE POLICY "public_read" ON team_game_stats FOR SELECT USING (true);
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """)
+    conn.commit()
+    log.info("Ensured team_game_stats table exists with RLS")
+
+
+@retry(max_retries=2, delay=3)
+def upsert_team_game_stats(conn, df: pd.DataFrame):
+    """Upsert one row per team per game into team_game_stats."""
+    if df.empty:
+        log.info("No team game stats to upsert (empty DataFrame)")
+        return
+    cols = TEAM_GAME_STATS_COLS
+    # Plain-Python rows, as in ingest_schedules: NaN/None -> None (SQL NULL, never
+    # 'NaN'::numeric), numpy ints/floats -> int/float (no psycopg2 adapter).
+    # time_of_possession_seconds is an INT column that can be NULL, so it is not in
+    # TEAM_GAME_STATS_INT_COLS — but when it is not NULL it must still arrive as an
+    # int, not 1423.0.
+    int_cols = set(TEAM_GAME_STATS_INT_COLS) | {'season', 'week', 'time_of_possession_seconds'}
+    text_cols = {'game_id', 'team_id', 'opponent_id', 'home_away'}
+    rows = []
+    for values in df[cols].astype(object).itertuples(index=False, name=None):
+        row = []
+        for c, v in zip(cols, values):
+            if pd.isna(v):
+                row.append(None)
+            elif c in text_cols:
+                row.append(str(v))
+            elif c in int_cols:
+                row.append(int(v))
+            else:
+                row.append(float(v))
+        rows.append(tuple(row))
+    col_names = ', '.join(cols)
+    update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('game_id', 'team_id'))
+
+    with conn.cursor() as cur:
+        execute_values(
+            cur,
+            f"""INSERT INTO team_game_stats ({col_names})
+                VALUES %s
+                ON CONFLICT (game_id, team_id) DO UPDATE SET {update_set}""",
+            rows,
+        )
+    log.info("Upserted %d team game rows", len(rows))
+
+
+def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_gap_player_ids: list = None, rb_gap_weekly_player_ids: list = None, def_gap_team_ids: list = None, receiver_player_ids: list = None, rb_season_player_ids: list = None, qb_weekly_player_ids: list = None, receiver_weekly_player_ids: list = None, rb_weekly_player_ids: list = None, qb_pass_loc_player_ids: list = None, dd_team_ids: list = None, sit_team_ids: list = None, game_ids: list = None):
     """Delete rows for this season that are no longer in the current dataset.
 
     Called AFTER upserts succeed, BEFORE commit. Not retried — if it fails,
@@ -3723,6 +3853,16 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
             if cur.rowcount > 0:
                 log.info("Cleaned up %d stale team_situational_stats rows", cur.rowcount)
 
+        # Game-keyed: a rescheduled game gets a new game_id, and the old id's rows
+        # would otherwise survive every team-keyed cleanup (box score spec §5).
+        if game_ids is not None and len(game_ids) > 0:
+            cur.execute(
+                "DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)",
+                (season, game_ids),
+            )
+            if cur.rowcount > 0:
+                log.info("Cleaned up %d stale team_game_stats rows", cur.rowcount)
+
 
 @retry(max_retries=2, delay=3)
 def get_existing_through_week(conn, season: int):
@@ -3818,6 +3958,8 @@ def process_season(season: int, conn, dry_run: bool = False):
     rb_weekly = aggregate_rb_weekly_stats(plays, roster, season)
     dd_stats = aggregate_team_down_distance_stats(plays, season)
     sit_stats = aggregate_team_situational_stats(plays, season)
+    # RAW pbp, not plays: box scores need the kicking and no_play rows (spec §5)
+    team_game_stats = aggregate_team_game_stats(pbp, season)
     through_week = int(plays['week'].max())
 
     validate_data(team_stats, qb_stats, receiver_stats)
@@ -3830,6 +3972,8 @@ def process_season(season: int, conn, dry_run: bool = False):
         log.info("[DRY RUN] Aggregated %d RB gap stat rows", len(rb_gap_stats))
         log.info("[DRY RUN] Aggregated %d RB gap weekly stat rows", len(rb_gap_stats_weekly))
         log.info("[DRY RUN] Def gap: %d rows", len(def_gap_stats))
+        log.info("[DRY RUN] Team game stats: %d rows (%d games)",
+                 len(team_game_stats), team_game_stats['game_id'].nunique() if not team_game_stats.empty else 0)
         # Log sample QBs for verification
         sample_cols = ['player_name', 'team', 'games', 'dropbacks', 'attempts', 'completions',
                        'passing_yards', 'touchdowns', 'interceptions', 'adot', 'fumbles', 'fumbles_lost',
@@ -3862,6 +4006,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_team_down_distance_table(conn)
     ensure_team_situational_table(conn)
     ensure_player_slugs_table(conn)
+    ensure_team_game_stats_table(conn)
 
     try:
         upsert_teams(conn, team_stats)
@@ -3878,6 +4023,7 @@ def process_season(season: int, conn, dry_run: bool = False):
         upsert_rb_weekly_stats(conn, rb_weekly)
         upsert_team_down_distance_stats(conn, dd_stats)
         upsert_team_situational_stats(conn, sit_stats)
+        upsert_team_game_stats(conn, team_game_stats)
         player_slugs_df = generate_player_slugs(qb_stats, receiver_stats, rb_gap_stats, roster, conn, season=season)
         upsert_player_slugs(conn, player_slugs_df)
         cleanup_stale_rows(
@@ -3895,6 +4041,7 @@ def process_season(season: int, conn, dry_run: bool = False):
             qb_pass_loc_player_ids=qb_pass_loc['player_id'].unique().tolist() if not qb_pass_loc.empty else [],
             dd_team_ids=dd_stats['team_id'].unique().tolist() if not dd_stats.empty else [],
             sit_team_ids=sit_stats['team_id'].unique().tolist() if not sit_stats.empty else [],
+            game_ids=team_game_stats['game_id'].unique().tolist() if not team_game_stats.empty else [],
         )
         update_freshness(conn, season, through_week)
         conn.commit()
