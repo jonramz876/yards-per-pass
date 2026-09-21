@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
   revalidatePath("/player", "layout");
   revalidatePath("/team", "layout");
   revalidatePath("/card", "layout");
+  revalidatePath("/game", "layout");
 
   return NextResponse.json({
     revalidated: true,
