@@ -209,6 +209,51 @@ class TestPartialDriveClock:
         assert 'drive_time_of_possession' not in caplog.text
 
 
+class TestNullWeek:
+    """week NaN on every row of a game must not crash the whole aggregate — a
+    corrupted/malformed game should be dropped and logged, never abort the
+    entire season's ingest (chaos report CRASH finding, IntCastingNaNError at
+    ingest.py's frame['week'].astype(int))."""
+
+    def test_game_with_every_row_null_week_is_dropped_and_logged(self, raw, caplog):
+        from ingest import aggregate_team_game_stats
+        good = (raw.play(game_id='2026_01_KC_BUF', week=1),
+                raw.rush(4.0, game_id='2026_01_KC_BUF', week=1))
+        bad = (raw.play(game_id='2026_01_NYJ_NE', home_team='NE', away_team='NYJ',
+                        posteam='NYJ', defteam='NE', week=math.nan),
+               raw.rush(4.0, game_id='2026_01_NYJ_NE', home_team='NE', away_team='NYJ',
+                        posteam='NYJ', defteam='NE', week=math.nan))
+        plays = raw.game(*good, *bad)
+        with caplog.at_level('WARNING', logger='ingest'):
+            out = aggregate_team_game_stats(plays, 2026)
+        # The good game still produces its two rows.
+        assert set(out['game_id']) == {'2026_01_KC_BUF'}
+        assert len(out) == 2
+        assert out['week'].eq(1).all()
+        # The bad game is named in a warning, not silently dropped.
+        assert '2026_01_NYJ_NE' in caplog.text
+
+    def test_only_the_bad_game_is_dropped_when_mixed_with_more_good_games(self, raw, caplog):
+        """A single malformed game must not take any other game down with it."""
+        from ingest import aggregate_team_game_stats
+        plays = raw.game(
+            raw.play(game_id='2026_01_KC_BUF', week=1),
+            raw.rush(4.0, game_id='2026_01_KC_BUF', week=1),
+            raw.play(game_id='2026_01_NYJ_NE', home_team='NE', away_team='NYJ',
+                     posteam='NYJ', defteam='NE', week=math.nan),
+            raw.rush(4.0, game_id='2026_01_NYJ_NE', home_team='NE', away_team='NYJ',
+                     posteam='NYJ', defteam='NE', week=math.nan),
+            raw.play(game_id='2026_01_SF_LA', home_team='LA', away_team='SF',
+                     posteam='SF', defteam='LA', week=1),
+            raw.rush(4.0, game_id='2026_01_SF_LA', home_team='LA', away_team='SF',
+                     posteam='SF', defteam='LA', week=1),
+        )
+        with caplog.at_level('WARNING', logger='ingest'):
+            out = aggregate_team_game_stats(plays, 2026)
+        assert set(out['game_id']) == {'2026_01_KC_BUF', '2026_01_SF_LA'}
+        assert len(out) == 4
+
+
 # ---------------------------------------------------------------------------
 # Synthetic games — every tricky case in spec §11
 # ---------------------------------------------------------------------------

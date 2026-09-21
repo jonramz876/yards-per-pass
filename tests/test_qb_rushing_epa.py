@@ -152,3 +152,37 @@ class TestSchemaAndUpsert:
         assert by_id['QB2']['rush_success_rate'] is None
         flat = [v for r in captured['rows'] for v in r]
         assert not any(isinstance(v, float) and math.isnan(v) for v in flat)
+
+    def test_upsert_converts_nan_adot_and_cpoe_to_none(self, monkeypatch, raw):
+        """A QB whose only dropback this game is a sack has 0 true pass attempts,
+        so adot (unmatched left-merge) and cpoe (.dropna().mean() on an all-NaN
+        group) stay real float64 NaN out of the aggregator — unlike
+        rush_epa_per_carry/rush_success_rate, which _ratio always makes a safe
+        None. upsert_qb_weekly_stats must still convert that NaN to None before
+        execute_values, never let a bare NaN through (chaos report ERROR #2,
+        ingest.py's upsert_qb_weekly_stats .where(df[cols].notna(), None))."""
+        import ingest
+        from ingest import aggregate_qb_weekly_stats, upsert_qb_weekly_stats
+        captured = {}
+
+        def fake_execute_values(cur, sql, rows):
+            captured['sql'] = sql
+            captured['rows'] = rows
+
+        monkeypatch.setattr(ingest, 'execute_values', fake_execute_values)
+        plays = raw.game(raw.sack())
+        df = aggregate_qb_weekly_stats(plays, _roster('QB1'), 2026)
+        # Sanity: confirm the aggregator really does leak a raw NaN here (not a
+        # safe None) — otherwise this test would not exercise the upsert bug.
+        assert math.isnan(df['adot'].iloc[0])
+        assert math.isnan(df['cpoe'].iloc[0])
+
+        upsert_qb_weekly_stats(_FakeConn(), df)
+
+        cols = [c.strip() for c in
+                re.search(r'INSERT INTO qb_weekly_stats \(([^)]*)\)', captured['sql']).group(1).split(',')]
+        row = dict(zip(cols, captured['rows'][0]))
+        assert row['adot'] is None
+        assert row['cpoe'] is None
+        flat = [v for r in captured['rows'] for v in r]
+        assert not any(isinstance(v, float) and math.isnan(v) for v in flat)

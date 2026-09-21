@@ -2599,8 +2599,16 @@ def upsert_qb_weekly_stats(conn, df: pd.DataFrame):
         'rush_epa_per_carry', 'rush_success_rate',
         'fumbles', 'fumbles_lost',
     ]
-    clean_df = df[cols].where(df[cols].notna(), None)
-    rows = [tuple(r) for _, r in clean_df.iterrows()]
+    # NaN/None -> None (SQL NULL, never 'NaN'::numeric): `.where(df[cols].notna(),
+    # None)` does NOT reliably do this — pandas reads the None as "fill with the
+    # default NA", so a genuine float64 NaN (e.g. adot/cpoe for a QB whose only
+    # dropback is a sack) survives and reaches execute_values as a bare nan.
+    # pd.isna(v) checked before any cast, as upsert_team_game_stats already does.
+    clean_df = df[cols].astype(object)
+    rows = [
+        tuple(None if pd.isna(v) else v for v in row)
+        for row in clean_df.itertuples(index=False, name=None)
+    ]
     col_names = ', '.join(cols)
     update_set = ', '.join(f"{c} = EXCLUDED.{c}" for c in cols if c not in ('player_id', 'season', 'week'))
 
@@ -3649,6 +3657,15 @@ def aggregate_team_game_stats(pbp: pd.DataFrame, season: int) -> pd.DataFrame:
     ], index=frame.index, dtype=object)
 
     frame['season'] = season
+    # A game whose every row has a null week (malformed input only — real
+    # nflverse always populates week) has no valid week to store. Drop it
+    # rather than crash frame['week'].astype(int) below and abort the whole
+    # season's ingest, or silently write a bogus week.
+    bad_week = frame['week'].isna()
+    if bad_week.any():
+        bad_game_ids = sorted(frame.loc[bad_week, 'game_id'].unique())
+        log.warning("Dropping %d game(s) with no usable week: %s", len(bad_game_ids), bad_game_ids)
+        frame = frame[~bad_week].reset_index(drop=True)
     frame['week'] = frame['week'].astype(int)
     frame = frame.sort_values(['game_id', 'home_away']).reset_index(drop=True)
     log.info("Aggregated team game stats for %d team-games (%d games)", len(frame), frame['game_id'].nunique())

@@ -11,6 +11,7 @@ asserts only per-game properties that hold however many weeks have been played.
 nflverse can revise past weeks, so if a week-1 fact fails on a fresh download,
 check the spec's numbers before the code.
 """
+import math
 import os
 
 import pandas as pd
@@ -68,18 +69,25 @@ class TestWholeFile:
     may be a season total or a fixed row count."""
 
     def test_every_played_game_aggregates_cleanly(self, full_pbp):
-        from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_INT_COLS
+        from ingest import aggregate_team_game_stats, TEAM_GAME_STATS_INT_COLS, TEAM_GAME_STATS_RATE_COLS
         out = aggregate_team_game_stats(full_pbp, 2026)
         reg_games = full_pbp.loc[full_pbp['season_type'] == 'REG', 'game_id'].nunique()
         assert out.groupby('game_id').size().eq(2).all()   # exactly 2 rows per game
         assert out['game_id'].nunique() == reg_games       # every played REG game
         assert len(out) == 2 * reg_games
         assert not out[TEAM_GAME_STATS_INT_COLS + ['season', 'week']].isna().any().any()
-        # A rate is NULL only when its denominator is 0
-        assert out.loc[out['epa_per_play'].isna(), 'plays'].eq(0).all()
-        assert out.loc[out['rush_epa_per_play'].isna(), 'rush_plays'].eq(0).all()
-        assert out.loc[out['pass_epa_per_play'].isna(), 'pass_plays'].eq(0).all()
-        assert out.loc[out['yards_per_play'].isna(), 'total_plays'].eq(0).all()
+        # No rate column may leak a bare NaN/inf (a real "no data" is a None, never
+        # a float NaN) — checked across every rate column, not just the 4 whose
+        # denominator can plausibly be 0; a None-only column is untouched by
+        # math.isfinite, so this only ever flags a genuine non-finite float.
+        for col in TEAM_GAME_STATS_RATE_COLS:
+            bad = [v for v in out[col] if v is not None and not math.isfinite(v)]
+            assert not bad, (col, bad)
+        # Every team-game that actually ran a play has an epa_per_play — not just
+        # "NULL implies 0 plays" (true by _ratio's own construction regardless of
+        # whether the data is right), but the real-world converse: a team with
+        # plays > 0 must never come out NULL.
+        assert not out.loc[out['plays'] > 0, 'epa_per_play'].isna().any()
         assert (out['time_of_possession_seconds'] > 0).all()
 
     def test_possession_sums_to_each_game_s_own_clock(self, full_pbp):
