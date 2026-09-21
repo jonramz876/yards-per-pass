@@ -382,6 +382,16 @@ class TestTraditional:
         assert row['total_yards'] == 12 - 6 + 3
         assert row['yards_per_play'] == approx(9 / 5)
 
+    def test_two_point_try_sack_is_excluded_from_sacks_and_yards(self, raw):
+        """Spec §4 Total Yards: "2-pt excluded" — official box scores don't count
+        2-point plays in team stats at all, sacks included. A sack on the try must
+        not add to sacks, sack_yards, net_passing_yards or total_yards."""
+        two_pt_sack = raw.sack(4.0, two_point_attempt=1.0, down=float('nan'), yardline_100=2.0)
+        row = _one(raw, raw.play(yards_gained=12.0, passing_yards=12.0), raw.sack(6.0), two_pt_sack)
+        assert (row['sacks'], row['sack_yards']) == (1, 6)
+        assert row['net_passing_yards'] == 12 - 6
+        assert row['total_yards'] == 12 - 6
+
     def test_lateral_keeps_every_passing_yard_in_the_team_total(self, raw):
         """A real lateral: 2026_01_BUF_HOU play 385 — Allen to Coleman for 1, lateral to
         Shakir for 10. nflverse records passing_yards 11 and yards_gained 11 but

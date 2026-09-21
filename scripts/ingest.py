@@ -3419,6 +3419,9 @@ def _team_game_costs(reg: pd.DataFrame) -> pd.DataFrame:
 
     # This team's own flags only (penalty_team == team), on offence AND defence.
     # EPA belongs to the possessing team, so a flag while defending is subtracted.
+    # .notna() drops a penalty with no team recorded — checked against real data
+    # during spec review (0 such rows in 2026 week 1 or anywhere in 2025), so this
+    # is a deliberate, verified filter, not a silent gap.
     pen = reg[(reg['penalty'] == 1) & reg['penalty_team'].notna()].copy()
     pen['signed_epa'] = pen['epa'].fillna(0.0).where(pen['posteam'] == pen['penalty_team'], -pen['epa'].fillna(0.0))
     flags = pen.groupby(['game_id', 'penalty_team']).agg(
@@ -3436,22 +3439,25 @@ def _team_game_traditional(reg: pd.DataFrame) -> pd.DataFrame:
     no2['is_att'] = ((no2['pass_attempt'] == 1) & (no2['sack'] != 1)).astype(int)
     no2['is_comp'] = (no2['complete_pass'] == 1).astype(int)
     no2['is_rush'] = (no2['rush_attempt'] == 1).astype(int)
+    # A sack on a 2-point try is excluded too (spec §4 Total Yards: "2-pt
+    # excluded") — official box scores don't count 2-point plays in team
+    # stats at all, so this stays on no2 like attempts/completions above.
+    no2['is_sack'] = (no2['sack'] == 1).astype(int)
+    no2['sack_yds'] = no2['yards_gained'].fillna(0).where(no2['sack'] == 1, 0.0)
     passing = no2.groupby(['game_id', 'posteam']).agg(
         attempts=('is_att', 'sum'),
         completions=('is_comp', 'sum'),
         passing_yards=('passing_yards', lambda s: s.fillna(0).sum()),
         rushing_attempts=('is_rush', 'sum'),
         rushing_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
+        sacks=('is_sack', 'sum'),
+        sack_yards_raw=('sack_yds', 'sum'),
     )
 
-    off['is_sack'] = (off['sack'] == 1).astype(int)
-    off['sack_yds'] = off['yards_gained'].fillna(0).where(off['sack'] == 1, 0.0)
     off['fdp'] = (off['first_down_pass'] == 1).astype(int)
     off['fdr'] = (off['first_down_rush'] == 1).astype(int)
     off['fdn'] = (off['first_down_penalty'] == 1).astype(int)
     misc = off.groupby(['game_id', 'posteam']).agg(
-        sacks=('is_sack', 'sum'),
-        sack_yards_raw=('sack_yds', 'sum'),
         first_downs_pass=('fdp', 'sum'),
         first_downs_rush=('fdr', 'sum'),
         first_downs_penalty=('fdn', 'sum'),
