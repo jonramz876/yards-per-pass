@@ -3396,7 +3396,15 @@ def _team_game_frame(reg: pd.DataFrame) -> pd.DataFrame:
         week=('week', 'first'),
         home_team=('home_team', 'first'),
         away_team=('away_team', 'first'),
-    ).reset_index().dropna(subset=['home_team', 'away_team'])
+    ).reset_index()
+    # Malformed-caller-only (real nflverse always populates both), but this must
+    # not be silent while the null-week drop below is loud — match it (review M6).
+    bad_teams = games['home_team'].isna() | games['away_team'].isna()
+    if bad_teams.any():
+        bad_game_ids = sorted(games.loc[bad_teams, 'game_id'].unique())
+        log.warning("Dropping %d game(s) with unresolvable home_team/away_team: %s",
+                    len(bad_game_ids), bad_game_ids)
+    games = games.dropna(subset=['home_team', 'away_team'])
     home = games.rename(columns={'home_team': 'team_id', 'away_team': 'opponent_id'})
     home['home_away'] = 'home'
     away = games.rename(columns={'away_team': 'team_id', 'home_team': 'opponent_id'})
@@ -3456,11 +3464,22 @@ def _team_game_costs(reg: pd.DataFrame) -> pd.DataFrame:
     # where 2 is right. There is no test for it: fumbled_2_team is not a column the
     # aggregator reads or the fixture carries, so no synthetic row can reproduce it.
     off['is_fl'] = ((off['fumble_lost'] == 1) & (off['fumbled_1_team'] == off['posteam'])).astype(int)
+    # to_epa/sack_epa feed epa_lost_turnovers/epa_lost_sacks: the EFFICIENCY set
+    # (spec §4 keeps 2-point tries here, same reasoning as epa_lost_sacks). This
+    # is deliberately NOT the no2 (2-pt-excluded) mask used for interceptions/
+    # fumbles_lost/turnovers below — don't make these match (review I1).
     off['to_epa'] = off['epa'].where((off['is_int'] == 1) | (off['is_fl'] == 1), 0.0)
     off['sack_epa'] = off['epa'].where(off['sack'] == 1, 0.0)
+    # interceptions/fumbles_lost/turnovers are TRADITIONAL (official box-score)
+    # counts, so two-point tries are excluded here — matching attempts/
+    # completions/sacks in _team_game_traditional's `no2` — even though the same
+    # play's EPA still counts above via the efficiency-set `off` frame (I1).
+    no2 = off['two_point_attempt'] != 1
+    off['is_int_trad'] = off['is_int'].where(no2, 0)
+    off['is_fl_trad'] = off['is_fl'].where(no2, 0)
     own = off.groupby(['game_id', 'posteam']).agg(
-        interceptions=('is_int', 'sum'),
-        fumbles_lost=('is_fl', 'sum'),
+        interceptions=('is_int_trad', 'sum'),
+        fumbles_lost=('is_fl_trad', 'sum'),
         epa_lost_turnovers=('to_epa', 'sum'),
         epa_lost_sacks=('sack_epa', 'sum'),
     ).reset_index().rename(columns={'posteam': 'team_id'})
@@ -3918,14 +3937,34 @@ def cleanup_stale_rows(conn, season: int, team_ids: list, player_ids: list, rb_g
         # Game-keyed: a rescheduled game gets a new game_id, and the old id's rows
         # would otherwise survive every team-keyed cleanup (box score spec §5).
         if game_ids is not None and len(game_ids) > 0:
+            # I2: download_pbp accepts any non-empty current-season file, so a
+            # truncated upstream file can still reach the latest week while
+            # missing whole earlier weeks — a keep list that looks plausible but
+            # is too small. A reschedule (the case this DELETE exists for) never
+            # shrinks the season's game count, so a keep list smaller than what
+            # is already stored can only mean an incomplete file: skip the
+            # delete rather than risk wiping real rows.
             cur.execute(
-                "DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)",
-                (season, game_ids),
+                "SELECT COUNT(DISTINCT game_id) FROM team_game_stats WHERE season = %s",
+                (season,),
             )
-            if cur.rowcount > 0:
-                log.warning("Removed %d stale team_game_stats row(s) for games no longer in "
-                            "the season's play-by-play (reschedule, or an upstream data gap)",
-                            cur.rowcount)
+            stored_game_count = cur.fetchone()[0]
+            if len(game_ids) < stored_game_count:
+                log.warning(
+                    "Skipping team_game_stats cleanup for season %d: this run's keep "
+                    "list has %d game(s) but the table already holds %d — the "
+                    "play-by-play file looks incomplete, not just rescheduled",
+                    season, len(game_ids), stored_game_count,
+                )
+            else:
+                cur.execute(
+                    "DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)",
+                    (season, game_ids),
+                )
+                if cur.rowcount > 0:
+                    log.warning("Removed %d stale team_game_stats row(s) for games no longer in "
+                                "the season's play-by-play (reschedule, or an upstream data gap)",
+                                cur.rowcount)
 
 
 @retry(max_retries=2, delay=3)

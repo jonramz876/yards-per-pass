@@ -254,6 +254,30 @@ class TestNullWeek:
         assert len(out) == 4
 
 
+class TestUnresolvableTeams:
+    """home_team/away_team NaN on every row of a game is malformed-caller-only
+    (real nflverse always populates both), but must be dropped and logged the
+    same way the null-week guard above is — not silently, like before (chaos
+    DEGRADED finding, review M6)."""
+
+    def test_game_with_unresolvable_home_away_is_dropped_and_logged(self, raw, caplog):
+        from ingest import aggregate_team_game_stats
+        good = (raw.play(game_id='2026_01_KC_BUF', week=1),
+                raw.rush(4.0, game_id='2026_01_KC_BUF', week=1))
+        bad = (raw.play(game_id='2026_01_NYJ_NE', home_team=math.nan, away_team=math.nan,
+                        posteam='NYJ', defteam='NE', week=1),
+               raw.rush(4.0, game_id='2026_01_NYJ_NE', home_team=math.nan, away_team=math.nan,
+                        posteam='NYJ', defteam='NE', week=1))
+        plays = raw.game(*good, *bad)
+        with caplog.at_level('WARNING', logger='ingest'):
+            out = aggregate_team_game_stats(plays, 2026)
+        # The good game still produces its two rows.
+        assert set(out['game_id']) == {'2026_01_KC_BUF'}
+        assert len(out) == 2
+        # The bad game is named in a warning, not silently dropped.
+        assert '2026_01_NYJ_NE' in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # Synthetic games — every tricky case in spec §11
 # ---------------------------------------------------------------------------
@@ -340,6 +364,18 @@ class TestTurnovers:
         row = _one(raw, pick, lost, raw.play())
         assert (row['turnovers'], row['interceptions'], row['fumbles_lost']) == (2, 1, 1)
         assert row['epa_lost_turnovers'] == approx(-7.0)
+
+    def test_two_point_try_interception_is_not_a_turnover_but_still_costs_epa(self, raw):
+        """I1: a 2-pt try is excluded from interceptions/fumbles_lost/turnovers, like
+        attempts/completions/sacks (spec §4), even though epa_lost_turnovers keeps
+        it — that column is computed on the efficiency set, which keeps 2-pt tries."""
+        pick = raw.play(interception=1.0, complete_pass=0.0, epa=-4.0, success=0.0, passing_yards=float('nan'), yards_gained=0.0)
+        lost = raw.rush(2.0, fumble=1.0, fumble_lost=1.0, fumbled_1_team='KC', fumbled_1_player_id='RB1', epa=-3.0, success=0.0)
+        two_pt_pick = raw.play(interception=1.0, complete_pass=0.0, two_point_attempt=1.0, down=float('nan'),
+                               yardline_100=2.0, epa=-1.8, success=0.0, passing_yards=float('nan'), yards_gained=0.0)
+        row = _one(raw, pick, lost, two_pt_pick, raw.play())
+        assert (row['turnovers'], row['interceptions'], row['fumbles_lost']) == (2, 1, 1)
+        assert row['epa_lost_turnovers'] == approx(-4.0 - 3.0 - 1.8)
 
     def test_pick_the_defence_fumbles_back_is_one_turnover(self, raw):
         """interception AND fumble_lost on one row, but BUF (the defence) fumbled: 1, not 2 (spec §4)."""

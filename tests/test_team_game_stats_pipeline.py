@@ -8,11 +8,14 @@ from conftest import FIXTURE_GAMES
 
 
 class _FakeCursor:
-    """Records every execute(sql, params); rowcount is always 0."""
+    """Records every execute(sql, params); rowcount is always 0. fetchone()
+    answers a COUNT(...) query with the conn's `game_count` (I2's stored-count
+    check) — the only SELECT this module's code under test issues."""
 
-    def __init__(self, calls):
+    def __init__(self, calls, game_count=0):
         self.calls = calls
         self.rowcount = 0
+        self.game_count = game_count
 
     def __enter__(self):
         return self
@@ -23,15 +26,19 @@ class _FakeCursor:
     def execute(self, sql, params=None):
         self.calls.append((' '.join(sql.split()), params))
 
+    def fetchone(self):
+        return (self.game_count,)
+
 
 class _FakeConn:
-    def __init__(self):
+    def __init__(self, game_count=0):
         self.calls = []
         self.commits = 0
         self.rollbacks = 0
+        self.game_count = game_count
 
     def cursor(self):
-        return _FakeCursor(self.calls)
+        return _FakeCursor(self.calls, self.game_count)
 
     def commit(self):
         self.commits += 1
@@ -153,16 +160,38 @@ class TestUpsert:
 
 
 class TestCleanup:
-    def _run(self, **kwargs):
+    def _run(self, game_count=0, **kwargs):
         from ingest import cleanup_stale_rows
-        conn = _FakeConn()
+        conn = _FakeConn(game_count=game_count)
         cleanup_stale_rows(conn, 2026, team_ids=['KC'], player_ids=['QB1'], **kwargs)
         return [c for c in conn.calls if 'team_game_stats' in c[0]]
 
     def test_deletes_games_missing_from_the_file(self):
-        calls = self._run(game_ids=['2026_01_KC_BUF', '2026_02_BUF_NYJ'])
-        assert calls == [('DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)',
-                          (2026, ['2026_01_KC_BUF', '2026_02_BUF_NYJ']))]
+        """Keep list (2) matches the stored count (2) exactly: still deletes."""
+        calls = self._run(game_count=2, game_ids=['2026_01_KC_BUF', '2026_02_BUF_NYJ'])
+        assert calls == [
+            ('SELECT COUNT(DISTINCT game_id) FROM team_game_stats WHERE season = %s', (2026,)),
+            ('DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)',
+             (2026, ['2026_01_KC_BUF', '2026_02_BUF_NYJ'])),
+        ]
+
+    def test_keep_list_larger_than_stored_still_deletes(self):
+        """More games than stored (growth, or a first run): still deletes."""
+        calls = self._run(game_count=1, game_ids=['2026_01_KC_BUF', '2026_02_BUF_NYJ'])
+        assert calls[-1] == ('DELETE FROM team_game_stats WHERE season = %s AND game_id != ALL(%s)',
+                              (2026, ['2026_01_KC_BUF', '2026_02_BUF_NYJ']))
+
+    def test_short_keep_list_skips_delete_and_warns(self, caplog):
+        """I2: a keep list smaller than the stored count means an incomplete
+        upstream play-by-play file, not a reschedule (a reschedule never shrinks
+        the game count) — skip the DELETE rather than wipe earlier weeks' rows."""
+        with caplog.at_level('WARNING', logger='ingest'):
+            calls = self._run(game_count=16, game_ids=['2026_01_KC_BUF', '2026_02_BUF_NYJ'])
+        assert calls == [('SELECT COUNT(DISTINCT game_id) FROM team_game_stats WHERE season = %s', (2026,))]
+        assert 'season 2026' in caplog.text
+        assert 'has 2 game(s)' in caplog.text
+        assert 'holds 16' in caplog.text
+        assert 'incomplete' in caplog.text
 
     def test_empty_list_deletes_nothing(self):
         """Same guard as every other cleanup: an empty list would delete the whole season."""
