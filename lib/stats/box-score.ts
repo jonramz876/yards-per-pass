@@ -183,7 +183,7 @@ export function formatGameDate(gameday: string | null, weekday: string | null, t
 
 /** "WEEK 1" for the regular season; the round name ("WILD CARD") for playoffs. */
 export function gameLabel(game: Pick<ScoreboardGame, "game_type" | "week">): string {
-  const type = String(game.game_type ?? "REG").toUpperCase();
+  const type = String(game.game_type || "REG").toUpperCase();
   return type === "REG" ? `WEEK ${fmtInt(game.week)}` : (ROUND_LABELS[type] ?? type);
 }
 
@@ -255,8 +255,11 @@ export interface ComparisonSectionModel {
 
 type Quantize = (v: number) => number;
 const Q_INT: Quantize = (v) => Math.round(v);
-const Q_DEC1: Quantize = (v) => Math.round(v * 10);
-const Q_DEC2: Quantize = (v) => Math.round(v * 100);
+// Round the magnitude the same way fmtFixed's toFixed does, then restore the
+// sign: plain Math.round(v * 10) rounds negatives toward +Infinity, which can
+// disagree with fmtFixed's printed digit at the halfway point.
+const Q_DEC1: Quantize = (v) => Math.sign(v) * Math.round(Math.abs(v) * 10);
+const Q_DEC2: Quantize = (v) => Math.sign(v) * Math.round(Math.abs(v) * 100);
 const Q_PCT0: Quantize = (v) => Math.round(v * 100);
 
 /**
@@ -393,7 +396,12 @@ export function buildComparison(away: TeamGameStat, home: TeamGameStat): Compari
   const toxicAway = toxic(a, h);
   const toxicHome = toxic(h, a);
   // Fewer sacks is better; the same number of sacks, then fewer yards lost.
-  const sacksBetter = betterSide(a.sacks, h.sacks, false) ?? betterSide(a.sack_yards, h.sack_yards, false);
+  // A missing sack count must not fall through to the yards tiebreak - a
+  // dashed cell is never shaded, same as every other row in this file.
+  const sacksBetter =
+    isNum(a.sacks) && isNum(h.sacks)
+      ? betterSide(a.sacks, h.sacks, false) ?? betterSide(a.sack_yards, h.sack_yards, false)
+      : null;
 
   return [
     {
@@ -420,6 +428,14 @@ export function buildComparison(away: TeamGameStat, home: TeamGameStat): Compari
           sub: true,
           labelDetail: "(20+ yd completion)",
         }),
+        // explosive_rush counts (rush == 1 or qb_scramble == 1) with
+        // yards_gained >= 10 (spec §4), but rush_plays is the rush == 1
+        // split only - scrambles sit in pass_plays. So a team with few
+        // designed runs and several long scrambles can show a rate over
+        // 100% here (an explosive scramble inflates the numerator with no
+        // matching denominator). The honest denominator (rush_plays plus
+        // scrambles) is not a stored column, so fixing this needs a new
+        // ingest column, not a page-side patch.
         explosive("explosive-rush", "Rushing", (t) => t.explosive_rush, (t) => rate(t.explosive_rush, t.rush_plays), {
           sub: true,
           labelDetail: "(10+ yd run)",
@@ -537,7 +553,7 @@ export function receivingNote(lines: GamePlayerLines, awayId: string, homeId: st
       .reduce((sum, r) => sum + (isNum(r.receiving_yards) ? r.receiving_yards : 0), 0);
     const diff = passing - receiving;
     if (diff <= 0) continue;
-    const who = qbs.length === 1 ? (lines.players[qbs[0].player_id]?.player_name || team) : team;
+    const who = qbs.length === 1 ? (lines.players?.[qbs[0].player_id]?.player_name || team) : team;
     gaps.push(
       `${fmtInt(diff)} of ${who}\u2019s ${fmtInt(passing)} passing yards aren\u2019t credited to a receiver above ` +
         `(yards after a lateral, or a catch by a lineman or quarterback)`

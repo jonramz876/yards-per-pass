@@ -138,6 +138,10 @@ describe("scoreboard model", () => {
     expect(gameLabel({ game_type: "WC", week: 19 })).toBe("WILD CARD");
     expect(gameLabel({ game_type: "SB", week: 22 })).toBe("SUPER BOWL");
     expect(gameLabel({ game_type: "REG", week: 7 })).toBe("WEEK 7");
+    // An empty game_type must fall back to WEEK n, not render as "".
+    expect(gameLabel({ game_type: "", week: 5 })).toBe("WEEK 5");
+    // An unrecognized, non-empty type echoes itself.
+    expect(gameLabel({ game_type: "XYZ", week: 5 })).toBe("XYZ");
   });
 
   it("marks neither score in a tie and copes with an unknown team id", () => {
@@ -179,6 +183,13 @@ describe("comparison sections — 2026_01_BUF_HOU golden (spec §4 / mockup)", (
     ]);
   });
 
+  it("has a unique row key within each section", () => {
+    for (const section of buildComparison(BUF_STATS, HOU_STATS)) {
+      const keys = section.rows.map((r) => r.key);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
+  });
+
   it("Efficiency", () => {
     expect(flat("efficiency")).toEqual([
       ["epa", "+0.28 (56)", "+0.07 (79)", "away"],
@@ -195,8 +206,8 @@ describe("comparison sections — 2026_01_BUF_HOU golden (spec §4 / mockup)", (
       ["explosive-rush", "3 (16%)", "4 (13%)", "home"],
       ["toxic", "+2 (TO +2, expl 0)", `${M}2 (TO ${M}2, expl 0)`, "away"],
     ]);
-    // Spec §2's "8 (15%)" illustration is 8/52 (traditional plays); the stored
-    // explosive_rate is 8/56 = 14%, per PR 2's GOLD. 14% is correct.
+    // Spec §2's layout example is "8 (14%)"; the stored explosive_rate is
+    // 8/56 = 14%, per PR 2's GOLD. Matches.
   });
 
   it("Efficiency labels, details, sub-rows and tooltips read as the mockup", () => {
@@ -308,6 +319,22 @@ describe("comparison sections — edge cases", () => {
     expect(same.sacks.better).toBeNull();
   });
 
+  it("does not shade the sacks row when a sack count is missing, even though yards would break the tie", () => {
+    const away = teamRow({ sacks: null as unknown as number });
+    const team = Object.fromEntries(buildComparison(away, HOU_STATS)[1].rows.map((r) => [r.key, r]));
+    expect(cell(team.sacks.away)).toBe(DASH);
+    expect(team.sacks.better).toBeNull();
+  });
+
+  it("quantizes negative decimals the way fmtFixed prints them, so identical-looking cells are never shaded apart", () => {
+    const away = teamRow({ epa_lost_turnovers: -3.25 });
+    const home = teamRow({ team_id: "HOU", epa_lost_turnovers: -3.26 });
+    const cost = Object.fromEntries(buildComparison(away, home)[2].rows.map((r) => [r.key, r]));
+    expect(cell(cost["cost-turnovers"].away)).toBe(`${M}3.3`);
+    expect(cell(cost["cost-turnovers"].home)).toBe(`${M}3.3`);
+    expect(cost["cost-turnovers"].better).toBeNull();
+  });
+
   it("toxic differential shows a dash when a turnover count is missing", () => {
     const home = teamRow({ team_id: "HOU", turnovers: null as unknown as number });
     const eff = Object.fromEntries(buildComparison(BUF_STATS, home)[0].rows.map((r) => [r.key, r]));
@@ -348,6 +375,11 @@ describe("on-page notes (spec §12) come from the game's own numbers", () => {
     expect(receivingNote(lines, "BUF", "HOU")).toBe(
       "Yards gained after a lateral belong to no receiver, and runs by receivers and kneel-downs don\u2019t appear in the rushing table."
     );
+  });
+
+  it("does not throw when players is missing from a malformed lines object", () => {
+    const lines = { ...BUF_HOU_LINES, players: undefined } as unknown as GamePlayerLines;
+    expect(() => receivingNote(lines, "BUF", "HOU")).not.toThrow();
   });
 });
 
@@ -464,5 +496,17 @@ describe("player tables — edge cases", () => {
     expect(buildReceivingTable(empty, "BUF", "HOU", {}).columns).toHaveLength(11);
     expect(receivingNote(empty, "BUF", "HOU")).toContain("Yards gained after a lateral");
     expect(LEGEND_TEXT).toContain("team pages");
+  });
+
+  it("omits the epa key entirely from non-EPA player cells", () => {
+    const passing = buildPassingTable(BUF_HOU_LINES, "BUF", "HOU");
+    expect("epa" in passing.teams[0].rows[0].cells[0]).toBe(false); // C/ATT
+    expect("epa" in passing.teams[0].rows[0].cells[6]).toBe(true); // EPA/DB
+    const rushing = buildRushingTable(BUF_HOU_LINES, "BUF", "HOU");
+    expect("epa" in rushing.teams[0].rows[0].cells[0]).toBe(false); // CAR
+    expect("epa" in rushing.teams[0].rows[0].cells[4]).toBe(true); // EPA/CAR
+    const receiving = buildReceivingTable(BUF_HOU_LINES, "BUF", "HOU", { BUF: 28, HOU: 37 });
+    expect("epa" in receiving.teams[0].rows[0].cells[0]).toBe(false); // TGT
+    expect("epa" in receiving.teams[0].rows[0].cells[6]).toBe(true); // EPA/TGT
   });
 });
