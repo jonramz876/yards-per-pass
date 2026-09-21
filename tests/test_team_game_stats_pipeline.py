@@ -217,6 +217,7 @@ class TestProcessSeasonWiring:
         assert len(df) == 6 and sorted(df['game_id'].unique()) == sorted(FIXTURE_GAMES)
 
         assert names.index('ensure_team_game_stats_table') < names.index('upsert_team_game_stats')
+        assert names.index('ensure_qb_weekly_stats_table') < names.index('ensure_qb_weekly_stats_columns') < names.index('upsert_qb_weekly_stats')
 
         cleanup = [c for c in calls if c[0] == 'cleanup_stale_rows'][0]
         assert sorted(cleanup[2]['game_ids']) == sorted(FIXTURE_GAMES)

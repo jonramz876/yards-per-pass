@@ -2066,30 +2066,55 @@ def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
         (qb_plays['rusher_player_id'].isin(qb_ids)) &
         (qb_plays['qb_dropback'] == 0)
     ].copy()
+    # A success on a carry the count sees: rush_attempts counts non-null-EPA
+    # rows, so the flag is restricted to those same rows (box score spec §10.1).
+    designed_rushes['rush_succ'] = (
+        (designed_rushes['success'] == 1) & designed_rushes['epa'].notna()
+    ).astype(int)
 
     rush_game = designed_rushes.groupby(['rusher_player_id', 'game_id']).agg(
         rush_attempts=('epa', 'count'),
         rush_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
         rush_tds=('rush_touchdown', 'sum'),
+        rush_epa_sum=('epa', 'sum'),
+        rush_succ=('rush_succ', 'sum'),
     ).reset_index().rename(columns={'rusher_player_id': 'passer_player_id'})
 
     # Scramble rush stats per game
-    scramble_plays = dropbacks[dropbacks['qb_scramble'] == 1]
+    scramble_plays = dropbacks[dropbacks['qb_scramble'] == 1].copy()
+    scramble_plays['rush_succ'] = (
+        (scramble_plays['success'] == 1) & scramble_plays['epa'].notna()
+    ).astype(int)
     scramble_game = scramble_plays.groupby(['passer_player_id', 'game_id']).agg(
         scr_count=('epa', 'count'),
         scr_yards=('rushing_yards', lambda s: s.fillna(0).sum()),
         scr_tds=('rush_touchdown', 'sum'),
+        scr_epa_sum=('epa', 'sum'),
+        scr_succ=('rush_succ', 'sum'),
     ).reset_index()
 
     qb_game = qb_game.merge(rush_game, on=['passer_player_id', 'game_id'], how='left')
     qb_game = qb_game.merge(scramble_game, on=['passer_player_id', 'game_id'], how='left')
 
-    for col in ['rush_attempts', 'rush_yards', 'rush_tds', 'scr_count', 'scr_yards', 'scr_tds']:
+    for col in ['rush_attempts', 'rush_yards', 'rush_tds', 'scr_count', 'scr_yards', 'scr_tds',
+                'rush_succ', 'scr_succ']:
         qb_game[col] = qb_game[col].fillna(0).astype(int)
+    for col in ['rush_epa_sum', 'scr_epa_sum']:
+        qb_game[col] = qb_game[col].fillna(0.0)
 
     qb_game['rush_attempts'] = qb_game['rush_attempts'] + qb_game['scr_count']
     qb_game['rush_yards'] = qb_game['rush_yards'] + qb_game['scr_yards']
     qb_game['rush_tds'] = qb_game['rush_tds'] + qb_game['scr_tds']
+
+    # Rush EPA/carry and success rate over exactly the carries rush_attempts
+    # counts — designed runs plus scrambles (box score spec §10.1). _ratio (the
+    # team_game_stats helper) gives None (SQL NULL, never NaN) for a game with no
+    # carries and returns a dtype=object Series, so the None survives
+    # upsert_qb_weekly_stats' .where(notna, None).
+    qb_game['rush_epa_total'] = qb_game['rush_epa_sum'] + qb_game['scr_epa_sum']
+    qb_game['rush_succ_total'] = qb_game['rush_succ'] + qb_game['scr_succ']
+    qb_game['rush_epa_per_carry'] = _ratio(qb_game, 'rush_epa_total', 'rush_attempts')
+    qb_game['rush_success_rate'] = _ratio(qb_game, 'rush_succ_total', 'rush_attempts')
 
     # --- Fumbles per game ---
     all_qb_plays = pd.concat([dropbacks, designed_rushes])
@@ -2130,6 +2155,7 @@ def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
         'sacks', 'epa_per_dropback', 'cpoe', 'success_rate', 'adot',
         'passer_rating', 'ypa',
         'rush_attempts', 'rush_yards', 'rush_tds',
+        'rush_epa_per_carry', 'rush_success_rate',
         'fumbles', 'fumbles_lost',
     ]
     result = qb_game[cols].copy()
@@ -2447,6 +2473,20 @@ def ensure_qb_weekly_stats_table(conn):
     log.info("Ensured qb_weekly_stats table exists with RLS")
 
 
+def ensure_qb_weekly_stats_columns(conn):
+    """Add QB rushing EPA/success columns to qb_weekly_stats (idempotent). NOT inside @retry.
+    ensure_qb_weekly_stats_table is CREATE TABLE IF NOT EXISTS only, so it cannot
+    add columns to the table that already exists in production (box score spec §10.1)."""
+    with conn.cursor() as cur:
+        for col, typ in [
+            ('rush_epa_per_carry', 'NUMERIC'),
+            ('rush_success_rate', 'NUMERIC'),
+        ]:
+            cur.execute(f"ALTER TABLE qb_weekly_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
+    conn.commit()
+    log.info("Ensured qb_weekly_stats has rush_epa_per_carry/rush_success_rate columns")
+
+
 def ensure_receiver_weekly_stats_table(conn):
     """Create receiver_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
@@ -2556,6 +2596,7 @@ def upsert_qb_weekly_stats(conn, df: pd.DataFrame):
         'sacks', 'epa_per_dropback', 'cpoe', 'success_rate', 'adot',
         'passer_rating', 'ypa',
         'rush_attempts', 'rush_yards', 'rush_tds',
+        'rush_epa_per_carry', 'rush_success_rate',
         'fumbles', 'fumbles_lost',
     ]
     clean_df = df[cols].where(df[cols].notna(), None)
@@ -4000,6 +4041,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_receiver_stats_table(conn)
     ensure_rb_season_stats_table(conn)
     ensure_qb_weekly_stats_table(conn)
+    ensure_qb_weekly_stats_columns(conn)
     ensure_receiver_weekly_stats_table(conn)
     ensure_rb_weekly_stats_table(conn)
     ensure_qb_pass_location_tables(conn)
