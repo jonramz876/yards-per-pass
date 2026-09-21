@@ -7,7 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const METRIC_DEFINITIONS: Record<string, string> = {
+export const METRIC_DEFINITIONS: Record<string, string> = {
   "EPA/Play":
     "Points added per play \u2014 the best single measure of QB impact. Covers passing and rushing. Above 0 = above average.",
   "EPA/DB":
@@ -76,6 +76,17 @@ const METRIC_DEFINITIONS: Record<string, string> = {
   TCH: "Total touches \u2014 carries + receptions. Measures overall involvement in the offense.",
   "TCH/G":
     "Touches per game \u2014 (carries + receptions) \u00f7 games played. Measures per-game workload.",
+  // Box score page (spec §4 definitions). "EPA / play" and "Success rate" are
+  // the team-level, nflfastR-style versions — the QB entries above exclude sacks.
+  "EPA / play":
+    "Expected points added per play: how much each snap moved the offense\u2019s expected points. Counts every run and dropback, the way nflfastR and rbsdm.com do.",
+  "Success rate": "Share of plays that gained expected points (EPA above zero).",
+  "1st down rate":
+    "Share of plays that gained a first down. Counts the same runs and dropbacks as EPA/play, so a first down awarded by a penalty on a wiped play is not in it \u2014 the Team stats section counts those.",
+  "Explosive plays":
+    "Runs of 10+ yards and completions of 20+ yards. QB scrambles of 10+ yards count as explosive runs.",
+  "Toxic differential":
+    "Turnover margin plus explosive-play margin, using the explosive plays counted above.",
 };
 
 interface MetricTooltipProps {
