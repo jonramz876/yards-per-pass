@@ -69,6 +69,7 @@ function renderSchedule(over: Partial<React.ComponentProps<typeof ScheduleSectio
       primaryColor="#00338D"
       secondaryColor="#C60C30"
       teamStats={teamStats}
+      boxScoreSeasons={[]}
       {...over}
     />,
   );
@@ -239,6 +240,7 @@ describe("ScheduleSection (Tecmo season grid)", () => {
         primaryColor="#00338D"
         secondaryColor="#C60C30"
         teamStats={null}
+        boxScoreSeasons={[]}
       />,
     );
     expect(screen.getByText("Schedule & Results")).toBeTruthy();
@@ -298,5 +300,45 @@ describe("ScheduleSection (Tecmo season grid)", () => {
   it("renders nothing when the team has no schedule rows", () => {
     const { container } = renderSchedule({ schedule: [] });
     expect(container.innerHTML).toBe("");
+  });
+});
+
+describe("ScheduleSection — box score links (box score spec §7)", () => {
+  it("links the score line of a played regular-season tile when its season has box scores", () => {
+    const { container } = renderSchedule({ boxScoreSeasons: [2026] });
+    const links = Array.from(container.querySelectorAll("a[data-box-score-link]"));
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/game/2026_01_BUF_HOU", "/game/2026_02_BUF_DET"]);
+    expect(links[0].textContent).toBe("W27-20");
+    expect(links[0].getAttribute("title")).toBe("Box score: BUF 27, HOU 20");
+    // The opponent link is untouched and sits beside, never inside, the score link.
+    expect(container.querySelector('a[href="/team/HOU"]')!.textContent).toBe("@HOU");
+    expect(container.querySelectorAll("a")).toHaveLength(8);
+    expect(container.querySelector("[data-game-id]")!.querySelector("a a")).toBeNull();
+  });
+
+  it("links nothing when the season has no box scores, or the list is empty", () => {
+    for (const seasons of [[], [2025]]) {
+      const { container } = renderSchedule({ boxScoreSeasons: seasons });
+      expect(container.querySelectorAll("a[data-box-score-link]")).toHaveLength(0);
+      expect(container.querySelectorAll("a")).toHaveLength(6);
+      expect(container.textContent).toContain("27-20");
+    }
+  });
+
+  it("never links unplayed, bye or playoff tiles", () => {
+    const { container } = renderSchedule({
+      boxScoreSeasons: [2026],
+      schedule: [...schedule, final(20, 21, 17, { game_type: "DIV", opponent_id: "KC", gameday: "2027-01-17" })],
+    });
+    const hrefs = Array.from(container.querySelectorAll("a[data-box-score-link]")).map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(["/game/2026_01_BUF_HOU", "/game/2026_02_BUF_DET"]);
+    expect(container.textContent).toContain("21-17");
+  });
+
+  it("survives a season list that arrives as strings or is missing at runtime", () => {
+    const { container } = renderSchedule({ boxScoreSeasons: ["2026"] as unknown as number[] });
+    expect(container.querySelectorAll("a[data-box-score-link]")).toHaveLength(0);
+    const { container: none } = renderSchedule({ boxScoreSeasons: undefined as unknown as number[] });
+    expect(none.querySelectorAll("[data-game-id]")).toHaveLength(6);
   });
 });

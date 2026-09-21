@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { NFL_TEAMS, getTeam } from "@/lib/data/teams";
 import { getTeamHubData } from "@/lib/data/team-hub";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
+import { getBoxScoreSeasons } from "@/lib/data/box-score";
 import TeamHubContent from "@/components/team/TeamHubContent";
 
 export const revalidate = 3600;
@@ -51,8 +52,17 @@ export default async function TeamPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
-  // Only the latest season pre-surfaces next season's schedule.
-  const data = await getTeamHubData(teamId, currentSeason, currentSeason === seasons[0]);
+  // Only the latest season pre-surfaces next season's schedule. The box score
+  // link gate (spec §7) is fetched here — TeamHubContent is a client
+  // component — and passed down as a plain array. A failed probe logs and
+  // renders no links this render (ISR: up to an hour), never a crash.
+  const [data, boxScoreSeasons] = await Promise.all([
+    getTeamHubData(teamId, currentSeason, currentSeason === seasons[0]),
+    getBoxScoreSeasons(seasons).catch((err: unknown): number[] => {
+      console.error(`Team page: box score seasons unavailable for ${teamId}; schedule tiles will not link`, err);
+      return [];
+    }),
+  ]);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -75,6 +85,7 @@ export default async function TeamPage({
       <TeamHubContent
         team={team}
         data={data}
+        boxScoreSeasons={boxScoreSeasons}
       />
     </>
   );
