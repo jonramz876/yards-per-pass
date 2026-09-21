@@ -2,6 +2,7 @@
 // Schedule + results for one team-season, from the `games` table
 // (nflverse schedules; see ingest_schedules in scripts/ingest.py).
 import { createServerClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/data/utils";
 import type { TeamGame, GameResultsByTeam } from "@/lib/types";
 
 /** Raw shape of a `games` row before per-team fields are derived. */
@@ -146,6 +147,69 @@ export async function getGameResults(
     }
   }
   return results;
+}
+
+/**
+ * One `games` row as the box score page reads it — both teams, scores parsed
+ * to numbers, null until the game is played (never NaN: see `score`).
+ */
+export interface GameRecord {
+  game_id: string;
+  season: number;
+  /** REG, or WC / DIV / CON / SB. A missing value reads REG, like getTeamSchedule. */
+  game_type: string;
+  week: number;
+  gameday: string | null;
+  weekday: string | null;
+  gametime: string | null;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+}
+
+/**
+ * The `games` row for one nflverse game id, or null when there is none.
+ * Throws on a query error (box score spec §6: a failed read must not render
+ * as "not found").
+ */
+export async function getGame(gameId: string): Promise<GameRecord | null> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase.from("games").select("*").eq("game_id", gameId).limit(1);
+  if (error) throw new Error(`Failed to fetch game ${gameId}: ${error.message}`);
+  const row = ((data ?? []) as unknown as GameRow[])[0];
+  if (!row) return null;
+  return {
+    game_id: row.game_id,
+    season: Number(row.season),
+    game_type: row.game_type ?? "REG",
+    week: row.week ?? 0,
+    gameday: row.gameday ?? null,
+    weekday: row.weekday ?? null,
+    gametime: row.gametime ?? null,
+    home_team: row.home_team,
+    away_team: row.away_team,
+    home_score: score(row.home_score),
+    away_score: score(row.away_score),
+  };
+}
+
+/**
+ * Ids of every played regular-season game of one season (both scores
+ * present), for the sitemap's box score URLs. Paginated with fetchAllRows:
+ * one season is 272 rows, under the 1000-row cap, but the helper costs
+ * nothing and keeps this safe if it is ever called across seasons.
+ */
+export async function getPlayedRegularSeasonGameIds(season: number): Promise<string[]> {
+  const rows = await fetchAllRows("games", "game_id,game_type,home_score,away_score", { season });
+  return rows
+    .filter(
+      (r) =>
+        ((r.game_type as string | null) ?? "REG") === "REG" &&
+        score(r.home_score) !== null &&
+        score(r.away_score) !== null
+    )
+    .map((r) => String(r.game_id));
 }
 
 /**

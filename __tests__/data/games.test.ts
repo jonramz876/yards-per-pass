@@ -7,7 +7,7 @@ let result: { data: unknown; error: unknown } = { data: [], error: null };
 
 vi.mock("@/lib/supabase/server", () => {
   const builder: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "or", "order"]) {
+  for (const m of ["select", "eq", "or", "order", "limit", "range"]) {
     builder[m] = (...a: unknown[]) => {
       calls.push([m, ...a]);
       return builder;
@@ -25,7 +25,7 @@ vi.mock("@/lib/supabase/server", () => {
   };
 });
 
-import { getGameResults } from "@/lib/data/games";
+import { getGameResults, getGame, getPlayedRegularSeasonGameIds } from "@/lib/data/games";
 
 /** A `games` row as PostgREST returns it (defaults: 2025 week 1, BAL 40 @ BUF 41). */
 function game(over: Record<string, unknown>) {
@@ -139,5 +139,54 @@ describe("getGameResults", () => {
   it("throws on a query error so the caller chooses the fallback", async () => {
     result = { data: null, error: { message: "fetch failed" } };
     await expect(getGameResults(["BUF"], 2025)).rejects.toThrow("Failed to fetch game results: fetch failed");
+  });
+});
+
+describe("getGame (box score spec §6)", () => {
+  it("returns the row for one game id with parsed scores, filtering by game_id with limit 1", async () => {
+    result = { data: [game({ home_score: "31", away_score: 36 })], error: null };
+    const out = await getGame("2025_01_BAL_BUF");
+    expect(out).toEqual({
+      game_id: "2025_01_BAL_BUF", season: 2025, game_type: "REG", week: 1, gameday: "2025-09-07",
+      weekday: "Sunday", gametime: "20:20", home_team: "BUF", away_team: "BAL", home_score: 31, away_score: 36,
+    });
+    expect(calls).toContainEqual(["from", "games"]);
+    expect(calls).toContainEqual(["eq", "game_id", "2025_01_BAL_BUF"]);
+    expect(calls).toContainEqual(["limit", 1]);
+  });
+
+  it("keeps null scores for an unplayed game and reads a missing game_type as REG", async () => {
+    result = { data: [game({ home_score: null, away_score: null, game_type: null, gametime: null })], error: null };
+    const out = await getGame("2025_01_BAL_BUF");
+    expect(out).toMatchObject({ home_score: null, away_score: null, game_type: "REG", gametime: null });
+  });
+
+  it("returns null when there is no such row, and throws on a query error", async () => {
+    expect(await getGame("2025_01_XXX_YYY")).toBeNull();
+    result = { data: null, error: { message: "fetch failed" } };
+    await expect(getGame("2025_01_BAL_BUF")).rejects.toThrow("Failed to fetch game 2025_01_BAL_BUF: fetch failed");
+  });
+});
+
+describe("getPlayedRegularSeasonGameIds (sitemap)", () => {
+  it("returns the ids of played REG games only, reading through fetchAllRows", async () => {
+    result = {
+      data: [
+        { game_id: "2026_01_BUF_HOU", game_type: "REG", home_score: 31, away_score: 36 },
+        { game_id: "2026_02_DET_BUF", game_type: "REG", home_score: null, away_score: null },
+        { game_id: "2026_19_BUF_MIA", game_type: "WC", home_score: 20, away_score: 17 },
+        { game_id: "2026_01_NE_SEA", game_type: null, home_score: "13", away_score: "10" },
+      ],
+      error: null,
+    };
+    expect(await getPlayedRegularSeasonGameIds(2026)).toEqual(["2026_01_BUF_HOU", "2026_01_NE_SEA"]);
+    expect(calls).toContainEqual(["from", "games"]);
+    expect(calls).toContainEqual(["eq", "season", 2026]);
+    expect(calls).toContainEqual(["range", 0, 999]);
+  });
+
+  it("propagates a query error (the sitemap catches it)", async () => {
+    result = { data: null, error: { message: "fetch failed" } };
+    await expect(getPlayedRegularSeasonGameIds(2026)).rejects.toMatchObject({ message: "fetch failed" });
   });
 });
