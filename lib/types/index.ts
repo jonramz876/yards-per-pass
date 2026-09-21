@@ -416,9 +416,9 @@ export interface TeamGameStat {
   explosive_pass: number;
   explosive_rush: number;
   // what it cost them (EPA sums)
-  epa_lost_turnovers: number | null;
-  epa_lost_sacks: number | null;
-  epa_lost_penalties: number | null;
+  epa_lost_turnovers: number;
+  epa_lost_sacks: number;
+  epa_lost_penalties: number;
   // traditional (official box-score conventions)
   first_downs: number;
   first_downs_pass: number;
