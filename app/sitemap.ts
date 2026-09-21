@@ -66,7 +66,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // without parallelising it first.
   let gameIds: string[] = [];
   try {
-    const covered = await getBoxScoreSeasons(await getAvailableSeasons());
+    const seasons = await getAvailableSeasons();
+    if (seasons.length === 0) {
+      // getAvailableSeasons swallows its own query error and returns [], and
+      // getBoxScoreSeasons([]) short-circuits before any query — so without
+      // this the sitemap drops every game URL with nothing logged anywhere
+      // (observed in a no-database build).
+      console.error("Sitemap: no seasons from data_freshness; no box score URLs");
+    }
+    const covered = await getBoxScoreSeasons(seasons);
     const perSeason = await Promise.all(covered.map((season) => getPlayedRegularSeasonGameIds(season)));
     gameIds = perSeason.flat();
   } catch {

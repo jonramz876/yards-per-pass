@@ -18,6 +18,7 @@ vi.mock("@/lib/data/team-hub", () => ({
 
 vi.mock("@/lib/data/box-score", () => ({
   getBoxScoreSeasons: vi.fn(async () => []),
+  getBoxScoreSeasonsCached: vi.fn(async () => []),
 }));
 
 vi.mock("@/components/team/TeamHubContent", () => ({
@@ -26,7 +27,8 @@ vi.mock("@/components/team/TeamHubContent", () => ({
 
 import TeamPage from "@/app/team/[team_id]/page";
 import TeamHubContent from "@/components/team/TeamHubContent";
-import { getBoxScoreSeasons } from "@/lib/data/box-score";
+import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { getAvailableSeasons } from "@/lib/data/queries";
 
 async function contentProps(teamId = "buf") {
   render(
@@ -41,21 +43,21 @@ async function contentProps(teamId = "buf") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(getBoxScoreSeasons).mockReset();
-  vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
+  vi.mocked(getBoxScoreSeasonsCached).mockReset();
+  vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026]);
 });
 
 describe("TeamPage — box score link gate (spec §7)", () => {
-  it("probes the available seasons and passes the covered ones down", async () => {
+  it("probes the available seasons through the memo and passes the covered ones down", async () => {
     const props = await contentProps();
-    expect(getBoxScoreSeasons).toHaveBeenCalledWith([2026, 2025]);
+    expect(getBoxScoreSeasonsCached).toHaveBeenCalledWith([2026, 2025]);
     expect(props.boxScoreSeasons).toEqual([2026]);
     expect(props.team.id).toBe("BUF");
   });
 
   it("renders unlinked (and logs) when the probe fails", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(getBoxScoreSeasons).mockRejectedValue(new Error("Failed to fetch box score seasons: fetch failed"));
+    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("Failed to fetch box score seasons: fetch failed"));
     const props = await contentProps();
     expect(props.boxScoreSeasons).toEqual([]);
     expect(logged).toHaveBeenCalledTimes(1);
@@ -63,8 +65,17 @@ describe("TeamPage — box score link gate (spec §7)", () => {
     logged.mockRestore();
   });
 
+  it("logs the silent path: no seasons from data_freshness means no links", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
+    await contentProps();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
+    logged.mockRestore();
+  });
+
   it("unknown team still 404s", async () => {
     await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
-    expect(getBoxScoreSeasons).not.toHaveBeenCalled();
+    expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
   });
 });

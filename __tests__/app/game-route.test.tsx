@@ -23,6 +23,7 @@ vi.mock("@/components/ui/MetricTooltip", () => ({
 }));
 
 import GamePage, { generateMetadata } from "@/app/game/[game_id]/page";
+import * as gameRoute from "@/app/game/[game_id]/page";
 import { getBoxScore, type BoxScoreData } from "@/lib/data/box-score";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { BUF_HOU_GAME, BUF_STATS, HOU_STATS, BUF_HOU_LINES } from "../fixtures/box-score-buf-hou";
@@ -74,6 +75,26 @@ describe("GamePage — states (spec §6)", () => {
     expect(container.querySelector('[data-game-message] a[href="/team/LAC"]')?.textContent).toContain("Los Angeles Chargers");
     expect(container.querySelector("[data-section]")).toBeNull();
     expect(container.querySelector("[data-player-table]")).toBeNull();
+  });
+
+  it("names the first covered season from the data, never a hardcoded 2026", async () => {
+    vi.mocked(getBoxScore).mockResolvedValue({
+      state: "uncovered", reason: "season", firstSeason: 2027, records: RECORDS,
+      game: { ...BUF_HOU_GAME, game_id: "2026_01_BUF_HOU", season: 2026 },
+    });
+    render(await page("2026_01_BUF_HOU"));
+    expect(screen.getByText("Box scores start with the 2027 season")).toBeTruthy();
+  });
+
+  it("a null firstSeason names no year, never 'the null season'", async () => {
+    vi.mocked(getBoxScore).mockResolvedValue({
+      state: "uncovered", reason: "season", firstSeason: null, records: RECORDS,
+      game: { ...BUF_HOU_GAME, game_id: "2025_01_BUF_HOU", season: 2025 },
+    });
+    const { container } = render(await page("2025_01_BUF_HOU"));
+    expect(container.textContent).not.toContain("null");
+    expect(screen.getByText("Box scores aren\u2019t available for this season")).toBeTruthy();
+    expect(container.querySelector('[data-game-message] a[href="/team/BUF"]')).not.toBeNull();
   });
 
   it("playoff game → scoreboard + regular-season-only message", async () => {
@@ -235,5 +256,21 @@ describe("GamePage generateMetadata", () => {
   it("home winner is named first", async () => {
     vi.mocked(getBoxScore).mockResolvedValue({ ...READY, game: { ...BUF_HOU_GAME, away_score: 20, home_score: 27 } });
     expect((await meta("2026_01_BUF_HOU")).title).toBe("Texans 27, Bills 20 — 2026 Week 1 box score");
+  });
+
+  it("a blank game_type falls back to the week label, never a double space", async () => {
+    vi.mocked(getBoxScore).mockResolvedValue({ ...READY, game: { ...BUF_HOU_GAME, game_type: "" } });
+    const title = String((await meta("2026_01_BUF_HOU")).title);
+    expect(title).toBe("Bills 36, Texans 31 — 2026 Week 1 box score");
+    expect(title).not.toContain("  ");
+  });
+});
+
+describe("GamePage — rendering contract (spec §6)", () => {
+  it("revalidates hourly and prerenders no id list", () => {
+    expect(gameRoute.revalidate).toBe(3600);
+    // generateStaticParams would need a database read at build time, so one
+    // Supabase blip would fail every build. The route stays on demand.
+    expect("generateStaticParams" in gameRoute).toBe(false);
   });
 });

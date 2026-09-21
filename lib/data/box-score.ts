@@ -125,6 +125,50 @@ export async function getBoxScoreSeasons(candidates: number[]): Promise<number[]
   return found.filter((s): s is number => s !== null).sort((a, b) => b - a);
 }
 
+/** One hour, matching the site's ISR cadence. */
+const BOX_SCORE_SEASONS_TTL_MS = 60 * 60 * 1000;
+/** key = JSON of the candidate list, so two lists can never collide. */
+const boxScoreSeasonsMemo = new Map<string, { at: number; value: number[] }>();
+
+/**
+ * getBoxScoreSeasons for the link gate on pages that render per request.
+ *
+ * The team and player pages both read `searchParams`, which opts their routes
+ * into dynamic rendering, so the gate is not amortised by ISR the way the
+ * comment there once claimed: without this memo one team-page view costs one
+ * `limit(1)` query per season in `data_freshness` — 5 to 7 today, one more
+ * every year — and the team hub is among the most-visited pages on the site.
+ * The gate only decides whether a score line is a link, so an answer up to an
+ * hour stale (a newly covered season linking late) is a fair trade against
+ * that; the ingest runs far less often than page views.
+ *
+ * Module scope, deliberately: per server instance, empty on a cold start,
+ * never persisted, no dependency and no cache abstraction.
+ *
+ * Not for `getBoxScore`'s own `getBoxScoreSeasons([game.season])` probe — that
+ * one decides what a visitor is told about one specific game (pending vs
+ * uncovered) and must stay live.
+ */
+export async function getBoxScoreSeasonsCached(candidates: number[]): Promise<number[]> {
+  const list = candidates ?? [];
+  // An empty list fires no query, so there is nothing to memoise — and letting
+  // it through keeps each caller's "no seasons" log firing every render.
+  if (list.length === 0) return getBoxScoreSeasons(list);
+  const key = JSON.stringify(list);
+  const now = Date.now();
+  const hit = boxScoreSeasonsMemo.get(key);
+  if (hit && now - hit.at < BOX_SCORE_SEASONS_TTL_MS) return hit.value;
+  // Awaited rather than stored as a promise: a rejection propagates to the
+  // caller's .catch and nothing is written, so the next render tries again.
+  const value = await getBoxScoreSeasons(list);
+  for (const k of Array.from(boxScoreSeasonsMemo.keys())) {
+    const entry = boxScoreSeasonsMemo.get(k);
+    if (entry && now - entry.at >= BOX_SCORE_SEASONS_TTL_MS) boxScoreSeasonsMemo.delete(k);
+  }
+  boxScoreSeasonsMemo.set(key, { at: now, value });
+  return value;
+}
+
 /** Both teams' team_game_stats rows for one game (0, 1 or 2 rows). */
 export async function getTeamGameStats(gameId: string): Promise<TeamGameStat[]> {
   const supabase = createServerClient();

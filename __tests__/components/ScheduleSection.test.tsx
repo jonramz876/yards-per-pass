@@ -335,6 +335,19 @@ describe("ScheduleSection — box score links (box score spec §7)", () => {
     expect(container.textContent).toContain("21-17");
   });
 
+  it("never links a tile whose game_id is blank or whitespace", () => {
+    const { container } = renderSchedule({
+      boxScoreSeasons: [2026],
+      schedule: [
+        final(1, 27, 20, { game_id: "" }),
+        final(2, 24, 31, { game_id: "   ", opponent_id: "DET" }),
+      ],
+    });
+    expect(container.querySelectorAll("a[data-box-score-link]")).toHaveLength(0);
+    expect(container.textContent).toContain("27-20");
+    expect(container.textContent).toContain("24-31");
+  });
+
   it("survives a season list that arrives as strings or is missing at runtime", () => {
     const { container } = renderSchedule({ boxScoreSeasons: ["2026"] as unknown as number[] });
     expect(container.querySelectorAll("a[data-box-score-link]")).toHaveLength(0);

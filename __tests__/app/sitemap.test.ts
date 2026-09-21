@@ -123,4 +123,14 @@ describe("sitemap — box score pages (box score spec §6)", () => {
     vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("boom"));
     expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
   });
+
+  it("logs the silent path: no seasons from data_freshness means no game URLs", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getAvailableSeasons).mockResolvedValue([]);
+    const entries = await sitemap();
+    expect(entries.filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
+    logged.mockRestore();
+  });
 });

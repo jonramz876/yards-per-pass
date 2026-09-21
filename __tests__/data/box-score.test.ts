@@ -42,6 +42,7 @@ vi.mock("@/lib/data/queries", () => ({
 import {
   getBoxScore,
   getBoxScoreSeasons,
+  getBoxScoreSeasonsCached,
   getGamePlayerLines,
   getTeamGameStats,
   normalizeGameId,
@@ -349,5 +350,69 @@ describe("getBoxScore", () => {
     vi.mocked(getTeamSchedule).mockImplementation(async (team: string) => (team === "BUF" ? later : scheduleFor("HOU")));
     const out = await getBoxScore("2026_01_BUF_HOU");
     expect(out.state === "ready" && out.records.away).toEqual({ wins: 1, losses: 0, ties: 0 });
+  });
+});
+
+describe("getBoxScoreSeasonsCached — the link gate's hourly memo", () => {
+  // Date.now is stubbed rather than faking timers, so the promises in the fake
+  // Supabase client still settle normally.
+  let now = 1700000000000;
+
+  beforeEach(() => {
+    // Start each test more than a window past the last, so whatever the
+    // module-scope memo holds from an earlier test is already stale.
+    now += 2 * 60 * 60 * 1000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+  });
+
+  it("answers from the memo inside the hour and probes again once it expires", async () => {
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    expect(await getBoxScoreSeasonsCached([2026, 2025])).toEqual([2026, 2025]);
+    expect(chainsFor("team_game_stats")).toHaveLength(2);
+
+    now += 59 * 60 * 1000;
+    expect(await getBoxScoreSeasonsCached([2026, 2025])).toEqual([2026, 2025]);
+    expect(chainsFor("team_game_stats")).toHaveLength(2);
+
+    now += 2 * 60 * 1000;
+    expect(await getBoxScoreSeasonsCached([2026, 2025])).toEqual([2026, 2025]);
+    expect(chainsFor("team_game_stats")).toHaveLength(4);
+  });
+
+  it("keys on the candidate list, so one list never reads another's answer", async () => {
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2026)
+        ? { data: [{ game_id: "x" }], error: null }
+        : { data: [], error: null };
+    expect(await getBoxScoreSeasonsCached([2026])).toEqual([2026]);
+    expect(await getBoxScoreSeasonsCached([2024])).toEqual([]);
+    // Each is memoised under its own key; neither re-probes, and [2024] never
+    // reads [2026]'s answer.
+    expect(await getBoxScoreSeasonsCached([2026])).toEqual([2026]);
+    expect(await getBoxScoreSeasonsCached([2024])).toEqual([]);
+    expect(chainsFor("team_game_stats")).toHaveLength(2);
+  });
+
+  it("never memoises a rejection: it reaches the caller and the next call retries", async () => {
+    results.team_game_stats = { data: null, error: { message: "fetch failed" } };
+    await expect(getBoxScoreSeasonsCached([2023])).rejects.toThrow(
+      "Failed to fetch box score seasons: fetch failed"
+    );
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    expect(await getBoxScoreSeasonsCached([2023])).toEqual([2023]);
+  });
+
+  it("is not used by getBoxScore's own pending-vs-uncovered probe", async () => {
+    // Memoise "2026 is covered", then take the rows away. getBoxScore's own
+    // probe has to read live: were it memoised it would answer "pending".
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    expect(await getBoxScoreSeasonsCached([2026])).toEqual([2026]);
+    results.team_game_stats = { data: [], error: null };
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    chains.length = 0;
+    await expect(getBoxScore("2026_01_BUF_HOU")).rejects.toThrow(
+      "none has a team_game_stats row"
+    );
+    expect(chainsFor("team_game_stats").length).toBeGreaterThan(1);
   });
 });

@@ -31,14 +31,17 @@ export const revalidate = 3600;
  * empty page: rethrowing keeps ISR serving the last good copy (a cold miss
  * gets error.tsx) — the homepage's rule. Only the placeholder build has no
  * database (hasNoDatabase), and then the game simply isn't there. Do not add
- * an in-render retry: Next 14 replays identical fetches from a per-render
- * memo, failures included. generateMetadata and the page component each call
- * this, so the read runs twice per render; Next 14's per-render fetch memo
- * covers the Supabase GETs underneath, so the cost is repeated in-process
- * work, not a second trip to the database. app/player/[slug]/page.tsx loads
- * its player the same way. React's cache() would collapse the two and is
- * deliberately not used: it ships only on the react-server build, so it
- * makes the route impossible to load under vitest.
+ * an in-render retry: ISR already keeps the last good copy and error.tsx
+ * covers a cold miss, so a retry would only delay both.
+ *
+ * What is known about the cost: generateMetadata and the page component each
+ * call this, so the read runs twice per render. Whether Next 14's per-render
+ * fetch memo collapses the Supabase GETs underneath has not been measured —
+ * assume two trips per render until someone counts the PostgREST requests for
+ * one page. React's cache() would collapse the two and is deliberately not
+ * used: it ships only on the react-server build, so it makes the route
+ * impossible to load under vitest. app/player/[slug]/page.tsx loads its
+ * player the same way.
  */
 async function loadBoxScore(rawId: string): Promise<BoxScoreData> {
   const gameId = normalizeGameId(rawId);
@@ -82,7 +85,9 @@ export async function generateMetadata({
   const homeFirst = g.home_score > g.away_score;
   const first = homeFirst ? `${nickname(g.home_team)} ${g.home_score}` : `${nickname(g.away_team)} ${g.away_score}`;
   const second = homeFirst ? `${nickname(g.away_team)} ${g.away_score}` : `${nickname(g.home_team)} ${g.home_score}`;
-  const when = g.game_type === "REG" ? `Week ${g.week}` : g.game_type.toUpperCase();
+  // Only a *null* game_type becomes "REG" upstream (lib/data/games.ts), so an
+  // empty one would otherwise leave `when` blank and double-space the title.
+  const when = (g.game_type === "REG" ? "" : g.game_type.toUpperCase()) || `Week ${g.week}`;
   return {
     // The root layout's title template appends " — Yards Per Pass".
     title: `${first}, ${second} — ${g.season} ${when} box score`,
@@ -116,7 +121,11 @@ export default async function GamePage({ params }: { params: Promise<{ game_id: 
     body = (
       <GameMessage
         kind="uncovered"
-        heading={`Box scores start with the ${data.firstSeason} season`}
+        heading={
+          data.firstSeason === null
+            ? "Box scores aren’t available for this season"
+            : `Box scores start with the ${data.firstSeason} season`
+        }
         body={"Team stats and player lines for earlier games aren’t available yet."}
         links={teamLinks}
       />
