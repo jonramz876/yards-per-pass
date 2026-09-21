@@ -10,7 +10,7 @@ import { parseNumericFields } from "@/lib/utils";
 import { getGame, getTeamSchedule, type GameRecord } from "@/lib/data/games";
 import { getAvailableSeasons } from "@/lib/data/queries";
 import { QB_WEEKLY_NUMERIC, RECEIVER_WEEKLY_NUMERIC, RB_WEEKLY_NUMERIC } from "@/lib/data/players";
-import { recordThroughWeek, type WinLossTie } from "@/lib/stats/box-score";
+import { normalizeGameType, recordThroughWeek, type WinLossTie } from "@/lib/stats/box-score";
 import type {
   GamePlayerLines,
   PlayerIdentity,
@@ -48,17 +48,11 @@ export const TEAM_GAME_NUMERIC = [
   "epa_lost_penalties",
 ];
 
-/** nflverse game id: season_week_AWAY_HOME, e.g. 2026_01_BUF_HOU. */
-export const GAME_ID_PATTERN = /^\d{4}_\d{2}_[A-Z]{2,3}_[A-Z]{2,3}$/;
-
-/**
- * The id as the database stores it (upper case), or null when the address
- * cannot be a game id — so junk never reaches a query and gets notFound().
- */
-export function normalizeGameId(raw: string | null | undefined): string | null {
-  const id = String(raw ?? "").trim().toUpperCase();
-  return GAME_ID_PATTERN.test(id) ? id : null;
-}
+// The address rule itself lives in lib/stats/box-score.ts so the two "use
+// client" link gates can import it without pulling the Supabase server client
+// into the browser bundle. Re-exported here: this is still where the server
+// reads it from, and moving the definition must not move every import.
+export { GAME_ID_PATTERN, normalizeGameId } from "@/lib/stats/box-score";
 
 /** A `games` row with both scores present. */
 export type PlayedGame = GameRecord & { home_score: number; away_score: number };
@@ -106,9 +100,20 @@ export type BoxScoreData =
  * query error.
  */
 export async function getBoxScoreSeasons(candidates: number[]): Promise<number[]> {
-  const seasons = Array.from(
-    new Set((candidates ?? []).filter((s) => Number.isInteger(s) && s > 0))
-  );
+  const usable = (s: unknown): s is number => Number.isInteger(s) && (s as number) > 0;
+  const seasons = Array.from(new Set((candidates ?? []).filter(usable)));
+  // Dropping a candidate fires no query, so without this line the whole site's
+  // box score links can go dark with nothing logged anywhere — the failure
+  // 4159ca7 closed from the other side. Name the value AND its type: the way
+  // this happens for real is data_freshness.season arriving as text.
+  const dropped = (candidates ?? []).filter((s) => !usable(s));
+  if (dropped.length > 0) {
+    console.warn(
+      `getBoxScoreSeasons: ignoring ${dropped.length} unusable season candidate(s) ` +
+        `[${dropped.map((s) => `${JSON.stringify(s) ?? String(s)} (${typeof s})`).join(", ")}]; ` +
+        "box score links for them will not render"
+    );
+  }
   if (seasons.length === 0) return [];
   const supabase = createServerClient();
   const found = await Promise.all(
@@ -244,6 +249,21 @@ export async function getGamePlayerLines(
 export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
   const game = await getGame(gameId);
   if (!game) return { state: "not-found" };
+  // A team cannot play itself. The row is corrupt, and every side of a box
+  // score built from it would be a lie: .find below matches the SAME
+  // team_game_stats row for both sides, so the page compares a team to itself,
+  // each player table lists one team twice with duplicate React keys, and the
+  // receiving footnote repeats its own sentence. "not-found" is the honest
+  // state — there is no box score at this address and there never will be one,
+  // so it 404s, stays out of search, and fires no further reads. "pending"
+  // would promise stats that are not coming and "uncovered" would blame the
+  // season; neither is true, and a visitor cannot act on either.
+  if (game.home_team === game.away_team) {
+    console.error(
+      `Box score: games row ${game.game_id} has home_team === away_team (${game.home_team}); refusing to render`
+    );
+    return { state: "not-found" };
+  }
   if (game.home_score === null || game.away_score === null) return { state: "unplayed", game };
   const played = game as PlayedGame;
 
@@ -260,8 +280,11 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     home: recordThroughWeek(homeSchedule, game.week),
   };
 
-  // Playoffs are out of scope (spec §2): the ingest skips them, so no rows ever come.
-  if (game.game_type !== "REG") {
+  // Playoffs are out of scope (spec §2): the ingest skips them, so no rows ever
+  // come. Through normalizeGameType, so an empty or lower-case value reads REG
+  // here exactly as it does in gameLabel and in both link gates — never again a
+  // "WEEK 1" band above a "playoff games aren't covered" message.
+  if (normalizeGameType(game.game_type) !== "REG") {
     return { state: "uncovered", game: played, records, reason: "playoffs", firstSeason: null };
   }
 

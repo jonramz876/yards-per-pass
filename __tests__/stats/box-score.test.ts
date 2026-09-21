@@ -14,6 +14,9 @@ import {
   formatRecord,
   formatGameDate,
   gameLabel,
+  normalizeGameType,
+  normalizeGameId,
+  GAME_ID_PATTERN,
   buildScoreboard,
   betterSide,
   buildComparison,
@@ -36,6 +39,7 @@ import {
   teamRow,
   rec,
   qb,
+  rb,
 } from "../fixtures/box-score-buf-hou";
 
 const M = "\u2212"; // typographic minus
@@ -113,6 +117,30 @@ describe("records from the schedule (spec §6)", () => {
   it("formats the ties leg only when there is one", () => {
     expect(formatRecord({ wins: 1, losses: 0, ties: 0 })).toBe("1-0");
     expect(formatRecord({ wins: 9, losses: 7, ties: 1 })).toBe("9-7-1");
+  });
+});
+
+describe("normalizeGameType — the one rule for games.game_type", () => {
+  it("treats empty, blank and lower-case exactly as REG", () => {
+    for (const raw of ["REG", "reg", "Reg", "", "   ", null, undefined]) {
+      expect(normalizeGameType(raw)).toBe("REG");
+    }
+  });
+
+  it("upper-cases the playoff rounds and leaves an unknown code alone", () => {
+    expect(normalizeGameType("wc")).toBe("WC");
+    expect(normalizeGameType(" post ")).toBe("POST");
+    expect(normalizeGameType("SB")).toBe("SB");
+  });
+});
+
+describe("normalizeGameId — the one rule for a /game/ address", () => {
+  it("is the rule GAME_ID_PATTERN states, and both are importable without Supabase", () => {
+    expect(normalizeGameId("2026_01_buf_hou")).toBe("2026_01_BUF_HOU");
+    expect(GAME_ID_PATTERN.test("2026_01_BUF_HOU")).toBe(true);
+    for (const bad of ["", "   ", "2026_03_BUF LAC", null, undefined, "2026_1_BUF_HOU"]) {
+      expect(normalizeGameId(bad)).toBeNull();
+    }
   });
 });
 
@@ -413,6 +441,57 @@ describe("player tables — 2026_01_BUF_HOU golden (mockup)", () => {
       ["Woody Marks", "RB", "9", "42", "0", "4.7", "+0.16", "44%"],
       ["C.J. Stroud", "QB", "2", "15", "0", "7.5", "+0.73", "50%"],
     ]);
+  });
+
+  // scripts/ingest.py builds qb_ids (:1990) and rb_ids (:2288) from the whole
+  // season's weekly roster, so a player listed QB one week and RB/FB another is
+  // in both sets all season and one game can write him a qb_weekly_stats row
+  // AND an rb_weekly_stats row. The two disagree: the QB aggregator counts
+  // designed runs plus scrambles (spec §10.1), the RB one filters scrambles out
+  // (`qb_scramble != 1`, ingest.py:2293).
+  const HILL = "00-0031547";
+  function dualListed(qbCarries: number, rbCarries: number): GamePlayerLines {
+    return {
+      ...BUF_HOU_LINES,
+      qbs: [
+        ...BUF_HOU_LINES.qbs,
+        qb(HILL, "BUF", {
+          rush_attempts: qbCarries, rush_yards: 41, rush_tds: 1,
+          rush_epa_per_carry: 0.11, rush_success_rate: 0.5,
+        }),
+      ],
+      rbs: [...BUF_HOU_LINES.rbs, rb(HILL, "BUF", rbCarries, 30, 1, 0.05, 0.5)],
+      players: {
+        ...BUF_HOU_LINES.players,
+        [HILL]: { player_id: HILL, player_name: "Taysom Hill", position: "QB", slug: "taysom-hill" },
+      },
+    };
+  }
+
+  it("Rushing: a dual-listed player renders once, keeping the line with more carries", () => {
+    const buf = buildRushingTable(dualListed(8, 6), "BUF", "HOU").teams.find((t) => t.team_id === "BUF")!;
+    expect(buf.rows.filter((r) => r.player_id === HILL)).toHaveLength(1);
+    expect(new Set(buf.rows.map((r) => r.player_id)).size).toBe(buf.rows.length);
+    // The QB line (8 carries, 41 yards), not the RB line's 6 for 30.
+    expect(buf.rows.find((r) => r.player_id === HILL)!.cells.map((c) => c.text)).toEqual([
+      "8", "41", "1", "5.1", "+0.11", "50%",
+    ]);
+    // …and the team's carries are not double-counted.
+    expect(buf.rows.reduce((n, r) => n + Number(r.cells[0].text), 0)).toBe(13 + 5 + 1 + 1 + 8);
+  });
+
+  it("Rushing: an equal-carry dual listing keeps the QB line (spec §10.1)", () => {
+    const buf = buildRushingTable(dualListed(8, 8), "BUF", "HOU").teams.find((t) => t.team_id === "BUF")!;
+    const rows = buf.rows.filter((r) => r.player_id === HILL);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cells.map((c) => c.text)).toEqual(["8", "41", "1", "5.1", "+0.11", "50%"]);
+  });
+
+  it("Rushing: a dual listing whose RB line has more carries keeps the RB line", () => {
+    const buf = buildRushingTable(dualListed(2, 9), "BUF", "HOU").teams.find((t) => t.team_id === "BUF")!;
+    const rows = buf.rows.filter((r) => r.player_id === HILL);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].cells.slice(0, 2).map((c) => c.text)).toEqual(["9", "30"]);
   });
 
   it("Receiving: team targets in the sub-header, TGT% by team targets, Y/TGT, no YPRR without routes", () => {

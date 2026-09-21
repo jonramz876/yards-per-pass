@@ -80,6 +80,43 @@ export function epaCellClass(v: number | null | undefined): string {
   return isNum(v) ? epaTextColor(v) : "text-gray-400";
 }
 
+/* ─── Game identity: the one rule per `games` column ─── */
+
+/**
+ * nflverse game id: season_week_AWAY_HOME, e.g. 2026_01_BUF_HOU.
+ *
+ * Lives here, not in lib/data/box-score.ts, because both link gates
+ * (components/team/ScheduleSection.tsx, components/player/GameLogTab.tsx) are
+ * "use client" files and must not pull the Supabase server client in to ask
+ * whether an id can have a page. lib/data/box-score.ts re-exports it.
+ */
+export const GAME_ID_PATTERN = /^\d{4}_\d{2}_[A-Z]{2,3}_[A-Z]{2,3}$/;
+
+/**
+ * The id as the database stores it (upper case), or null when the value cannot
+ * be a game id — so junk never reaches a query, and nothing ever links to an
+ * address that has no page (spec §7).
+ */
+export function normalizeGameId(raw: string | null | undefined): string | null {
+  const id = String(raw ?? "").trim().toUpperCase();
+  return GAME_ID_PATTERN.test(id) ? id : null;
+}
+
+/**
+ * `games.game_type` as every module must read it: trimmed, upper case, and
+ * blank ⇒ "REG".
+ *
+ * The one rule, deliberately: three modules used to apply three (getGame
+ * coalesced only null, getBoxScore compared `!== "REG"`, gameLabel coalesced
+ * `""` but never upper-cased), so an empty or lower-case value rendered the
+ * scoreboard band "WEEK 1" above the message "Box scores cover regular-season
+ * games for now" — the page contradicting itself on one screen. Every reader
+ * of the column goes through here; do not add a fourth rule.
+ */
+export function normalizeGameType(raw: string | null | undefined): string {
+  return String(raw ?? "").trim().toUpperCase() || "REG";
+}
+
 /* ─── Records (spec §6: `games` stores no record column) ─── */
 
 export interface WinLossTie {
@@ -97,7 +134,7 @@ export interface WinLossTie {
 export function recordThroughWeek(schedule: TeamGame[], week: number): WinLossTie {
   const rec: WinLossTie = { wins: 0, losses: 0, ties: 0 };
   for (const g of schedule ?? []) {
-    if (!g || g.game_type !== "REG" || !g.played || !isNum(g.week) || g.week > week) continue;
+    if (!g || normalizeGameType(g.game_type) !== "REG" || !g.played || !isNum(g.week) || g.week > week) continue;
     if (g.result === "W") rec.wins += 1;
     else if (g.result === "L") rec.losses += 1;
     else if (g.result === "T") rec.ties += 1;
@@ -183,7 +220,7 @@ export function formatGameDate(gameday: string | null, weekday: string | null, t
 
 /** "WEEK 1" for the regular season; the round name ("WILD CARD") for playoffs. */
 export function gameLabel(game: Pick<ScoreboardGame, "game_type" | "week">): string {
-  const type = String(game.game_type || "REG").toUpperCase();
+  const type = normalizeGameType(game.game_type);
   return type === "REG" ? `WEEK ${fmtInt(game.week)}` : (ROUND_LABELS[type] ?? type);
 }
 
@@ -725,8 +762,25 @@ export function buildRushingTable(lines: GamePlayerLines, awayId: string, homeId
           },
         };
       });
+    // One line per player. scripts/ingest.py builds qb_ids (:1990) and rb_ids
+    // (:2288) from the WHOLE season's weekly rosters, so a player listed QB in
+    // one week and RB/FB in another is in both sets all season and a single
+    // game can write him a qb_weekly_stats row AND an rb_weekly_stats row.
+    // Rendering both double-counts his carries on screen and hands PlayerTable
+    // two rows with the same React key. The two rows are not even the same
+    // numbers: the QB aggregator counts designed runs PLUS scrambles (spec
+    // §10.1) while the RB one filters scrambles out (`qb_scramble != 1`,
+    // ingest.py:2293), so keep the line with more carries — and the QB line on
+    // a tie, because by construction it is the more complete of the two.
+    // rbLines are inserted first and `>=` lets a qbLine take the slot.
+    const byPlayer = new Map<string, RushLine>();
+    for (const line of [...rbLines, ...qbLines]) {
+      const kept = byPlayer.get(line.player_id);
+      if (!kept || (line.carries ?? 0) >= (kept.carries ?? 0)) byPlayer.set(line.player_id, line);
+    }
     const ordered = orderRows(
-      [...rbLines, ...qbLines],
+      // Array.from, not a spread: the tsconfig target predates downlevelIteration.
+      Array.from(byPlayer.values()),
       (l) => l.yards,
       (l) => l.carries,
       (l) => l.row.name

@@ -114,6 +114,29 @@ describe("getBoxScoreSeasons", () => {
     expect(chains).toHaveLength(0);
   });
 
+  // Chaos DEGRADED 1: the drop was silent, so a data_freshness.season column
+  // that ever arrived as text would take every box score link on the site dark
+  // with nothing logged anywhere.
+  it("logs the candidates it drops, naming the value and its type", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    expect(await getBoxScoreSeasons(["2026" as unknown as number, NaN, 2025])).toEqual([2025]);
+    expect(warned).toHaveBeenCalledTimes(1);
+    const line = String(warned.mock.calls[0][0]);
+    expect(line).toContain("2026");
+    expect(line).toContain("string");
+    warned.mockRestore();
+  });
+
+  it("logs nothing when every candidate is usable", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    await getBoxScoreSeasons([2026, 2025]);
+    await getBoxScoreSeasons([]);
+    expect(warned).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
   it("throws on a query error", async () => {
     results.team_game_stats = { data: null, error: { message: "fetch failed" } };
     await expect(getBoxScoreSeasons([2026])).rejects.toThrow("Failed to fetch box score seasons: fetch failed");
@@ -325,6 +348,31 @@ describe("getBoxScore", () => {
     vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2026_19_BUF_HOU", game_type: "WC", week: 19 });
     const out = await getBoxScore("2026_19_BUF_HOU");
     expect(out).toMatchObject({ state: "uncovered", reason: "playoffs", firstSeason: null, records: { away: { wins: 1 } } });
+  });
+
+  // Chaos ERROR 2: an empty or lower-case game_type read as a playoff game here
+  // while the scoreboard band above it read "WEEK 1" — the page contradicted
+  // itself on one screen. One rule now, shared with gameLabel and the gates.
+  it("an empty, blank or lower-case game_type is a regular-season game, not a playoff", async () => {
+    for (const raw of ["", "   ", "reg", "Reg"]) {
+      ready();
+      vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_type: raw });
+      expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("ready");
+    }
+    ready();
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_type: "wc" });
+    expect(await getBoxScore("2026_01_BUF_HOU")).toMatchObject({ state: "uncovered", reason: "playoffs" });
+  });
+
+  // Chaos ERROR 5: .find matched the same row for both sides, so the page
+  // rendered one team against itself with duplicate React keys and a footnote
+  // that repeated its own sentence.
+  it("home_team === away_team → not-found, with no further reads", async () => {
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, home_team: "BUF" });
+    expect(await getBoxScore("2026_01_BUF_HOU")).toEqual({ state: "not-found" });
+    expect(getTeamSchedule).not.toHaveBeenCalled();
+    expect(chains).toHaveLength(0);
+    expect(getAvailableSeasons).not.toHaveBeenCalled();
   });
 
   it("throws when a protected read fails: schedule, stats rows, seasons list", async () => {

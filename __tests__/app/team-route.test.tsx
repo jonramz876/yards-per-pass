@@ -65,6 +65,22 @@ describe("TeamPage — box score link gate (spec §7)", () => {
     logged.mockRestore();
   });
 
+  // Chaos DEGRADED 2: the .catch() was attached to the call's RETURN value, so
+  // a throw before the promise existed was never caught and 500'd the whole
+  // team hub, unlogged. Safe only by the probe's `async` keyword. try/catch
+  // makes it structural — the same fix the Game Log got in an earlier PR.
+  it("renders unlinked (and logs) when the probe throws synchronously", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getBoxScoreSeasonsCached).mockImplementation((() => {
+      throw new Error("probe threw before returning a promise");
+    }) as unknown as typeof getBoxScoreSeasonsCached);
+    const props = await contentProps();
+    expect(props.boxScoreSeasons).toEqual([]);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("BUF");
+    logged.mockRestore();
+  });
+
   it("logs the silent path: no seasons from data_freshness means no links", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);

@@ -348,6 +348,29 @@ describe("ScheduleSection — box score links (box score spec §7)", () => {
     expect(container.textContent).toContain("24-31");
   });
 
+  // Chaos ERROR 4: the gate checked blankness but not shape, so a corrupt id
+  // linked a score line straight into a 404 (spec §7: nothing links to a game
+  // that has no page). The rule is GAME_ID_PATTERN, the same one /game/ uses.
+  it("never links a tile whose game_id is not a game id", () => {
+    for (const bad of ["2026_03_BUF LAC", "2026_1_BUF_HOU", "../../etc/passwd", "null", "2026_01_BUF"]) {
+      const { container } = renderSchedule({
+        boxScoreSeasons: [2026],
+        schedule: [final(1, 27, 20, { game_id: bad })],
+      });
+      expect(container.querySelectorAll("a[data-box-score-link]")).toHaveLength(0);
+      // …and the tile is otherwise exactly the unlinked tile it renders today.
+      expect(container.textContent).toContain("27-20");
+    }
+  });
+
+  it("still links a well-formed id, whatever its case", () => {
+    const { container } = renderSchedule({
+      boxScoreSeasons: [2026],
+      schedule: [final(1, 27, 20, { game_id: "2026_01_buf_hou" })],
+    });
+    expect(container.querySelector("a[data-box-score-link]")!.getAttribute("href")).toBe("/game/2026_01_BUF_HOU");
+  });
+
   it("survives a season list that arrives as strings or is missing at runtime", () => {
     const { container } = renderSchedule({ boxScoreSeasons: ["2026"] as unknown as number[] });
     expect(container.querySelectorAll("a[data-box-score-link]")).toHaveLength(0);

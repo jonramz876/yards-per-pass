@@ -85,9 +85,12 @@ export async function generateMetadata({
   const homeFirst = g.home_score > g.away_score;
   const first = homeFirst ? `${nickname(g.home_team)} ${g.home_score}` : `${nickname(g.away_team)} ${g.away_score}`;
   const second = homeFirst ? `${nickname(g.away_team)} ${g.away_score}` : `${nickname(g.home_team)} ${g.home_score}`;
-  // Only a *null* game_type becomes "REG" upstream (lib/data/games.ts), so an
-  // empty one would otherwise leave `when` blank and double-space the title.
-  const when = (g.game_type === "REG" ? "" : g.game_type.toUpperCase()) || `Week ${g.week}`;
+  // getGame runs the column through normalizeGameType (lib/stats/box-score.ts),
+  // so game_type is already trimmed, upper case, and "REG" when it was blank —
+  // the same one rule getBoxScore, gameLabel and both link gates read it by.
+  // The `||` stays as a belt for a hand-built GameRecord: a blank here would
+  // otherwise double-space the title.
+  const when = (g.game_type === "REG" ? "" : g.game_type) || `Week ${g.week}`;
   return {
     // The root layout's title template appends " — Yards Per Pass".
     title: `${first}, ${second} — ${g.season} ${when} box score`,

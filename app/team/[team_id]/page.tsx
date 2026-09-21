@@ -69,12 +69,22 @@ export default async function TeamPage({
   // than costing one limit(1) query per covered season on every view. A failed
   // probe logs and renders no links this render — a rejection is never
   // memoised, so the next render retries — never a crash.
+  //
+  // try/catch, not .catch(): a .catch() hangs off the call's RETURN value, so a
+  // throw that happens BEFORE the promise exists escapes it and 500s the whole
+  // team hub with nothing logged. That was safe only by the probe's `async`
+  // keyword — one refactor away from an outage. The Game Log hit this exact
+  // bug in an earlier PR and was fixed the same way.
   const [data, boxScoreSeasons] = await Promise.all([
     getTeamHubData(teamId, currentSeason, currentSeason === seasons[0]),
-    getBoxScoreSeasonsCached(seasons).catch((err: unknown): number[] => {
-      console.error(`Team page: box score seasons unavailable for ${teamId}; schedule tiles will not link`, err);
-      return [];
-    }),
+    (async (): Promise<number[]> => {
+      try {
+        return await getBoxScoreSeasonsCached(seasons);
+      } catch (err: unknown) {
+        console.error(`Team page: box score seasons unavailable for ${teamId}; schedule tiles will not link`, err);
+        return [];
+      }
+    })(),
   ]);
 
   const jsonLd = {

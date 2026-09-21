@@ -3,6 +3,7 @@
 // (nflverse schedules; see ingest_schedules in scripts/ingest.py).
 import { createServerClient } from "@/lib/supabase/server";
 import { fetchAllRows } from "@/lib/data/utils";
+import { normalizeGameType } from "@/lib/stats/box-score";
 import type { TeamGame, GameResultsByTeam } from "@/lib/types";
 
 /** Raw shape of a `games` row before per-team fields are derived. */
@@ -31,6 +32,39 @@ function score(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * The week of a `games` row. `week` is INT in the schema and nflverse always
+ * supplies it, but a NULL (or otherwise unusable) value used to be coalesced
+ * to 0, and week 0 silently renders a whole box score wrong: recordThroughWeek
+ * skips every game so both records read "0-0", the band reads "WEEK 0", and
+ * the weekly reads filter `week = 0` so all three player tables come back
+ * empty — a full stat sheet with no players.
+ *
+ * The fallback reads the week out of the row's own primary key. That is NOT
+ * the spec §6 rule "the week comes from the `games` row, never by parsing the
+ * URL": this id is the row's own PK read back from the database, not visitor
+ * input, and the address was already validated against GAME_ID_PATTERN before
+ * the query ran — a row in hand therefore means a parseable id. We are filling
+ * a hole in the row, not trusting the address. If the id does not parse either
+ * there is nothing honest left to render, so throw with a diagnostic rather
+ * than serve a half-right page.
+ */
+function weekFor(row: GameRow): number {
+  const stored = Number(row.week);
+  if (Number.isInteger(stored) && stored > 0) return stored;
+  const m = /^\d{4}_(\d{2})_/.exec(String(row.game_id ?? ""));
+  if (!m) {
+    throw new Error(
+      `Game ${JSON.stringify(row.game_id)} has an unusable week (${JSON.stringify(row.week)}) and an id that carries no week`
+    );
+  }
+  const derived = Number(m[1]);
+  console.warn(
+    `Game ${row.game_id}: week is ${JSON.stringify(row.week)} in the games row; using week ${derived} from the game id`
+  );
+  return derived;
+}
+
 function toTeamGame(row: GameRow, teamId: string): TeamGame {
   const isHome = row.home_team === teamId;
   const homeScore = score(row.home_score);
@@ -47,7 +81,7 @@ function toTeamGame(row: GameRow, teamId: string): TeamGame {
   return {
     game_id: row.game_id,
     season: row.season,
-    game_type: row.game_type ?? "REG",
+    game_type: normalizeGameType(row.game_type),
     week: row.week ?? 0,
     gameday: row.gameday ?? null,
     weekday: row.weekday ?? null,
@@ -135,7 +169,7 @@ export async function getGameResults(
       if (!ids.includes(teamId)) continue;
       const game = toTeamGame(row, teamId);
       // Weekly stat rows are regular season only; an unscored game has no result.
-      if (game.game_type !== "REG" || game.result === null) continue;
+      if (game.game_type !== "REG" || game.result === null) continue; // toTeamGame normalised it
       if (!results[teamId]) results[teamId] = {};
       results[teamId][game.week] = {
         game_id: game.game_id,
@@ -156,7 +190,8 @@ export async function getGameResults(
 export interface GameRecord {
   game_id: string;
   season: number;
-  /** REG, or WC / DIV / CON / SB. A missing value reads REG, like getTeamSchedule. */
+  /** REG, or WC / DIV / CON / SB — through normalizeGameType, so it is always
+   * trimmed and upper case, and a missing or blank value reads REG. */
   game_type: string;
   week: number;
   gameday: string | null;
@@ -182,8 +217,8 @@ export async function getGame(gameId: string): Promise<GameRecord | null> {
   return {
     game_id: row.game_id,
     season: Number(row.season),
-    game_type: row.game_type ?? "REG",
-    week: row.week ?? 0,
+    game_type: normalizeGameType(row.game_type),
+    week: weekFor(row),
     gameday: row.gameday ?? null,
     weekday: row.weekday ?? null,
     gametime: row.gametime ?? null,
@@ -210,7 +245,7 @@ export async function getPlayedRegularSeasonGameIds(season: number): Promise<str
   return rows
     .filter(
       (r) =>
-        ((r.game_type as string | null) ?? "REG") === "REG" &&
+        normalizeGameType(r.game_type as string | null) === "REG" &&
         score(r.home_score) !== null &&
         score(r.away_score) !== null
     )

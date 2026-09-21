@@ -263,6 +263,20 @@ describe("PlayerPage — box score link gate (box score spec §7)", () => {
     logged.mockRestore();
   });
 
+  // Chaos DEGRADED 2: the .catch() hung off the call's return value, so a throw
+  // before the promise existed 500'd the whole player hub with nothing logged.
+  it("renders unlinked (and logs) when the probe throws synchronously", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(getBoxScoreSeasonsCached).mockImplementation((() => {
+      throw new Error("probe threw before returning a promise");
+    }) as unknown as typeof getBoxScoreSeasonsCached);
+    const props = await contentProps();
+    expect(props.boxScoreSeasons).toEqual([]);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("josh-allen");
+    logged.mockRestore();
+  });
+
   it("logs the silent path: no seasons from data_freshness means no links", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);

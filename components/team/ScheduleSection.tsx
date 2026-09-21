@@ -8,6 +8,7 @@
 import Link from "next/link";
 import type { TeamGame, TeamSeasonStat } from "@/lib/types";
 import { textColorForBackground } from "@/lib/stats/formatters";
+import { normalizeGameId } from "@/lib/stats/box-score";
 import { getTeam } from "@/lib/data/teams";
 
 interface ScheduleSectionProps {
@@ -170,9 +171,14 @@ function gameTitle(game: TeamGame): string {
  */
 function boxScoreHref(game: TeamGame, boxScoreSeasons: number[]): string | null {
   if (!game.played || game.game_type !== "REG") return null;
-  if (!game.game_id || !game.game_id.trim()) return null;
+  // Shape, not just blankness: a game_id with a space ("2026_03_BUF LAC") used
+  // to be linked and then 404'd by normalizeGameId at the other end. The rule
+  // is the one /game/ itself applies, so nothing can link to an address that
+  // has no page (spec §7). A row that fails it renders as an unlinked tile.
+  const id = normalizeGameId(game.game_id);
+  if (!id) return null;
   if (!Array.isArray(boxScoreSeasons) || !boxScoreSeasons.includes(Number(game.season))) return null;
-  return `/game/${game.game_id}`;
+  return `/game/${id}`;
 }
 
 /** "Box score: BUF 36, HOU 31" — away team first, as the scoreboard reads. */

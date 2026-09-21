@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { GameResult, GameResultsByTeam, QBWeeklyStat, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
+import { normalizeGameId } from "@/lib/stats/box-score";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
 
 type WeeklyRow = QBWeeklyStat | ReceiverWeeklyStat | RBWeeklyStat;
@@ -450,15 +451,23 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
                         // Box score link (spec §7). scheduleResult is only set for a
                         // played regular-season game; the season gate is the list prop.
                         const game = scheduleResult(r, gameResults);
+                        // The id is validated, not just interpolated: a missing
+                        // or malformed game_id used to link "W 27-20" straight
+                        // to /game/null or /game/2026_01 NE_SEA, a 404 the
+                        // visitor clicks into. Same rule as ScheduleSection and
+                        // as /game/ itself (spec §7: nothing links to a game
+                        // that has no page). A bad id renders unlinked.
+                        const gameHref = game === undefined ? null : normalizeGameId(game.game_id);
                         const linked =
                           game !== undefined &&
+                          gameHref !== null &&
                           Array.isArray(boxScoreSeasons) &&
                           boxScoreSeasons.includes(Number(r.season));
                         return (
                           <td key={col.key} className="px-2.5 py-1.5 text-left whitespace-nowrap text-gray-900">
                             {linked ? (
                               <Link
-                                href={`/game/${game.game_id}`}
+                                href={`/game/${gameHref}`}
                                 data-box-score-link
                                 title={`Box score: ${game.team_score}-${game.opponent_score}`}
                                 className="text-navy hover:text-nflred font-medium underline decoration-dotted underline-offset-[3px] transition-colors"

@@ -166,6 +166,45 @@ describe("getGame (box score spec §6)", () => {
     result = { data: null, error: { message: "fetch failed" } };
     await expect(getGame("2025_01_BAL_BUF")).rejects.toThrow("Failed to fetch game 2025_01_BAL_BUF: fetch failed");
   });
+
+  // Chaos ERROR 2: three modules read game_type by three different rules, so an
+  // empty or lower-case value showed a regular-season game as a playoff game.
+  it("normalises game_type: empty, blank and lower-case all read REG", async () => {
+    for (const raw of ["", "   ", "reg", "REG"]) {
+      result = { data: [game({ game_type: raw })], error: null };
+      expect((await getGame("2025_01_BAL_BUF"))!.game_type).toBe("REG");
+    }
+    result = { data: [game({ game_type: "wc" })], error: null };
+    expect((await getGame("2025_01_BAL_BUF"))!.game_type).toBe("WC");
+  });
+
+  // Chaos ERROR 3: week ?? 0 rendered a full stat sheet with WEEK 0, 0-0
+  // records and no players. The week is in the row's own primary key.
+  it("derives a missing week from the row's own game_id, and logs it", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const raw of [null, undefined, NaN, 0, "x"]) {
+      result = { data: [game({ game_id: "2025_07_BAL_BUF", week: raw })], error: null };
+      expect((await getGame("2025_07_BAL_BUF"))!.week).toBe(7);
+    }
+    expect(warned).toHaveBeenCalledTimes(5);
+    expect(String(warned.mock.calls[0][0])).toContain("2025_07_BAL_BUF");
+    warned.mockRestore();
+  });
+
+  it("keeps a real week untouched and logs nothing", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    result = { data: [game({ game_id: "2025_07_BAL_BUF", week: 7 })], error: null };
+    expect((await getGame("2025_07_BAL_BUF"))!.week).toBe(7);
+    expect(warned).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
+  it("throws with a diagnostic when the week is missing and the id cannot be parsed", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    result = { data: [game({ game_id: "junk", week: null })], error: null };
+    await expect(getGame("2025_01_BAL_BUF")).rejects.toThrow(/junk/);
+    warned.mockRestore();
+  });
 });
 
 describe("getPlayedRegularSeasonGameIds (sitemap)", () => {
@@ -188,5 +227,21 @@ describe("getPlayedRegularSeasonGameIds (sitemap)", () => {
   it("propagates a query error (the sitemap catches it)", async () => {
     result = { data: null, error: { message: "fetch failed" } };
     await expect(getPlayedRegularSeasonGameIds(2026)).rejects.toMatchObject({ message: "fetch failed" });
+  });
+
+  // Chaos ERROR 2: the sitemap read the column by its own rule too.
+  it("reads an empty, blank or lower-case game_type as regular season", async () => {
+    result = {
+      data: [
+        { game_id: "2026_01_BUF_HOU", game_type: "", home_score: 31, away_score: 36 },
+        { game_id: "2026_02_DET_BUF", game_type: "   ", home_score: 20, away_score: 17 },
+        { game_id: "2026_03_NE_SEA", game_type: "reg", home_score: 13, away_score: 10 },
+        { game_id: "2026_19_BUF_MIA", game_type: "wc", home_score: 20, away_score: 17 },
+      ],
+      error: null,
+    };
+    expect(await getPlayedRegularSeasonGameIds(2026)).toEqual([
+      "2026_01_BUF_HOU", "2026_02_DET_BUF", "2026_03_NE_SEA",
+    ]);
   });
 });

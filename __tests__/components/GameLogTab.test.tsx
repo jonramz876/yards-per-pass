@@ -206,6 +206,24 @@ describe("GameLogTab — Result links to the box score (box score spec §7)", ()
     }
   });
 
+  // Chaos ERROR 4: this gate had no id guard at all, so a corrupt row produced
+  // /game/null, /game/undefined, /game and /game/2026_01 NE_SEA — a "W 22-21"
+  // the visitor clicks into a 404. Same rule as ScheduleSection: GAME_ID_PATTERN.
+  it("never links a result whose game_id is missing or not a game id", () => {
+    for (const bad of [null, undefined, "", "   ", "2026_01 NE_SEA", "2026_1_TEN_ARI"]) {
+      const broken: GameResultsByTeam = {
+        TEN: { 5: { ...schedule.TEN[5], game_id: bad as unknown as string } },
+      };
+      const { container } = render(
+        <GameLogTab weeklyStats={[wk5]} position="WR" season={2025} teamId="TEN" gameResults={broken} boxScoreSeasons={[2025]} />
+      );
+      const cell = resultCell(container, 5);
+      expect(cell.querySelector("a")).toBeNull();
+      // …and the cell reads exactly as an unlinked result does today.
+      expect(cell.textContent).toBe("W 22-21");
+    }
+  });
+
   it("never links a stored-score fallback, even in a covered season", () => {
     const { container } = render(
       <GameLogTab weeklyStats={[base]} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[2026]} />
