@@ -28,7 +28,7 @@ import {
   buildReceivingTable,
   type ComparisonRow,
 } from "@/lib/stats/box-score";
-import type { GamePlayerLines, TeamGame } from "@/lib/types";
+import type { GamePlayerLines, TeamGame, TeamGameStat } from "@/lib/types";
 import {
   BUF_HOU_GAME,
   BUF_STATS,
@@ -376,6 +376,146 @@ describe("comparison sections — edge cases", () => {
     const team = Object.fromEntries(buildComparison(BUF_STATS, home)[1].rows.map((r) => [r.key, r]));
     expect(cell(team.possession.home)).toBe(DASH);
     expect(team.possession.better).toBeNull();
+  });
+});
+
+/**
+ * The rule the shading exists to obey, stated as a property instead of sampled.
+ *
+ * Three separate defects in Q_DEC1 / Q_DEC2 produced one visitor-visible
+ * symptom — two cells both reading "8.9" with one of them shaded better — and
+ * each one survived a task review and a chaos pass, because the only coverage
+ * was four hand-picked values, one of them against a quantizer defined inside
+ * the test file rather than the module's own. The quantizers are private, so
+ * this goes through the real builder and checks every row of every section:
+ * a quantizer nobody thought to sweep is covered too.
+ *
+ * The rule is about a cell's main value, which is the number the visitor reads
+ * as "the stat" — a detail in parentheses (plays, a rate) is deliberately not
+ * part of the comparison (betterSide compares at the precision the cell shows,
+ * so 8 explosives vs 8 is unshaded even though the rates differ).
+ */
+describe("printed value and shaded side always agree (property)", () => {
+  // Realistic single-game denominators: total plays (40-80), pass plays
+  // (20-52), rush attempts (10-41). Includes the real BUF/HOU ones (20, 21,
+  // 31, 41, 52, 73) and the round ones (20, 40, 50, 80) that put a quotient on
+  // an exact decimal half, which is where the last disguise of the bug lived.
+  const DENOMS = [20, 21, 31, 40, 41, 50, 52, 73, 80];
+
+  /** Every distinct n/d in [lo, hi] over those denominators, ascending. */
+  function quotients(lo: number, hi: number): number[] {
+    const out = new Set<number>();
+    for (const d of DENOMS) {
+      for (let n = Math.ceil(lo * d); n <= Math.floor(hi * d); n++) out.add(n / d);
+    }
+    return Array.from(out).sort((x, y) => x - y);
+  }
+
+  /**
+   * Sweep consecutive quotients as away/home pairs — neighbours are where two
+   * values most often print alike — and assert both directions of the rule:
+   *
+   *   the two cells print the same  =>  `better` is null
+   *   the row is shaded             =>  the two cells print differently
+   *
+   * They are contrapositives, so one comparison pins both. The two counts
+   * afterwards are what keeps that from passing vacuously: the sweep has to
+   * actually reach both a printed-alike row and a shaded row.
+   */
+  function sweep(label: string, values: number[], set: (v: number) => Partial<TeamGameStat>) {
+    const broken: string[] = [];
+    let alike = 0;
+    let shaded = 0;
+    for (let i = 1; i < values.length; i++) {
+      const away = teamRow(set(values[i - 1]));
+      const home = teamRow({ team_id: "HOU", ...set(values[i]) });
+      for (const section of buildComparison(away, home)) {
+        for (const row of section.rows) {
+          const readsAlike = row.away.main === row.home.main;
+          if (readsAlike) alike += 1;
+          if (row.better !== null) shaded += 1;
+          if (readsAlike && row.better !== null && broken.length < 5) {
+            broken.push(
+              `${label}: ${values[i - 1]} vs ${values[i]} — ${section.key}/${row.key} prints ` +
+                `"${row.away.main}" on both sides but shades ${row.better}`
+            );
+          }
+        }
+      }
+    }
+    expect(broken).toEqual([]);
+    expect(values.length).toBeGreaterThan(300);
+    expect(alike).toBeGreaterThan(1000);
+    expect(shaded).toBeGreaterThan(100);
+  }
+
+  it("one-decimal rows: yards per play / pass / rush and the three EPA-lost rows", () => {
+    sweep("dec1", quotients(0, 12), (v) => ({
+      yards_per_play: v,
+      yards_per_pass: v,
+      yards_per_rush: v,
+      // "EPA lost to" is never positive in production, and the negative side
+      // is where the first disguise of this bug lived.
+      epa_lost_turnovers: -v,
+      epa_lost_sacks: -v,
+      epa_lost_penalties: -v,
+    }));
+  });
+
+  it("two-decimal rows: the five EPA-per-play rows, both signs", () => {
+    sweep("dec2", quotients(-1.2, 1.2), (v) => ({
+      epa_per_play: v,
+      pass_epa_per_play: -v,
+      rush_epa_per_play: v,
+      early_epa_per_play: -v,
+      late_epa_per_play: v,
+    }));
+  });
+
+  it("percent rows, and the made-att rows that shade by the rate", () => {
+    sweep("pct", quotients(0, 1), (v) => ({
+      success_rate: v,
+      pass_success_rate: v,
+      rush_success_rate: v,
+      first_down_rate: v,
+      pass_first_down_rate: v,
+      rush_first_down_rate: v,
+      early_success_rate: v,
+      late_success_rate: v,
+      // A made-att row prints the two counts but shades by the conversion
+      // rate, so it agrees only because the counts are whole: these four are
+      // INT in ensure_team_game_stats_table, unlike the 20 NUMERIC columns in
+      // TEAM_GAME_NUMERIC. Sweeping a fractional made count here would fail —
+      // "0-9" against "0-9" with the 0.11 side shaded — but the schema cannot
+      // produce one.
+      third_down_conv: Math.round(v * 9),
+      third_down_att: 9,
+      fourth_down_conv: Math.round(v * 4),
+      fourth_down_att: 4,
+      red_zone_tds: Math.round(v * 5),
+      red_zone_trips: 5,
+    }));
+  });
+
+  it("integer rows: counts, yardage, the sacks pair and the toxic differential", () => {
+    // Fractional counts on purpose, though the schema stores these INT: Q_INT
+    // and fmtInt both Math.round first, so the agreement holds for any real,
+    // and sweeping fractions proves that rather than assuming it.
+    sweep("int", quotients(0, 12), (v) => ({
+      total_yards: v * 30,
+      first_downs: v,
+      first_downs_pass: v / 2,
+      first_downs_rush: v / 3,
+      turnovers: v / 4,
+      interceptions: v / 3,
+      fumbles_lost: v / 5,
+      def_st_tds: v / 8,
+      explosive_plays: v,
+      sacks: v / 3,
+      sack_yards: v * 7,
+      penalties: v / 2,
+      penalty_yards: v * 9,
+    }));
   });
 });
 

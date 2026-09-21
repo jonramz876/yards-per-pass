@@ -7,9 +7,10 @@ vi.mock("@/components/ui/MetricTooltip", () => ({
 
 import ComparisonSection from "@/components/game/ComparisonSection";
 import { buildComparison, type ComparisonSectionModel } from "@/lib/stats/box-score";
-import { BUF_STATS, HOU_STATS } from "../../fixtures/box-score-buf-hou";
+import { BUF_STATS, HOU_STATS, teamRow } from "../../fixtures/box-score-buf-hou";
 
 const [efficiency, teamStats] = buildComparison(BUF_STATS, HOU_STATS);
+const M = "\u2212"; // typographic minus
 
 function renderSection(section: ComparisonSectionModel, footnote?: string) {
   return render(<ComparisonSection section={section} awayId="BUF" homeId="HOU" footnote={footnote} />);
@@ -67,6 +68,37 @@ describe("ComparisonSection", () => {
     const { container: c2 } = renderSection(downs);
     expect(c2.querySelector('[data-row="early-epa"] td:nth-child(2)')?.textContent).toBe("Early downs(1st–2nd) EPA / play");
     expect(c2.querySelectorAll("[data-tooltip]")).toHaveLength(0);
+  });
+
+  // Only the `epa` row's shading was asserted at the component level, and it
+  // is the easy case (bigger number wins). These two are the ones a refactor
+  // would get wrong: "What it cost them" applies higher-is-better to negative
+  // "EPA lost to" values, so less bad wins — 0.0 beats −7.0 — and the made-att
+  // rows shade by the conversion rate, not by the made count.
+  it("shades less-bad as better in the cost section, and by the rate on made-att rows", () => {
+    const { container: cost } = renderSection(buildComparison(BUF_STATS, HOU_STATS)[2]);
+    const turnovers = cost.querySelector('[data-row="cost-turnovers"]')!;
+    const [costAway, , costHome] = Array.from(turnovers.querySelectorAll("td"));
+    expect([costAway.textContent, costHome.textContent]).toEqual(["0.0", `${M}7.0`]);
+    expect(turnovers.getAttribute("data-better")).toBe("away");
+    expect((costAway as HTMLElement).style.backgroundColor).toBe("rgb(236, 253, 245)");
+    expect((costHome as HTMLElement).style.backgroundColor).toBe("");
+
+    // The golden game's 3-9 (33%) against 7-16 (44%) gives the same answer
+    // whether you compare the rate or the made count, so it cannot tell the
+    // two apart. Make them disagree: 3 of 5 (60%) against 4 of 16 (25%) —
+    // the made count would shade home, the conversion rate shades away.
+    const skewed = buildComparison(
+      teamRow({ third_down_conv: 3, third_down_att: 5 }),
+      teamRow({ team_id: "HOU", third_down_conv: 4, third_down_att: 16 })
+    )[1];
+    const { container: team } = renderSection(skewed);
+    const third = team.querySelector('[data-row="third-down"]')!;
+    const [thirdAway, , thirdHome] = Array.from(third.querySelectorAll("td"));
+    expect([thirdAway.textContent, thirdHome.textContent]).toEqual(["3-5", "4-16"]);
+    expect(third.getAttribute("data-better")).toBe("away");
+    expect((thirdAway as HTMLElement).style.backgroundColor).toBe("rgb(236, 253, 245)");
+    expect((thirdHome as HTMLElement).style.backgroundColor).toBe("");
   });
 
   it("shows the footnote only when given", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import MetricTooltip, { METRIC_DEFINITIONS as DEFINITION_TEXT } from "@/components/ui/MetricTooltip";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { buildComparison } from "@/lib/stats/box-score";
@@ -12,14 +12,29 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
     ["1st down rate", "penalty on a wiped play"],
     ["Explosive plays", "QB scrambles of 10+ yards count as explosive runs"],
     ["Toxic differential", "Turnover margin plus explosive-play margin"],
-  ])("defines %s", (metric, fragment) => {
+  ])("defines %s, and the popup a visitor opens says so", async (metric, fragment) => {
     render(
-      <TooltipProvider>
+      <TooltipProvider delay={0}>
         <MetricTooltip metric={metric} />
       </TooltipProvider>
     );
-    expect(screen.getByLabelText(`What is ${metric}?`)).toBeTruthy();
-    expect(DEFINITION_TEXT[metric]).toContain(fragment);
+    const trigger = screen.getByLabelText(`What is ${metric}?`);
+    expect(trigger).toBeTruthy();
+    // Asserting DEFINITION_TEXT alone is an assertion about the exported
+    // object, not about anything rendered: all five cases passed with the
+    // whole <TooltipContent> block deleted from the component. Open the real
+    // popup and read what the visitor reads.
+    fireEvent.pointerEnter(trigger);
+    fireEvent.focus(trigger);
+    await waitFor(() => {
+      const popup = document.querySelector('[data-slot="tooltip-content"]');
+      expect(popup).not.toBeNull();
+      expect(popup!.textContent).toContain(metric);
+      expect(popup!.textContent).toContain(fragment);
+      // A definition authored with a literal escape rather than the character
+      // it stands for would reach the visitor as "—".
+      expect(popup!.textContent).not.toMatch(/\\u[0-9a-fA-F]{4}/);
+    });
   });
 
   it("defines every tooltip key the box score actually asks for", () => {
@@ -32,6 +47,34 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
     expect(keys.length).toBeGreaterThan(0);
     for (const key of keys) {
       expect(DEFINITION_TEXT[key], `no definition for tooltip key "${key}"`).toBeTruthy();
+    }
+  });
+
+  // The three leaderboard pages pass 48 tooltip keys between them and have no
+  // tests of their own. This PR made METRIC_DEFINITIONS shared, so a rename —
+  // or a tidy-up that merges the near-homograph pairs ("EPA / play" against
+  // "EPA/Play", "Success rate" against "Success%") — would silently drop an
+  // "i" badge from a leaderboard column: MetricTooltip returns null for an
+  // unknown key, so there is no error, no failed render and nothing for CI to
+  // catch. The whole key set is pinned by name, not by count.
+  it("keeps every metric key the site asks for, by name", () => {
+    const EXPECTED = [
+      // QB leaderboard
+      "EPA/Play", "EPA/DB", "CPOE", "Comp%", "Success%", "Sk", "Rush Att", "Rush EPA",
+      "Sk Yds", "aDOT", "YPA", "ANY/A", "Rating", "Off EPA/Play", "Def EPA/Play", "FL",
+      "TD:INT", "TD%", "INT%", "SK%", "SCR%", "AY%", "CROE",
+      // Receiver leaderboard
+      "EPA/Tgt", "Catch%", "ADOT", "YAC/Rec", "Tgt Share", "YPR", "YPRR", "TPRR",
+      "Snaps", "Snap%", "Route%", "Total EPA",
+      // RB leaderboard
+      "EPA/Car", "Stuff%", "Explosive%", "Recv SR%", "TCH", "TCH/G",
+      // Added by this PR for the box score comparison sections (spec §4)
+      "EPA / play", "Success rate", "1st down rate", "Explosive plays", "Toxic differential",
+    ];
+    expect(Object.keys(DEFINITION_TEXT).sort()).toEqual([...EXPECTED].sort());
+    // …and no key is held open by an empty string.
+    for (const key of EXPECTED) {
+      expect(DEFINITION_TEXT[key]?.length ?? 0, `empty definition for "${key}"`).toBeGreaterThan(20);
     }
   });
 

@@ -2,10 +2,11 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import PlayerTable from "@/components/game/PlayerTable";
 import GameMessage from "@/components/game/GameMessage";
-import { buildReceivingTable, buildRushingTable, type PlayerTableModel } from "@/lib/stats/box-score";
+import { buildReceivingTable, buildRushingTable, type PlayerCell, type PlayerTableModel } from "@/lib/stats/box-score";
 import { BUF_HOU_LINES } from "../../fixtures/box-score-buf-hou";
 
 const M = "\u2212";
+const DASH = "\u2014";
 
 describe("PlayerTable", () => {
   const rushing = buildRushingTable(BUF_HOU_LINES, "BUF", "HOU");
@@ -52,11 +53,48 @@ describe("PlayerTable", () => {
     expect(container.querySelector("p")?.textContent).toBe("Footnote text.");
   });
 
-  it("says so when a team has no line, and never prints undefined or NaN", () => {
+  it("says so when a team has no line", () => {
     const empty: PlayerTableModel = { key: "passing", title: "Passing", columns: ["Player", "C/ATT"], teams: [{ team_id: "BUF", color: "#00338D", rows: [] }, { team_id: "HOU", color: "#03202F", rows: [] }] };
     const { container } = render(<PlayerTable model={empty} />);
     expect(container.querySelectorAll("[data-empty-team]")).toHaveLength(2);
     expect(container.querySelector("[data-empty-team]")?.textContent).toBe("No passing line for BUF");
+  });
+
+  // Spec §11: a null EPA renders grey, not amber. epaCellClass(null) is pinned
+  // in the stats test, but the wiring that decides whether it is called at all
+  // — `"epa" in cell ? epaCellClass(cell.epa) : "text-gray-900"` — was only
+  // ever exercised with real numbers, so changing it to `cell.epa != null ? …`
+  // would render a null EPA in near-black with nothing failing. Same class as
+  // the 2026-09-11 crash the spec names.
+  it("renders a null or NaN EPA grey, never amber and never near-black", () => {
+    const row = (id: string, name: string, epaCell: PlayerCell, ypc: string) => ({
+      player_id: id, name, position: "RB", slug: null,
+      cells: [{ text: "13" }, { text: "57" }, { text: "0" }, { text: ypc }, epaCell, { text: "38%" }] as PlayerCell[],
+    });
+    const model: PlayerTableModel = {
+      key: "rushing", title: "Rushing",
+      columns: ["Player", "CAR", "YDS", "TD", "YPC", "EPA/CAR", "SUCC%"],
+      teams: [{
+        team_id: "BUF", color: "#00338D",
+        rows: [
+          row("p-null", "No Epa", { text: DASH, epa: null }, DASH),
+          row("p-nan", "Nan Epa", { text: DASH, epa: NaN }, DASH),
+          row("p-real", "Real Epa", { text: `${M}0.01`, epa: -0.01 }, "4.4"),
+        ],
+      }],
+    };
+    const { container } = render(<PlayerTable model={model} />);
+    const epaClass = (id: string) =>
+      container.querySelector(`[data-player-id="${id}"]`)!.querySelectorAll("td")[5].className;
+    for (const id of ["p-null", "p-nan"]) {
+      expect(epaClass(id), id).toContain("text-gray-400");
+      expect(epaClass(id), id).not.toContain("amber");
+      expect(epaClass(id), id).not.toContain("text-gray-900");
+    }
+    expect(epaClass("p-real")).toContain("text-amber-600");
+    // This model carries the numeric cells the guard below needs; it used to
+    // run against two empty teams, where no formatting path could produce the
+    // words it looks for.
     expect(container.textContent).not.toMatch(/undefined|NaN|null/);
   });
 });

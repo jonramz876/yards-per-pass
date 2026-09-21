@@ -40,6 +40,28 @@ describe("Scoreboard", () => {
     expect(container.querySelector("[data-scoreboard-label]")?.textContent).toBe("WEEK 1");
     expect(container.querySelectorAll("img")).toHaveLength(1);
     expect((container.querySelector('[data-score="away"]') as HTMLElement).style.color).toBe("");
+  });
+
+  // The assertion below used to sit on a model whose every field was already a
+  // formatted string, so no path in the component could have produced the
+  // words it looks for. Point it at the model's actual numbers instead: a 0-0
+  // final is a played game (lib/data/box-score.ts gates on `=== null`, not on
+  // falsiness), so both zeroes must print as "0" rather than a dash, a blank
+  // or the word "null" — and neither side is the winner.
+  it("prints a 0-0 final as two zeroes, with no winner and no stray undefined or NaN", () => {
+    const zeroes = buildScoreboard(
+      { ...BUF_HOU_GAME, away_score: 0, home_score: 0 },
+      { wins: 0, losses: 0, ties: 1 },
+      { wins: 0, losses: 0, ties: 1 },
+      today
+    );
+    const { container } = render(<Scoreboard model={zeroes} />);
+    expect(container.querySelector("[data-scoreboard-score]")?.textContent).toBe("0–0");
+    expect(container.querySelector('[data-score="away"]')?.textContent).toBe("0");
+    expect(container.querySelector('[data-score="home"]')?.textContent).toBe("0");
+    expect((container.querySelector('[data-score="away"]') as HTMLElement).style.color).toBe("");
+    expect((container.querySelector('[data-score="home"]') as HTMLElement).style.color).toBe("");
+    expect(container.querySelector('[data-scoreboard-team="away"]')?.textContent).toBe("BUFBills · 0-0-1");
     expect(container.textContent).not.toMatch(/undefined|NaN|null/);
   });
 });

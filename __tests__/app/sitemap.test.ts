@@ -111,7 +111,9 @@ describe("sitemap — box score pages (box score spec §6)", () => {
   });
 
   it("lists none when no season is covered, and none (no throw) when the reads fail", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    expect(logged).not.toHaveBeenCalled();
     vi.mocked(getBoxScoreSeasons).mockRejectedValue(new Error("boom"));
     const entries = await sitemap();
     expect(entries.filter((e) => e.url.includes("/game/"))).toHaveLength(0);
@@ -122,6 +124,36 @@ describe("sitemap — box score pages (box score spec §6)", () => {
     vi.mocked(getPlayedRegularSeasonGameIds).mockResolvedValue(["2026_01_BUF_HOU"]);
     vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("boom"));
     expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    // Each of the three failures says so, the way the team and player pages
+    // log theirs. Dropping every box score URL in silence is exactly how the
+    // no-seasons path above went unnoticed in a no-database build.
+    expect(logged).toHaveBeenCalledTimes(3);
+    for (const call of logged.mock.calls) {
+      expect(String(call[0])).toContain("box score game ids unavailable");
+    }
+    logged.mockRestore();
+  });
+
+  // The sitemap is a link surface, and it was the only one on this branch not
+  // applying the address rule that ScheduleSection and GameLogTab apply. An id
+  // the page answers 404 for must never be submitted to Google.
+  it("runs ids through normalizeGameId: junk is dropped, the rest upper-cased", async () => {
+    vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
+    vi.mocked(getPlayedRegularSeasonGameIds).mockResolvedValue([
+      "2026_01_BUF_HOU",
+      "2026_01_ne_sea", // stored lower case: the page upper-cases, so must this
+      "  2026_02_DET_BUF  ", // stray whitespace
+      "2026_1_BUF_HOU", // one-digit week
+      "2026_01_BUFF_HOUS", // four-letter team codes
+      "null", // a NULL game_id through String()
+      "",
+    ] as never);
+    const games = (await sitemap()).filter((e) => e.url.includes("/game/"));
+    expect(games.map((e) => e.url)).toEqual([
+      "https://yardsperpass.com/game/2026_01_BUF_HOU",
+      "https://yardsperpass.com/game/2026_01_NE_SEA",
+      "https://yardsperpass.com/game/2026_02_DET_BUF",
+    ]);
   });
 
   it("logs the silent path: no seasons from data_freshness means no game URLs", async () => {

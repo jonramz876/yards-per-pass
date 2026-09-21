@@ -292,11 +292,25 @@ export interface ComparisonSectionModel {
 
 type Quantize = (v: number) => number;
 const Q_INT: Quantize = (v) => Math.round(v);
-// Round the magnitude the same way fmtFixed's toFixed does, then restore the
-// sign: plain Math.round(v * 10) rounds negatives toward +Infinity, which can
-// disagree with fmtFixed's printed digit at the halfway point.
-const Q_DEC1: Quantize = (v) => Math.sign(v) * Math.round(Math.abs(v) * 10);
-const Q_DEC2: Quantize = (v) => Math.sign(v) * Math.round(Math.abs(v) * 100);
+// Bucket through the very toFixed that fmtFixed prints with, so the shaded
+// side and the printed digit cannot diverge by construction.
+//
+// Do NOT re-derive this by hand. Two attempts to round the magnitude "the same
+// way" were both wrong, and the same visible defect — two cells reading 8.9
+// with one of them shaded better — was found three times in three disguises:
+// Math.round(v * 10) rounds negatives toward +Infinity, and
+// Math.round(Math.abs(v) * 10) still disagrees whenever the multiplication
+// lands on an exact decimal half that toFixed rounds down (358/40 = 8.95
+// printed "8.9" and bucketed 90; 51/20 = 2.55 printed "2.5" and bucketed 26).
+//
+// The product need not be an integer — 1.14 * 100 is 114.00000000000001 — and
+// that is fine: betterSide only ever compares buckets with === and >, and two
+// values whose printed strings are equal yield an identical Number() and so an
+// identical product. __tests__/stats/box-score.test.ts states that as a
+// property over a sweep of realistic quotients; keep these two lines pinned to
+// the printers rather than to arithmetic.
+const Q_DEC1: Quantize = (v) => Math.sign(v) * Number(Math.abs(v).toFixed(1)) * 10;
+const Q_DEC2: Quantize = (v) => Math.sign(v) * Number(Math.abs(v).toFixed(2)) * 100;
 const Q_PCT0: Quantize = (v) => Math.round(v * 100);
 
 /**

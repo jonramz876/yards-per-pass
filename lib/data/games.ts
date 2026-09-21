@@ -59,8 +59,58 @@ function weekFor(row: GameRow): number {
     );
   }
   const derived = Number(m[1]);
+  // The id's own week is checked against the same rule as the stored one.
+  // GAME_ID_PATTERN allows any two digits, so "2026_00_BUF_HOU" parses and
+  // would hand back the very 0 this function exists to prevent.
+  if (!Number.isInteger(derived) || derived <= 0) {
+    throw new Error(
+      `Game ${JSON.stringify(row.game_id)} has an unusable week (${JSON.stringify(row.week)}) and an id week of ${JSON.stringify(m[1])}`
+    );
+  }
   console.warn(
     `Game ${row.game_id}: week is ${JSON.stringify(row.week)} in the games row; using week ${derived} from the game id`
+  );
+  return derived;
+}
+
+/**
+ * The season of a `games` row. Exactly weekFor's hole one column over —
+ * ensure_games_table declares BOTH `season INT` and `week INT` nullable, same
+ * type, same nflverse source — and a worse page when it opens.
+ *
+ * A bare `Number(row.season)` turns NULL into 0, and 0 is quieter than week 0
+ * was, because getTeamGameStats is keyed on `game_id` alone: both stat rows
+ * are still found, so `!away || !home` is false and the whole coverage branch
+ * is skipped. The page renders state "ready" — a complete, correct-looking
+ * team comparison, 0-0 records for two teams that have played (getTeamSchedule
+ * finds no season-0 rows) and no passing, rushing or receiving lines at all
+ * (getGamePlayerLines filters `season = 0`), with nothing on the page hinting
+ * that anything is missing.
+ *
+ * The fallback is weekFor's, for weekFor's reason: the id is the row's own
+ * primary key read back from the database, not visitor input, and the address
+ * was validated against GAME_ID_PATTERN before the query ran, so a row in hand
+ * means a parseable id. This fills a hole in the row rather than trusting the
+ * address (spec §6). If the id carries no usable season either, there is
+ * nothing honest left to render, so throw with a diagnostic.
+ */
+function seasonFor(row: GameRow): number {
+  const stored = Number(row.season);
+  if (Number.isInteger(stored) && stored > 0) return stored;
+  const m = /^(\d{4})_\d{2}_/.exec(String(row.game_id ?? ""));
+  if (!m) {
+    throw new Error(
+      `Game ${JSON.stringify(row.game_id)} has an unusable season (${JSON.stringify(row.season)}) and an id that carries no season`
+    );
+  }
+  const derived = Number(m[1]);
+  if (!Number.isInteger(derived) || derived <= 0) {
+    throw new Error(
+      `Game ${JSON.stringify(row.game_id)} has an unusable season (${JSON.stringify(row.season)}) and an id season of ${JSON.stringify(m[1])}`
+    );
+  }
+  console.warn(
+    `Game ${row.game_id}: season is ${JSON.stringify(row.season)} in the games row; using season ${derived} from the game id`
   );
   return derived;
 }
@@ -216,7 +266,7 @@ export async function getGame(gameId: string): Promise<GameRecord | null> {
   if (!row) return null;
   return {
     game_id: row.game_id,
-    season: Number(row.season),
+    season: seasonFor(row),
     game_type: normalizeGameType(row.game_type),
     week: weekFor(row),
     gameday: row.gameday ?? null,

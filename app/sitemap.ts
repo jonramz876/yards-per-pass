@@ -3,6 +3,7 @@ import { getAllPlayerSlugs } from "@/lib/data/players";
 import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
 import { getBoxScoreSeasons } from "@/lib/data/box-score";
 import { getPlayedRegularSeasonGameIds } from "@/lib/data/games";
+import { normalizeGameId } from "@/lib/stats/box-score";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import type { MetadataRoute } from "next";
 
@@ -58,8 +59,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Box scores: every played regular-season game of a season that has
   // team_game_stats rows (box score spec §6). Same documented exception as the
-  // slugs above: a failed read silently drops every game URL until the next
-  // rebuild (memory/MEMORY.md, "Homepage resilience" follow-ups).
+  // slugs above: a failed read drops every game URL until the next rebuild
+  // (memory/MEMORY.md, "Homepage resilience" follow-ups) — logged, below.
+  //
+  // "Until the next rebuild" is literal, and accepted: this file exports
+  // neither `revalidate` nor `dynamic`, so Next generates /sitemap.xml
+  // statically at build time and /api/revalidate does not (and cannot) refresh
+  // it. A week's new box scores enter the sitemap at the next deploy, not at
+  // the next ingest. Left as is deliberately — the player slug list has always
+  // behaved this way — but the set behind it now grows by ~16 URLs a week, so
+  // if that latency ever matters the fix is `export const revalidate = 3600`
+  // here, not a revalidatePath in /api/revalidate.
+  //
   // This is a serial chain: getAvailableSeasons, then one limit(1) probe per
   // candidate season, then one game-id read per covered season (1 + N + M
   // round trips, N = 7 and M = 1 today). Do not stack more reads on it in PR 4
@@ -76,9 +87,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
     const covered = await getBoxScoreSeasons(seasons);
     const perSeason = await Promise.all(covered.map((season) => getPlayedRegularSeasonGameIds(season)));
-    gameIds = perSeason.flat();
-  } catch {
-    // Supabase unavailable — no game pages this time
+    // The same address rule both link gates apply (ScheduleSection.tsx,
+    // GameLogTab.tsx). The sitemap is a link surface too, and the page 404s
+    // for an id that fails GAME_ID_PATTERN, so an unvalidated id out of a
+    // corrupt `games` row would submit a dead URL to Google. Not reachable
+    // from well-formed nflverse data — hygiene, and the one surface on the
+    // branch that was skipping it.
+    gameIds = perSeason
+      .flat()
+      .map((id) => normalizeGameId(id))
+      .filter((id): id is string => id !== null);
+  } catch (err) {
+    // Supabase unavailable — no game pages this time. Logged because the team
+    // and player pages log this very failure, and because dropping every box
+    // score URL with no signal anywhere is how the seasons.length === 0 case
+    // above went unnoticed. `err` is logged and never branched on: this must
+    // stay a bare-shape catch, since getPlayedRegularSeasonGameIds rejects
+    // with fetchAllRows' raw PostgREST object rather than an Error, so an
+    // `instanceof Error` test here would take the wrong branch.
+    console.error("Sitemap: box score game ids unavailable; no box score URLs", err);
   }
   const gamePages: MetadataRoute.Sitemap = gameIds.map((id) => ({
     url: `${base}/game/${id}`,

@@ -264,6 +264,32 @@ describe("getBoxScore", () => {
     expect(getAvailableSeasons).not.toHaveBeenCalled();
   });
 
+  // Spec §6: the player rows come from the `games` row's season and week,
+  // never by parsing the address. Nothing pinned that — deriving either from
+  // `gameId` instead would have left every test in this file green, because
+  // the fixture's row agrees with its own id. The companion case below makes
+  // them disagree, which is what makes this pair discriminating.
+  it("reads the player lines with the games row's own season and week (spec §6)", async () => {
+    ready();
+    await getBoxScore("2026_01_BUF_HOU");
+    for (const table of ["qb_weekly_stats", "receiver_weekly_stats", "rb_weekly_stats"]) {
+      const calls = chainsFor(table)[0].calls;
+      expect(calls).toContainEqual(["eq", "season", 2026]);
+      expect(calls).toContainEqual(["eq", "week", 1]);
+    }
+  });
+
+  it("prefers the games row over the id when the two disagree", async () => {
+    ready();
+    vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, season: 2025, week: 5 });
+    await getBoxScore("2026_01_BUF_HOU");
+    const calls = chainsFor("qb_weekly_stats")[0].calls;
+    expect(calls).toContainEqual(["eq", "season", 2025]);
+    expect(calls).toContainEqual(["eq", "week", 5]);
+    expect(calls).not.toContainEqual(["eq", "season", 2026]);
+    expect(calls).not.toContainEqual(["eq", "week", 1]);
+  });
+
   it("played 2025 game before the backfill → uncovered, naming the first covered season", async () => {
     vi.mocked(getGame).mockResolvedValue({ ...BUF_HOU_GAME, game_id: "2025_14_PHI_LAC", season: 2025, week: 14, away_team: "PHI", home_team: "LAC", away_score: 19, home_score: 22 });
     results.team_game_stats = (calls) =>
@@ -448,6 +474,24 @@ describe("getBoxScoreSeasonsCached — the link gate's hourly memo", () => {
     );
     results.team_game_stats = { data: [{ game_id: "x" }], error: null };
     expect(await getBoxScoreSeasonsCached([2023])).toEqual([2023]);
+  });
+
+  it("hands out a copy, so a caller cannot mutate the cached answer", async () => {
+    results.team_game_stats = { data: [{ game_id: "x" }], error: null };
+    // The first call is the miss path, and the value it returns is the one
+    // that was just stored: mutating it must not reach the memo.
+    const first = await getBoxScoreSeasonsCached([2026, 2025]);
+    expect(first).toEqual([2026, 2025]);
+    first.push(1999);
+    first.sort((a, b) => a - b);
+    // Same hour, same key: the hit path, still answering the memo's own value.
+    const second = await getBoxScoreSeasonsCached([2026, 2025]);
+    expect(second).toEqual([2026, 2025]);
+    expect(second).not.toBe(first);
+    // Two hits never share one instance either.
+    const third = await getBoxScoreSeasonsCached([2026, 2025]);
+    expect(third).not.toBe(second);
+    expect(chainsFor("team_game_stats")).toHaveLength(2);
   });
 
   it("is not used by getBoxScore's own pending-vs-uncovered probe", async () => {

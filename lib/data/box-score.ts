@@ -162,7 +162,14 @@ export async function getBoxScoreSeasonsCached(candidates: number[]): Promise<nu
   const key = JSON.stringify(list);
   const now = Date.now();
   const hit = boxScoreSeasonsMemo.get(key);
-  if (hit && now - hit.at < BOX_SCORE_SEASONS_TTL_MS) return hit.value;
+  // A copy on the way out, on both paths. The stored array would otherwise be
+  // the same instance in every team and player render for up to an hour, so
+  // one .sort() or .push() on it anywhere in a component would corrupt the
+  // gate for every later request on that server instance — and the symptom
+  // (box score links quietly wrong, on one instance, for an hour) is close to
+  // undebuggable. Both consumers only call .includes() today; this makes that
+  // structural instead of a convention.
+  if (hit && now - hit.at < BOX_SCORE_SEASONS_TTL_MS) return [...hit.value];
   // Awaited rather than stored as a promise: a rejection propagates to the
   // caller's .catch and nothing is written, so the next render tries again.
   const value = await getBoxScoreSeasons(list);
@@ -171,7 +178,7 @@ export async function getBoxScoreSeasonsCached(candidates: number[]): Promise<nu
     if (entry && now - entry.at >= BOX_SCORE_SEASONS_TTL_MS) boxScoreSeasonsMemo.delete(k);
   }
   boxScoreSeasonsMemo.set(key, { at: now, value });
-  return value;
+  return [...value];
 }
 
 /** Both teams' team_game_stats rows for one game (0, 1 or 2 rows). */

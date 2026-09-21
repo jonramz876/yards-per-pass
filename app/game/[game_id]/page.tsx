@@ -3,9 +3,25 @@
 // Generated on demand and revalidated hourly (no generateStaticParams: the id
 // list would need a database read at build time, and a Supabase blip would
 // then fail every build). /api/revalidate refreshes /game after each ingest.
+//
+// Deliberately NO loading.tsx on this route, and none may be added above
+// /game either — unlike app/team/[team_id] and app/player/[slug], which both
+// ship one. A loading boundary streams the shell before this page's own read
+// finishes, so the addresses that must answer 404 (an id that fails
+// GAME_ID_PATTERN, a game the `games` table does not have, a game with no
+// final score, and a row whose home_team equals its away_team) would be
+// served as streamed 200s with the not-found body swapped in underneath. The
+// cost of leaving it out is a blank document until TTFB on a cold ISR miss —
+// the right trade for a route whose job includes refusing addresses that have
+// no page (spec §7).
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getBoxScore, normalizeGameId, type BoxScoreData } from "@/lib/data/box-score";
+// normalizeGameId comes from the pure module, not from this page's other
+// data-layer import: lib/data/box-score.ts only re-exports it, and the whole
+// point of defining it in lib/stats/box-score.ts is that asking "can this id
+// have a page?" must never drag in the Supabase server client. Importing it
+// from the data layer here is the line a future "use client" gate would copy.
+import { getBoxScore, type BoxScoreData } from "@/lib/data/box-score";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { getTeam } from "@/lib/data/teams";
 import {
@@ -16,6 +32,7 @@ import {
   buildReceivingTable,
   buildRushingTable,
   buildScoreboard,
+  normalizeGameId,
   playCountNote,
   receivingNote,
 } from "@/lib/stats/box-score";

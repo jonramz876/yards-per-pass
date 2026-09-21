@@ -199,11 +199,70 @@ describe("getGame (box score spec §6)", () => {
     warned.mockRestore();
   });
 
-  it("throws with a diagnostic when the week is missing and the id cannot be parsed", async () => {
+  // Defensive-only branch, deliberately kept. getGame has one caller
+  // (getBoxScore), which normalises the address against GAME_ID_PATTERN first,
+  // and the query filters `.eq("game_id", id)` — so row.game_id is always the
+  // queried id and always parses. Production cannot reach the throw; it is
+  // free insurance if getGame ever gains a second, unvalidated caller (PR 4's
+  // /scores). The id queried below is the junk one, so the scenario is at
+  // least self-consistent with that equality filter.
+  it("throws with a diagnostic when the week is missing and the id carries no week (defensive)", async () => {
     const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
     result = { data: [game({ game_id: "junk", week: null })], error: null };
-    await expect(getGame("2025_01_BAL_BUF")).rejects.toThrow(/junk/);
+    await expect(getGame("junk")).rejects.toThrow(/junk/);
+    expect(warned).not.toHaveBeenCalled();
     warned.mockRestore();
+  });
+
+  // Whole-branch review B-m1: GAME_ID_PATTERN allows any two digits, so the
+  // fallback could hand back the very 0 it exists to prevent.
+  it("throws rather than returning week 0 when the id's own week is 00", async () => {
+    result = { data: [game({ game_id: "2026_00_BUF_HOU", week: null })], error: null };
+    await expect(getGame("2026_00_BUF_HOU")).rejects.toThrow(/id week of "00"/);
+  });
+
+  // Whole-branch review B-IMP1: `season INT` is nullable exactly as `week INT`
+  // is, and a bare Number(row.season) turned NULL into 0 — quieter than week 0
+  // was, because getTeamGameStats is keyed on game_id alone, so both stat rows
+  // are still found and the page renders state "ready": a full, correct-looking
+  // team comparison with 0-0 records for two teams that played and no player
+  // lines at all.
+  it("derives a missing season from the row's own game_id, and logs it", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    for (const raw of [null, undefined, NaN, 0, "x"]) {
+      result = { data: [game({ game_id: "2025_07_BAL_BUF", season: raw })], error: null };
+      expect((await getGame("2025_07_BAL_BUF"))!.season).toBe(2025);
+    }
+    expect(warned).toHaveBeenCalledTimes(5);
+    expect(String(warned.mock.calls[0][0])).toContain("2025_07_BAL_BUF");
+    expect(String(warned.mock.calls[0][0])).toContain("season");
+    warned.mockRestore();
+  });
+
+  it("keeps a real season untouched and logs nothing", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    result = { data: [game({ game_id: "2025_07_BAL_BUF", season: 2025, week: 7 })], error: null };
+    expect((await getGame("2025_07_BAL_BUF"))!.season).toBe(2025);
+    expect(warned).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
+  it("reads a season stored as text without falling back", async () => {
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+    result = { data: [game({ season: "2025" })], error: null };
+    expect((await getGame("2025_01_BAL_BUF"))!.season).toBe(2025);
+    expect(warned).not.toHaveBeenCalled();
+    warned.mockRestore();
+  });
+
+  it("throws with a diagnostic when the season is missing and the id carries no season (defensive)", async () => {
+    result = { data: [game({ game_id: "junk", season: null })], error: null };
+    await expect(getGame("junk")).rejects.toThrow(/unusable season/);
+  });
+
+  it("throws rather than returning season 0 when the id's own season is 0000", async () => {
+    result = { data: [game({ game_id: "0000_01_BAL_BUF", season: null })], error: null };
+    await expect(getGame("0000_01_BAL_BUF")).rejects.toThrow(/id season of "0000"/);
   });
 });
 
