@@ -1,11 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("@/lib/data/players", () => ({ getAllPlayerSlugs: vi.fn() }));
-vi.mock("@/lib/data/queries", () => ({ getDataFreshness: vi.fn() }));
+vi.mock("@/lib/data/queries", () => ({
+  getDataFreshness: vi.fn(),
+  getAvailableSeasons: vi.fn(async () => [2026, 2025]),
+}));
+vi.mock("@/lib/data/box-score", () => ({ getBoxScoreSeasons: vi.fn(async () => []) }));
+vi.mock("@/lib/data/games", () => ({ getPlayedRegularSeasonGameIds: vi.fn(async () => []) }));
 
 import sitemap from "@/app/sitemap";
 import { getAllPlayerSlugs } from "@/lib/data/players";
-import { getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getBoxScoreSeasons } from "@/lib/data/box-score";
+import { getPlayedRegularSeasonGameIds } from "@/lib/data/games";
 
 const SLUGS = [
   { slug: "patrick-mahomes" },
@@ -18,6 +25,12 @@ const FRESH = { season: 2026, through_week: 1, last_updated: "2026-09-10T16:42:0
 beforeEach(() => {
   vi.mocked(getAllPlayerSlugs).mockReset();
   vi.mocked(getDataFreshness).mockReset();
+  vi.mocked(getAvailableSeasons).mockReset();
+  vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025]);
+  vi.mocked(getBoxScoreSeasons).mockReset();
+  vi.mocked(getBoxScoreSeasons).mockResolvedValue([]);
+  vi.mocked(getPlayedRegularSeasonGameIds).mockReset();
+  vi.mocked(getPlayedRegularSeasonGameIds).mockResolvedValue([]);
   // The sitemap reads only .slug, so the fixtures stay slug-only.
   vi.mocked(getAllPlayerSlugs).mockResolvedValue(SLUGS as never);
   vi.mocked(getDataFreshness).mockResolvedValue(FRESH as never);
@@ -76,5 +89,38 @@ describe("sitemap", () => {
     expect(players).toHaveLength(1250);
     expect(new Set(players.map((e) => e.url)).size).toBe(1250);
     expect(entries.filter((e) => e.url.includes("/card/"))).toHaveLength(0);
+  });
+});
+
+describe("sitemap — box score pages (box score spec §6)", () => {
+  it("lists every played regular-season game of each covered season", async () => {
+    vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
+    vi.mocked(getPlayedRegularSeasonGameIds).mockResolvedValue(["2026_01_BUF_HOU", "2026_01_NE_SEA"]);
+    const entries = await sitemap();
+    const games = entries.filter((e) => e.url.includes("/game/"));
+    expect(games.map((e) => e.url)).toEqual([
+      "https://yardsperpass.com/game/2026_01_BUF_HOU",
+      "https://yardsperpass.com/game/2026_01_NE_SEA",
+    ]);
+    expect((games[0].lastModified as Date).toISOString()).toBe("2026-09-10T16:42:00.000Z");
+    expect(games[0].priority).toBe(0.6);
+    expect(getBoxScoreSeasons).toHaveBeenCalledWith([2026, 2025]);
+    expect(getPlayedRegularSeasonGameIds).toHaveBeenCalledTimes(1);
+    expect(getPlayedRegularSeasonGameIds).toHaveBeenCalledWith(2026);
+    expect(entries).toHaveLength(10 + 32 + 3 + 2);
+  });
+
+  it("lists none when no season is covered, and none (no throw) when the reads fail", async () => {
+    expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    vi.mocked(getBoxScoreSeasons).mockRejectedValue(new Error("boom"));
+    const entries = await sitemap();
+    expect(entries.filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    expect(entries).toHaveLength(10 + 32 + 3);
+    vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
+    vi.mocked(getPlayedRegularSeasonGameIds).mockRejectedValue(new Error("boom"));
+    expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
+    vi.mocked(getPlayedRegularSeasonGameIds).mockResolvedValue(["2026_01_BUF_HOU"]);
+    vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("boom"));
+    expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
   });
 });

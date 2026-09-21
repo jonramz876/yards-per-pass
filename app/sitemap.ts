@@ -1,6 +1,8 @@
 // app/sitemap.ts
 import { getAllPlayerSlugs } from "@/lib/data/players";
-import { getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getBoxScoreSeasons } from "@/lib/data/box-score";
+import { getPlayedRegularSeasonGameIds } from "@/lib/data/games";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import type { MetadataRoute } from "next";
 
@@ -54,10 +56,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // Box scores: every played regular-season game of a season that has
+  // team_game_stats rows (box score spec §6). Same documented exception as the
+  // slugs above: a failed read silently drops every game URL until the next
+  // rebuild (memory/MEMORY.md, "Homepage resilience" follow-ups).
+  // This is a serial chain: getAvailableSeasons, then one limit(1) probe per
+  // candidate season, then one game-id read per covered season (1 + N + M
+  // round trips, N = 7 and M = 1 today). Do not stack more reads on it in PR 4
+  // without parallelising it first.
+  let gameIds: string[] = [];
+  try {
+    const covered = await getBoxScoreSeasons(await getAvailableSeasons());
+    const perSeason = await Promise.all(covered.map((season) => getPlayedRegularSeasonGameIds(season)));
+    gameIds = perSeason.flat();
+  } catch {
+    // Supabase unavailable — no game pages this time
+  }
+  const gamePages: MetadataRoute.Sitemap = gameIds.map((id) => ({
+    url: `${base}/game/${id}`,
+    lastModified: dataUpdated,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
   // No /card/ URLs. /player/<slug> is the canonical page for a player, and its
   // Overview IS the same Tecmo card, so /card/ is a share view. /card/ is also
   // season-scoped: many slugs have no card (K/P/defense always; everyone whose
   // team hasn't played early each season) and render a noindex message.
   // Card pages stay reachable and indexable through the Share Card links.
-  return [...staticPages, ...teamPages, ...playerPages];
+  return [...staticPages, ...teamPages, ...playerPages, ...gamePages];
 }
