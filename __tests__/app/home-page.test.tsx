@@ -569,8 +569,20 @@ describe("HomePage leader strips qualify like the leaderboard pages", () => {
         epa_per_target: 0.3,
       }),
     );
+    // A bad YPRR does not count as route data, so the pool needs >= 36 clean
+    // routed receivers (36 of 40 = 90%) to stay in YPRR mode with the four bad
+    // rows in it. 40 clean: the Clean Receiver leads, the fillers trail.
+    const fillerRecs = Array.from({ length: 39 }, (_, i) =>
+      wr(`wf${i}`, `Filler Receiver ${i + 1}`, {
+        targets: 10,
+        routes_run: 60,
+        yards_per_route_run: 0.5 + i * 0.02,
+        epa_per_target: 0.1,
+      }),
+    );
     vi.mocked(getReceiverStats).mockResolvedValue([
       wr("wok", "Clean Receiver", { targets: 10, routes_run: 60, yards_per_route_run: 1.5, epa_per_target: 0.1 }),
+      ...fillerRecs,
       ...badYprrRecs,
       ...badVolumeRecs,
     ]);
@@ -589,7 +601,9 @@ describe("HomePage leader strips qualify like the leaderboard pages", () => {
     expect(strip(container, "Rushing Efficiency").names).toEqual(["Clean Back"]);
     const rec = strip(container, "Receiving Efficiency");
     expect(rec.subtitle).toBe("Yards Per Route Run");
-    expect(rec.names).toEqual(["Clean Receiver"]);
+    expect(rec.names).toHaveLength(5);
+    expect(rec.names[0]).toBe("Clean Receiver");
+    for (const r of [...badYprrRecs, ...badVolumeRecs]) expect(rec.names).not.toContain(r.player_name);
     expect(container.textContent).not.toMatch(/NaN|Infinity/);
   });
 
@@ -678,6 +692,89 @@ describe("HomePage leader strips qualify like the leaderboard pages", () => {
     expect(vi.mocked(getPlayerSlugsByIds)).toHaveBeenCalledTimes(1);
     const ids = vi.mocked(getPlayerSlugsByIds).mock.calls[0][0];
     expect(ids).toEqual(expect.arrayContaining(["wr-1", "wr-2", "rb-1", "rb-2"]));
+  });
+
+  it("routes without a usable YPRR do not count as route data (EPA per Target, five cards)", async () => {
+    throughWeek(2);
+    // Every qualifier has routes, but no YPRR the strip could rank by.
+    const recs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].map((epa, i) =>
+      wr(`nr${i}`, `Routed Receiver ${i + 1}`, {
+        targets: 10,
+        routes_run: 40,
+        yards_per_route_run: i % 2 === 0 ? 0 : null,
+        epa_per_target: epa,
+      }),
+    );
+    vi.mocked(getReceiverStats).mockResolvedValue(recs);
+
+    const { container } = render(await HomePage());
+    const rec = strip(container, "Receiving Efficiency");
+    expect(rec.subtitle).toBe("EPA per Target");
+    expect(rec.names).toEqual([
+      "Routed Receiver 10",
+      "Routed Receiver 9",
+      "Routed Receiver 8",
+      "Routed Receiver 7",
+      "Routed Receiver 6",
+    ]);
+  });
+
+  it("exact ties break by qualifying volume, then name, whatever the row order", async () => {
+    throughWeek(2);
+    // Per strip: two tied on the metric where the higher volume ("Z") sorts
+    // last by name, so volume must decide; and two tied on the metric and the
+    // volume, so name decides. Listed in the wrong order.
+    const qbs = [
+      qb("tl", "Tied Passer A", { attempts: 40, dropbacks: 44, epa_per_play: 0.2, cpoe: 3 }),
+      qb("th", "Tied Passer Z", { attempts: 90, dropbacks: 97, epa_per_play: 0.2, cpoe: 3 }),
+      qb("tb", "Bravo Passer", { attempts: 60, dropbacks: 65, epa_per_play: 0.1, cpoe: 1 }),
+      qb("ta", "Alpha Passer", { attempts: 60, dropbacks: 65, epa_per_play: 0.1, cpoe: 1 }),
+    ];
+    const rbs = [
+      rb("bl", "Tied Back A", { carries: 20, epa_per_carry: 0.1 }),
+      rb("bh", "Tied Back Z", { carries: 35, epa_per_carry: 0.1 }),
+      rb("bb", "Bravo Back", { carries: 25, epa_per_carry: 0.05 }),
+      rb("ba", "Alpha Back", { carries: 25, epa_per_carry: 0.05 }),
+    ];
+    const recs = [
+      wr("rl", "Tied Receiver A", { targets: 8, routes_run: null, yards_per_route_run: null, epa_per_target: 0.3 }),
+      wr("rh", "Tied Receiver Z", { targets: 15, routes_run: null, yards_per_route_run: null, epa_per_target: 0.3 }),
+      wr("rb", "Bravo Receiver", { targets: 10, routes_run: null, yards_per_route_run: null, epa_per_target: 0.2 }),
+      wr("ra", "Alpha Receiver", { targets: 10, routes_run: null, yards_per_route_run: null, epa_per_target: 0.2 }),
+    ];
+    const expected: Record<string, string[]> = {
+      "QB Efficiency": ["Tied Passer Z", "Tied Passer A", "Alpha Passer", "Bravo Passer"],
+      "QB Accuracy": ["Tied Passer Z", "Tied Passer A", "Alpha Passer", "Bravo Passer"],
+      "Receiving Efficiency": ["Tied Receiver Z", "Tied Receiver A", "Alpha Receiver", "Bravo Receiver"],
+      "Rushing Efficiency": ["Tied Back Z", "Tied Back A", "Alpha Back", "Bravo Back"],
+    };
+
+    for (const order of ["as listed", "reversed"]) {
+      const flip = <T,>(rows: T[]) => (order === "reversed" ? [...rows].reverse() : rows);
+      vi.mocked(getQBStats).mockResolvedValue(flip(qbs));
+      vi.mocked(getRBSeasonStats).mockResolvedValue(flip(rbs));
+      vi.mocked(getReceiverStats).mockResolvedValue(flip(recs));
+
+      const { container } = render(await HomePage());
+      for (const [title, names] of Object.entries(expected)) {
+        expect(strip(container, title).names, `${title}, rows ${order}`).toEqual(names);
+      }
+    }
+  });
+
+  it("Team Defense skips NaN, Infinity and string def_epa_play without throwing", async () => {
+    vi.mocked(getTeamStats).mockResolvedValue([
+      stat("SEA", { def_epa_play: -0.25 }),
+      stat("SF", { def_epa_play: -0.1 }),
+      stat("NYJ", { def_epa_play: NaN }),
+      stat("MIA", { def_epa_play: Infinity }),
+      stat("BUF", { def_epa_play: -Infinity }),
+      stat("DAL", { def_epa_play: "0.1" as unknown as number }),
+    ]);
+
+    const { container } = render(await HomePage());
+    expect(strip(container, "Team Defense").hrefs).toEqual(["/team/SEA", "/team/SF"]);
+    expect(container.textContent).not.toMatch(/NaN|Infinity/);
   });
 });
 

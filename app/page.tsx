@@ -29,6 +29,17 @@ const PFR_ATT_PER_GAME = 14;
 const PFR_CAR_PER_GAME = 6.25;
 const PFR_TGT_PER_GAME = 1.875;
 
+// Leader order: the metric (high first), then the volume that qualified the
+// player (high first), then name (A first). No fetcher orders its rows, so
+// without the tie-breaks an exact tie would follow the database's row order,
+// which can change after any ingest.
+function byLeader<T extends { player_name: string }>(metric: (x: T) => number, volume: (x: T) => number) {
+  return (a: T, b: T) =>
+    metric(b) - metric(a) ||
+    volume(b) - volume(a) ||
+    (a.player_name < b.player_name ? -1 : a.player_name > b.player_name ? 1 : 0);
+}
+
 /* ------------------------------------------------------------------ */
 /*  Slug helper — maps player_id → slug for linking                   */
 /* ------------------------------------------------------------------ */
@@ -113,44 +124,50 @@ export default async function HomePage() {
   const minTargets = Math.round(PFR_TGT_PER_GAME * teamGames);
   // Every numeric filter uses Number.isFinite: a rate can arrive as null
   // (stored NaN) or Infinity, and Number.isFinite rejects those and strings.
+  // Player strips break exact ties with byLeader (volume, then name).
 
   // Strip 1: QB Efficiency — top 5 by EPA/play among QBs with >= minAttempts attempts
   const epaLeaders = [...qbStats]
     .filter((q) => Number.isFinite(q.attempts) && q.attempts >= minAttempts && Number.isFinite(q.epa_per_play))
-    .sort((a, b) => (b.epa_per_play ?? 0) - (a.epa_per_play ?? 0))
+    .sort(byLeader((q) => q.epa_per_play ?? 0, (q) => q.attempts))
     .slice(0, 5);
 
   // Strip 2: QB Accuracy — top 5 by CPOE, same attempts qualifier
   const cpoeLeaders = [...qbStats]
     .filter((q) => Number.isFinite(q.attempts) && q.attempts >= minAttempts && Number.isFinite(q.cpoe))
-    .sort((a, b) => (b.cpoe ?? 0) - (a.cpoe ?? 0))
+    .sort(byLeader((q) => q.cpoe ?? 0, (q) => q.attempts))
     .slice(0, 5);
 
   // Strip 3: Receiving Efficiency — top 5 among receivers with >= minTargets
   // targets, by Yards Per Route Run when the season has route data, otherwise by
   // EPA per Target (the Receiver page's default ranking). Decided once for the
   // season, never per player, so the strip never mixes two metrics. Route data
-  // counts only when >= 90% of the target-qualified pool has routes_run > 0, so
-  // a partial participation file does not rank just the teams it covers.
+  // counts only when >= 90% of the target-qualified pool has both routes_run > 0
+  // and a YPRR > 0 (the value the strip would rank by), so a partial
+  // participation file does not rank just the teams it covers.
   // (nflverse publishes no participation feed for 2026: routes_run is null.)
   const targetQualified = receiverStats.filter((r) => Number.isFinite(r.targets) && r.targets >= minTargets);
-  const withRoutes = targetQualified.filter((r) => Number.isFinite(r.routes_run) && r.routes_run > 0).length;
+  const withRoutes = targetQualified.filter(
+    (r) =>
+      Number.isFinite(r.routes_run) && r.routes_run > 0 &&
+      Number.isFinite(r.yards_per_route_run) && r.yards_per_route_run > 0,
+  ).length;
   const hasRouteData = targetQualified.length > 0 && withRoutes * 10 >= targetQualified.length * 9;
   const recValue = (r: ReceiverSeasonStat) => (hasRouteData ? r.yards_per_route_run : r.epa_per_target);
   const recLeaders = targetQualified
     .filter((r) => Number.isFinite(recValue(r)) && (!hasRouteData || recValue(r) > 0))
-    .sort((a, b) => recValue(b) - recValue(a))
+    .sort(byLeader(recValue, (r) => r.targets))
     .slice(0, 5);
 
   // Strip 4: Rushing Efficiency — top 5 by EPA/carry among backs with >= minCarries carries
   const rushEpaLeaders = [...rbStats]
     .filter((rb) => Number.isFinite(rb.carries) && rb.carries >= minCarries && Number.isFinite(rb.epa_per_carry))
-    .sort((a, b) => (b.epa_per_carry ?? 0) - (a.epa_per_carry ?? 0))
+    .sort(byLeader((rb) => rb.epa_per_carry ?? 0, (rb) => rb.carries))
     .slice(0, 5);
 
   // Strip 5: Team Defense — top 5 by defensive EPA (lower = better, so sort ascending)
   const defLeaders = [...teamStats]
-    .filter((t) => t.def_epa_play != null)
+    .filter((t) => Number.isFinite(t.def_epa_play))
     .sort((a, b) => (a.def_epa_play ?? 0) - (b.def_epa_play ?? 0))
     .slice(0, 5);
 
