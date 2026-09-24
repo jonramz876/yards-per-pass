@@ -8,9 +8,42 @@ import { hasScheduleForSeason } from "@/lib/data/games";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { getTeam } from "@/lib/data/teams";
 import TecmoStandings from "@/components/team/TecmoStandings";
-import type { TeamSeasonStat, PlayerSlug } from "@/lib/types";
+import type { TeamSeasonStat, PlayerSlug, ReceiverSeasonStat } from "@/lib/types";
 
 export const revalidate = 3600;
+
+/* ------------------------------------------------------------------ */
+/*  Leader qualifiers — PFR's per-team-game minimums                   */
+/* ------------------------------------------------------------------ */
+// The rates the leaderboard pages use (components/tables/QBLeaderboard.tsx
+// PFR_ATT_PER_GAME, RBLeaderboard.tsx PFR_CAR_PER_GAME, ReceiverLeaderboard.tsx
+// PFR_TGT_PER_GAME) and the glossary's "pfr-qualified" entry
+// (app/glossary/page.tsx): per team game, times min(through_week, 17).
+// Copied, not imported: the leaderboards are "use client" modules, so a value
+// imported here would be a client-reference proxy and every minimum NaN in
+// production (vitest skips that transform, so tests would still pass). Not
+// lib/stats/tecmo-card.ts's *_MIN_*_PER_GAME either: that is a per-player-game
+// OVR rule. __tests__/app/home-page.test.tsx fails if the leaderboards' rates
+// change. Module-private on purpose: Next 14 rejects extra page exports.
+const PFR_ATT_PER_GAME = 14;
+const PFR_CAR_PER_GAME = 6.25;
+const PFR_TGT_PER_GAME = 1.875;
+
+// Leader order: the metric (high first), then the volume that qualified the
+// player (high first), then name, then player_id (both by character code, so
+// every server sorts alike). No fetcher orders its rows, so without the
+// tie-breaks an exact tie would follow the database's row order, which can
+// change after any ingest.
+function byLeader<T extends { player_name: string; player_id: string }>(
+  metric: (x: T) => number,
+  volume: (x: T) => number,
+) {
+  return (a: T, b: T) =>
+    metric(b) - metric(a) ||
+    volume(b) - volume(a) ||
+    (a.player_name < b.player_name ? -1 : a.player_name > b.player_name ? 1 : 0) ||
+    (a.player_id < b.player_id ? -1 : a.player_id > b.player_id ? 1 : 0);
+}
 
 /* ------------------------------------------------------------------ */
 /*  Slug helper — maps player_id → slug for linking                   */
@@ -86,33 +119,59 @@ export default async function HomePage() {
     // season stands in.
   }
 
-  // Strip 1: QB Efficiency — top 5 by EPA/play
+  // Player strips qualify like the leaderboard pages: round(rate × team games),
+  // team games = min(through_week, 17). A missing, 0 or non-numeric
+  // through_week counts as one game, so a minimum is never 0.
+  const tw = freshness?.through_week;
+  const teamGames = typeof tw === "number" && Number.isFinite(tw) ? Math.min(Math.max(tw, 1), 17) : 1;
+  const minAttempts = Math.round(PFR_ATT_PER_GAME * teamGames);
+  const minCarries = Math.round(PFR_CAR_PER_GAME * teamGames);
+  const minTargets = Math.round(PFR_TGT_PER_GAME * teamGames);
+  // Every numeric filter uses Number.isFinite: a rate can arrive as null
+  // (stored NaN) or Infinity, and Number.isFinite rejects those and strings.
+  // Player strips break exact ties with byLeader (volume, name, player_id).
+
+  // Strip 1: QB Efficiency — top 5 by EPA/play among QBs with >= minAttempts attempts
   const epaLeaders = [...qbStats]
-    .filter((q) => q.dropbacks >= 100 && q.epa_per_play != null)
-    .sort((a, b) => (b.epa_per_play ?? 0) - (a.epa_per_play ?? 0))
+    .filter((q) => Number.isFinite(q.attempts) && q.attempts >= minAttempts && Number.isFinite(q.epa_per_play))
+    .sort(byLeader((q) => q.epa_per_play ?? 0, (q) => q.attempts))
     .slice(0, 5);
 
-  // Strip 2: QB Accuracy — top 5 by CPOE
+  // Strip 2: QB Accuracy — top 5 by CPOE, same attempts qualifier
   const cpoeLeaders = [...qbStats]
-    .filter((q) => q.dropbacks >= 100 && q.cpoe != null)
-    .sort((a, b) => (b.cpoe ?? 0) - (a.cpoe ?? 0))
+    .filter((q) => Number.isFinite(q.attempts) && q.attempts >= minAttempts && Number.isFinite(q.cpoe))
+    .sort(byLeader((q) => q.cpoe ?? 0, (q) => q.attempts))
     .slice(0, 5);
 
-  // Strip 3: Receiving Efficiency — top 5 by YPRR
-  const yprrLeaders = [...receiverStats]
-    .filter((r) => r.routes_run >= 50 && r.yards_per_route_run > 0)
-    .sort((a, b) => b.yards_per_route_run - a.yards_per_route_run)
+  // Strip 3: Receiving Efficiency — top 5 among receivers with >= minTargets
+  // targets, by Yards Per Route Run when the season has route data, otherwise by
+  // EPA per Target (the Receiver page's default ranking). Decided once for the
+  // season, never per player, so the strip never mixes two metrics. Route data
+  // counts only when >= 90% of the target-qualified pool has both routes_run > 0
+  // and a finite YPRR (of any value: 0 or fewer yards on real routes is real
+  // data), so a partial participation file does not rank just the teams it
+  // covers. The ranking itself still takes only a YPRR > 0.
+  // (nflverse publishes no participation feed for 2026: routes_run is null.)
+  const targetQualified = receiverStats.filter((r) => Number.isFinite(r.targets) && r.targets >= minTargets);
+  const withRoutes = targetQualified.filter(
+    (r) => Number.isFinite(r.routes_run) && r.routes_run > 0 && Number.isFinite(r.yards_per_route_run),
+  ).length;
+  const hasRouteData = targetQualified.length > 0 && withRoutes * 10 >= targetQualified.length * 9;
+  const recValue = (r: ReceiverSeasonStat) => (hasRouteData ? r.yards_per_route_run : r.epa_per_target);
+  const recLeaders = targetQualified
+    .filter((r) => Number.isFinite(recValue(r)) && (!hasRouteData || recValue(r) > 0))
+    .sort(byLeader(recValue, (r) => r.targets))
     .slice(0, 5);
 
-  // Strip 4: Rushing Efficiency — top 5 by EPA/carry
+  // Strip 4: Rushing Efficiency — top 5 by EPA/carry among backs with >= minCarries carries
   const rushEpaLeaders = [...rbStats]
-    .filter((rb) => rb.carries >= 50 && rb.epa_per_carry != null)
-    .sort((a, b) => (b.epa_per_carry ?? 0) - (a.epa_per_carry ?? 0))
+    .filter((rb) => Number.isFinite(rb.carries) && rb.carries >= minCarries && Number.isFinite(rb.epa_per_carry))
+    .sort(byLeader((rb) => rb.epa_per_carry ?? 0, (rb) => rb.carries))
     .slice(0, 5);
 
   // Strip 5: Team Defense — top 5 by defensive EPA (lower = better, so sort ascending)
   const defLeaders = [...teamStats]
-    .filter((t) => t.def_epa_play != null)
+    .filter((t) => Number.isFinite(t.def_epa_play))
     .sort((a, b) => (a.def_epa_play ?? 0) - (b.def_epa_play ?? 0))
     .slice(0, 5);
 
@@ -120,7 +179,7 @@ export default async function HomePage() {
   const leaderPlayerIds = Array.from(new Set([
     ...epaLeaders.map((q) => q.player_id),
     ...cpoeLeaders.map((q) => q.player_id),
-    ...yprrLeaders.map((r) => r.player_id),
+    ...recLeaders.map((r) => r.player_id),
     ...rushEpaLeaders.map((rb) => rb.player_id),
   ]));
 
@@ -184,13 +243,13 @@ export default async function HomePage() {
         />
         <LeaderStrip
           title="Receiving Efficiency"
-          subtitle="Yards Per Route Run"
-          items={yprrLeaders.map((r, i) => ({
+          subtitle={hasRouteData ? "Yards Per Route Run" : "EPA per Target"}
+          items={recLeaders.map((r, i) => ({
             rank: i + 1,
             name: r.player_name,
             slug: slugMap.get(r.player_id),
             teamId: r.team_id,
-            value: r.yards_per_route_run.toFixed(2),
+            value: recValue(r).toFixed(2),
           }))}
         />
         <LeaderStrip
