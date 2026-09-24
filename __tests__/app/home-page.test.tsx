@@ -220,6 +220,8 @@ describe("HomePage", () => {
     expectEmptyShell(container);
     // The empty seasons list stops the page before the stats reads.
     for (const m of statsMocks()) expect(m).not.toHaveBeenCalled();
+    // An empty receiving pool is not route data.
+    expect(strip(container, "Receiving Efficiency").subtitle).toBe("EPA per Target");
   });
 
   it("no Supabase URL behaves like the placeholder build", async () => {
@@ -328,6 +330,7 @@ function strip(container: HTMLElement, title: string) {
   return {
     subtitle: h2.nextElementSibling?.textContent,
     names: cards.map((c) => c.querySelector("p")?.textContent),
+    teams: cards.map((c) => c.querySelectorAll("p")[1]?.textContent),
     values: cards.map((c) => c.querySelector(".tabular-nums")?.textContent),
     hrefs: cards.map((c) => c.getAttribute("href")),
   };
@@ -694,14 +697,14 @@ describe("HomePage leader strips qualify like the leaderboard pages", () => {
     expect(ids).toEqual(expect.arrayContaining(["wr-1", "wr-2", "rb-1", "rb-2"]));
   });
 
-  it("routes without a usable YPRR do not count as route data (EPA per Target, five cards)", async () => {
+  it("routes with no YPRR do not count as route data (EPA per Target, five cards)", async () => {
     throughWeek(2);
-    // Every qualifier has routes, but no YPRR the strip could rank by.
+    // Every qualifier has routes, but no YPRR at all.
     const recs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].map((epa, i) =>
       wr(`nr${i}`, `Routed Receiver ${i + 1}`, {
         targets: 10,
         routes_run: 40,
-        yards_per_route_run: i % 2 === 0 ? 0 : null,
+        yards_per_route_run: null,
         epa_per_target: epa,
       }),
     );
@@ -776,6 +779,125 @@ describe("HomePage leader strips qualify like the leaderboard pages", () => {
     expect(strip(container, "Team Defense").hrefs).toEqual(["/team/SEA", "/team/SF"]);
     expect(container.textContent).not.toMatch(/NaN|Infinity/);
   });
+
+  // 9 of 10 is exactly 90%: this pair pins both the constant and ">=".
+  it.each([
+    [9, "Yards Per Route Run"],
+    [8, "EPA per Target"],
+  ] as const)("%i of 10 qualified receivers with route data: %s", async (routed, subtitle) => {
+    throughWeek(2);
+    const recs = Array.from({ length: 10 }, (_, i) =>
+      wr(
+        `bd${i}`,
+        `Boundary Receiver ${i + 1}`,
+        i < routed
+          ? { targets: 10, routes_run: 40, yards_per_route_run: 1 + i / 10, epa_per_target: 0.1 }
+          : { targets: 10, routes_run: 0, yards_per_route_run: null, epa_per_target: 0.1 },
+      ),
+    );
+    vi.mocked(getReceiverStats).mockResolvedValue(recs);
+
+    const { container } = render(await HomePage());
+    expect(strip(container, "Receiving Efficiency").subtitle).toBe(subtitle);
+  });
+
+  it("route coverage is measured on the target-qualified pool, not every receiver", async () => {
+    throughWeek(2);
+    const unroutedQualifiers = Array.from({ length: 10 }, (_, i) =>
+      wr(`uq${i}`, `Unrouted Qualifier ${i + 1}`, {
+        targets: 10,
+        routes_run: null,
+        yards_per_route_run: null,
+        epa_per_target: 0.1 + i / 100,
+      }),
+    );
+    // 100 routed receivers on 3 targets, under Week 2's minimum of 4.
+    const routedNonQualifiers = Array.from({ length: 100 }, (_, i) =>
+      wr(`rn${i}`, `Routed Non-Qualifier ${i + 1}`, {
+        targets: 3,
+        routes_run: 40,
+        yards_per_route_run: 2,
+        epa_per_target: 0.5,
+      }),
+    );
+    vi.mocked(getReceiverStats).mockResolvedValue([...unroutedQualifiers, ...routedNonQualifiers]);
+
+    const { container } = render(await HomePage());
+    const rec = strip(container, "Receiving Efficiency");
+    expect(rec.subtitle).toBe("EPA per Target");
+    expect(rec.names).toHaveLength(5);
+    for (const n of rec.names) expect(n).toMatch(/^Unrouted Qualifier/);
+  });
+
+  it("a routed receiver with zero or negative yards counts as route data but is not ranked", async () => {
+    throughWeek(2);
+    // All 10 qualifiers have routes and a finite YPRR, but only 3 are positive.
+    // The rest have the best EPA per Target, so EPA mode would show them.
+    const positive = [2, 1.5, 1].map((yprr, i) =>
+      wr(`py${i}`, `Positive Receiver ${i + 1}`, {
+        targets: 10,
+        routes_run: 40,
+        yards_per_route_run: yprr,
+        epa_per_target: 0.05,
+      }),
+    );
+    const nonPositive = [0, 0, 0, 0, -0.1, -0.2, -0.3].map((yprr, i) =>
+      wr(`np${i}`, `No Yards Receiver ${i + 1}`, {
+        targets: 10,
+        routes_run: 40,
+        yards_per_route_run: yprr,
+        epa_per_target: 0.5 + i / 10,
+      }),
+    );
+    vi.mocked(getReceiverStats).mockResolvedValue([...nonPositive, ...positive]);
+
+    const { container } = render(await HomePage());
+    const rec = strip(container, "Receiving Efficiency");
+    expect(rec.subtitle).toBe("Yards Per Route Run");
+    expect(rec.names).toEqual(["Positive Receiver 1", "Positive Receiver 2", "Positive Receiver 3"]);
+    expect(rec.values).toEqual(["2.00", "1.50", "1.00"]);
+  });
+
+  it("players identical in name, metric and volume sort by player_id, whatever the row order", async () => {
+    throughWeek(2);
+    // player_id order (a before b) is the opposite of team order (ATL before NYJ).
+    const qbs = [
+      qb("same-qb-b", "Same Name Passer", { team_id: "ATL", attempts: 50, dropbacks: 55, epa_per_play: 0.1, cpoe: 1 }),
+      qb("same-qb-a", "Same Name Passer", { team_id: "NYJ", attempts: 50, dropbacks: 55, epa_per_play: 0.1, cpoe: 1 }),
+    ];
+    const rbs = [
+      rb("same-rb-b", "Same Name Back", { team_id: "ATL", carries: 20, epa_per_carry: 0.1 }),
+      rb("same-rb-a", "Same Name Back", { team_id: "NYJ", carries: 20, epa_per_carry: 0.1 }),
+    ];
+    const recs = [
+      wr("same-wr-b", "Same Name Receiver", {
+        team_id: "ATL",
+        targets: 10,
+        routes_run: null,
+        yards_per_route_run: null,
+        epa_per_target: 0.2,
+      }),
+      wr("same-wr-a", "Same Name Receiver", {
+        team_id: "NYJ",
+        targets: 10,
+        routes_run: null,
+        yards_per_route_run: null,
+        epa_per_target: 0.2,
+      }),
+    ];
+
+    for (const order of ["as listed", "reversed"]) {
+      const flip = <T,>(rows: T[]) => (order === "reversed" ? [...rows].reverse() : rows);
+      vi.mocked(getQBStats).mockResolvedValue(flip(qbs));
+      vi.mocked(getRBSeasonStats).mockResolvedValue(flip(rbs));
+      vi.mocked(getReceiverStats).mockResolvedValue(flip(recs));
+
+      const { container } = render(await HomePage());
+      for (const title of ["QB Efficiency", "QB Accuracy", "Receiving Efficiency", "Rushing Efficiency"]) {
+        expect(strip(container, title).teams, `${title}, rows ${order}`).toEqual(["NYJ", "ATL"]);
+      }
+    }
+  });
 });
 
 describe("homepage qualifier drift guard", () => {
@@ -791,5 +913,16 @@ describe("homepage qualifier drift guard", () => {
     expect(declared(read("components/tables/RBLeaderboard.tsx"), "PFR_CAR_PER_GAME")).toBe("6.25");
     expect(declared(read("components/tables/ReceiverLeaderboard.tsx"), "PFR_TGT_PER_GAME")).toBe("1.875");
     expect(read("app/page.tsx")).not.toMatch(/["'`](?:@\/|(?:\.{1,2}\/)+)components\/tables\//);
+  });
+
+  // The homepage computes round(rate * min(through_week, 17)); so must the pages.
+  it.each([
+    ["components/tables/QBLeaderboard.tsx", "PFR_ATT_PER_GAME"],
+    ["components/tables/RBLeaderboard.tsx", "PFR_CAR_PER_GAME"],
+    ["components/tables/ReceiverLeaderboard.tsx", "PFR_TGT_PER_GAME"],
+  ])("%s still computes its minimum as Math.round(rate * Math.min(throughWeek, 17))", (file, rate) => {
+    const src = read(file);
+    expect(src).toMatch(/\bteamGames\s*=\s*Math\.min\(\s*throughWeek\s*,\s*17\s*\)\s*;/);
+    expect(src).toMatch(new RegExp(`=\\s*Math\\.round\\(\\s*${rate}\\s*\\*\\s*teamGames\\s*\\)\\s*;`));
   });
 });
