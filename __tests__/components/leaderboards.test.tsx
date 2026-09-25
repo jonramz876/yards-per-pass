@@ -282,3 +282,35 @@ describe("QB leaderboard: three baselines", () => {
     expect(footnotes(container)).toContain("EPA colours start once 2026 has enough plays to set league averages.");
   });
 });
+
+describe("chaos pass: colours and legends follow the printed numbers", () => {
+  it("a cell printing 0.29 under a legend printing 0.23 is grey (band 0.06)", () => {
+    // Target-weighted average (29.49 + 3 x 22.51 + 15.53) / 500 = 0.2251,
+    // printed 0.23. The edge receiver's unrounded gap is 0.0698 > 0.06.
+    const recs = [
+      rec("e1", "Edge Receiver", 0.2949),
+      rec("e2", "Avg One", 0.2251),
+      rec("e3", "Avg Two", 0.2251),
+      rec("e4", "Avg Three", 0.2251),
+      rec("e5", "Low Receiver", 0.1553),
+    ];
+    setURL("/receivers", "tab=efficiency");
+    const { container } = renderBoard(<ReceiverLeaderboard data={recs} throughWeek={2} season={2026} />);
+    expect(footnotes(container)).toContain("(0.23 EPA, WRs, TEs and backs");
+    expect(colourOf(cellClass(container, "Edge Receiver", "EPA/Tgt"))).toBe("text-gray-700");
+    expect(colourOf(cellClass(container, "Edge Receiver", "Total EPA"))).toBe("text-gray-700");
+    expect(colourOf(cellClass(container, "Low Receiver", "EPA/Tgt"))).toBe("text-red-600");
+  });
+
+  it("a QB legend average that rounds to zero prints 0.00, not -0.00 (2023: -0.0013 per dropback)", () => {
+    setURL("/qb-leaderboard", "tab=epa");
+    const qbs = [
+      qb("z1", "Plus Passer", { epa_per_db: 0.0987, epa_per_play: 0.1, rush_epa_per_play: 0.3 }),
+      qb("z2", "Minus Passer", { epa_per_db: -0.1013, epa_per_play: 0.0, rush_epa_per_play: 0.2 }),
+    ];
+    const { container } = renderBoard(<QBLeaderboard data={qbs} throughWeek={2} season={2023} />);
+    const notes = footnotes(container);
+    expect(notes).toContain("league average — 0.00 per dropback");
+    expect(notes).not.toContain("-0.00");
+  });
+});

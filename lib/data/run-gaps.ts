@@ -45,6 +45,8 @@ export interface GapLeagueAvg {
   avg_success: number;
   avg_stuff: number;
   avg_explosive: number;
+  /** League carries behind these averages (the sample-size cut-off reads it). */
+  carries: number;
 }
 
 export interface TeamGapEpa {
@@ -107,6 +109,7 @@ export async function getLeagueGapAverages(
     avg_success: v.totalCarries > 0 ? v.weightedSuccess / v.totalCarries : 0,
     avg_stuff: v.totalCarries > 0 ? v.weightedStuff / v.totalCarries : 0,
     avg_explosive: v.totalCarries > 0 ? v.weightedExplosive / v.totalCarries : 0,
+    carries: v.totalCarries,
   }));
 
   // Build per-team per-gap EPA list for ranking
@@ -238,6 +241,7 @@ export async function getAllGapData(season: number): Promise<{
     avg_success: v.totalCarries > 0 ? v.weightedSuccess / v.totalCarries : 0,
     avg_stuff: v.totalCarries > 0 ? v.weightedStuff / v.totalCarries : 0,
     avg_explosive: v.totalCarries > 0 ? v.weightedExplosive / v.totalCarries : 0,
+    carries: v.totalCarries,
   }));
 
   const teamGapEpas: TeamGapEpa[] = [];

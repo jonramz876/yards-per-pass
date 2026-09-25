@@ -11,7 +11,7 @@ import { percentileOrMissing, getHeatmapPercentile, getHeatmapStyle } from "@/li
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { WR_RADAR_KEYS, getWRRadarVal, seasonHasRouteData } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat, epaVsAverageClass, targetEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
+import { formatStat, formatEpaAverage, epaVsAverageClass, targetEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -129,6 +129,9 @@ function tabDefaultSortFor(tab: RecTab, hasRouteData: boolean): string {
   return tab === "efficiency" && !hasRouteData ? "epa_per_target" : REC_TABS[tab].defaultSort;
 }
 
+/** Columns built from nflverse participation data: all dashes in a season without it. */
+const ROUTE_DATA_COLS = new Set(["yards_per_route_run", "targets_per_route_run", "snap_share", "route_participation_rate"]);
+
 // Header background tints for column groups
 const GROUP_COLORS: Record<string, string> = {
   core: "bg-navy",
@@ -227,9 +230,14 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   const urlSort = searchParams.get("sort");
   const tabConfig = REC_TABS[initialTab];
   const validKeys = new Set(tabConfig.columns.map((c) => c.key));
+  // An explicit ?sort= naming a route-data column (an old link, or the season
+  // box carrying sort= into 2026) falls back to the tab's default when the
+  // season has no route data: every value in that column is a dash.
   const initialSortKey = (() => {
     if (!urlSort) return tabDefaultSort(initialTab);
-    return validKeys.has(urlSort) ? urlSort : tabDefaultSort(initialTab);
+    if (!validKeys.has(urlSort)) return tabDefaultSort(initialTab);
+    if (!hasRouteData && ROUTE_DATA_COLS.has(urlSort)) return tabDefaultSort(initialTab);
+    return urlSort;
   })();
 
   const urlDir = searchParams.get("dir");
@@ -812,7 +820,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
         <p><span className="font-semibold text-gray-500">Tgt Share</span> = player targets / team targets (throws charged to a receiver). For a player traded mid-season, only targets with his main team count.</p>
         <p><span className="font-semibold text-gray-500">Snap%</span> = player snaps / team offensive snaps. <span className="font-semibold text-gray-500">Route%</span> = share of the team&rsquo;s dropbacks he was on the field for.</p>
         {targetAvg != null ? (
-          <p>With the heatmap off, EPA colours compare each player with the {season} average target ({formatStat("epa_per_target", targetAvg)} EPA, WRs, TEs and backs, weighted by targets): green = better, red = worse, grey = within 0.06. Total EPA takes the colour of the player&rsquo;s EPA/Tgt.</p>
+          <p>With the heatmap off, EPA colours compare each player with the {season} average target ({formatEpaAverage(targetAvg)} EPA, WRs, TEs and backs, weighted by targets): green = better, red = worse, grey = within 0.06. Total EPA takes the colour of the player&rsquo;s EPA/Tgt.</p>
         ) : (
           <p>EPA colours start once {season} has enough targets to set a league average.</p>
         )}

@@ -10,7 +10,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyRB } from "@/lib/stats/archetypes";
 import { rbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat, epaVsAverageClass, rbCarryEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
+import { formatStat, formatEpaAverage, epaVsAverageClass, rbCarryEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
 interface RBLeaderboardProps {
   data: RBSeasonStat[];
@@ -777,7 +777,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
         <p><span className="font-semibold text-gray-500">EPA/Car</span> = expected points added per carry. <span className="font-semibold text-gray-500">Success%</span> = share of carries that gained expected points (EPA above zero).</p>
         {carryAvg != null ? (
-          <p>With the heatmap off, EPA colours compare each back with the {season} average running-back carry ({formatStat("epa_per_carry", carryAvg)} EPA, all backs, weighted by carries): green = better, red = worse, grey = within 0.03. Total EPA takes the colour of the back&rsquo;s EPA/Car.</p>
+          <p>With the heatmap off, EPA colours compare each back with the {season} average running-back carry ({formatEpaAverage(carryAvg)} EPA, all backs, weighted by carries): green = better, red = worse, grey = within 0.03. Total EPA takes the colour of the back&rsquo;s EPA/Car.</p>
         ) : (
           <p>EPA colours start once {season} has enough carries to set a league average.</p>
         )}

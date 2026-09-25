@@ -143,3 +143,41 @@ describe("Efficiency tab with route data", () => {
     expect(sortedHeader(container)?.startsWith(label)).toBe(true);
   });
 });
+
+// Chaos pass R2/R5: an explicit ?sort= naming a route-based column (a 2025 link,
+// or the season box keeping sort= while switching to 2026) must not rank a
+// season with no route data by an all-dash column.
+describe("explicit route-based sort in a season without route data", () => {
+  it.each([
+    ["tab=efficiency&sort=yards_per_route_run"],
+    ["tab=efficiency&sort=targets_per_route_run"],
+    ["tab=efficiency&sort=snap_share"],
+    ["tab=efficiency&sort=route_participation_rate&dir=asc"],
+    ["sort=yards_per_route_run"], // Overview
+    ["tab=junk&sort=yards_per_route_run"], // falls back to Overview
+  ])("%s falls back to EPA/Tgt", (query) => {
+    const { container } = renderBoard(NO_ROUTES, query);
+    expect(sortedHeader(container)?.startsWith("EPA/Tgt")).toBe(true);
+  });
+
+  it("the fallback is ranked by EPA/Tgt, and the next URL write carries no route sort", () => {
+    const { container } = renderBoard(NO_ROUTES, "tab=efficiency&sort=yards_per_route_run");
+    expect(names(container)).toEqual(["Receiver C", "Receiver A", "Receiver B"]);
+    // Flipping the sorted column's direction writes dir= only: the sort is the default.
+    const sorted = Array.from(container.querySelectorAll("thead th")).find((th) => (th.textContent ?? "").includes("▼"))!;
+    fireEvent.click(sorted);
+    const url = nav.push.mock.calls.at(-1)![0] as string;
+    expect(url).toContain("dir=asc");
+    expect(url).not.toContain("sort=");
+  });
+
+  it("leaves a valid non-route sort alone", () => {
+    const { container } = renderBoard(NO_ROUTES, "tab=efficiency&sort=croe");
+    expect(sortedHeader(container)?.startsWith("CROE")).toBe(true);
+  });
+
+  it("leaves a route sort alone when the season has route data", () => {
+    const { container } = renderBoard(WITH_ROUTES, "tab=efficiency&sort=targets_per_route_run", 2025);
+    expect(sortedHeader(container)?.startsWith("TPRR")).toBe(true);
+  });
+});

@@ -11,6 +11,7 @@ import {
   targetEpaAverage,
   qbEpaAverages,
   epaVsAverageClass,
+  formatEpaAverage,
 } from "@/lib/stats/formatters";
 import type { QBSeasonStat, RBSeasonStat, ReceiverSeasonStat } from "@/lib/types";
 
@@ -183,5 +184,45 @@ describe("season averages by play type", () => {
 
   it("no longer exports the sign-split epaLeaderboardColor", () => {
     expect("epaLeaderboardColor" in formatters).toBe(false);
+  });
+});
+
+// Chaos pass C11: the colour must follow the printed numbers. A cell reading
+// 0.29 under a legend reading 0.23 with "grey = within 0.06" is grey, whatever
+// the unrounded values were (2026: D.Sample 0.2949-ish vs 0.2251-ish printed
+// green before).
+describe("epaVsAverageClass compares the numbers as displayed", () => {
+  it("2 decimals (leaderboards, Game Log): a printed gap equal to the band is grey", () => {
+    // Unrounded gap 0.0698 > 0.06, but the page prints 0.29 against 0.23.
+    expect(epaVsAverageClass(0.2949, 0.2251, 0.06)).toBe("text-gray-700");
+    // Unrounded gap 0.0398 > 0.03, printed -0.02 against -0.05.
+    expect(epaVsAverageClass(-0.0151, -0.0549, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.0849, -0.0451, 0.03)).toBe("text-gray-700");
+    // One printed hundredth past the band colours.
+    expect(epaVsAverageClass(0.2951, 0.2249, 0.06)).toBe("text-green-600");
+    expect(epaVsAverageClass(-0.0851, -0.0449, 0.03)).toBe("text-red-600");
+  });
+
+  it("3 decimals (run-gap cards print EPA/carry to 0.001)", () => {
+    // Unrounded gap 0.0308; printed -0.050 against -0.080.
+    expect(epaVsAverageClass(-0.0496, -0.0804, 0.03, 3)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.0486, -0.0804, 0.03, 3)).toBe("text-green-600");
+  });
+});
+
+// Chaos pass C12/C19: a legend average that rounds to zero prints unsigned
+// (the site's fmtFixed convention in lib/stats/box-score.ts), never "-0.00".
+describe("formatEpaAverage", () => {
+  it("never prints a signed zero", () => {
+    expect(formatEpaAverage(-0.0013)).toBe("0.00"); // 2023 QB dropback average
+    expect(formatEpaAverage(-0.0049)).toBe("0.00");
+    expect(formatEpaAverage(0)).toBe("0.00");
+    expect(formatEpaAverage(-0.0004, 3)).toBe("0.000");
+  });
+  it("prints other values as the cells do (hyphen minus, fixed decimals)", () => {
+    expect(formatEpaAverage(-0.1013)).toBe("-0.10");
+    expect(formatEpaAverage(-0.0051)).toBe("-0.01");
+    expect(formatEpaAverage(0.2258)).toBe("0.23");
+    expect(formatEpaAverage(-0.0804, 3)).toBe("-0.080");
   });
 });

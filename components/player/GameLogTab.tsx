@@ -7,7 +7,7 @@ import type { GameResult, GameResultsByTeam, QBWeeklyStat, ReceiverWeeklyStat, R
 import { getTeamColor } from "@/lib/data/teams";
 import { normalizeGameId } from "@/lib/stats/box-score";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
-import { epaVsAverageClass, formatStat, EPA_BAND } from "@/lib/stats/formatters";
+import { epaVsAverageClass, formatEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
 type WeeklyRow = QBWeeklyStat | ReceiverWeeklyStat | RBWeeklyStat;
 
@@ -285,14 +285,22 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
   const allCols = useMemo(() => [...commonCols(gameResults), ...posCols], [gameResults, posCols]);
 
   // Build sparkline data
+  // A week with no EPA (null: every play's EPA was missing; or NaN) is left out
+  // of the trend rather than plotted as 0.00, which would read as a real,
+  // roughly average game and pull the season line toward zero. Its table row
+  // still shows the dash. (isNaN(null) is false, so the old guard let a null
+  // through to .toFixed() and crashed the tab.)
   const epaData = useMemo(() => {
-    return weeklyStats.map((r) => {
-      let epa: number;
-      if (position === "QB") epa = (r as QBWeeklyStat).epa_per_dropback;
-      else if (position === "WR" || position === "TE") epa = (r as ReceiverWeeklyStat).epa_per_target;
-      else epa = (r as RBWeeklyStat).epa_per_carry;
-      return { week: r.week, epa: isNaN(epa) ? 0 : epa };
-    }).sort((a, b) => a.week - b.week);
+    return weeklyStats
+      .map((r) => {
+        let epa: number;
+        if (position === "QB") epa = (r as QBWeeklyStat).epa_per_dropback;
+        else if (position === "WR" || position === "TE") epa = (r as ReceiverWeeklyStat).epa_per_target;
+        else epa = (r as RBWeeklyStat).epa_per_carry;
+        return { week: r.week, epa };
+      })
+      .filter((d) => Number.isFinite(d.epa))
+      .sort((a, b) => a.week - b.week);
   }, [weeklyStats, position]);
 
   const volumeData = useMemo(() => {
@@ -528,7 +536,7 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
       </div>
       {epaAverage != null && (
         <p className="text-xs text-gray-400">
-          EPA colours compare each game with the {season} league average ({formatStat("epa_per_play", epaAverage)} per {epaPlayKind}): green = better, red = worse, grey = within {epaBand.toFixed(2)}.
+          EPA colours compare each game with the {season} league average ({formatEpaAverage(epaAverage)} per {epaPlayKind}): green = better, red = worse, grey = within {epaBand.toFixed(2)}.
         </p>
       )}
     </div>

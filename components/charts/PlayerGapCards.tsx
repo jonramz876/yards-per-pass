@@ -3,7 +3,14 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { RBGapStat } from "@/lib/types";
-import { epaVsAverageClass, EPA_BAND } from "@/lib/stats/formatters";
+import type { GapLeagueAvg } from "@/lib/data/run-gaps";
+import {
+  epaVsAverageClass,
+  formatEpaAverage,
+  leagueEpaAverage,
+  EPA_BAND,
+  EPA_AVERAGE_MIN_PLAYS,
+} from "@/lib/stats/formatters";
 
 interface LeagueAvgStats {
   epa: number | null;
@@ -11,6 +18,33 @@ interface LeagueAvgStats {
   success: number | null;
   stuff: number | null;
   explosive: number | null;
+  /** League carries behind the averages; colour needs EPA_AVERAGE_MIN_PLAYS.carry. */
+  carries: number | null;
+}
+
+/**
+ * The "All Runs" league baseline: every gap weighted by its league carries,
+ * i.e. the league per-carry figure over all gap-charted runs, not a plain
+ * mean of the seven gap averages (a thin edge gap counted as much as the
+ * middle).
+ */
+export function allRunsLeagueAvg(averages: GapLeagueAvg[]): LeagueAvgStats {
+  const carries = (a: GapLeagueAvg) => a.carries;
+  const total = averages.reduce((n, a) => n + (Number.isFinite(a.carries) && a.carries > 0 ? a.carries : 0), 0);
+  return {
+    epa: leagueEpaAverage(averages, (a) => a.avg_epa, carries, 0),
+    yards: leagueEpaAverage(averages, (a) => a.avg_yards, carries, 0),
+    success: leagueEpaAverage(averages, (a) => a.avg_success, carries, 0),
+    stuff: leagueEpaAverage(averages, (a) => a.avg_stuff, carries, 0),
+    explosive: leagueEpaAverage(averages, (a) => a.avg_explosive, carries, 0),
+    carries: total,
+  };
+}
+
+/** EPA to 0.001 as the cards print it: "+" on positives, never a signed zero. */
+function signed3(v: number): string {
+  const text = formatEpaAverage(v, 3);
+  return Number(text) > 0 ? `+${text}` : text;
 }
 
 interface PlayerGapCardsProps {
@@ -172,7 +206,7 @@ export default function PlayerGapCards({
             {totals.carries} carries &middot; {fmt(totals.epa, 3)} EPA/carry
             {leagueAvg.epa !== null && (
               <span className="text-gray-400 ml-1">
-                (Lg avg: {leagueAvg.epa >= 0 ? "+" : ""}{leagueAvg.epa.toFixed(3)})
+                (Lg avg: {signed3(leagueAvg.epa)})
               </span>
             )}
           </p>
@@ -228,7 +262,13 @@ export default function PlayerGapCards({
             // The EPA/carry value and its "vs league" number share one colour:
             // against the "Lg avg" in the header, with the carry band — not
             // against zero, since the average carry is below zero.
-            const vsLeagueColor = epaVsAverageClass(epa, leagueAvg.epa, EPA_BAND.carry);
+            // Same rule as the rest of the site: no colour until the league
+            // average stands on EPA_AVERAGE_MIN_PLAYS.carry (350) carries (for one
+            // gap that is its own league carries), and both numbers compared as
+            // printed, to 0.001.
+            const colourBaseline =
+              leagueAvg.carries != null && leagueAvg.carries >= EPA_AVERAGE_MIN_PLAYS.carry ? leagueAvg.epa : null;
+            const vsLeagueColor = epaVsAverageClass(epa, colourBaseline, EPA_BAND.carry, 3);
 
             return (
               <div
@@ -279,7 +319,9 @@ export default function PlayerGapCards({
                   </div>
                   {/* Bar 2: vs league avg */}
                   {leagueAvg.epa !== null && (() => {
-                    const lgDiv = epa !== null ? epa - leagueAvg.epa : null;
+                    // The printed value minus the printed "Lg avg", so the three
+                    // numbers on the card agree to the last digit.
+                    const lgDiv = epa !== null ? Number(epa.toFixed(3)) - Number(leagueAvg.epa.toFixed(3)) : null;
                     const lgPos = lgDiv !== null && lgDiv >= 0;
                     const lgBarPct = lgDiv !== null ? Math.min(Math.abs(lgDiv) / maxDivergence, 1) * 50 : 0;
                     return (
@@ -288,7 +330,7 @@ export default function PlayerGapCards({
                           <span>vs league</span>
                           {lgDiv !== null && (
                             <span className={`${vsLeagueColor} font-medium`}>
-                              {lgPos ? "+" : ""}{lgDiv.toFixed(3)}
+                              {signed3(lgDiv)}
                             </span>
                           )}
                         </div>

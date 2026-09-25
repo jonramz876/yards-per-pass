@@ -11,7 +11,7 @@ import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/
 import { classifyQB } from "@/lib/stats/archetypes";
 import { QB_RADAR_KEYS, getQBRadarVal } from "@/lib/stats/radar";
 import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat, epaVsAverageClass, qbEpaAverages, EPA_BAND } from "@/lib/stats/formatters";
+import { formatStat, formatEpaAverage, epaVsAverageClass, qbEpaAverages, EPA_BAND } from "@/lib/stats/formatters";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -417,7 +417,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     }
   }
 
-  const avgText = (key: string, avg: number | null) => (avg == null ? "not set yet" : formatStat(key, avg));
+  const avgText = (avg: number | null) => (avg == null ? "not set yet" : formatEpaAverage(avg));
 
   return (
     <div>
@@ -719,7 +719,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
         {qbAvg.dropback == null && qbAvg.play == null && qbAvg.qbRush == null ? (
           <p>EPA colours start once {season} has enough plays to set league averages.</p>
         ) : (
-          <p>With the heatmap off, EPA colours compare each quarterback with the {season} league average &mdash; {avgText("epa_per_db", qbAvg.dropback)} per dropback (EPA/DB and Total EPA), {avgText("epa_per_play", qbAvg.play)} per play (EPA/Play), {avgText("rush_epa_per_play", qbAvg.qbRush)} per QB rush (Rush EPA): green = better, red = worse, grey = within 0.03 (0.06 for Rush EPA).</p>
+          <p>With the heatmap off, EPA colours compare each quarterback with the {season} league average &mdash; {avgText(qbAvg.dropback)} per dropback (EPA/DB and Total EPA), {avgText(qbAvg.play)} per play (EPA/Play), {avgText(qbAvg.qbRush)} per QB rush (Rush EPA): green = better, red = worse, grey = within 0.03 (0.06 for Rush EPA).</p>
         )}
         {season === 2020 && (
           <p className="text-amber-600"><span className="font-semibold text-amber-700">Note:</span> 2020 CPOE values may be less reliable due to COVID-impacted season conditions (no preseason, limited practice, opt-outs).</p>

@@ -153,18 +153,36 @@ const BAND_EPSILON = 1e-9;
  * Not a finite number → grey-400 (the dash); no average yet → grey-700 (no
  * colour); more than `band` above → green; more than `band` below → red;
  * otherwise, boundaries included → grey-700.
+ *
+ * Both numbers are compared AS DISPLAYED: rounded to `decimals`, the precision
+ * the cell and its legend print (2 on the leaderboards and the Game Log, 3 on
+ * the run-gap cards), through the same toFixed. So a cell reading 0.29 under a
+ * legend reading 0.23 is grey when the legend says "grey = within 0.06",
+ * whatever the unrounded values were.
  */
 export function epaVsAverageClass(
   value: number | null | undefined,
   average: number | null | undefined,
   band: number,
+  decimals = 2,
 ): string {
   if (!isFiniteNumber(value)) return "text-gray-400";
   if (!isFiniteNumber(average)) return "text-gray-700";
-  const diff = value - average;
+  const shown = (x: number) => Number(x.toFixed(decimals));
+  const diff = shown(value) - shown(average);
   if (diff > band + BAND_EPSILON) return "text-green-600";
   if (diff < -band - BAND_EPSILON) return "text-red-600";
   return "text-gray-700";
+}
+
+/**
+ * A league average for a legend, to `decimals` places as the cells print it
+ * (hyphen minus, like formatStat). A value that rounds to zero prints unsigned
+ * ("0.00", never "-0.00"), the rule lib/stats/box-score.ts fmtFixed follows.
+ */
+export function formatEpaAverage(avg: number, decimals = 2): string {
+  const text = avg.toFixed(decimals);
+  return Number(text) === 0 ? (0).toFixed(decimals) : text;
 }
 
 /**

@@ -313,4 +313,43 @@ describe("GameLogTab — EPA colours against the league average", () => {
     expect(legend(container)).toContain("(0.23 per target)");
     expect(legend(container)).toContain("grey = within 0.06");
   });
+
+  it("legend never prints a signed zero (2023 QB dropback average -0.0013)", () => {
+    const { container } = render(
+      <GameLogTab weeklyStats={[{ ...base, week: 1, epa_per_target: 0.1 }]} position="WR" season={2023} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} epaAverage={-0.0013} />
+    );
+    expect(legend(container)).toContain("(0.00 per target)");
+    expect(legend(container)).not.toContain("-0.00");
+  });
+});
+
+// Chaos pass C20: a week whose EPA is null (all-NaN plays, stored NULL, parsed
+// to null) threw "Cannot read properties of null (reading 'toFixed')" in the
+// EPA sparkline and took the whole Game Log tab down.
+describe("GameLogTab — a week with no EPA", () => {
+  const nullEpa = null as unknown as number;
+  const rows: ReceiverWeeklyStat[] = [
+    { ...base, week: 1, epa_per_target: 0.3 },
+    { ...base, week: 2, epa_per_target: nullEpa },
+    { ...base, week: 3, epa_per_target: NaN },
+    { ...base, week: 4, epa_per_target: 0.1 },
+  ];
+
+  it("renders, prints a dash in the table, and leaves the week out of the EPA trend rather than plotting it as 0", () => {
+    const { container } = render(
+      <GameLogTab weeklyStats={rows} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} epaAverage={0.23} />
+    );
+    const headers = Array.from(container.querySelectorAll("thead th"));
+    const col = headers.findIndex((th) => (th.textContent ?? "").startsWith("EPA/Tgt"));
+    const cell = (week: number) =>
+      Array.from(container.querySelectorAll("tbody tr"))
+        .find((tr) => tr.querySelector("td")?.textContent === String(week))!
+        .querySelectorAll("td")[col];
+    expect(cell(2).textContent).toBe("—");
+    expect(cell(2).className).toContain("text-gray-400");
+    expect(cell(3).textContent).toBe("—");
+    const dots = Array.from(container.querySelectorAll("svg circle title")).map((t) => t.textContent);
+    expect(dots).toEqual(["Week 1: +0.30", "Week 4: +0.10"]);
+    expect(container.textContent).not.toMatch(/NaN|null|undefined/);
+  });
 });
