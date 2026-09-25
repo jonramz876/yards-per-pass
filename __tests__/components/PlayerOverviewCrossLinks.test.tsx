@@ -22,6 +22,7 @@ describe("PlayerOverviewWR team box", () => {
         stats={wr}
         allReceivers={RECEIVERS}
         season={2026}
+        defaultSeason={2026}
         teamId="BAL"
         teamQBData={{ player_id: "00-0034796", player_name: "L.Jackson", slug: "lamar-jackson", dropbacks: 70, passing_yards: 559, touchdowns: 2 }}
       />,
@@ -42,6 +43,7 @@ describe("PlayerOverviewQB team box", () => {
         stats={qb}
         allQBs={QBS}
         season={2025}
+        defaultSeason={2026}
         teamId="CIN"
         topReceivers={[
           { player_id: "00-0036900", player_name: "J.Chase", slug: "jamarr-chase", targets: 185, receptions: 125, receiving_yards: 1412, receiving_tds: 8 },

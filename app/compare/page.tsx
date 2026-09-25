@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: "Player Comparison",
   description:
     "Compare NFL players head-to-head with overlaid radar charts and stat breakdowns. EPA, CPOE, CROE, and 30+ metrics side by side.",
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com"}/compare` },
 };
 
 export default async function ComparePage({

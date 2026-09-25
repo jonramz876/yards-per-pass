@@ -11,6 +11,7 @@ import {
   EPA_BAND,
   EPA_AVERAGE_MIN_PLAYS,
 } from "@/lib/stats/formatters";
+import { playerHref } from "@/lib/utils";
 
 interface LeagueAvgStats {
   epa: number | null;
@@ -54,6 +55,9 @@ interface PlayerGapCardsProps {
   leagueRank: number | null;
   leagueAvg: LeagueAvgStats;
   slugMap?: Record<string, string>;
+  /** The viewed season. Links use this, never r.season: All-gaps rows carry season 0. */
+  season: number;
+  defaultSeason: number;
 }
 
 const GAP_LABELS: Record<string, string> = {
@@ -91,6 +95,8 @@ export default function PlayerGapCards({
   leagueRank,
   leagueAvg,
   slugMap = {},
+  season,
+  defaultSeason,
 }: PlayerGapCardsProps) {
   const [minCarries, setMinCarries] = useState(10);
 
@@ -284,7 +290,7 @@ export default function PlayerGapCards({
                 {/* Player name + carries */}
                 <div className="flex items-center justify-between mb-3">
                   <Link
-                    href={`/player/${slugMap[r.player_id] || r.player_id}`}
+                    href={playerHref(slugMap[r.player_id] || r.player_id, season, defaultSeason)}
                     className="font-bold text-sm text-navy hover:text-nflred hover:underline transition-colors"
                   >
                     {r.player_name}

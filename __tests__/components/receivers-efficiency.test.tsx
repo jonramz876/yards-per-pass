@@ -63,7 +63,7 @@ function renderBoard(data: ReceiverSeasonStat[], query: string, season = 2026) {
   nav.params = new URLSearchParams(query);
   return render(
     <TooltipProvider>
-      <ReceiverLeaderboard data={data} throughWeek={2} season={season} />
+      <ReceiverLeaderboard data={data} throughWeek={2} season={season} defaultSeason={2026} />
     </TooltipProvider>,
   );
 }

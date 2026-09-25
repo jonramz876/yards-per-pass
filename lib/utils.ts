@@ -25,3 +25,28 @@ export function parseNumericFields<T>(
   }
   return parsed as T;
 }
+
+/**
+ * The season a canonical URL should name, or null for the bare path. Parsed
+ * exactly as the season pages parse ?season= (parseInt), so the canonical
+ * names the season the page shows. Only a real season (in `seasons`, newest
+ * first) other than the newest gets a URL of its own: ?season=<newest> is the
+ * bare page, and junk or out-of-range values must not become URLs.
+ */
+export function canonicalSeason(seasonParam: string | undefined, seasons: number[]): number | null {
+  const parsed = seasonParam ? parseInt(seasonParam) : NaN;
+  if (Number.isNaN(parsed) || !seasons.includes(parsed) || parsed === seasons[0]) return null;
+  return parsed;
+}
+
+/**
+ * Link to a player page from a page showing `season`. Carries ?season= only
+ * when that differs from the default (newest) season, so default-season links
+ * stay the canonical bare URL. An unknown default still carries the season (a
+ * second URL for the right page beats a bare link to the wrong season). A
+ * non-positive or non-integer season never becomes a link.
+ */
+export function playerHref(slug: string, season?: number | null, defaultSeason?: number | null): string {
+  if (season == null || !Number.isInteger(season) || season <= 0 || season === defaultSeason) return `/player/${slug}`;
+  return `/player/${slug}?season=${season}`;
+}

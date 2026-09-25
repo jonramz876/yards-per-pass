@@ -4,6 +4,7 @@ import DashboardShell from "@/components/layout/DashboardShell";
 import QBLeaderboard from "@/components/tables/QBLeaderboard";
 import { getQBStats, getDataFreshness, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getAllPlayerSlugs } from "@/lib/data/players";
+import { canonicalSeason } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -13,11 +14,15 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
+  const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
+  const s = Number.isNaN(parsed) ? (seasons[0] ?? fallbackSeason()) : parsed;
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
+  const cs = canonicalSeason(season, seasons);
   return {
     title: `QB Rankings ${s}`,
     description: `NFL quarterback rankings by EPA, CPOE, success rate, and 10+ advanced metrics for the ${s} season.`,
+    alternates: { canonical: `${base}/qb-leaderboard${cs != null ? `?season=${cs}` : ""}` },
   };
 }
 
@@ -53,6 +58,7 @@ export default async function QBLeaderboardPage({
           data={qbStats}
           throughWeek={freshness?.through_week ?? 18}
           season={currentSeason}
+          defaultSeason={seasons[0] || fallbackSeason()}
           slugMap={slugMap}
         />
       )}

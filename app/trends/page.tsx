@@ -6,6 +6,7 @@ import DashboardShell from "@/components/layout/DashboardShell";
 import SurgeDetector from "@/components/trends/SurgeDetector";
 import type { PlayerSlug } from "@/lib/types";
 import type { WeeklyValue } from "@/lib/stats/surge";
+import { canonicalSeason } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -15,11 +16,15 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
+  const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
+  const s = Number.isNaN(parsed) ? (seasons[0] ?? fallbackSeason()) : parsed;
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
+  const cs = canonicalSeason(season, seasons);
   return {
     title: `Stat Surge Detector ${s}`,
     description: `Identify NFL players surging or collapsing based on z-score analysis of recent vs. season performance for the ${s} season.`,
+    alternates: { canonical: `${base}/trends${cs != null ? `?season=${cs}` : ""}` },
   };
 }
 
@@ -60,7 +65,12 @@ export default async function TrendsPage({
       currentSeason={currentSeason}
       freshness={freshness}
     >
-      <SurgeDetector surgeData={surgeData} stats={SURGE_STATS} />
+      <SurgeDetector
+        surgeData={surgeData}
+        stats={SURGE_STATS}
+        season={currentSeason}
+        defaultSeason={seasons[0] || fallbackSeason()}
+      />
     </DashboardShell>
   );
 }

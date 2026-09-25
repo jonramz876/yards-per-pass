@@ -20,6 +20,8 @@ interface RunGapDiagramProps {
   selectedGap: string | null;
   selectedOpp: string | null;
   season: number;
+  /** The site's default (newest) season: player links on it stay bare. */
+  defaultSeason: number;
   leagueAvgs: GapLeagueAvg[];
   teamGapEpas: TeamGapEpa[];
   defStats: DefGapStat[];
@@ -180,6 +182,7 @@ export default function RunGapDiagram({
   selectedGap,
   selectedOpp,
   season,
+  defaultSeason,
   leagueAvgs,
   teamGapEpas,
   defStats,
@@ -1030,6 +1033,8 @@ export default function RunGapDiagram({
               carries: leagueAvgByGap[selectedGap].carries,
             } : overallLeagueAvg}
             slugMap={slugMap}
+            season={season}
+            defaultSeason={defaultSeason}
           />
         </div>
       )}

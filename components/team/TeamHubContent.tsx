@@ -19,9 +19,12 @@ interface TeamHubContentProps {
   data: TeamHubData;
   /** Seasons with box scores — played tiles in them link to /game/<id> (spec §7). */
   boxScoreSeasons: number[];
+  /** The site's default (newest) season, from the page's own season list —
+   *  not data.seasons, which can lead with next season. */
+  defaultSeason: number;
 }
 
-export default function TeamHubContent({ team, data, boxScoreSeasons }: TeamHubContentProps) {
+export default function TeamHubContent({ team, data, boxScoreSeasons, defaultSeason }: TeamHubContentProps) {
   const breadcrumbs = [
     { label: "Team Tiers", href: "/teams" },
     { label: team.name },
@@ -75,6 +78,8 @@ export default function TeamHubContent({ team, data, boxScoreSeasons }: TeamHubC
           freshness={data.freshness}
           primaryColor={team.primaryColor}
           secondaryColor={team.secondaryColor}
+          season={data.currentSeason}
+          defaultSeason={defaultSeason}
         />
 
         <GroundGameSection
@@ -83,6 +88,7 @@ export default function TeamHubContent({ team, data, boxScoreSeasons }: TeamHubC
           slugMap={data.slugMap}
           allTeamStats={data.allTeamStats}
           season={data.currentSeason}
+          defaultSeason={defaultSeason}
           freshness={data.freshness}
           primaryColor={team.primaryColor}
           secondaryColor={team.secondaryColor}

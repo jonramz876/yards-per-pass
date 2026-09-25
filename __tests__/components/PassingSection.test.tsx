@@ -30,6 +30,8 @@ function renderSection(receivers: ReceiverSeasonStat[]) {
       freshness={null}
       primaryColor="#00338D"
       secondaryColor="#C60C30"
+      season={2026}
+      defaultSeason={2026}
     />,
   ).container;
 }

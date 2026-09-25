@@ -12,11 +12,14 @@ import { classifyQB } from "@/lib/stats/archetypes";
 import { QB_RADAR_KEYS, getQBRadarVal } from "@/lib/stats/radar";
 import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 import { formatStat, formatEpaAverage, epaVsAverageClass, qbEpaAverages, EPA_BAND } from "@/lib/stats/formatters";
+import { playerHref } from "@/lib/utils";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
   throughWeek: number;
   season: number;
+  /** The site's default (newest) season: player links on it stay bare. */
+  defaultSeason: number;
   slugMap?: Record<string, string>;
 }
 
@@ -173,7 +176,7 @@ function getVal(qb: QBSeasonStat, key: string): number {
 const INVERTED_COLS = new Set(["int_pct", "sack_pct"]);
 
 
-export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} }: QBLeaderboardProps) {
+export default function QBLeaderboard({ data, throughWeek, season, defaultSeason, slugMap = {} }: QBLeaderboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -635,7 +638,7 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(qb.team_id) }} />
                             <Link
-                              href={`/player/${slugMap[qb.player_id] || qb.player_id}`}
+                              href={playerHref(slugMap[qb.player_id] || qb.player_id, season, defaultSeason)}
                               className="font-semibold text-navy hover:text-nflred hover:underline transition-colors"
                             >
                               {qb.player_name}

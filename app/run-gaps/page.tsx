@@ -5,6 +5,7 @@ import { getAvailableSeasons, getDataFreshness, fallbackSeason } from "@/lib/dat
 import { getTeam } from "@/lib/data/teams";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 import DashboardShell from "@/components/layout/DashboardShell";
+import { canonicalSeason } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -38,12 +39,22 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string; team?: string }>;
 }): Promise<Metadata> {
   const { season, team } = await searchParams;
+  const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
+  const s = Number.isNaN(parsed) ? (seasons[0] ?? fallbackSeason()) : parsed;
   const teamName = team ? getTeam(team)?.name || team : "NFL";
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
+  // team then season: the order of the site's own link (TeamScatterPlot).
+  // gap/opp/situation/zone are view state over the same page and are dropped.
+  const qs = new URLSearchParams();
+  if (team && getTeam(team)) qs.set("team", team);
+  const cs = canonicalSeason(season, seasons);
+  if (cs != null) qs.set("season", String(cs));
+  const query = qs.toString();
   return {
     title: `${teamName} Run Gap Analysis ${s}`,
     description: `Rushing EPA broken down by offensive line gap for ${teamName}.`,
+    alternates: { canonical: `${base}/run-gaps${query ? `?${query}` : ""}` },
   };
 }
 
@@ -85,6 +96,7 @@ export default async function RunGapsPage({
           selectedGap={gap || null}
           selectedOpp={opp || null}
           season={currentSeason}
+          defaultSeason={seasons[0] || fallbackSeason()}
           leagueAvgs={leagueGapData.averages}
           teamGapEpas={leagueGapData.teamGapEpas}
           defStats={defStats}
