@@ -111,6 +111,17 @@ class RawPlays:
         return RawPlays.play(**row)
 
     @staticmethod
+    def spike(**overrides) -> pd.DataFrame:
+        """A QB1 spike to stop the clock, flagged as nflverse flags the real ones
+        (2026_01_NO_DET play 4759): pass_attempt = 1 but pass = 0 and qb_dropback = 0,
+        and junk air_yards."""
+        row = {'play_type': 'qb_spike', 'pass': 0.0, 'rush': 0.0, 'pass_attempt': 1.0, 'rush_attempt': 0.0,
+               'qb_dropback': 0.0, 'complete_pass': 0.0, 'yards_gained': 0.0, 'passing_yards': NAN,
+               'air_yards': -1.0, 'cpoe': NAN, 'epa': -0.2, 'success': 0.0, 'receiver_player_id': None}
+        row.update(overrides)
+        return RawPlays.play(**row)
+
+    @staticmethod
     def sack(yards_lost=7.0, **overrides) -> pd.DataFrame:
         """QB1 sacked for `yards_lost`: pass_attempt = 1 AND sack = 1, yards_gained negative."""
         row = {'sack': 1.0, 'complete_pass': 0.0, 'passing_yards': NAN, 'yards_gained': -float(yards_lost),

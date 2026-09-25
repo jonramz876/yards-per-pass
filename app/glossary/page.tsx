@@ -22,7 +22,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "EPA/Dropback (EPA/DB)",
     definition:
-      "EPA on passing plays only \u2014 pass attempts, sacks, and scrambles. Isolates arm talent from running ability.",
+      "EPA on passing plays only \u2014 pass attempts, sacks, and scrambles, but not spikes to stop the clock. Isolates arm talent from running ability.",
   },
   {
     term: "CPOE (Completion % Over Expected)",
@@ -43,7 +43,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "aDOT (Average Depth of Target)",
     definition:
-      "Average distance in yards a QB throws downfield. Higher = more aggressive. Computed on true pass attempts only (sacks and scrambles excluded).",
+      "Average distance in yards a QB throws downfield. Higher = more aggressive. Computed on true pass attempts only (sacks, scrambles and spikes excluded).",
   },
   {
     term: "Field Heat Map",
@@ -74,7 +74,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Dropback",
     definition:
-      "Any play where the QB drops back to pass. Includes pass attempts, sacks, and scrambles \u2014 basically everything that starts as a passing play.",
+      "Any play where the QB drops back to pass. Includes pass attempts, sacks, and scrambles \u2014 basically everything that starts as a passing play. A spike to stop the clock is not a dropback.",
   },
   {
     term: "Rush EPA",

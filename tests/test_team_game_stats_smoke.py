@@ -103,3 +103,44 @@ class TestWholeFile:
                 assert 3600 < seconds <= 3600 + 15 * 60, (game_id, seconds)
             else:
                 assert seconds == 3600, (game_id, seconds)
+
+
+@pytest.fixture(scope='module')
+def whole_file(full_pbp):
+    from ingest import aggregate_team_game_stats
+    return aggregate_team_game_stats(full_pbp, 2026)
+
+
+_THIRD = ('third_down_conv', 'third_down_att')
+_RZ = ('red_zone_tds', 'red_zone_trips')
+
+
+class TestEspnCountingRows:
+    """ESPN's week 1-2 2026 values for the 14 team-game cells the old 3rd-down and
+    red-zone rules got wrong (penalty-only first downs; snaps from the 20; FG-only
+    trips). If one fails on a fresh download, check whether nflverse revised the
+    play before changing code. A game missing from the file skips (the local
+    copy of 2026-09-21 lacks 2026_02_NYG_LA)."""
+
+    @pytest.mark.parametrize('game_id, team, cols, expected', [
+        ('2026_01_NE_SEA', 'NE', _THIRD, (5, 16)),
+        ('2026_01_GB_MIN', 'MIN', _THIRD, (8, 15)),
+        ('2026_01_MIA_LV', 'LV', _THIRD, (5, 13)),
+        ('2026_02_PIT_NE', 'NE', _THIRD, (4, 12)),
+        ('2026_02_GB_NYJ', 'NYJ', _THIRD, (8, 19)),
+        ('2026_02_SEA_ARI', 'SEA', _THIRD, (6, 13)),
+        ('2026_01_DAL_NYG', 'NYG', _RZ, (4, 4)),
+        ('2026_01_GB_MIN', 'MIN', _RZ, (4, 4)),
+        ('2026_01_MIA_LV', 'MIA', _RZ, (1, 3)),
+        ('2026_02_DET_BUF', 'DET', _RZ, (3, 4)),
+        ('2026_02_DET_BUF', 'BUF', _RZ, (5, 5)),
+        ('2026_02_GB_NYJ', 'GB', _RZ, (2, 4)),
+        ('2026_02_WAS_DAL', 'WAS', _RZ, (1, 3)),
+        ('2026_02_NYG_LA', 'LA', _RZ, (3, 3)),
+    ])
+    def test_matches_espn(self, whole_file, game_id, team, cols, expected):
+        row = whole_file[(whole_file['game_id'] == game_id) & (whole_file['team_id'] == team)]
+        if row.empty:
+            pytest.skip(f'{game_id} is not in this play-by-play file')
+        assert len(row) == 1
+        assert tuple(int(row.iloc[0][c]) for c in cols) == expected

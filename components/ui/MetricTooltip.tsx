@@ -11,7 +11,7 @@ export const METRIC_DEFINITIONS: Record<string, string> = {
   "EPA/Play":
     "Points added per play \u2014 the best single measure of QB impact. Covers passing and rushing. Above 0 = above average.",
   "EPA/DB":
-    "Points added per dropback (pass attempts + sacks + scrambles). Passing-only version of EPA \u2014 isolates arm talent from running ability.",
+    "Points added per dropback (pass attempts + sacks + scrambles; spikes to stop the clock excluded). Passing-only version of EPA \u2014 isolates arm talent from running ability.",
   CPOE: "How often a QB completes passes vs. what\u2019s expected given throw difficulty. +3 means completing 3% more than expected. Higher is better.",
   "Comp%":
     "Completions \u00f7 attempts. The raw completion rate \u2014 doesn\u2019t account for throw difficulty like CPOE does.",
