@@ -295,3 +295,18 @@ class TestProcessSeasonWiring:
             ingest.process_season(2026, None, dry_run=True)
         assert 'Team game stats: 6 rows (3 games)' in caplog.text
         assert not any(c[0].startswith(('upsert_', 'ensure_', 'cleanup_')) for c in calls)
+
+    def test_full_run_passes_spikes_to_both_qb_aggregators(self, monkeypatch, pbp_fixture):
+        """filter_plays drops spikes, so they reach the QB pass attempts only through
+        the spikes= keyword. If process_season stopped passing it, attempts would
+        silently revert — this pins the wiring (spec C, D4)."""
+        ingest, calls = self._wire(monkeypatch, pbp_fixture)
+        ingest.process_season(2026, _FakeConn())
+        for name in ('aggregate_qb_stats', 'aggregate_qb_weekly_stats'):
+            call = [c for c in calls if c[0] == name]
+            assert len(call) == 1, name
+            spikes = call[0][2]['spikes']
+            assert isinstance(spikes, pd.DataFrame), name
+            pairs = list(zip(spikes['game_id'], spikes['play_id']))
+            assert pairs == [('2026_01_NO_DET', 4759.0)], name   # the fixture's one spike
+            assert (spikes['play_type'] == 'qb_spike').all(), name

@@ -529,6 +529,42 @@ class TestTraditional:
         row = _one(raw, td)
         assert (row['third_down_att'], row['third_down_conv']) == (1, 1)
 
+    # A post-play personal foul after a snap that fell short: nflverse sets
+    # first_down (and first_down_penalty) but neither first_down_rush nor
+    # first_down_pass. ESPN does not count it as a conversion.
+    _PENALTY_FD = dict(down=3.0, first_down=1.0, first_down_penalty=1.0, penalty=1.0,
+                       penalty_team='BUF', penalty_yards=15.0)
+
+    @pytest.mark.parametrize('shape', ['scramble', 'incomplete', 'run'])
+    def test_penalty_only_first_down_is_not_a_conversion(self, raw, shape):
+        """ESPN week 1-2 2026: 2026_01_GB_MIN play 705 (Murray scrambles for 2, +15
+        unnecessary roughness; MIN 8-15, site said 9-15), 2026_01_MIA_LV play 959
+        (Cousins incomplete, +15 taunting; LV 5-13) and 2026_02_PIT_NE play 4019
+        (Kiner run for 2, +15 face mask; NE 4-12)."""
+        play = {
+            'scramble': lambda: raw.scramble(2.0, **self._PENALTY_FD),
+            'incomplete': lambda: raw.play(complete_pass=0.0, yards_gained=0.0, passing_yards=float('nan'),
+                                           **self._PENALTY_FD),
+            'run': lambda: raw.rush(2.0, **self._PENALTY_FD),
+        }[shape]()
+        row = _one(raw, play)
+        assert (row['third_down_att'], row['third_down_conv']) == (1, 0)
+        assert row['first_downs_penalty'] == 1   # still a first down in the first-downs rows
+
+    def test_penalty_only_first_down_on_fourth_down_is_not_a_conversion(self, raw):
+        """Fourth down reads the same conv column (no 2026 instance yet)."""
+        row = _one(raw, raw.rush(1.0, down=4.0, first_down=1.0, first_down_penalty=1.0, penalty=1.0,
+                                 penalty_team='BUF', penalty_yards=15.0))
+        assert (row['fourth_down_att'], row['fourth_down_conv']) == (1, 0)
+
+    def test_play_that_reaches_the_line_and_draws_a_flag_still_converts(self, raw):
+        """Guard: first_down_rush AND first_down_penalty both set (the golden HOU
+        3rd-and-2 run in BUF-HOU is one) is a conversion. Catches the rule
+        `first_down == 1 & first_down_penalty != 1`."""
+        row = _one(raw, raw.rush(6.0, down=3.0, first_down=1.0, first_down_rush=1.0, first_down_penalty=1.0,
+                                 penalty=1.0, penalty_team='BUF'))
+        assert (row['third_down_att'], row['third_down_conv']) == (1, 1)
+
 
 class TestRedZone:
     def test_trip_and_touchdown_are_drive_level(self, raw):
@@ -559,6 +595,54 @@ class TestRedZone:
     def test_two_point_try_is_not_a_trip(self, raw):
         two_pt = raw.play(drive=1.0, two_point_attempt=1.0, down=float('nan'), yardline_100=2.0, complete_pass=0.0, yards_gained=0.0, passing_yards=float('nan'))
         row = _one(raw, raw.play(drive=1.0, yardline_100=35.0, yards_gained=35.0, passing_yards=35.0, pass_touchdown=1.0, td_team='KC'), two_pt)
+        assert row['red_zone_trips'] == 0
+
+    @pytest.mark.parametrize('fg_yardline', [19.0, 8.0])
+    def test_field_goal_attempt_inside_the_20_is_a_trip(self, raw, fg_yardline):
+        """A drive whose only snap inside the 20 is the kick. 19: 2026_01_MIA_LV drive 7
+        (30-yard catch to the LV 19, FG; MIA 1-3 on ESPN). 8: 2026_02_GB_NYJ drive 24
+        (14-yard catch to the 8, FG; GB 2-4)."""
+        row = _one(raw, raw.play(drive=1.0, yardline_100=49.0, yards_gained=30.0, passing_yards=30.0),
+                   raw.kick('field_goal', drive=1.0, yardline_100=fg_yardline))
+        assert (row['red_zone_trips'], row['red_zone_tds']) == (1, 0)
+
+    def test_snap_from_exactly_the_20_is_not_a_trip(self, raw):
+        """2026_02_WAS_DAL drive 15: a TD pass from the DAL 20. ESPN: WAS 1-3 (site said 2-4)."""
+        row = _one(raw, raw.play(drive=1.0, yardline_100=20.0, yards_gained=20.0, passing_yards=20.0,
+                                 pass_touchdown=1.0, td_team='KC'),
+                   raw.kick('extra_point', drive=1.0, yardline_100=15.0))
+        assert (row['red_zone_trips'], row['red_zone_tds']) == (0, 0)
+
+    def test_kneels_from_the_20_are_not_a_trip(self, raw):
+        """2026_01_DAL_NYG NYG drive 14, 2026_02_DET_BUF BUF drive 18, 2026_02_NYG_LA LA's
+        last drive: kneels that start at the 20 and go backwards. ESPN counts none."""
+        row = _one(raw, raw.kneel(drive=1.0, down=1.0, yardline_100=20.0),
+                   raw.kneel(drive=1.0, down=2.0, yardline_100=21.0),
+                   raw.kneel(drive=1.0, down=3.0, yardline_100=22.0))
+        assert row['red_zone_trips'] == 0
+
+    def test_field_goal_from_the_20_is_not_a_trip(self, raw):
+        """2026_01_GB_MIN drive 5: last snaps and the FG from the GB 20 exactly. ESPN: MIN 4-4."""
+        row = _one(raw, raw.play(drive=1.0, yardline_100=25.0),
+                   raw.play(drive=1.0, down=3.0, yardline_100=20.0, complete_pass=0.0, yards_gained=0.0,
+                            passing_yards=float('nan')),
+                   raw.kick('field_goal', drive=1.0, yardline_100=20.0))
+        assert row['red_zone_trips'] == 0
+
+    def test_kneel_only_drive_inside_the_20_is_a_trip(self, raw):
+        """Guard: 2026_02_JAX_DEN DEN drive 18 (kneels from the 18) is a trip on ESPN
+        (DEN 2-5). Catches an 'ignore kneel-only trips' rule."""
+        row = _one(raw, raw.kneel(drive=1.0, yardline_100=18.0))
+        assert (row['red_zone_trips'], row['red_zone_tds']) == (1, 0)
+
+    def test_two_point_retry_after_a_wiped_try_is_not_a_trip(self, raw):
+        """Guard: 2026_02_NO_BAL NO drive 13 — TD from the 21, a flag wipes the 2-point
+        try, the retry runs from the 1. Catches dropping the two_point_attempt clause
+        or widening the trip rows to every offensive row."""
+        row = _one(raw, raw.play(drive=1.0, yardline_100=21.0, yards_gained=21.0, passing_yards=21.0,
+                                 pass_touchdown=1.0, td_team='KC'),
+                   raw.no_play(two_point_attempt=1.0, down=float('nan'), yardline_100=2.0, drive=1.0),
+                   raw.rush(2.0, two_point_attempt=1.0, down=float('nan'), yardline_100=1.0, drive=1.0))
         assert row['red_zone_trips'] == 0
 
 

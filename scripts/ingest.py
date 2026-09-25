@@ -239,6 +239,20 @@ def filter_plays(pbp: pd.DataFrame) -> pd.DataFrame:
     return filtered
 
 
+def filter_spikes(pbp: pd.DataFrame) -> pd.DataFrame:
+    """Regular-season spikes (play_type 'qb_spike'), 2-point tries excluded like
+    filter_plays. filter_plays drops them, and nflverse flags a spike
+    qb_dropback = 0, so the QB aggregators would never see one. Official stats
+    count a spike as an incomplete pass, so aggregate_qb_stats and
+    aggregate_qb_weekly_stats add these to pass attempts, and to nothing else."""
+    mask = (
+        (pbp['play_type'] == 'qb_spike') &
+        (pbp['season_type'] == 'REG') &
+        (pbp['two_point_attempt'] != 1)
+    )
+    return pbp[mask].copy()
+
+
 def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) -> pd.DataFrame:
     """Aggregate team-level season stats from filtered plays."""
     # Offensive stats
@@ -339,12 +353,16 @@ def aggregate_team_stats(plays: pd.DataFrame, pbp: pd.DataFrame, season: int) ->
     return team_stats
 
 
-def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int, spikes: pd.DataFrame | None = None) -> pd.DataFrame:
     """Aggregate QB season stats from filtered plays.
 
     Victory-formation kneeldowns are dropped here (see qb_plays below). This is
     a LOCAL filtered view — the caller's `plays` frame keeps its kneels, because
     the RB and team aggregators need them to match PFR.
+
+    `spikes` (filter_spikes output) adds each QB's spikes to pass attempts,
+    and so to Comp%, YPA, TD%, INT%, Sack%, ANY/A and passer rating; they stay
+    out of dropbacks, EPA, success rate, CPOE and aDOT.
     """
     # Identify QB player IDs from roster
     qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
@@ -420,6 +438,14 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     qb_drop = qb_drop.merge(pass_attempts, on='player_id', how='left')
     qb_drop['attempts'] = qb_drop['attempts'].fillna(0).astype(int)
 
+    # Spikes are official incomplete passes (filter_spikes). Attempts only: they
+    # are not dropbacks and carry no usable air yards or cp.
+    if spikes is not None and not spikes.empty:
+        spike_att = spikes.groupby('passer_player_id').size().reset_index(name='spike_attempts')
+        spike_att = spike_att.rename(columns={'passer_player_id': 'player_id'})
+        qb_drop = qb_drop.merge(spike_att, on='player_id', how='left')
+        qb_drop['attempts'] = qb_drop['attempts'] + qb_drop['spike_attempts'].fillna(0).astype(int)
+
     # Passing yards: use nflverse passing_yards column on true pass attempts only
     # Exclude sacks (pass_attempt==1 on sacks in nflverse) and scrambles
     actual_passes = dropbacks[(dropbacks['pass_attempt'] == 1) & (dropbacks['sack'] != 1)]
@@ -492,7 +518,13 @@ def aggregate_qb_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -
     # --- Fumble stats: attribute via fumbled_1_player_id (not passer/rusher grouping) ---
     # Critical: the `fumble` column marks ANY fumble on the play (including WR/RB).
     # Using passer_player_id grouping would wrongly charge receiver fumbles to the QB.
-    all_qb_plays = pd.concat([dropbacks, qb_rushes])
+    # Scrambles are in BOTH dropbacks (qb_dropback = 1) and qb_rushes
+    # (rush_attempt = 1), so concatenating those two counted a scramble fumble
+    # twice (Mayfield 2026: 4 lost, really 3). Same rule as
+    # aggregate_qb_weekly_stats, so the season total matches the Game Log's sum:
+    # dropbacks plus the QB's non-dropback carries.
+    designed_rushes = qb_plays[(qb_plays['rusher_player_id'].isin(qb_ids)) & (qb_plays['qb_dropback'] == 0)]
+    all_qb_plays = pd.concat([dropbacks, designed_rushes])
     qb_fumble_plays = all_qb_plays[
         all_qb_plays['fumbled_1_player_id'].isin(qb_ids)
     ]
@@ -1979,13 +2011,17 @@ def _get_game_week_map(plays: pd.DataFrame) -> dict:
     return plays.groupby('game_id')['week'].first().to_dict()
 
 
-def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int) -> pd.DataFrame:
+def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season: int, spikes: pd.DataFrame | None = None) -> pd.DataFrame:
     """Aggregate QB weekly (game-log) stats from filtered plays.
 
     Kneeldowns are dropped from the QB numbers exactly as in
     aggregate_qb_stats, so the Game Log's rush yards and fantasy points still
     sum to the season card above it. LOCAL view only — the caller's `plays`
     frame is never modified.
+
+    `spikes` (filter_spikes output) adds each QB's spikes to pass attempts,
+    and so to Comp%, YPA, TD%, INT%, Sack%, ANY/A and passer rating; they stay
+    out of dropbacks, EPA, success rate, CPOE and aDOT.
     """
     qb_ids = set(roster[roster['position'] == 'QB']['gsis_id'].dropna().unique())
 
@@ -2037,6 +2073,11 @@ def aggregate_qb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
     qb_game = qb_game.merge(pass_att, on=['passer_player_id', 'game_id'], how='left')
     for col in ['completions', 'attempts', 'passing_yards', 'touchdowns', 'interceptions']:
         qb_game[col] = qb_game[col].fillna(0).astype(int)
+
+    if spikes is not None and not spikes.empty:
+        spike_att = spikes.groupby(['passer_player_id', 'game_id']).size().reset_index(name='spike_attempts')
+        qb_game = qb_game.merge(spike_att, on=['passer_player_id', 'game_id'], how='left')
+        qb_game['attempts'] = qb_game['attempts'] + qb_game['spike_attempts'].fillna(0).astype(int)
 
     # aDOT per game
     adot_plays = dropbacks[
@@ -3533,9 +3574,14 @@ def _team_game_traditional(reg: pd.DataFrame) -> pd.DataFrame:
     )
 
     # 3rd / 4th down: snaps from scrimmage on that down (no_play excluded), a
-    # conversion when the play earned a first down (a TD counts).
+    # conversion when the PLAY gained the first down — first_down_rush or
+    # first_down_pass (nflverse sets them on touchdowns too). The bare
+    # first_down flag also fires on a penalty first down (a 2-yard scramble plus
+    # a 15-yard personal foul, 2026_01_GB_MIN play 705), which ESPN does not
+    # count as a conversion: 6 team-games in 2026 weeks 1-2. A play that reaches
+    # the line AND draws a flag still converts (first_down_rush is set).
     scrim = off[off['play_type'].isin(_SCRIMMAGE_PLAY_TYPES) & (off['two_point_attempt'] != 1)].copy()
-    scrim['conv'] = (scrim['first_down'] == 1).astype(int)
+    scrim['conv'] = ((scrim['first_down_rush'] == 1) | (scrim['first_down_pass'] == 1)).astype(int)
     downs = {}
     for down, prefix in ((3, 'third'), (4, 'fourth')):
         d = scrim[scrim['down'] == down].groupby(['game_id', 'posteam']).agg(
@@ -3545,10 +3591,18 @@ def _team_game_traditional(reg: pd.DataFrame) -> pd.DataFrame:
         downs[f'{prefix}_down_conv'] = d['conv']
     downs = pd.DataFrame(downs)
 
-    # Red zone is drive-level: a trip once any scrimmage snap starts inside the
-    # 20; a score when that drive ends in a TD by THIS team (td_team), so a
+    # Red zone is drive-level, ESPN's rule (checked on all 62 team-games of 2026
+    # weeks 1-2): a trip once a scrimmage snap OR a field-goal attempt starts
+    # INSIDE the 20. yardline_100 < 20, so a snap from the 20 itself is not one
+    # (WAS's TD pass from the DAL 20; kneels that start at the 20). The FG clause
+    # catches a drive whose only snap inside the 20 is the kick (MIA's FG from the
+    # LV 19 after a 30-yard catch). A kneel-only drive strictly inside the 20
+    # still counts (DEN, 2026_02_JAX_DEN). No 2-point tries, no no_play rows.
+    # A score when that drive ends in a TD by THIS team (td_team), so a
     # red-zone pick-six is not credited to the offence.
-    rz_drives = scrim[(scrim['yardline_100'] <= 20) & scrim['drive'].notna()][['game_id', 'posteam', 'drive']].drop_duplicates()
+    rz_plays = off[(off['play_type'].isin(_SCRIMMAGE_PLAY_TYPES) | (off['play_type'] == 'field_goal'))
+                   & (off['two_point_attempt'] != 1)]
+    rz_drives = rz_plays[(rz_plays['yardline_100'] < 20) & rz_plays['drive'].notna()][['game_id', 'posteam', 'drive']].drop_duplicates()
     td_drives = off[(off['td_team'] == off['posteam']) & off['drive'].notna()][['game_id', 'posteam', 'drive']].drop_duplicates()
     td_drives['rz_td'] = 1
     rz = rz_drives.merge(td_drives, on=['game_id', 'posteam', 'drive'], how='left')
@@ -4040,6 +4094,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     roster = download_roster(season)
     participation = download_participation(season)
     plays = filter_plays(pbp)
+    spikes = filter_spikes(pbp)
 
     # A non-empty file can still hold zero usable plays (preseason-only or non-REG rows);
     # through_week's int(max()) would crash on an empty frame
@@ -4049,14 +4104,14 @@ def process_season(season: int, conn, dry_run: bool = False):
         raise DataQualityError(f"PBP for {season} contains no usable regular-season plays. Aborting.")
 
     team_stats = aggregate_team_stats(plays, pbp, season)
-    qb_stats = aggregate_qb_stats(plays, roster, season)
+    qb_stats = aggregate_qb_stats(plays, roster, season, spikes=spikes)
     qb_pass_loc = aggregate_qb_pass_location_stats(plays, roster, season)
     rb_gap_stats = aggregate_rb_gap_stats(plays, season)
     rb_gap_stats_weekly = aggregate_rb_gap_stats_weekly(plays, season)
     def_gap_stats = aggregate_def_gap_stats(plays, season)
     receiver_stats = aggregate_receiver_stats(plays, roster, season, participation)
     rb_season_stats = aggregate_rb_season_stats(plays, roster, season)
-    qb_weekly = aggregate_qb_weekly_stats(plays, roster, season)
+    qb_weekly = aggregate_qb_weekly_stats(plays, roster, season, spikes=spikes)
     receiver_weekly = aggregate_receiver_weekly_stats(plays, roster, season, participation)
     rb_weekly = aggregate_rb_weekly_stats(plays, roster, season)
     dd_stats = aggregate_team_down_distance_stats(plays, season)
