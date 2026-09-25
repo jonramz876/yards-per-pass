@@ -12,6 +12,9 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
     ["1st down rate", "penalty-wiped plays included"],
     ["Explosive plays", "QB scrambles of 10+ yards count as explosive runs"],
     ["Toxic differential", "Turnover margin plus explosive-play margin"],
+    // Spec A §4.6: leaderboard entries whose old text was false.
+    ["Success%", "EPA above zero"],
+    ["Total EPA", "designed runs aren’t included"],
   ])("defines %s, and the popup a visitor opens says so", async (metric, fragment) => {
     render(
       <TooltipProvider delay={0}>
@@ -105,6 +108,49 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
     for (const key of EXPECTED) {
       expect(DEFINITION_TEXT[key]?.length ?? 0, `empty definition for "${key}"`).toBeGreaterThan(20);
     }
+  });
+
+  // Spec A §4.6 / T6: each entry below said something the code does not do.
+  // The paired pytest pins (tests/, spec A T13) tie the same sentences to
+  // scripts/ingest.py; these pin the text itself.
+  it.each(["EPA/Tgt", "EPA/Car", "EPA/Play", "Rush EPA"])(
+    "%s compares with the league average, not with zero",
+    (key) => {
+      const text = DEFINITION_TEXT[key];
+      expect(text).not.toMatch(/above 0 = above average|positive = above-average/i);
+      expect(text).toContain("league average");
+    },
+  );
+
+  it("Success% is the EPA flag, for QBs and running backs", () => {
+    const text = DEFINITION_TEXT["Success%"];
+    expect(text).toMatch(/EPA above zero/);
+    expect(text).toMatch(/sacks/);
+    expect(text).toMatch(/running backs/);
+    expect(text).not.toMatch(/gain enough yards|stay on schedule/);
+  });
+
+  it("Route% is the share of the team's dropbacks", () => {
+    const text = DEFINITION_TEXT["Route%"];
+    expect(text).toMatch(/team.{0,6}dropbacks/);
+    expect(text).not.toMatch(/when on the field|typically 80/);
+  });
+
+  it("YPRR and TPRR say what a route is", () => {
+    expect(DEFINITION_TEXT.YPRR).toMatch(/sacks and scrambles/);
+    expect(DEFINITION_TEXT.TPRR).toContain("as in YPRR");
+  });
+
+  it("Total EPA names its plays and leaves QB designed runs out", () => {
+    const text = DEFINITION_TEXT["Total EPA"];
+    expect(text).toMatch(/designed runs aren.t included/);
+    expect(text).not.toMatch(/across all plays/);
+  });
+
+  it("Recv SR% is about expected points, not moving the chains", () => {
+    const text = DEFINITION_TEXT["Recv SR%"];
+    expect(text).toContain("EPA above zero");
+    expect(text).not.toMatch(/move the chains/);
   });
 
   it("renders nothing for an unknown metric", () => {

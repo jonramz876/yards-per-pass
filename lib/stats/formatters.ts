@@ -6,6 +6,8 @@
  * helpers for common formatting patterns.
  */
 
+import type { QBSeasonStat, RBSeasonStat, ReceiverSeasonStat } from "@/lib/types";
+
 /** Format a rate (0–1) as a percentage string, e.g. 0.876 → "87.6%". */
 export function formatRate(val: number, decimals = 1): string {
   // isFinite, not isNaN: a rate of Infinity would otherwise render "Infinity%".
@@ -62,12 +64,125 @@ export function epaContrastColor(epa: number): string {
   return "#1f2937";
 }
 
+/* ─── Player EPA colour: against the season's league average ─── */
+//
+// A player's EPA is coloured against the league average for the same kind of
+// play that season, never against zero: the average running-back carry is
+// below zero (2026: about -0.10 EPA) and the average target well above it
+// (+0.23), so a sign split painted most backs red and most receivers green.
+// Used by the QB, RB and receiver leaderboards, the Game Log and the run-gap
+// player cards (spec A §4.1). The box score's player tables are uncoloured
+// until that page reads season averages (lib/stats/box-score.ts).
+
+/** Half-width of the grey "about average" band, in EPA per play. */
+export const EPA_BAND = { carry: 0.03, dropback: 0.03, play: 0.03, target: 0.06, qbRush: 0.06 } as const;
+
+/** Plays a season needs before its average is used (about half a normal week). */
+export const EPA_AVERAGE_MIN_PLAYS = { carry: 350, dropback: 600, play: 600, target: 500, qbRush: 60 } as const;
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === "number" && Number.isFinite(v);
+}
+
 /**
- * EPA text color for leaderboard tables (no neutral band).
- * Simple positive/negative/zero split — used by QB, RB, Receiver leaderboards.
+ * Σ(rate × volume) / Σ volume over rows whose rate is finite and volume > 0;
+ * null when Σ volume < minPlays (or no rows). Never NaN.
  */
-export function epaLeaderboardColor(val: number): string {
-  return val > 0 ? "text-green-600" : val < 0 ? "text-red-600" : "text-gray-700";
+export function leagueEpaAverage<T>(
+  rows: T[],
+  rate: (r: T) => number | null | undefined,
+  volume: (r: T) => number | null | undefined,
+  minPlays: number,
+): number | null {
+  let sum = 0;
+  let plays = 0;
+  for (const row of rows ?? []) {
+    const x = rate(row);
+    const n = volume(row);
+    if (!isFiniteNumber(x) || !isFiniteNumber(n) || n <= 0) continue;
+    sum += x * n;
+    plays += n;
+  }
+  if (plays <= 0 || plays < minPlays) return null;
+  const avg = sum / plays;
+  return Number.isFinite(avg) ? avg : null;
+}
+
+/** League EPA per RB carry: epa_per_carry weighted by carries, every row of rb_season_stats. */
+export function rbCarryEpaAverage(rbs: RBSeasonStat[]): number | null {
+  return leagueEpaAverage(rbs, (r) => r.epa_per_carry, (r) => r.carries, EPA_AVERAGE_MIN_PLAYS.carry);
+}
+
+/** League EPA per target: epa_per_target weighted by targets, every row (WR, TE, RB, FB). */
+export function targetEpaAverage(recs: ReceiverSeasonStat[]): number | null {
+  return leagueEpaAverage(recs, (r) => r.epa_per_target, (r) => r.targets, EPA_AVERAGE_MIN_PLAYS.target);
+}
+
+/**
+ * QB play count behind epa_per_play: dropbacks + rushes − scrambles (a scramble
+ * is both). scramble_pct is 0–100; a missing rate counts as no scrambles, as in
+ * lib/stats/tecmo-card.ts.
+ */
+function qbPlays(q: QBSeasonStat): number {
+  const scramblePct = isFiniteNumber(q.scramble_pct) ? q.scramble_pct : 0;
+  return q.dropbacks + q.rush_attempts - (scramblePct / 100) * q.dropbacks;
+}
+
+/** League QB averages: per dropback (EPA/DB, Total EPA), per play (EPA/Play), per QB rush (Rush EPA). */
+export function qbEpaAverages(qbs: QBSeasonStat[]): {
+  dropback: number | null;
+  play: number | null;
+  qbRush: number | null;
+} {
+  return {
+    dropback: leagueEpaAverage(qbs, (q) => q.epa_per_db, (q) => q.dropbacks, EPA_AVERAGE_MIN_PLAYS.dropback),
+    play: leagueEpaAverage(qbs, (q) => q.epa_per_play, qbPlays, EPA_AVERAGE_MIN_PLAYS.play),
+    qbRush: leagueEpaAverage(qbs, (q) => q.rush_epa_per_play, (q) => q.rush_attempts, EPA_AVERAGE_MIN_PLAYS.qbRush),
+  };
+}
+
+/**
+ * Float slack for the band edges, so a value exactly `band` from the average
+ * (e.g. -0.13 against -0.10 ± 0.03, which is -0.030000000000000013 in
+ * floating point) stays grey as the rule says.
+ */
+const BAND_EPSILON = 1e-9;
+
+/**
+ * Text colour for a player EPA rate against the league average.
+ * Not a finite number → grey-400 (the dash); no average yet → grey-700 (no
+ * colour); more than `band` above → green; more than `band` below → red;
+ * otherwise, boundaries included → grey-700.
+ *
+ * Both numbers are compared AS DISPLAYED: rounded to `decimals`, the precision
+ * the cell and its legend print (2 on the leaderboards and the Game Log, 3 on
+ * the run-gap cards), through the same toFixed. So a cell reading 0.29 under a
+ * legend reading 0.23 is grey when the legend says "grey = within 0.06",
+ * whatever the unrounded values were.
+ */
+export function epaVsAverageClass(
+  value: number | null | undefined,
+  average: number | null | undefined,
+  band: number,
+  decimals = 2,
+): string {
+  if (!isFiniteNumber(value)) return "text-gray-400";
+  if (!isFiniteNumber(average)) return "text-gray-700";
+  const shown = (x: number) => Number(x.toFixed(decimals));
+  const diff = shown(value) - shown(average);
+  if (diff > band + BAND_EPSILON) return "text-green-600";
+  if (diff < -band - BAND_EPSILON) return "text-red-600";
+  return "text-gray-700";
+}
+
+/**
+ * A league average for a legend, to `decimals` places as the cells print it
+ * (hyphen minus, like formatStat). A value that rounds to zero prints unsigned
+ * ("0.00", never "-0.00"), the rule lib/stats/box-score.ts fmtFixed follows.
+ */
+export function formatEpaAverage(avg: number, decimals = 2): string {
+  const text = avg.toFixed(decimals);
+  return Number(text) === 0 ? (0).toFixed(decimals) : text;
 }
 
 /**

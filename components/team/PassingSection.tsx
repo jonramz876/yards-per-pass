@@ -136,6 +136,13 @@ export default function PassingSection({
               ))}
             </tbody>
           </table>
+          {/* Every YPRR is a dash when the season has no nflverse
+              participation file (routes_run is NULL only then). */}
+          {sortedReceivers.every((r) => r.routes_run == null) && (
+            <p className="mt-2 text-xs text-gray-500">
+              YPRR shows &ldquo;&mdash;&rdquo; for {sortedReceivers[0].season}: nflverse hasn&rsquo;t published full {sortedReceivers[0].season} participation data (who was on the field for each play).
+            </p>
+          )}
         </div>
       )}
 

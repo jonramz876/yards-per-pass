@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
 import { isCardPosition } from "@/lib/stats/tecmo-card";
+import { qbEpaAverages, targetEpaAverage, rbCarryEpaAverage } from "@/lib/stats/formatters";
 import PlayerHeader from "./PlayerHeader";
 import PlayerOverviewQB from "./PlayerOverviewQB";
 import PlayerOverviewWR from "./PlayerOverviewWR";
@@ -202,6 +203,18 @@ export default function PlayerPageContent({
       typedWeekly = weeklyStats as RBWeeklyStat[];
     }
 
+    // The Game Log colours each game's EPA against the season's league
+    // average for this position's kind of play; allPlayers is the season's
+    // full, unfiltered pool.
+    const epaAverage =
+      position === "QB"
+        ? qbEpaAverages(allPlayers as QBSeasonStat[]).dropback
+        : position === "WR" || position === "TE"
+          ? targetEpaAverage(allPlayers as ReceiverSeasonStat[])
+          : position === "RB" || position === "FB"
+            ? rbCarryEpaAverage(allPlayers as RBSeasonStat[])
+            : null;
+
     return (
       <GameLogTab
         weeklyStats={typedWeekly}
@@ -210,6 +223,7 @@ export default function PlayerPageContent({
         teamId={player.current_team_id}
         gameResults={gameResults}
         boxScoreSeasons={boxScoreSeasons}
+        epaAverage={epaAverage}
       />
     );
   }
@@ -237,6 +251,17 @@ export default function PlayerPageContent({
           </button>
         ))}
       </div>
+
+      {/* Why the route stats are dashes (Overview card tiles, Game Log Routes):
+          routes_run is NULL only when the season had no nflverse
+          participation file; with one, ingest stores 0 for no routes. */}
+      {(position === "WR" || position === "TE") &&
+        (seasonStats as ReceiverSeasonStat[])[0] != null &&
+        (seasonStats as ReceiverSeasonStat[])[0].routes_run == null && (
+          <p className="mb-4 text-xs text-gray-500">
+            Snap %, routes and YPRR show &ldquo;&mdash;&rdquo; for {season}: nflverse hasn&rsquo;t published full {season} participation data (who was on the field for each play).
+          </p>
+        )}
 
       {/* Tab content */}
       {activeTab === "overview"

@@ -9,7 +9,7 @@ import type { RBGapStat, RBGapStatWeekly, DefGapStat } from "@/lib/types";
 import type { GapLeagueAvg, TeamGapEpa } from "@/lib/data/run-gaps";
 import { getTeam } from "@/lib/data/teams";
 import { epaColor } from "@/lib/stats/formatters";
-import PlayerGapCards from "./PlayerGapCards";
+import PlayerGapCards, { allRunsLeagueAvg } from "./PlayerGapCards";
 import GapBarChart from "./GapBarChart";
 
 interface RunGapDiagramProps {
@@ -336,26 +336,10 @@ export default function RunGapDiagram({
     return map;
   }, [leagueAvgs]);
 
-  // Overall league averages across all gaps (for "All Runs" mode)
-  const overallLeagueAvg = useMemo(() => {
-    if (leagueAvgs.length === 0) return { epa: null as number | null, yards: null as number | null, success: null as number | null, stuff: null as number | null, explosive: null as number | null };
-    const count = leagueAvgs.length;
-    const sums = { epa: 0, yards: 0, success: 0, stuff: 0, explosive: 0 };
-    for (const la of leagueAvgs) {
-      sums.epa += la.avg_epa;
-      sums.yards += la.avg_yards;
-      sums.success += la.avg_success;
-      sums.stuff += la.avg_stuff;
-      sums.explosive += la.avg_explosive;
-    }
-    return {
-      epa: sums.epa / count,
-      yards: sums.yards / count,
-      success: sums.success / count,
-      stuff: sums.stuff / count,
-      explosive: sums.explosive / count,
-    };
-  }, [leagueAvgs]);
+  // Overall league averages across all gaps (for "All Runs" mode): each gap
+  // weighted by its carries, so the baseline is the league per-carry figure,
+  // not a plain mean of seven gap averages.
+  const overallLeagueAvg = useMemo(() => allRunsLeagueAvg(leagueAvgs), [leagueAvgs]);
 
   const oppTeam = selectedOpp ? getTeam(selectedOpp) : null;
   const isMatchupMode = !!selectedOpp && Object.keys(oppDefGaps).length > 0;
@@ -1043,6 +1027,7 @@ export default function RunGapDiagram({
               success: leagueAvgByGap[selectedGap].avg_success,
               stuff: leagueAvgByGap[selectedGap].avg_stuff,
               explosive: leagueAvgByGap[selectedGap].avg_explosive,
+              carries: leagueAvgByGap[selectedGap].carries,
             } : overallLeagueAvg}
             slugMap={slugMap}
           />

@@ -9,6 +9,8 @@ vi.mock("next/navigation", () => ({
 
 import PlayerHeader from "@/components/player/PlayerHeader";
 import PlayerPageContent from "@/components/player/PlayerPageContent";
+import { rbCarryEpaAverage, formatStat } from "@/lib/stats/formatters";
+import type { RBSeasonStat } from "@/lib/types";
 
 const mahomes = {
   player_id: "00-0033873",
@@ -123,5 +125,42 @@ describe("PlayerPageContent → PlayerHeader hasCard wiring", () => {
   it("empty position string → hidden", () => {
     const { container } = renderContent(mahomes, "", [{ player_id: mahomes.player_id }]);
     expect(container.querySelector('a[href^="/card/"]')).toBeNull();
+  });
+});
+
+// Spec A §4.4 (T10): the Game Log's EPA colours use the season average of the
+// player's own kind of play, computed from the page's full season pool.
+describe("PlayerPageContent → GameLogTab epaAverage wiring", () => {
+  const cook = { ...mahomes, player_id: "00-0038545", slug: "james-cook", player_name: "James Cook", position: "RB", current_team_id: "BUF" };
+  const week1 = {
+    player_id: cook.player_id, season: 2026, week: 1, team_id: "BUF", opponent_id: "HOU", home_away: "away",
+    result: "W", team_score: 30, opponent_score: 20, carries: 13, rushing_yards: 57, rushing_tds: 0,
+    epa_per_carry: -0.01, success_rate: 0.38, yards_per_carry: 4.4, stuff_rate: 0.2, explosive_rate: 0.1,
+    targets: 2, receptions: 2, receiving_yards: 10, receiving_tds: 0, fumbles: 0, fumbles_lost: 0,
+  };
+
+  it("RB: the average passed is rbCarryEpaAverage(allPlayers)", () => {
+    // (-0.06 x 200 + -0.12 x 200) / 400 = -0.09
+    const pool = [
+      { player_id: "a", epa_per_carry: -0.06, carries: 200 },
+      { player_id: "b", epa_per_carry: -0.12, carries: 200 },
+    ];
+    const expected = rbCarryEpaAverage(pool as unknown as RBSeasonStat[]);
+    expect(expected).toBeCloseTo(-0.09, 12);
+    const { container } = render(
+      <PlayerPageContent
+        player={cook}
+        seasonStats={[{ player_id: cook.player_id }]}
+        weeklyStats={[week1]}
+        allPlayers={pool}
+        season={2026}
+        seasons={SEASONS}
+        position="RB"
+        tab="game-log"
+        gameResults={{}}
+        boxScoreSeasons={[]}
+      />,
+    );
+    expect(container.textContent).toContain(`2026 league average (${formatStat("epa_per_carry", expected!)} per running-back carry)`);
   });
 });

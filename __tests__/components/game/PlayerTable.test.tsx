@@ -26,19 +26,22 @@ describe("PlayerTable", () => {
     expect(order).toEqual(["BUF", "00-0038545", "00-0034857", "00-0039352", "00-0039354", "HOU", "00-0036212", "00-0039916", "00-0039163"]);
   });
 
-  it("links names to player pages with a position tag, colours EPA cells, scrolls sideways", () => {
+  it("links names to player pages with a position tag, prints EPA plainly, scrolls sideways", () => {
     const { container } = render(<PlayerTable model={rushing} />);
     const cook = container.querySelector('[data-player-id="00-0038545"]')!;
     expect(cook.querySelector("a")?.getAttribute("href")).toBe("/player/james-cook");
     expect(cook.querySelector("a")?.textContent).toBe("James Cook");
     expect(cook.querySelector("td")?.textContent).toBe("James CookRB");
     expect(Array.from(cook.querySelectorAll("td")).slice(1).map((td) => td.textContent)).toEqual(["13", "57", "0", "4.4", `${M}0.01`, "38%"]);
-    // The leaderboards' sign split, not the team band: Cook's −0.01 EPA/CAR
-    // is red here and red on the RB leaderboard.
-    expect(cook.querySelectorAll("td")[5].className).toContain("text-red-600");
+    // Spec A D2f: no sign colour. Cook's −0.01 EPA/CAR was red, though the
+    // average carry is about −0.10; until the page reads season averages,
+    // player EPA is plain text.
+    for (const player of ["00-0038545", "00-0034857"]) {
+      const cls = container.querySelector(`[data-player-id="${player}"]`)!.querySelectorAll("td")[5].className;
+      expect(cls, player).toContain("text-gray-900");
+      expect(cls, player).not.toMatch(/text-(red|green)-/);
+    }
     expect(cook.querySelectorAll("td")[1].className).toContain("text-gray-900");
-    const allen = container.querySelector('[data-player-id="00-0034857"]')!;
-    expect(allen.querySelectorAll("td")[5].className).toContain("text-red-600");
     expect(container.querySelector("table")?.parentElement?.className).toContain("overflow-x-auto");
   });
 
@@ -69,9 +72,8 @@ describe("PlayerTable", () => {
   // `cell.epa != null ? …` would render a null EPA in near-black with nothing
   // failing. Same class as the 2026-09-11 crash the spec names.
   //
-  // The real-number case is the leaderboards' colour now, not the team band's:
-  // −0.01 is red here exactly as it is on the RB leaderboard.
-  it("renders a null or NaN EPA grey, and a real one in the leaderboards' colour", () => {
+  // The real-number case is plain text now (spec A D2f), not a sign colour.
+  it("renders a null or NaN EPA grey, and a real one as plain text", () => {
     const row = (id: string, name: string, epaCell: PlayerCell, ypc: string) => ({
       player_id: id, name, position: "RB", slug: null,
       cells: [{ text: "13" }, { text: "57" }, { text: "0" }, { text: ypc }, epaCell, { text: "38%" }] as PlayerCell[],
@@ -96,8 +98,8 @@ describe("PlayerTable", () => {
       expect(epaClass(id), id).not.toContain("amber");
       expect(epaClass(id), id).not.toContain("text-gray-900");
     }
-    expect(epaClass("p-real")).toContain("text-red-600");
-    expect(epaClass("p-real")).not.toContain("amber");
+    expect(epaClass("p-real")).toContain("text-gray-900");
+    expect(epaClass("p-real")).not.toMatch(/text-(red|green)-|amber/);
     // This model carries the numeric cells the guard below needs; it used to
     // run against two empty teams, where no formatting path could produce the
     // words it looks for.

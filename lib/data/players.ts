@@ -130,7 +130,7 @@ export async function getRBWeeklyStats(
   );
 }
 
-/** Fetch top receivers on a team for a given season (for QB "Throws To" cross-link). */
+/** Fetch top receivers on a team for a given season (for the QB page's "Team's Top Receivers" box: season totals from every QB). */
 export async function getTeamTopReceivers(
   teamId: string,
   season: number,
@@ -162,7 +162,7 @@ export async function getTeamTopReceivers(
   }));
 }
 
-/** Fetch the starting QB on a team for a given season (for WR "Catches From" cross-link). */
+/** Fetch the starting QB on a team for a given season (for the WR/TE page's "Team QB" box: his season passing line, every team). */
 export async function getTeamStartingQB(
   teamId: string,
   season: number

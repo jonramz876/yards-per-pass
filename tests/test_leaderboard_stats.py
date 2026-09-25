@@ -720,3 +720,191 @@ class TestQBSeasonKneelExclusion:
         aggregate_qb_stats(plays, make_roster('QB1', 'QB'), 2025)
         assert len(plays) == before
         assert (plays['play_type'] == 'qb_kneel').sum() == 4
+
+
+# --- Spec A T13: definitions bound to the code they describe ---
+#
+# Each test below does both halves in one function: (1) runs the aggregator on a
+# small frame and asserts the behaviour, and (2) reads the visitor-facing
+# sentence that describes it straight from the .tsx source and asserts it is
+# there. A code change without a wording change, or a wording change without a
+# code change, fails the same test. The mutation each one must catch is named in
+# its docstring. test_weekly_stats.py and test_receiver_stats.py import these
+# helpers.
+
+import html
+import re
+
+_REPO_ROOT = os.path.join(os.path.dirname(__file__), '..')
+
+
+def _source(rel_path):
+    with open(os.path.join(_REPO_ROOT, rel_path), encoding='utf-8') as f:
+        return f.read()
+
+
+def _decode_js(text):
+    """Decode \\uXXXX escapes in a JS string literal to the characters shown."""
+    return re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), text)
+
+
+def tooltip_text(key):
+    """METRIC_DEFINITIONS[key] from components/ui/MetricTooltip.tsx."""
+    src = _source('components/ui/MetricTooltip.tsx')
+    m = re.search(
+        r'(?m)^\s*(?:"' + re.escape(key) + r'"|' + re.escape(key) + r')\s*:\s*"((?:[^"\\]|\\.)*)"', src
+    )
+    assert m, f'MetricTooltip entry {key!r} not found'
+    return _decode_js(m.group(1))
+
+
+def glossary_text(term):
+    """The definition of the glossary entry whose term is exactly `term`."""
+    src = _source('app/glossary/page.tsx')
+    m = re.search(
+        r'term:\s*"' + re.escape(term) + r'",\s*(?:id:\s*"[^"]*",\s*)?definition:\s*"((?:[^"\\]|\\.)*)"', src
+    )
+    assert m, f'glossary entry {term!r} not found'
+    return _decode_js(m.group(1))
+
+
+def footnote_text(rel_path, label):
+    """The footnote text after `<span ...>label</span>` in a leaderboard's
+    footnote block, up to the end of its <p>, tags stripped and HTML entities
+    decoded."""
+    src = _source(rel_path)
+    marker = '>' + label + '</span>'
+    hits = [line for line in src.splitlines() if marker in line and '<p>' in line]
+    assert len(hits) == 1, f'{rel_path}: expected one footnote for {label!r}, found {len(hits)}'
+    after = hits[0].split(marker, 1)[1].split('</p>', 1)[0]
+    return html.unescape(re.sub(r'<[^>]+>', '', after))
+
+
+class TestDefinitionsMatchCode:
+    """Spec A T13 (review I2): behaviour + wording, one test each."""
+
+    def test_qb_total_epa_is_dropback_epa_only(self):
+        """total_epa leaves designed runs out; EPA/play keeps them.
+
+        Mutation: add rush EPA to total_epa (ingest.py `qb_stats['total_epa'] =`)."""
+        from ingest import aggregate_qb_stats
+        # 20 dropbacks at 0.3 EPA + 3 designed runs at 0.4 EPA
+        result = aggregate_qb_stats(TestQBSeasonKneelExclusion._control(), make_roster('QB1', 'QB'), 2025)
+        row = result.iloc[0]
+        assert row['total_epa'] == pytest.approx(6.0)
+        assert row['epa_per_play'] == pytest.approx(7.2 / 23)
+        assert 'designed runs aren’t included' in tooltip_text('Total EPA')
+        assert 'designed runs aren’t included' in glossary_text('Total EPA')
+
+    def test_qb_season_success_is_the_flag_without_sacks(self):
+        """Season QB success = mean nflverse `success` over non-sack dropbacks.
+
+        Mutation: use `dropbacks` instead of `non_sack_dropbacks` for success_rate."""
+        from ingest import aggregate_qb_stats
+        plays = pd.concat([
+            make_qb_plays(n=2),
+            # 1 yard on 3rd-and-10: a yardage rule calls it a failure; the flag says success.
+            make_qb_plays(n=1, down=3, ydstogo=10, yards_gained=1.0, passing_yards=1.0),
+            make_qb_plays(n=1, sack=1, complete_pass=0, passing_yards=0.0, yards_gained=-7.0,
+                          success=0, epa=-1.2, receiver_player_id=None, air_yards=None, cpoe=None),
+        ], ignore_index=True)
+        result = aggregate_qb_stats(plays, make_roster('QB1', 'QB'), 2025)
+        assert result.iloc[0]['success_rate'] == pytest.approx(1.0)
+        assert 'dropbacks other than sacks' in tooltip_text('Success%')
+        assert 'EPA above zero' in tooltip_text('Success%')
+        assert 'leaves sacks out' in glossary_text('Success Rate')
+
+    def test_rb_success_is_the_flag(self):
+        """RB success = mean nflverse `success` (EPA > 0), not a yardage rule.
+
+        Mutations: compute success_rate from yards_gained in aggregate_rb_season_stats
+        with a yards-to-go rule (PFR-style 40%/60%/100% of the distance, or simply
+        gained >= to go) or a fixed yardage; each gives a different rate here."""
+        from ingest import aggregate_rb_season_stats
+        base = {
+            'rusher_player_id': 'RB1', 'rusher_player_name': 'Test RB', 'posteam': 'KC', 'defteam': 'BUF',
+            'rush_attempt': 1, 'play_type': 'run', 'qb_dropback': 0, 'qb_scramble': 0,
+            'rushing_yards': 2.0, 'rush_touchdown': 0, 'epa': 0.1, 'success': 1, 'yards_gained': 2.0,
+            'game_id': 'GAME1', 'season': 2025, 'week': 1, 'fumble': 0, 'fumble_lost': 0,
+            'fumbled_1_player_id': None, 'season_type': 'REG', 'two_point_attempt': 0,
+            'run_location': None, 'run_gap': None, 'down': 3, 'ydstogo': 1,
+            # Columns the receiving half of the aggregator reads (as TestRBTotalEPA).
+            'passer_player_id': None, 'passer_player_name': None,
+            'receiver_player_id': None, 'receiver_player_name': None,
+            'pass_attempt': 0, 'complete_pass': 0, 'pass_touchdown': 0, 'interception': 0,
+            'sack': 0, 'cpoe': None, 'cp': None, 'passing_yards': 0, 'air_yards': None,
+            'receiving_yards': None, 'yards_after_catch': None, 'home_team': 'KC', 'away_team': 'BUF',
+            'result': 7, 'total_home_score': 24, 'total_away_score': 17,
+        }
+        # The flag and every yardage rule disagree on this frame (review I2):
+        #   a 2-yard and a 5-yard carry on 3rd-and-1, success=1 (the 2-yarder
+        #     fails a fixed 4-yard rule);
+        #   a 6-yarder on 1st-and-10, success=0: 60% of the distance, a success
+        #     under a 40%-on-first-down rule;
+        #   a 6-yarder on 2nd-and-5, success=0: past the sticks, a success
+        #     under any yards-to-go rule.
+        # Flag: 2/4. PFR 40/60/100: 4/4. Gained >= to go: 3/4. Gained >= 4: 3/4.
+        no_gain = {'success': 0, 'epa': -0.05, 'yards_gained': 6.0, 'rushing_yards': 6.0}
+        plays = pd.DataFrame([
+            base,
+            {**base, 'yards_gained': 5.0, 'rushing_yards': 5.0},
+            {**base, **no_gain, 'down': 1, 'ydstogo': 10},
+            {**base, **no_gain, 'down': 2, 'ydstogo': 5},
+        ])
+        roster = pd.DataFrame([{'gsis_id': 'RB1', 'position': 'RB'}])
+        result = aggregate_rb_season_stats(plays, roster, 2025)
+        assert result.iloc[0]['success_rate'] == pytest.approx(2 / 4)
+        note = footnote_text('components/tables/RBLeaderboard.tsx', 'Success%')
+        assert 'EPA above zero' in note
+        assert 'stay on schedule' not in note
+
+    def test_receiving_success_rate_is_the_flag_over_targets(self):
+        """Recv SR% = mean `success` over targets.
+
+        Mutation: compute receiving_success_rate from anything but `success`
+        (e.g. completions)."""
+        from ingest import aggregate_receiver_stats
+        incomplete = dict(complete_pass=0, receiving_yards=0.0, yards_gained=0.0)
+        plays = pd.concat([
+            make_receiver_plays(success=1, epa=0.4),
+            # A catch that lost expected points: completed, not a success.
+            make_receiver_plays(success=0, epa=-0.2, receiving_yards=1.0, yards_gained=1.0),
+            # Incomplete but EPA-positive (flag says success; catch rate 2/4).
+            make_receiver_plays(success=1, epa=0.1, **incomplete),
+            make_receiver_plays(success=1, epa=0.05, **incomplete),
+        ], ignore_index=True)
+        result = aggregate_receiver_stats(plays, pd.DataFrame([{'gsis_id': 'WR1', 'position': 'WR'}]), 2025)
+        assert result.iloc[0]['receiving_success_rate'] == pytest.approx(3 / 4)
+        text = tooltip_text('Recv SR%')
+        assert 'EPA above zero' in text
+        assert 'move the chains' not in text
+
+    def test_team_tiers_pass_rate_and_off_epa(self):
+        """Team Tiers: pass_rate = (pass attempts - sacks) / plays; off_epa_play
+        over the plays filter_plays keeps (kneel kept, no_play dropped).
+
+        Mutations: count sacks as passes in pass_rate; add 'no_play' to filter_plays."""
+        from ingest import filter_plays, aggregate_team_stats
+        base = {
+            'game_id': 'GAME1', 'season': 2025, 'season_type': 'REG', 'two_point_attempt': 0,
+            'posteam': 'KC', 'defteam': 'BUF', 'home_team': 'KC', 'away_team': 'BUF', 'result': 7,
+            'play_type': 'pass', 'pass_attempt': 1, 'rush_attempt': 0, 'sack': 0,
+            'interception': 0, 'fumble_lost': 0, 'epa': 0.5, 'success': 1,
+        }
+        pbp = pd.DataFrame([
+            base,
+            {**base, 'epa': 0.3},
+            {**base, 'sack': 1, 'epa': -1.0, 'success': 0},                                   # sack
+            {**base, 'play_type': 'run', 'pass_attempt': 0, 'rush_attempt': 1, 'epa': 0.2},  # run
+            {**base, 'play_type': 'qb_kneel', 'pass_attempt': 0, 'rush_attempt': 1, 'epa': -0.5, 'success': 0},
+            {**base, 'play_type': 'no_play', 'pass_attempt': 0, 'epa': 2.0},                  # penalty-wiped
+        ])
+        plays = filter_plays(pbp)
+        team = aggregate_team_stats(plays, pbp, 2025)
+        kc = team[team['team_id'] == 'KC'].iloc[0]
+        assert kc['plays'] == 5
+        assert kc['pass_rate'] == pytest.approx(2 / 5)
+        assert kc['off_epa_play'] == pytest.approx((0.5 + 0.3 - 1.0 + 0.2 - 0.5) / 5)
+        assert 'Sacks count as plays but not as passes' in glossary_text('Pass Rate')
+        assert 'kneel-downs count as plays' in glossary_text('Pass Rate')
+        assert 'wiped out by a penalty are left out' in glossary_text('Off EPA/Play')

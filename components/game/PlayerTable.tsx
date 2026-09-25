@@ -2,8 +2,9 @@
 // spec §6): a PASSING / RUSHING / RECEIVING band, a sub-header row per team
 // (team-colour square + abbreviation, "· 28 team targets" on Receiving), the
 // away team's rows first. Names link to player pages with a small grey
-// position tag; EPA cells take the leaderboards' colour rule with null / NaN
-// in grey. The table scrolls sideways in its own container on phones.
+// position tag; EPA cells are plain text until the page reads season averages
+// (spec A D2f), with null / NaN in grey. The table scrolls sideways in its own
+// container on phones.
 import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { epaPlayerCellClass, type PlayerTableModel } from "@/lib/stats/box-score";

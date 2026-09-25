@@ -53,11 +53,13 @@ export default function PlayerOverviewWR({
         jerseyNumber={jerseyNumber}
       />
 
-      {/* Team context: QB */}
+      {/* Team context: the team's main QB and his season passing line (every
+          team he played for) — not what this receiver caught from him; no
+          stored table pairs passers with receivers. */}
       {teamQBData && (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Catches From
+            Team QB
           </h3>
           <div className="flex items-center justify-between text-sm">
             {teamQBData.slug ? (
@@ -68,7 +70,7 @@ export default function PlayerOverviewWR({
               <span className="text-gray-700 font-medium">{teamQBData.player_name}</span>
             )}
             <span className="text-gray-400 text-xs tabular-nums">
-              {teamQBData.passing_yards} yds &middot; {teamQBData.touchdowns} TD
+              {teamQBData.passing_yards} pass yds &middot; {teamQBData.touchdowns} pass TD in {season}, all teams
             </span>
           </div>
         </div>

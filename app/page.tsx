@@ -8,6 +8,7 @@ import { hasScheduleForSeason } from "@/lib/data/games";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { getTeam } from "@/lib/data/teams";
 import TecmoStandings from "@/components/team/TecmoStandings";
+import { seasonHasRouteData } from "@/lib/stats/radar";
 import type { TeamSeasonStat, PlayerSlug, ReceiverSeasonStat } from "@/lib/types";
 
 export const revalidate = 3600;
@@ -152,11 +153,9 @@ export default async function HomePage() {
   // data), so a partial participation file does not rank just the teams it
   // covers. The ranking itself still takes only a YPRR > 0.
   // (nflverse publishes no participation feed for 2026: routes_run is null.)
+  // (lib/stats/radar.ts seasonHasRouteData: shared with /receivers' Efficiency tab.)
   const targetQualified = receiverStats.filter((r) => Number.isFinite(r.targets) && r.targets >= minTargets);
-  const withRoutes = targetQualified.filter(
-    (r) => Number.isFinite(r.routes_run) && r.routes_run > 0 && Number.isFinite(r.yards_per_route_run),
-  ).length;
-  const hasRouteData = targetQualified.length > 0 && withRoutes * 10 >= targetQualified.length * 9;
+  const hasRouteData = seasonHasRouteData(receiverStats, minTargets);
   const recValue = (r: ReceiverSeasonStat) => (hasRouteData ? r.yards_per_route_run : r.epa_per_target);
   const recLeaders = targetQualified
     .filter((r) => Number.isFinite(recValue(r)) && (!hasRouteData || recValue(r) > 0))

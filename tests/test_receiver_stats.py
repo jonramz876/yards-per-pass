@@ -677,3 +677,98 @@ class TestUpsertReceiverParticipationNulls:
         upsert_receiver_stats(_FakeConn(), aggregate_receiver_stats(plays, make_roster(), 2026, None))
         for col in self.PARTICIPATION_COLS:
             assert f"{col} = EXCLUDED.{col}" in captured['sql']
+
+
+# --- Spec A T13: route and snap definitions, bound to the code ---
+
+class TestRouteDefinitionsMatchCode:
+    """Each test runs aggregate_receiver_stats and checks the visitor-facing
+    sentence that describes the result (tooltip, glossary or footnote)."""
+
+    def test_snaps_count_runs_and_passes_only(self):
+        """A WR on the field for a pass, a run, a kneel and a penalty-wiped play
+        has 2 snaps.
+
+        Mutation: widen the offensive_plays play_type filter (e.g. add
+        'qb_kneel' or 'no_play')."""
+        from ingest import aggregate_receiver_stats
+        from test_leaderboard_stats import glossary_text
+        pass_play = make_plays(game_id='GAME1')
+        pass_play['play_id'] = [0]
+        not_targeted = dict(receiver_player_id=None, pass_attempt=0, qb_dropback=0, complete_pass=0,
+                            receiving_yards=0, air_yards=0, yards_after_catch=0, epa=0.1)
+        run = make_plays(game_id='GAME1', play_type='run', **not_targeted)
+        run['play_id'] = [1]
+        kneel = make_plays(game_id='GAME1', play_type='qb_kneel', **not_targeted)
+        kneel['play_id'] = [2]
+        wiped = make_plays(game_id='GAME1', play_type='no_play', **not_targeted)
+        wiped['play_id'] = [3]
+        plays = pd.concat([pass_play, run, kneel, wiped], ignore_index=True)
+        participation = pd.concat([make_participation(player_ids='WR1', play_id=i) for i in range(4)],
+                                  ignore_index=True)
+        result = aggregate_receiver_stats(plays, make_roster(), 2025, participation)
+        assert result.iloc[0]['total_snaps'] == 2
+        assert 'Plays wiped out by a penalty, kneel-downs' in glossary_text('Snap Count')
+
+    def test_a_sack_is_not_a_route(self):
+        """On the field for a completion and a sack: 1 route.
+
+        Mutation: drop `sack != 1` from the routes pass_plays filter."""
+        from ingest import aggregate_receiver_stats
+        from test_leaderboard_stats import glossary_text, tooltip_text
+        target = make_plays(game_id='GAME1')
+        target['play_id'] = [0]
+        sack = make_plays(game_id='GAME1', receiver_player_id=None, sack=1, complete_pass=0,
+                          receiving_yards=0, air_yards=0, yards_after_catch=0, epa=-1.5)
+        sack['play_id'] = [1]
+        plays = pd.concat([target, sack], ignore_index=True)
+        participation = pd.concat([make_participation(play_id=0), make_participation(play_id=1)],
+                                  ignore_index=True)
+        result = aggregate_receiver_stats(plays, make_roster(), 2025, participation)
+        assert result.iloc[0]['routes_run'] == 1
+        assert 'sacks and scrambles' in tooltip_text('YPRR')
+        assert 'sacks and scrambles' in glossary_text('YPRR (Yards Per Route Run)')
+
+    def test_route_share_is_team_dropbacks(self):
+        """test_route_participation_rate's frame: on the field for all 3 plays,
+        2 of them dropbacks -> 1.0 (dropbacks / team dropbacks), not 2/3.
+
+        Mutation: divide by the team's total snaps instead of its dropbacks."""
+        from ingest import aggregate_receiver_stats
+        from test_leaderboard_stats import footnote_text, tooltip_text
+        pass1 = make_plays(game_id='GAME1', complete_pass=1)
+        pass1['play_id'] = [0]
+        pass2 = make_plays(game_id='GAME1', complete_pass=0, receiving_yards=0)
+        pass2['play_id'] = [1]
+        run = make_plays(game_id='GAME1', receiver_player_id=None, pass_attempt=0,
+                         play_type='run', qb_dropback=0, complete_pass=0, receiving_yards=0, air_yards=0,
+                         yards_after_catch=0, epa=0.1, pass_touchdown=0)
+        run['play_id'] = [2]
+        plays = pd.concat([pass1, pass2, run], ignore_index=True)
+        participation = pd.concat([make_participation(player_ids='WR1', play_id=i) for i in range(3)],
+                                  ignore_index=True)
+        result = aggregate_receiver_stats(plays, make_roster(), 2025, participation)
+        assert result.iloc[0]['route_participation_rate'] == pytest.approx(1.0)
+        assert 'dropbacks' in tooltip_text('Route%')
+        assert 'dropbacks' in footnote_text('components/tables/ReceiverLeaderboard.tsx', 'Route%')
+
+    def test_target_share_is_over_team_targets(self):
+        """test_target_share's frame: 2 of the team's 3 targets -> 2/3. A sack
+        (a pass attempt in nflverse) does not enter the denominator.
+
+        Mutation: divide by team pass attempts (sacks included)."""
+        from ingest import aggregate_receiver_stats
+        from test_leaderboard_stats import footnote_text
+        plays = pd.concat([
+            make_plays(receiver_player_id='WR1', receiver_player_name='WR One', posteam='KC'),
+            make_plays(receiver_player_id='WR1', receiver_player_name='WR One', posteam='KC'),
+            make_plays(receiver_player_id='WR2', receiver_player_name='WR Two', posteam='KC'),
+            make_plays(receiver_player_id=None, posteam='KC', sack=1, complete_pass=0, receiving_yards=0),
+        ], ignore_index=True)
+        roster = pd.DataFrame([{'gsis_id': 'WR1', 'position': 'WR'}, {'gsis_id': 'WR2', 'position': 'WR'}])
+        result = aggregate_receiver_stats(plays, roster, 2025)
+        wr1 = result[result['player_id'] == 'WR1'].iloc[0]
+        assert wr1['target_share'] == pytest.approx(2 / 3)
+        note = footnote_text('components/tables/ReceiverLeaderboard.tsx', 'Tgt Share')
+        assert 'team targets' in note
+        assert 'pass attempts' not in note

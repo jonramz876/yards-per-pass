@@ -12,12 +12,12 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
     section: "Core Stats",
     term: "EPA (Expected Points Added)",
     definition:
-      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Above 0 = above average.",
+      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Positive means the play added expected points \u2014 but zero is not the league average: the average pass target is worth well above zero and the average running-back carry below it. Where a player\u2019s EPA number is printed in green or red text \u2014 the leaderboards with the heatmap off, the Game Log table, the run-gap player cards \u2014 it is compared with that season\u2019s league average for the same kind of play, not with zero; grey means close to average. The leaderboard heatmap instead shades each player against the other qualified players.",
   },
   {
     term: "EPA/Play",
     definition:
-      "EPA averaged across all plays (passing + rushing). The single best measure of a QB\u2019s total impact.",
+      "EPA averaged over a quarterback\u2019s dropbacks and designed runs (kneel-downs left out). The single best measure of a QB\u2019s total impact.",
   },
   {
     term: "EPA/Dropback (EPA/DB)",
@@ -32,7 +32,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Success Rate",
     definition:
-      "How often a play generates positive EPA (Expected Points Added > 0). This is the nflverse EPA-based definition, which may differ slightly from PFR\u2019s yardage-based formula (40%/50%/100% of needed yards). QB success rate on this site excludes sacks from the denominator.",
+      "How often a play generates positive EPA (Expected Points Added > 0) \u2014 nflverse\u2019s success flag, not a yards-to-go rule, so it can differ from yardage-based success rates such as Pro Football Reference\u2019s. QB success rate from season totals (leaderboards, player cards, team pages) leaves sacks out of the denominator; box score passing lines count them.",
   },
   {
     term: "First Downs (Box Score)",
@@ -79,7 +79,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Rush EPA",
     definition:
-      "EPA per rush attempt for a QB. Includes designed runs and scrambles, excludes kneels. Positive = above-average rushing.",
+      "EPA per rush attempt for a QB. Includes designed runs and scrambles, excludes kneels. The average QB rush is worth well above zero, so compare a quarterback with other quarterbacks, not with zero.",
   },
   {
     term: "Run Gap",
@@ -104,7 +104,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "EPA/Carry",
     definition:
-      "Expected Points Added per rushing attempt. Measures how much each carry changes a team\u2019s scoring chances. Positive = above-average efficiency on the ground.",
+      "Expected Points Added per rushing attempt. Measures how much each carry changes a team\u2019s scoring chances. The average running-back carry is worth less than zero, so a back at 0.00 is above average.",
   },
   {
     term: "Fumbles Lost (FL)",
@@ -114,7 +114,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Off EPA/Play",
     definition:
-      "Offensive EPA per play for a team. Measures how efficiently an offense generates expected points. Positive = above average.",
+      "Offensive EPA per play for a team, over its runs, passes and kneel-downs; plays wiped out by a penalty are left out (the box score counts them, so a team\u2019s figure there can differ). Positive = the offense added expected points. The league average is close to zero, but not exactly zero.",
   },
   {
     term: "Def EPA/Play",
@@ -124,7 +124,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Pass Rate",
     definition:
-      "Percentage of plays where a team chooses to pass. Influenced by game script (teams trailing pass more).",
+      "On Team Tiers: pass attempts as a share of all of a team\u2019s plays. Sacks count as plays but not as passes, and kneel-downs count as plays. The situation table on a team\u2019s page counts differently \u2014 sacks as passes, kneel-downs left out \u2014 so its figure runs higher. Influenced by game script (teams trailing pass more).",
   },
   {
     term: "Yards Per Target (Y/Tgt)",
@@ -144,23 +144,23 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   },
   {
     term: "YPRR (Yards Per Route Run)",
-    definition: "Receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted. A top-tier efficiency metric that removes volume bias \u2014 a receiver running 50 routes who gains 75 yards is more efficient than one running 150 routes for 100 yards.",
+    definition: "Receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted. A top-tier efficiency metric that removes volume bias \u2014 a receiver running 50 routes who gains 75 yards is more efficient than one running 150 routes for 100 yards. A route here is any pass thrown while the player was on the field \u2014 sacks and scrambles don\u2019t count, and neither do spikes \u2014 so a back or tight end who stayed in to block still gets one. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "TPRR (Targets Per Route Run)",
-    definition: "Targets divided by routes run. Measures how often a quarterback looks at a receiver on each route they run. High TPRR indicates a receiver who commands attention from the offense regardless of overall target volume.",
+    definition: "Targets divided by routes run. Measures how often a quarterback looks at a receiver on each route they run. High TPRR indicates a receiver who commands attention from the offense regardless of overall target volume. Routes are counted as in YPRR. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "Snap Count",
-    definition: "Total offensive plays a player was on the field for. Derived from play-by-play participation data \u2014 counts all play types (passes, runs, penalties). Does not include special teams snaps.",
+    definition: "Total offensive plays a player was on the field for: runs and passes, sacks and scrambles included. Plays wiped out by a penalty, kneel-downs, spikes and two-point tries aren\u2019t counted, and neither are special teams snaps. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "Snap Share (Snap%)",
-    definition: "Player\u2019s offensive snap count divided by their team\u2019s total offensive snaps. A snap share of 85% means the player was on the field for 85% of the team\u2019s offensive plays. The primary measure of a receiver\u2019s playing time.",
+    definition: "Player\u2019s offensive snap count divided by their team\u2019s total offensive snaps. A snap share of 85% means the player was on the field for 85% of the team\u2019s offensive plays. The primary measure of a receiver\u2019s playing time. For a player traded mid-season, his main team only. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "Route Participation Rate (Route%)",
-    definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks.",
+    definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks. For a player traded mid-season, his main team only. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   { term: "DB/Game (Dropbacks per Game)", id: "db-game",
     definition: "Dropbacks divided by games played. Measures a QB\u2019s passing volume on a per-game basis. Used as the Volume axis on QB radar charts." },
@@ -212,7 +212,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Total EPA",
     id: "total-epa",
-    definition: "The raw sum of EPA across all plays. Unlike EPA/play or EPA/target, this is volume-based \u2014 more plays means a higher total. Measures overall impact rather than per-play efficiency. A QB with 50 Total EPA had more total impact than one with 30, even if the latter had better EPA/play.",
+    definition: "The raw sum of EPA over one kind of play: dropbacks for a quarterback (the same plays as EPA/Dropback, so designed runs aren\u2019t included), carries for a running back, targets for a receiver. Unlike EPA/play or EPA/target, it is volume-based \u2014 more plays means a bigger total, up or down. It measures overall impact rather than per-play efficiency.",
   },
   {
     term: "Total Touches (TCH)",
@@ -232,12 +232,17 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
     definition: "A rating shown on the player card, on a Madden-style scale: an average qualified starter sits in the high 70s, a good starter in the mid 80s, and the best seasons in the league reach the mid 90s, topping out at 99. QB: OVR measures how well he played when he played. Half of it is per-play quality \u2014 EPA/dropback, ANY/A, CPOE, success rate, plus rushing efficiency for quarterbacks who actually run (it counts in proportion to how often they carry the ball). The other half is per-game production \u2014 EPA, yards, and touchdowns per game, passing and rushing combined \u2014 so a great half season is graded on how he played, not on how long he was available. Short seasons are still pulled toward league average. WR/TE and RB: per-play quality (regressed toward average at low volume) blended 50/50 with season production. WR/TE quality is EPA/target, CROE, yards per route run, and receiving success rate, with production from total receiving EPA and yards. RB quality is EPA/carry, success rate, stuff avoidance, and explosive rate, with production from total rushing EPA and yards. Style metrics (like aDOT and YAC per reception) appear on the card but do not affect OVR. Metrics a player has no data for are left out of the average rather than counted against him. Players below the per-game qualifying threshold (QB 14 attempts, WR/TE 2 targets, RB 6 carries per game) show \u201c\u2014\u201d instead of a score. RB OVR currently measures rushing only.",
   },
   // --- QB Archetypes ---
-  { section: "QB Archetypes", term: "Complete Passer (QB Archetype)", id: "complete-passer",
-    definition: "A quarterback with 4+ radar axes at the 70th percentile or above. Elite across EPA/DB, CPOE, DB/Game, aDOT, INT%, and Success%." },
+  // In the order lib/stats/archetypes.ts classifyQB checks them: first match wins.
+  { section: "QB Archetypes", term: "Dual Threat (QB Archetype)", id: "dual-threat",
+    definition: "Elite rushing QB who also produces through the air. Defined by Rush EPA \u2265 80th, EPA/DB \u2265 50th, and 4+ axes \u2265 60th. A true dual-threat weapon." },
+  { term: "Mobile Playmaker (QB Archetype)", id: "mobile-playmaker",
+    definition: "Extends plays and creates with his legs. Defined by Rush EPA \u2265 70th, EPA/DB \u2265 55th, and DB/Game \u2265 50th \u2014 unless he also has CPOE \u2265 70th and Success% \u2265 65th, in which case the archetypes below are checked instead. Dangerous in and out of the pocket." },
+  { term: "Complete Passer (QB Archetype)", id: "complete-passer",
+    definition: "A quarterback with 4+ of the 7 radar axes at the 70th percentile or above and none below the 30th. The axes: EPA/DB, CPOE, DB/Game, aDOT, Ball Security (few interceptions per attempt), Success%, and Rush EPA. On the radar, the Rush EPA axis is shrunk toward zero for quarterbacks with fewer than 60 rushes (fully counted at 60), so a few big scrambles can\u2019t make a runner elite." },
   { term: "Playmaker (QB Archetype)", id: "playmaker",
     definition: "A high-efficiency, high-volume quarterback who drives the offense. Defined by EPA/DB \u2265 70th, DB/Game \u2265 70th, and Success% \u2265 60th percentile." },
   { term: "Gunslinger (QB Archetype)", id: "gunslinger",
-    definition: "Pushes the ball downfield with aggression. Defined by aDOT \u2265 65th, DB/Game \u2265 55th, and INT% \u2264 45th. Trades turnovers for big plays." },
+    definition: "Pushes the ball downfield with aggression. Defined by aDOT \u2265 65th, DB/Game \u2265 55th, and Ball Security \u2264 45th. Trades turnovers for big plays." },
   { term: "Surgeon (QB Archetype)", id: "surgeon",
     definition: "Precise and consistent passer. Defined by CPOE \u2265 70th, Success% \u2265 65th, and EPA/DB \u2265 55th. Picks apart defenses without forcing throws." },
   { term: "Distributor (QB Archetype)", id: "distributor",
@@ -245,32 +250,28 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   { term: "Volume Passer (QB Archetype)", id: "volume-passer",
     definition: "Throws at an extremely high rate with solid efficiency. Defined by DB/Game \u2265 80th and EPA/DB \u2265 50th percentile." },
   { term: "Game Manager (QB Archetype)", id: "game-manager",
-    definition: "Protects the football and avoids mistakes. Defined by Success% \u2265 65th, INT% \u2265 65th, and DB/Game \u2264 45th." },
-  { term: "Dual Threat (QB Archetype)", id: "dual-threat",
-    definition: "Elite rushing QB who also produces through the air. Defined by Rush EPA \u2265 80th, EPA/DB \u2265 60th, and 4+ axes \u2265 60th. A true dual-threat weapon." },
-  { term: "Mobile Playmaker (QB Archetype)", id: "mobile-playmaker",
-    definition: "Extends plays and creates with his legs. Defined by Rush EPA \u2265 65th, EPA/DB \u2265 60th, and DB/Game \u2265 55th. Dangerous in and out of the pocket." },
+    definition: "Protects the football and avoids mistakes. Defined by Success% \u2265 65th, Ball Security \u2265 65th, and DB/Game \u2264 45th." },
   { term: "Sniper (QB Archetype)", id: "sniper",
-    definition: "Accurate deep passer who protects the football. Defined by aDOT \u2265 65th, INT% \u2265 65th, and Rush EPA < 75th. Pushes the ball downfield without turning it over." },
+    definition: "Accurate deep passer who protects the football. Defined by aDOT \u2265 65th, Ball Security \u2265 65th, CPOE \u2265 40th, and Rush EPA < 75th. Pushes the ball downfield without turning it over." },
   { term: "Improviser (QB Archetype)", id: "improviser",
     definition: "Creates plays outside of structure. Defined by EPA/DB \u2265 65th, 3+ axes \u2265 60th, and CPOE \u2264 50th. High EPA despite inconsistent accuracy." },
   { term: "Pocket Passer (QB Archetype)", id: "pocket-passer",
-    definition: "Traditional pocket quarterback with no single elite dimension. Fallback archetype for QBs who have at least one axis above the 60th percentile but don\u2019t match any specialized archetype." },
+    definition: "Traditional pocket quarterback with no single elite dimension. Fallback for QBs with at least one axis at or above the 60th percentile who match none of the archetypes above. Archetypes are checked in the order listed on this page, and a player gets the first one he matches." },
   // --- WR Archetypes ---
   { section: "WR Archetypes", term: "Alpha WR1 (WR Archetype)", id: "alpha-wr1",
-    definition: "Dominant number-one receiver. Defined by 4+ radar axes \u2265 70th and Tgt/Game \u2265 65th. Commands targets and produces at an elite level." },
+    definition: "Dominant number-one receiver. Defined by 4+ of the six radar axes (Tgt/Game, EPA/Tgt, CROE, aDOT, YAC/Rec, YPRR) \u2265 70th, Tgt/Game \u2265 65th, and no axis below the 30th \u2014 or, for the highest-volume receivers, Tgt/Game \u2265 80th with 3+ axes \u2265 70th, 4+ axes \u2265 60th, and at most one axis below the 30th. Commands targets and produces at an elite level." },
   { term: "Contested Catch WR (WR Archetype)", id: "contested-catch-wr",
-    definition: "Wins downfield and at the catch point. Defined by aDOT \u2265 65th and Catch% \u2265 60th. High depth of target with reliable hands." },
+    definition: "Wins downfield and at the catch point. Defined by aDOT \u2265 65th and CROE \u2265 60th. High depth of target with reliable hands." },
   { term: "YAC Monster (WR Archetype)", id: "yac-monster",
-    definition: "Dangerous after the catch. Defined by YAC/Rec \u2265 75th and aDOT \u2264 50th. Turns short throws into big gains." },
+    definition: "Dangerous after the catch. Defined by YAC/Rec \u2265 75th, aDOT \u2264 40th, and Tgt/Game \u2264 75th \u2014 or, checked after Playmaker, YAC/Rec \u2265 80th and aDOT \u2264 50th. Turns short throws into big gains." },
   { term: "Target Magnet (WR Archetype)", id: "target-magnet",
-    definition: "Commands an elite target share. Defined by Tgt/Game \u2265 80th percentile. The offense runs through this receiver regardless of per-target efficiency." },
+    definition: "Commands an elite target share. Defined by Tgt/Game \u2265 78th percentile and 2+ axes \u2265 60th (Tgt/Game counts as one). The offense runs through this receiver regardless of per-target efficiency." },
   { term: "Field Stretcher (WR Archetype)", id: "field-stretcher",
-    definition: "Stretches the field vertically. Defined by aDOT \u2265 75th and Catch% \u2264 50th. Trades catch rate for chunk plays." },
+    definition: "Stretches the field vertically. Defined by aDOT \u2265 75th and CROE \u2264 50th. Trades catch rate for chunk plays." },
   { term: "Route Technician (WR Archetype)", id: "route-technician",
     definition: "Wins with precision route-running, generating consistent production per route. Defined by YPRR \u2265 70th, Tgt/G \u2265 55th, and 3+ axes \u2265 60th." },
   { term: "Possession Receiver (WR Archetype)", id: "possession-receiver",
-    definition: "Reliable hands and route precision. Defined by Catch% \u2265 70th, YPRR \u2265 60th, and aDOT \u2264 45th." },
+    definition: "Reliable hands and route precision. Defined by CROE \u2265 70th, YPRR \u2265 60th, and aDOT \u2264 45th." },
   { term: "Deep Threat (WR Archetype)", id: "deep-threat",
     definition: "Pure vertical threat. Defined by aDOT \u2265 80th percentile. Lives on deep routes." },
   { term: "Efficient Producer (WR Archetype)", id: "efficient-producer",
@@ -278,10 +279,10 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   { term: "Playmaker (WR Archetype)", id: "playmaker-wr",
     definition: "Creates big plays through efficiency and after-catch ability. Defined by EPA/Tgt \u2265 65th, YAC/Rec \u2265 65th, and 3+ axes \u2265 60th." },
   { term: "Role Player (WR Archetype)", id: "role-player-wr",
-    definition: "Contributes in a defined role without an elite dimension. Fallback archetype for WRs who have at least one axis above the 60th percentile but don\u2019t match any specialized archetype." },
+    definition: "Contributes in a defined role without an elite dimension. Fallback for WRs with at least one axis at or above the 60th percentile who match none of the archetypes above (checked in the order listed)." },
   // --- TE Archetypes ---
   { section: "TE Archetypes", term: "Elite TE1 (TE Archetype)", id: "elite-te1",
-    definition: "Dominant tight end with 4+ radar axes at the 70th percentile (among TEs) and Tgt/Game \u2265 60th. Elite receiving production across volume, efficiency, and consistency." },
+    definition: "Dominant tight end. Defined by 4+ of the six radar axes (Tgt/Game, EPA/Tgt, CROE, aDOT, YAC/Rec, YPRR) at the 70th percentile or above among TEs, Tgt/Game \u2265 60th, and no axis below the 30th \u2014 or Tgt/Game \u2265 90th with EPA/Tgt \u2265 65th, 3+ axes \u2265 70th, and 4+ axes \u2265 60th. Elite receiving production across volume, efficiency, and consistency." },
   { term: "Mismatch TE (TE Archetype)", id: "mismatch-te",
     definition: "High-efficiency pass catcher who creates mismatches. Defined by EPA/Tgt \u2265 70th and CROE \u2265 60th (among TEs) with Tgt/Game \u2265 40th. Elite per-target production regardless of volume." },
   { term: "Seam Stretcher (TE Archetype)", id: "seam-stretcher",
@@ -289,7 +290,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   { term: "YAC Weapon (TE Archetype)", id: "yac-weapon-te",
     definition: "Dangerous after the catch. Defined by YAC/Rec \u2265 70th (among TEs) and aDOT \u2264 55th. Turns short targets into chunk gains." },
   { term: "Security Blanket (TE Archetype)", id: "security-blanket",
-    definition: "Reliable short-area target. Defined by Catch% \u2265 70th (among TEs) and Tgt/Game \u2265 55th. The QB\u2019s safety valve." },
+    definition: "Reliable short-area target. Defined by CROE \u2265 70th (among TEs) and Tgt/Game \u2265 55th. The QB\u2019s safety valve." },
   { term: "Move TE (TE Archetype)", id: "move-te",
     definition: "Deployed like a wide receiver. Defined by YPRR \u2265 70th (among TEs), EPA/Tgt \u2265 55th, and Tgt/Game \u2265 50th. High route involvement and consistent production." },
   { term: "Target Hog (TE Archetype)", id: "target-hog-te",
@@ -297,12 +298,12 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   { term: "Blocking TE (TE Archetype)", id: "blocking-te",
     definition: "Primarily a blocker who catches occasionally. Defined by Tgt/Game \u2264 25th and YPRR \u2264 35th among TEs. Low target volume and route involvement." },
   { term: "Complementary TE (TE Archetype)", id: "complementary-te",
-    definition: "Secondary receiving tight end who contributes as part of the passing game mix. Fallback archetype for TEs with at least one axis at 70th percentile or Tgt/Game \u2265 50th." },
+    definition: "Secondary receiving tight end who contributes as part of the passing game mix. Fallback for TEs with at least one axis at or above the 70th percentile, or Tgt/Game \u2265 50th, who match none of the archetypes above (checked in the order listed)." },
   // --- RB Archetypes ---
   { section: "RB Archetypes", term: "Three-Down Back (RB Archetype)", id: "three-down-back",
-    definition: "Does it all. Defined by Car/Game \u2265 55th, Tgt/Game \u2265 60th, Success% \u2265 55th, and 2+ of EPA/Car, Stuff Avoid, Explosive%, Success% \u2265 55th." },
+    definition: "Does it all. Defined by Car/Game \u2265 55th, Tgt/Game \u2265 60th, Success% \u2265 55th, 2+ of EPA/Car, Stuff Avoid, Explosive%, Success% \u2265 55th, and no axis below the 30th." },
   { term: "Elite Runner (RB Archetype)", id: "elite-runner-rb",
-    definition: "Elite across multiple rushing dimensions. Defined by 3+ of EPA/Car, Stuff Avoid, Explosive%, Success% at the 70th percentile with Car/Game \u2265 55th. A dominant pure runner." },
+    definition: "Elite across multiple rushing dimensions. Defined by 3+ of EPA/Car, Stuff Avoid, Explosive%, Success% at or above the 70th percentile, with Car/Game \u2265 55th. A dominant pure runner." },
   { term: "Dual-Threat Back (RB Archetype)", id: "dual-threat-back",
     definition: "Dangerous as both a runner and receiver. Defined by Car/Game \u2265 55th and Tgt/Game \u2265 70th. A true two-way weapon out of the backfield." },
   { term: "Workhorse (RB Archetype)", id: "workhorse",
@@ -320,7 +321,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   { term: "Bell Cow (RB Archetype)", id: "bell-cow",
     definition: "Dominates touches in the backfield. Defined by Car/Game \u2265 85th percentile. The clear lead back regardless of efficiency." },
   { term: "Rotational Back (RB Archetype)", id: "rotational-back",
-    definition: "Part of a backfield committee. Fallback archetype for RBs who contribute in a limited role \u2014 at least one quality axis at 60th percentile or Car/Game \u2265 40th." },
+    definition: "Part of a backfield committee. Fallback for RBs with at least one of EPA/Car, Stuff Avoid, Explosive%, Tgt/Game, Success% at or above the 60th percentile, or Car/Game \u2265 40th, who match none of the archetypes above (checked in the order listed)." },
   // --- Down x Distance & Situational ---
   { section: "Situational Stats", term: "Down & Distance Heatmap", id: "down-distance-heatmap",
     definition: "A 4\u00d75 grid showing rushing efficiency by down (1st\u20134th) and distance bin (1\u20132, 3\u20134, 5\u20137, 8\u201310, 11+ yards). Color intensity reflects EPA per carry, success rate, or yards per carry. Cells with fewer than 5 carries are marked as low-sample." },

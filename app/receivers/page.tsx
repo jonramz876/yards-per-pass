@@ -48,7 +48,11 @@ export default async function ReceiversPage({
       currentSeason={currentSeason}
       freshness={freshness}
     >
-      <ReceiverLeaderboard data={data} throughWeek={throughWeek} season={currentSeason} slugMap={slugMap} />
+      {/* Keyed by season: Next reuses a client component across a ?season=
+          change, so without a key choosing another season in the season box
+          would keep the old season's sort and qualifier minimum. Every piece
+          of the board's URL state is re-read from the URL on mount. */}
+      <ReceiverLeaderboard key={currentSeason} data={data} throughWeek={throughWeek} season={currentSeason} slugMap={slugMap} />
     </DashboardShell>
   );
 }

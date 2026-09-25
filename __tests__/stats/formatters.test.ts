@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { EM_DASH, formatRate, textColorForBackground } from "@/lib/stats/formatters";
+import * as formatters from "@/lib/stats/formatters";
+import {
+  EM_DASH,
+  formatRate,
+  textColorForBackground,
+  EPA_BAND,
+  EPA_AVERAGE_MIN_PLAYS,
+  leagueEpaAverage,
+  rbCarryEpaAverage,
+  targetEpaAverage,
+  qbEpaAverages,
+  epaVsAverageClass,
+  formatEpaAverage,
+} from "@/lib/stats/formatters";
+import type { QBSeasonStat, RBSeasonStat, ReceiverSeasonStat } from "@/lib/types";
 
 describe("formatRate", () => {
   it("formats a 0–1 rate as a percentage", () => {
@@ -50,5 +64,165 @@ describe("textColorForBackground", () => {
   it("accepts hex without a leading # and is case-insensitive", () => {
     expect(textColorForBackground("00338d")).toBe("#ffffff");
     expect(textColorForBackground("#fb4f14")).toBe("#0f172a");
+  });
+});
+
+// Spec A §4.1: a player's EPA is coloured against the season's league average
+// for that kind of play, not against zero. The average RB carry is below zero
+// (2026: -0.10) and the average target well above it (+0.23), so the old sign
+// split painted most backs red and most receivers green.
+describe("epaVsAverageClass", () => {
+  it("greys a value that is not a finite number", () => {
+    for (const v of [null, undefined, NaN, Infinity, -Infinity]) {
+      expect(epaVsAverageClass(v, -0.1, 0.03), String(v)).toBe("text-gray-400");
+    }
+  });
+
+  it("shows no colour (dark grey) when the season has no average yet", () => {
+    expect(epaVsAverageClass(0.5, null, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.5, undefined, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.5, NaN, 0.03)).toBe("text-gray-700");
+  });
+
+  it("colours against the average, so a negative value can be green", () => {
+    expect(epaVsAverageClass(-0.03, -0.1, 0.03)).toBe("text-green-600");
+    expect(epaVsAverageClass(-0.14, -0.1, 0.03)).toBe("text-red-600");
+    // ...and a positive target below the target average is red.
+    expect(epaVsAverageClass(0.1, 0.23, 0.06)).toBe("text-red-600");
+  });
+
+  it("is grey inside the band, boundaries included", () => {
+    expect(epaVsAverageClass(-0.07, -0.1, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.13, -0.1, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.1, -0.1, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.12, -0.1, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.08, -0.1, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(0.29, 0.23, 0.06)).toBe("text-gray-700");
+    expect(epaVsAverageClass(0.17, 0.23, 0.06)).toBe("text-gray-700");
+  });
+
+  it("uses the bands the spec sets", () => {
+    expect(EPA_BAND).toEqual({ carry: 0.03, dropback: 0.03, play: 0.03, target: 0.06, qbRush: 0.06 });
+    expect(EPA_AVERAGE_MIN_PLAYS).toEqual({ carry: 350, dropback: 600, play: 600, target: 500, qbRush: 60 });
+  });
+});
+
+describe("leagueEpaAverage", () => {
+  type Row = { rate: number | null | undefined; n: number | null | undefined };
+  const avg = (rows: Row[], floor = 0) =>
+    leagueEpaAverage(rows, (r) => r.rate, (r) => r.n, floor);
+
+  it("is null for no rows", () => {
+    expect(avg([])).toBeNull();
+  });
+
+  it("weights each rate by its plays", () => {
+    // (0.2 x 100 + -0.4 x 300) / 400 = -0.25
+    expect(avg([{ rate: 0.2, n: 100 }, { rate: -0.4, n: 300 }])).toBeCloseTo(-0.25, 12);
+  });
+
+  it("skips rows with no rate or no plays, and is never NaN", () => {
+    const rows: Row[] = [
+      { rate: 0.2, n: 100 },
+      { rate: null, n: 500 },
+      { rate: NaN, n: 500 },
+      { rate: undefined, n: 500 },
+      { rate: 9, n: 0 },
+      { rate: 9, n: null },
+      { rate: 9, n: NaN },
+      { rate: -0.4, n: 300 },
+    ];
+    expect(avg(rows)).toBeCloseTo(-0.25, 12);
+    expect(avg([{ rate: NaN, n: 10 }])).toBeNull();
+  });
+
+  it("is null just under the floor and a value at it", () => {
+    expect(avg([{ rate: 0.1, n: 349 }], 350)).toBeNull();
+    expect(avg([{ rate: 0.1, n: 350 }], 350)).toBeCloseTo(0.1, 12);
+  });
+});
+
+describe("season averages by play type", () => {
+  const rb = (epa: number | null, carries: number) => ({ epa_per_carry: epa, carries } as unknown as RBSeasonStat);
+  const rec = (epa: number | null, targets: number, position = "WR") =>
+    ({ epa_per_target: epa, targets, position } as unknown as ReceiverSeasonStat);
+  const qb = (over: Partial<QBSeasonStat>) => over as unknown as QBSeasonStat;
+
+  it("RB carries: EPA/carry weighted by carries, 350-carry floor", () => {
+    expect(rbCarryEpaAverage([rb(-0.2, 200), rb(0.1, 200)])).toBeCloseTo(-0.05, 12);
+    expect(rbCarryEpaAverage([rb(-0.2, 200), rb(0.1, 149)])).toBeNull();
+    expect(rbCarryEpaAverage([rb(-0.2, 200), rb(null, 500), rb(0.1, 150)])).toBeCloseTo((-40 + 15) / 350, 12);
+  });
+
+  it("targets: every row whatever the position, 500-target floor", () => {
+    const rows = [rec(0.3, 300, "WR"), rec(0.25, 100, "TE"), rec(-0.05, 100, "RB")];
+    expect(targetEpaAverage(rows)).toBeCloseTo((90 + 25 - 5) / 500, 12);
+    expect(targetEpaAverage(rows.slice(0, 2))).toBeNull();
+  });
+
+  it("QBs: dropbacks, plays (dropbacks + rushes - scrambles) and QB rushes, each with its floor", () => {
+    const rows = [
+      qb({ epa_per_db: 0.1, dropbacks: 400, epa_per_play: 0.12, rush_attempts: 40, scramble_pct: 5, rush_epa_per_play: 0.3 }),
+      qb({ epa_per_db: -0.1, dropbacks: 200, epa_per_play: -0.05, rush_attempts: 30, scramble_pct: null, rush_epa_per_play: 0.2 }),
+    ];
+    const a = qbEpaAverages(rows);
+    expect(a.dropback).toBeCloseTo((40 - 20) / 600, 12);
+    // Play weight: 400 + 40 - 20 scrambles = 420; 200 + 30 - 0 = 230 (a null
+    // scramble rate counts as none, as lib/stats/tecmo-card.ts does).
+    expect(a.play).toBeCloseTo((0.12 * 420 - 0.05 * 230) / 650, 12);
+    expect(a.qbRush).toBeCloseTo((0.3 * 40 + 0.2 * 30) / 70, 12);
+    // Under each floor: 599 dropbacks, 599 plays, 59 rushes.
+    const small = qbEpaAverages([
+      qb({ epa_per_db: 0.1, dropbacks: 559, epa_per_play: 0.1, rush_attempts: 40, scramble_pct: 0, rush_epa_per_play: 0.3 }),
+      qb({ epa_per_db: 0.1, dropbacks: 40, epa_per_play: 0.1, rush_attempts: 19, scramble_pct: 0, rush_epa_per_play: 0.3 }),
+    ]);
+    expect(small.dropback).toBeNull();
+    expect(small.qbRush).toBeNull();
+    expect(small.play).not.toBeNull(); // 559 + 40 + 40 + 19 = 658 plays
+    expect(qbEpaAverages([])).toEqual({ dropback: null, play: null, qbRush: null });
+  });
+
+  it("no longer exports the sign-split epaLeaderboardColor", () => {
+    expect("epaLeaderboardColor" in formatters).toBe(false);
+  });
+});
+
+// Chaos pass C11: the colour must follow the printed numbers. A cell reading
+// 0.29 under a legend reading 0.23 with "grey = within 0.06" is grey, whatever
+// the unrounded values were (2026: D.Sample 0.2949-ish vs 0.2251-ish printed
+// green before).
+describe("epaVsAverageClass compares the numbers as displayed", () => {
+  it("2 decimals (leaderboards, Game Log): a printed gap equal to the band is grey", () => {
+    // Unrounded gap 0.0698 > 0.06, but the page prints 0.29 against 0.23.
+    expect(epaVsAverageClass(0.2949, 0.2251, 0.06)).toBe("text-gray-700");
+    // Unrounded gap 0.0398 > 0.03, printed -0.02 against -0.05.
+    expect(epaVsAverageClass(-0.0151, -0.0549, 0.03)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.0849, -0.0451, 0.03)).toBe("text-gray-700");
+    // One printed hundredth past the band colours.
+    expect(epaVsAverageClass(0.2951, 0.2249, 0.06)).toBe("text-green-600");
+    expect(epaVsAverageClass(-0.0851, -0.0449, 0.03)).toBe("text-red-600");
+  });
+
+  it("3 decimals (run-gap cards print EPA/carry to 0.001)", () => {
+    // Unrounded gap 0.0308; printed -0.050 against -0.080.
+    expect(epaVsAverageClass(-0.0496, -0.0804, 0.03, 3)).toBe("text-gray-700");
+    expect(epaVsAverageClass(-0.0486, -0.0804, 0.03, 3)).toBe("text-green-600");
+  });
+});
+
+// Chaos pass C12/C19: a legend average that rounds to zero prints unsigned
+// (the site's fmtFixed convention in lib/stats/box-score.ts), never "-0.00".
+describe("formatEpaAverage", () => {
+  it("never prints a signed zero", () => {
+    expect(formatEpaAverage(-0.0013)).toBe("0.00"); // 2023 QB dropback average
+    expect(formatEpaAverage(-0.0049)).toBe("0.00");
+    expect(formatEpaAverage(0)).toBe("0.00");
+    expect(formatEpaAverage(-0.0004, 3)).toBe("0.000");
+  });
+  it("prints other values as the cells do (hyphen minus, fixed decimals)", () => {
+    expect(formatEpaAverage(-0.1013)).toBe("-0.10");
+    expect(formatEpaAverage(-0.0051)).toBe("-0.01");
+    expect(formatEpaAverage(0.2258)).toBe("0.23");
+    expect(formatEpaAverage(-0.0804, 3)).toBe("-0.080");
   });
 });

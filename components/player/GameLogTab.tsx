@@ -7,6 +7,7 @@ import type { GameResult, GameResultsByTeam, QBWeeklyStat, ReceiverWeeklyStat, R
 import { getTeamColor } from "@/lib/data/teams";
 import { normalizeGameId } from "@/lib/stats/box-score";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
+import { epaVsAverageClass, formatEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
 type WeeklyRow = QBWeeklyStat | ReceiverWeeklyStat | RBWeeklyStat;
 
@@ -27,6 +28,13 @@ interface GameLogTabProps {
    * regular-season game) and the row's season is in this list (spec §7).
    */
   boxScoreSeasons: number[];
+  /**
+   * The season's league-average EPA for this position's kind of play (per
+   * dropback for a QB, per target for a WR/TE, per running-back carry
+   * otherwise), from lib/stats/formatters.ts. Null until the season has
+   * enough plays: the EPA cells are then uncoloured and there is no legend.
+   */
+  epaAverage?: number | null;
 }
 
 // ─── Column definitions per position ─────────────────────────────────────────
@@ -262,8 +270,11 @@ function VolumeSparkline({
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function GameLogTab({ weeklyStats, position, season, teamId, gameResults, boxScoreSeasons }: GameLogTabProps) {
+export default function GameLogTab({ weeklyStats, position, season, teamId, gameResults, boxScoreSeasons, epaAverage = null }: GameLogTabProps) {
   const teamColor = getTeamColor(teamId);
+  const isReceiver = position === "WR" || position === "TE";
+  const epaBand = position === "QB" ? EPA_BAND.dropback : isReceiver ? EPA_BAND.target : EPA_BAND.carry;
+  const epaPlayKind = position === "QB" ? "dropback" : isReceiver ? "target" : "running-back carry";
   const [sortKey, setSortKey] = useState<string>("week");
   const [sortDesc, setSortDesc] = useState(false);
 
@@ -274,14 +285,22 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
   const allCols = useMemo(() => [...commonCols(gameResults), ...posCols], [gameResults, posCols]);
 
   // Build sparkline data
+  // A week with no EPA (null: every play's EPA was missing; or NaN) is left out
+  // of the trend rather than plotted as 0.00, which would read as a real,
+  // roughly average game and pull the season line toward zero. Its table row
+  // still shows the dash. (isNaN(null) is false, so the old guard let a null
+  // through to .toFixed() and crashed the tab.)
   const epaData = useMemo(() => {
-    return weeklyStats.map((r) => {
-      let epa: number;
-      if (position === "QB") epa = (r as QBWeeklyStat).epa_per_dropback;
-      else if (position === "WR" || position === "TE") epa = (r as ReceiverWeeklyStat).epa_per_target;
-      else epa = (r as RBWeeklyStat).epa_per_carry;
-      return { week: r.week, epa: isNaN(epa) ? 0 : epa };
-    }).sort((a, b) => a.week - b.week);
+    return weeklyStats
+      .map((r) => {
+        let epa: number;
+        if (position === "QB") epa = (r as QBWeeklyStat).epa_per_dropback;
+        else if (position === "WR" || position === "TE") epa = (r as ReceiverWeeklyStat).epa_per_target;
+        else epa = (r as RBWeeklyStat).epa_per_carry;
+        return { week: r.week, epa };
+      })
+      .filter((d) => Number.isFinite(d.epa))
+      .sort((a, b) => a.week - b.week);
   }, [weeklyStats, position]);
 
   const volumeData = useMemo(() => {
@@ -486,17 +505,15 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
                         display = String(raw ?? "\u2014");
                       }
 
-                      // Color EPA columns
+                      // EPA columns: against the season's league average for
+                      // this kind of play, not against zero (spec A §4.4).
                       let textColor = "text-gray-900";
                       if (
                         col.key === "epa_per_dropback" ||
                         col.key === "epa_per_target" ||
                         col.key === "epa_per_carry"
                       ) {
-                        const n = typeof raw === "number" ? raw : NaN;
-                        if (!isNaN(n)) {
-                          textColor = n >= 0 ? "text-green-600" : "text-red-600";
-                        }
+                        textColor = epaVsAverageClass(typeof raw === "number" ? raw : null, epaAverage, epaBand);
                       }
 
                       return (
@@ -517,6 +534,11 @@ export default function GameLogTab({ weeklyStats, position, season, teamId, game
           </table>
         </div>
       </div>
+      {epaAverage != null && (
+        <p className="text-xs text-gray-400">
+          EPA colours compare each game with the {season} league average ({formatEpaAverage(epaAverage)} per {epaPlayKind}): green = better, red = worse, grey = within {epaBand.toFixed(2)}.
+        </p>
+      )}
     </div>
   );
 }
