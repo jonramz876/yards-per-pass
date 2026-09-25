@@ -24,6 +24,7 @@ vi.mock("@/lib/data/players", () => ({ getPlayerSlugsByIds: vi.fn() }));
 vi.mock("@/lib/data/games", () => ({ hasScheduleForSeason: vi.fn() }));
 
 import HomePage from "@/app/page";
+import { seasonHasRouteData } from "@/lib/stats/radar";
 import {
   getAvailableSeasons,
   getDataFreshness,
@@ -924,5 +925,33 @@ describe("homepage qualifier drift guard", () => {
     const src = read(file);
     expect(src).toMatch(/\bteamGames\s*=\s*Math\.min\(\s*throughWeek\s*,\s*17\s*\)\s*;/);
     expect(src).toMatch(new RegExp(`=\\s*Math\\.round\\(\\s*${rate}\\s*\\*\\s*teamGames\\s*\\)\\s*;`));
+  });
+});
+
+// Spec A T5: the homepage strip and the /receivers Efficiency tab decide "does
+// this season have route data?" with the one function in lib/stats/radar.ts.
+// They share the rule, not the input: the homepage's minimum counts a missing
+// through_week as one game, /receivers as 18 (spec A §8, review M16).
+describe("homepage route-data mode is seasonHasRouteData's answer", () => {
+  const routed = (i: number) => ({ targets: 10, routes_run: 40, yards_per_route_run: 1 + i / 10, epa_per_target: 0.1 });
+  const unrouted = { targets: 10, routes_run: 0, yards_per_route_run: null, epa_per_target: 0.1 };
+  const POOLS: [string, Record<string, unknown>[]][] = [
+    ["10 of 10 routed", Array.from({ length: 10 }, (_, i) => routed(i))],
+    ["9 of 10 routed", Array.from({ length: 10 }, (_, i) => (i < 9 ? routed(i) : unrouted))],
+    ["8 of 10 routed", Array.from({ length: 10 }, (_, i) => (i < 8 ? routed(i) : unrouted))],
+    ["none routed", Array.from({ length: 10 }, () => unrouted)],
+    [
+      "routed only under the minimum",
+      [...Array.from({ length: 5 }, () => unrouted), ...Array.from({ length: 20 }, (_, i) => ({ ...routed(i), targets: 3 }))],
+    ],
+  ];
+
+  it.each(POOLS)("%s", async (_label, pool) => {
+    throughWeek(2); // minimum: round(1.875 x 2) = 4 targets
+    const recs = pool.map((over, i) => wr(`p${i}`, `Pool Receiver ${i + 1}`, over));
+    vi.mocked(getReceiverStats).mockResolvedValue(recs);
+    const { container } = render(await HomePage());
+    const expected = seasonHasRouteData(recs, 4) ? "Yards Per Route Run" : "EPA per Target";
+    expect(strip(container, "Receiving Efficiency").subtitle).toBe(expected);
   });
 });

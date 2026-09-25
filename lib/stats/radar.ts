@@ -54,6 +54,25 @@ export function getWRRadarVal(rec: ReceiverSeasonStat, key: string): number {
   }
 }
 
+/**
+ * Does this season have route data? True when at least 90% of the receivers
+ * with `minTargets`+ targets have routes_run > 0 and a finite YPRR (of any
+ * value: 0 or fewer yards on real routes is real data), so a partial
+ * participation file does not count. nflverse publishes no participation file
+ * for a season until it is ready (2026 so far): routes_run is then null.
+ *
+ * The one rule the homepage's Receiving Efficiency strip (app/page.tsx) and
+ * the /receivers Efficiency tab's default sort share. It lives here, not in a
+ * "use client" leaderboard module, so the server homepage can import it.
+ */
+export function seasonHasRouteData(receivers: ReceiverSeasonStat[], minTargets: number): boolean {
+  const targetQualified = receivers.filter((r) => Number.isFinite(r.targets) && r.targets >= minTargets);
+  const withRoutes = targetQualified.filter(
+    (r) => Number.isFinite(r.routes_run) && r.routes_run > 0 && Number.isFinite(r.yards_per_route_run),
+  ).length;
+  return targetQualified.length > 0 && withRoutes * 10 >= targetQualified.length * 9;
+}
+
 // ---- RB Radar ----
 // Minimal structural interface that RBSeasonStat satisfies
 export interface RBRadarInput {

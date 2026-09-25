@@ -252,6 +252,17 @@ export default function PlayerPageContent({
         ))}
       </div>
 
+      {/* Why the route stats are dashes (Overview card tiles, Game Log Routes):
+          routes_run is NULL only when the season had no nflverse
+          participation file; with one, ingest stores 0 for no routes. */}
+      {(position === "WR" || position === "TE") &&
+        (seasonStats as ReceiverSeasonStat[])[0] != null &&
+        (seasonStats as ReceiverSeasonStat[])[0].routes_run == null && (
+          <p className="mb-4 text-xs text-gray-500">
+            Snap %, routes and YPRR show &ldquo;&mdash;&rdquo; for {season}: nflverse hasn&rsquo;t published full {season} participation data (who was on the field for each play).
+          </p>
+        )}
+
       {/* Tab content */}
       {activeTab === "overview"
         ? renderOverview()

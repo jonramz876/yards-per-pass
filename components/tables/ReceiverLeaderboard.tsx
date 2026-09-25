@@ -9,7 +9,7 @@ import MetricTooltip from "@/components/ui/MetricTooltip";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { percentileOrMissing, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
-import { WR_RADAR_KEYS, getWRRadarVal } from "@/lib/stats/radar";
+import { WR_RADAR_KEYS, getWRRadarVal, seasonHasRouteData } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 import { formatStat, epaVsAverageClass, targetEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
@@ -79,6 +79,7 @@ const REC_TABS: Record<string, TabConfig> = {
     label: "Efficiency",
     columns: [
       { key: "games", label: "GP", group: "core" },
+      { key: "epa_per_target", label: "EPA/Tgt", tooltip: "EPA/Tgt", group: "core" },
       { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
       { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
       { key: "croe", label: "CROE", tooltip: "CROE", group: "efficiency" },
@@ -88,7 +89,7 @@ const REC_TABS: Record<string, TabConfig> = {
       { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
       { key: "route_participation_rate", label: "Route%", tooltip: "Route%", group: "efficiency" },
     ],
-    heatmapCols: new Set(["yards_per_route_run", "targets_per_route_run", "croe", "receiving_success_rate", "air_yards_share", "total_receiving_epa", "snap_share", "route_participation_rate"]),
+    heatmapCols: new Set(["epa_per_target", "yards_per_route_run", "targets_per_route_run", "croe", "receiving_success_rate", "air_yards_share", "total_receiving_epa", "snap_share", "route_participation_rate"]),
     defaultSort: "yards_per_route_run",
     rankBy: "yards_per_route_run",
     defaultHeatmap: false,
@@ -122,6 +123,11 @@ type SortDir = "asc" | "desc";
 
 // PFR qualification: 1.875 targets per team game
 const PFR_TGT_PER_GAME = 1.875;
+
+/** A tab's default sort; the Efficiency tab falls back to EPA/Tgt when the season has no route data. */
+function tabDefaultSortFor(tab: RecTab, hasRouteData: boolean): string {
+  return tab === "efficiency" && !hasRouteData ? "epa_per_target" : REC_TABS[tab].defaultSort;
+}
 
 // Header background tints for column groups
 const GROUP_COLORS: Record<string, string> = {
@@ -208,12 +214,22 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   const resolvedTab = TAB_MIGRATION[urlTab ?? ""] ?? urlTab;
   const initialTab: RecTab = TAB_KEYS.includes(resolvedTab as RecTab) ? (resolvedTab as RecTab) : "overview";
 
+  // PFR uses team games (17), not weeks — throughWeek can be 18 (bye week)
+  const teamGames = Math.min(throughWeek, 17);
+  const pfrMinTargets = Math.round(PFR_TGT_PER_GAME * teamGames);
+
+  // With no route data (no nflverse participation file for the season, 2026
+  // so far) YPRR is "—" in every row, so the Efficiency tab ranks by EPA/Tgt
+  // instead. Same rule as the homepage strip (lib/stats/radar.ts).
+  const hasRouteData = useMemo(() => seasonHasRouteData(data, pfrMinTargets), [data, pfrMinTargets]);
+  const tabDefaultSort = (t: RecTab) => tabDefaultSortFor(t, hasRouteData);
+
   const urlSort = searchParams.get("sort");
   const tabConfig = REC_TABS[initialTab];
   const validKeys = new Set(tabConfig.columns.map((c) => c.key));
   const initialSortKey = (() => {
-    if (!urlSort) return tabConfig.defaultSort;
-    return validKeys.has(urlSort) ? urlSort : tabConfig.defaultSort;
+    if (!urlSort) return tabDefaultSort(initialTab);
+    return validKeys.has(urlSort) ? urlSort : tabDefaultSort(initialTab);
   })();
 
   const urlDir = searchParams.get("dir");
@@ -221,9 +237,6 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
 
   const urlSearch = searchParams.get("q") || "";
 
-  // PFR uses team games (17), not weeks — throughWeek can be 18 (bye week)
-  const teamGames = Math.min(throughWeek, 17);
-  const pfrMinTargets = Math.round(PFR_TGT_PER_GAME * teamGames);
   const urlQualified = searchParams.get("qualified");
   const initialQualified = urlQualified !== "0";
 
@@ -263,7 +276,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       ["tab", "sort", "dir", "q", "min", "qualified", "pos", "team", "arch"].forEach((k) => params.delete(k));
 
       const newTab = overrides.tab ?? tab;
-      const defaultSort = REC_TABS[newTab].defaultSort;
+      const defaultSort = tabDefaultSortFor(newTab, hasRouteData);
       const newSort = overrides.sort ?? sortKey;
       const newDir = overrides.dir ?? sortDir;
       const newQ = overrides.q ?? search;
@@ -288,7 +301,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       const qs = params.toString();
       return pathname + (qs ? "?" + qs : "");
     },
-    [searchParams, tab, sortKey, sortDir, search, minTargets, qualified, pfrMinTargets, posFilter, teamFilter, archFilter, pathname]
+    [searchParams, tab, sortKey, sortDir, search, minTargets, qualified, pfrMinTargets, hasRouteData, posFilter, teamFilter, archFilter, pathname]
   );
 
   const pushURL = useCallback(
@@ -321,10 +334,10 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
   function switchTab(newTab: RecTab) {
     const cfg = REC_TABS[newTab];
     setTab(newTab);
-    setSortKey(cfg.defaultSort);
+    setSortKey(tabDefaultSort(newTab));
     setSortDir("desc");
     setShowHeatmap(cfg.defaultHeatmap);
-    pushURL({ tab: newTab, sort: cfg.defaultSort, dir: "desc" });
+    pushURL({ tab: newTab, sort: tabDefaultSort(newTab), dir: "desc" });
   }
 
   // Compute archetype for each receiver — TEs get their own pool and classifier
@@ -591,6 +604,14 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
           </div>
         </div>
       </div>
+
+      {/* Why the route columns are dashes: only when the season has no route
+          data, and only on the tabs that show route columns. */}
+      {data.length > 0 && !hasRouteData && (tab === "overview" || tab === "efficiency") && (
+        <p className="mb-2 text-xs text-gray-500">
+          YPRR, TPRR, Snap% and Route% show &ldquo;&mdash;&rdquo; for {season}: nflverse hasn&rsquo;t published full {season} participation data (who was on the field for each play), which those stats are built from.
+        </p>
+      )}
 
       {/* Table */}
       <div className="border border-gray-200 rounded-md overflow-x-auto">
