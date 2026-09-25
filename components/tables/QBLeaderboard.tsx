@@ -11,7 +11,7 @@ import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/
 import { classifyQB } from "@/lib/stats/archetypes";
 import { QB_RADAR_KEYS, getQBRadarVal } from "@/lib/stats/radar";
 import { qbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat, epaLeaderboardColor } from "@/lib/stats/formatters";
+import { formatStat, epaVsAverageClass, qbEpaAverages, EPA_BAND } from "@/lib/stats/formatters";
 
 interface QBLeaderboardProps {
   data: QBSeasonStat[];
@@ -397,10 +397,27 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
     return formatStat(key, val);
   }
 
-  const epaColor = epaLeaderboardColor;
+  // Text colours for the EPA columns with the heatmap off, each against the
+  // season's league average for its own kind of play (all QBs, weighted by
+  // plays), not against zero. Total EPA is dropback EPA (scripts/ingest.py),
+  // so it takes the colour of the row's EPA/DB.
+  const qbAvg = useMemo(() => qbEpaAverages(data), [data]);
 
-  const isEpaCol = (key: string) =>
-    key === "epa_per_play" || key === "epa_per_db" || key === "rush_epa_per_play" || key === "total_epa";
+  function epaCellColor(key: string, qb: QBSeasonStat): string | null {
+    switch (key) {
+      case "epa_per_db":
+      case "total_epa":
+        return epaVsAverageClass(qb.epa_per_db, qbAvg.dropback, EPA_BAND.dropback);
+      case "epa_per_play":
+        return epaVsAverageClass(qb.epa_per_play, qbAvg.play, EPA_BAND.play);
+      case "rush_epa_per_play":
+        return epaVsAverageClass(qb.rush_epa_per_play, qbAvg.qbRush, EPA_BAND.qbRush);
+      default:
+        return null;
+    }
+  }
+
+  const avgText = (key: string, avg: number | null) => (avg == null ? "not set yet" : formatStat(key, avg));
 
   return (
     <div>
@@ -642,10 +659,11 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           if (isHeatmapCol && INVERTED_COLS.has(col.key)) pct = 100 - pct;
                           const heatStyle = isHeatmapCol ? getHeatmapStyle(pct) : {};
 
+                          const epaColor = epaCellColor(col.key, qb);
                           const cellClass = isHeatmapCol
                             ? "px-2 py-2 text-right tabular-nums"
                             : `px-2 py-2 text-right tabular-nums ${
-                                isEpaCol(col.key) ? `font-bold ${epaColor(val)}` : "text-gray-700"
+                                epaColor ? `font-bold ${epaColor}` : "text-gray-700"
                               }`;
 
                           return (
@@ -698,6 +716,11 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
         <p><span className="font-semibold text-gray-500">Rush Att</span> counts designed rushes and scrambles but excludes kneels. PFR includes kneels in rush attempts.</p>
         <p><span className="font-semibold text-gray-500">Success%</span> excludes sacks from the denominator. Sacks reflect offensive line failure, not QB decision-making. PFR includes sacks, which lowers the number.</p>
+        {qbAvg.dropback == null && qbAvg.play == null && qbAvg.qbRush == null ? (
+          <p>EPA colours start once {season} has enough plays to set league averages.</p>
+        ) : (
+          <p>With the heatmap off, EPA colours compare each quarterback with the {season} league average &mdash; {avgText("epa_per_db", qbAvg.dropback)} per dropback (EPA/DB and Total EPA), {avgText("epa_per_play", qbAvg.play)} per play (EPA/Play), {avgText("rush_epa_per_play", qbAvg.qbRush)} per QB rush (Rush EPA): green = better, red = worse, grey = within 0.03 (0.06 for Rush EPA).</p>
+        )}
         {season === 2020 && (
           <p className="text-amber-600"><span className="font-semibold text-amber-700">Note:</span> 2020 CPOE values may be less reliable due to COVID-impacted season conditions (no preseason, limited practice, opt-outs).</p>
         )}

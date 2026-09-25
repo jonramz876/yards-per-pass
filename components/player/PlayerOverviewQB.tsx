@@ -50,11 +50,13 @@ export default function PlayerOverviewQB({
         jerseyNumber={jerseyNumber}
       />
 
-      {/* Team context: top receivers */}
+      {/* Team context: the team's top receivers and their season totals from
+          every QB — not what this QB threw to them; no stored table pairs
+          passers with receivers. */}
       {topReceivers.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Throws To
+            Team&rsquo;s Top Receivers
           </h3>
           <div className="space-y-2">
             {topReceivers.map((r) => (

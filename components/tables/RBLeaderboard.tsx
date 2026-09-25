@@ -10,7 +10,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/stats/percentiles";
 import { classifyRB } from "@/lib/stats/archetypes";
 import { rbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat, epaLeaderboardColor } from "@/lib/stats/formatters";
+import { formatStat, epaVsAverageClass, rbCarryEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
 interface RBLeaderboardProps {
   data: RBSeasonStat[];
@@ -437,12 +437,14 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
     }
   }
 
-  const epaColor = epaLeaderboardColor;
+  // Text colour for EPA/Car and Total EPA with the heatmap off: the back's
+  // EPA/carry against the season's average carry (all backs, weighted by
+  // carries), not against zero — the average carry is below zero. Total EPA
+  // takes the colour of the row's EPA/Car: (total - avg x carries) has the
+  // same sign as (rate - avg).
+  const carryAvg = useMemo(() => rbCarryEpaAverage(data), [data]);
 
   const isEpaCol = (key: string) => key === "epa_per_carry" || key === "total_rushing_epa";
-
-  // suppress unused variable warning
-  void season;
 
   return (
     <div>
@@ -719,7 +721,9 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           const cellClass = isHeatmapCol
                             ? "px-2 py-2 text-right tabular-nums"
                             : `px-2 py-2 text-right tabular-nums ${
-                                isEpaCol(col.key) ? `font-bold ${epaColor(val)}` : "text-gray-700"
+                                isEpaCol(col.key)
+                                  ? `font-bold ${epaVsAverageClass(rb.epa_per_carry, carryAvg, EPA_BAND.carry)}`
+                                  : "text-gray-700"
                               }`;
 
                           return (
@@ -771,7 +775,12 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
 
       <div className="mt-4 text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-3">
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
-        <p><span className="font-semibold text-gray-500">EPA/Car</span> = expected points added per carry. <span className="font-semibold text-gray-500">Success%</span> = carries gaining enough yards to stay on schedule.</p>
+        <p><span className="font-semibold text-gray-500">EPA/Car</span> = expected points added per carry. <span className="font-semibold text-gray-500">Success%</span> = share of carries that gained expected points (EPA above zero).</p>
+        {carryAvg != null ? (
+          <p>With the heatmap off, EPA colours compare each back with the {season} average running-back carry ({formatStat("epa_per_carry", carryAvg)} EPA, all backs, weighted by carries): green = better, red = worse, grey = within 0.03. Total EPA takes the colour of the back&rsquo;s EPA/Car.</p>
+        ) : (
+          <p>EPA colours start once {season} has enough carries to set a league average.</p>
+        )}
         <p><span className="font-semibold text-gray-500">Stuff%</span> = carries stopped at or behind the line of scrimmage. <span className="font-semibold text-gray-500">Explosive%</span> = carries gaining 10+ yards.</p>
         <p><span className="font-semibold text-gray-500">FPts</span> = total fantasy points (rushing + receiving). PPR: +1/rec, Half: +0.5/rec, Standard: 0.</p>
       </div>

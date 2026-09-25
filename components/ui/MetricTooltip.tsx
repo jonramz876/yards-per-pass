@@ -7,21 +7,34 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+// Spec A section 4.6: the entries marked "Describes:" below are pinned to the code
+// they describe by the paired pytests in tests/ (spec A T13), which run the
+// aggregator AND read this file's text, and by __tests__/components/MetricTooltip.test.tsx.
 export const METRIC_DEFINITIONS: Record<string, string> = {
+  // Describes: epa_per_play = (dropback EPA + designed-run EPA) / (dropbacks +
+  // designed runs), kneels dropped (scripts/ingest.py aggregate_qb_stats).
+  // Weighted league average by season: 2020 +0.075 ... 2023 -0.006 ... 2026 +0.072.
   "EPA/Play":
-    "Points added per play \u2014 the best single measure of QB impact. Covers passing and rushing. Above 0 = above average.",
+    "Points added per play, passing and rushing \u2014 every dropback and designed run, kneel-downs left out. The best single measure of QB impact. The league average moves from season to season (from about \u22120.01 to +0.07 since 2020), so compare with the league average given under the table rather than with 0.",
   "EPA/DB":
     "Points added per dropback (pass attempts + sacks + scrambles; spikes to stop the clock excluded). Passing-only version of EPA \u2014 isolates arm talent from running ability.",
   CPOE: "How often a QB completes passes vs. what\u2019s expected given throw difficulty. +3 means completing 3% more than expected. Higher is better.",
   "Comp%":
     "Completions \u00f7 attempts. The raw completion rate \u2014 doesn\u2019t account for throw difficulty like CPOE does.",
+  // Describes: the mean of nflverse's `success` flag (EPA > 0). QB: non-sack
+  // dropbacks (ingest.py aggregate_qb_stats, non_sack_dropbacks); RB: carries
+  // (aggregate_rb_season_stats). Pinned by tests/test_leaderboard_stats.py
+  // TestDefinitionsMatchCode.test_qb_season_success_is_the_flag_without_sacks.
   "Success%":
-    "How often a QB\u2019s plays gain enough yards to stay on schedule. Sacks excluded (OL failure, not QB). Team-level success rate on the scatter plot includes sacks.",
+    "Share of plays that gained expected points (EPA above zero) \u2014 nflverse\u2019s success flag, not a yards-to-go rule. For quarterbacks it counts dropbacks other than sacks (sacks are an OL failure, not the QB\u2019s); for running backs, carries. Team-level success rate on the scatter plot includes sacks.",
   Sk: "Sacks taken. Counts against EPA/DB \u2014 a QB who holds the ball too long will see this drag down efficiency.",
   "Rush Att":
     "Rush attempts: designed runs + scrambles, excluding kneels. PFR includes kneels, so numbers may differ slightly.",
+  // Describes: rush_epa_per_play = QB rush EPA / rush_attempts, designed runs
+  // and scrambles, kneels dropped (ingest.py aggregate_qb_stats). The average
+  // QB rush was +0.18 to +0.29 in every season 2020-2026.
   "Rush EPA":
-    "Points added per rush attempt. Measures a QB\u2019s value as a runner. Positive = above-average rushing.",
+    "Points added per QB rush \u2014 designed runs and scrambles, kneel-downs left out. The average QB rush is worth well above zero, so compare with the league average given under the table, not with 0.",
   "Sk Yds":
     "Total yards lost on sacks. Shown as a positive number (e.g., 150 = 150 yards lost).",
   aDOT: "Average throw depth in yards. Higher = throws farther downfield. Think deep-ball QBs vs. check-down QBs.",
@@ -37,8 +50,11 @@ export const METRIC_DEFINITIONS: Record<string, string> = {
   FL: "Fumbles lost \u2014 only fumbles recovered by the defense. The turnovers that actually cost you.",
   "TD:INT":
     "Passing touchdowns per interception. Higher is better. 2:1 is average, 3:1+ is elite.",
+  // Describes: epa_per_target = mean EPA over targets (ingest.py
+  // aggregate_receiver_stats). The average target was +0.15 to +0.23 in
+  // every season 2020-2026.
   "EPA/Tgt":
-    "Points added per target. The best single efficiency measure for receivers. Above 0 = above average.",
+    "Points added per target. The best single efficiency measure for receivers. The average target is worth well above zero, so a receiver near 0 is below average \u2014 compare with the league average given under the table.",
   "Catch%":
     "Receptions \u00f7 targets. How often a receiver catches the ball when targeted.",
   ADOT: "Average Depth of Target \u2014 how far downfield a receiver is targeted on average. Higher = more of a deep threat.",
@@ -52,13 +68,25 @@ export const METRIC_DEFINITIONS: Record<string, string> = {
   "Tgt Share":
     "Percentage of the team's targets \u2014 throws charged to a receiver \u2014 aimed at this one. Higher = more involved in the passing game.",
   YPR: "Yards per reception. Total receiving yards \u00f7 receptions. A simple per-catch efficiency measure.",
-  YPRR: "Yards Per Route Run \u2014 receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted.",
-  TPRR: "Targets Per Route Run \u2014 targets divided by routes run. Measures how often a receiver gets targeted on each route they run.",
+  // Describes: routes_run = pass plays (pass_attempt, no sack, no scramble;
+  // filter_plays has already dropped spikes) the player was on the field for
+  // (ingest.py aggregate_receiver_stats). Pinned by tests/test_receiver_stats.py
+  // TestRouteDefinitionsMatchCode.test_a_sack_is_not_a_route.
+  YPRR: "Yards Per Route Run \u2014 receiving yards divided by routes run. A route here is any pass thrown while the player was on the field \u2014 sacks and scrambles don\u2019t count, and neither do spikes \u2014 so a back or tight end who stayed in to block still gets one.",
+  // Describes: targets / routes_run, routes as for YPRR.
+  TPRR: "Targets Per Route Run \u2014 targets divided by routes run, with routes counted as in YPRR. How often a player gets targeted on each route.",
   Snaps: "Total offensive plays the player was on the field. Derived from play-by-play participation data.",
   "Snap%": "Percentage of team\u2019s offensive plays the player was on the field. 100% means every snap.",
-  "Route%": "How often the player runs a route when on the field. High = pure pass catcher, low = run blocker. WRs are typically 80\u201395%, blocking TEs can be 40\u201360%.",
+  // Describes: route_participation_rate = the player's dropback snaps with his
+  // main team / that team's dropbacks (ingest.py aggregate_receiver_stats).
+  // Pinned by tests/test_receiver_stats.py test_route_participation_rate and
+  // TestRouteDefinitionsMatchCode.test_route_share_is_team_dropbacks.
+  "Route%": "Share of his team\u2019s dropbacks the player was on the field for (his main team, for a player traded mid-season). High = on the field for nearly every pass play; lower for part-timers and players used mainly on running downs.",
+  // Describes: epa_per_carry = mean EPA over RB carries (ingest.py
+  // aggregate_rb_season_stats). The average RB carry was -0.05 to -0.10 in
+  // every season 2020-2026.
   "EPA/Car":
-    "Points added per carry. The best single efficiency measure for rushers. Above 0 = above average.",
+    "Points added per carry. The best single efficiency measure for rushers. The average running-back carry is worth less than zero, so a back near 0 is above average \u2014 compare with the league average given under the table.",
   "Stuff%":
     "Percentage of carries stopped at or behind the line of scrimmage (\u22640 yards). Lower is better.",
   "Explosive%":
@@ -74,10 +102,17 @@ export const METRIC_DEFINITIONS: Record<string, string> = {
     "Scramble percentage \u2014 scrambles \u00f7 dropbacks \u00d7 100. How often a QB takes off running instead of throwing.",
   "AY%":
     "Air Yards Share \u2014 percentage of team\u2019s total air yards belonging to this receiver. Measures target quality, not just volume.",
+  // Describes: receiving_success_rate = mean `success` over targets (ingest.py
+  // aggregate_receiver_stats). Pinned by tests/test_leaderboard_stats.py
+  // test_basic_receiving_sr and TestDefinitionsMatchCode.
   "Recv SR%":
-    "Receiving Success Rate \u2014 percentage of targets that produce positive EPA. Measures how often a receiver\u2019s plays move the chains.",
+    "Receiving Success Rate \u2014 the share of a player\u2019s targets that gained expected points (EPA above zero).",
+  // Describes: QB total_epa = dropback EPA sum (ingest.py `qb_stats['total_epa']
+  // = dropback_epa_sum`); RB total_rushing_epa = carry EPA sum; receiver
+  // total_receiving_epa = target EPA sum. Pinned by tests/test_leaderboard_stats.py
+  // TestDefinitionsMatchCode.test_qb_total_epa_is_dropback_epa_only.
   "Total EPA":
-    "Total Expected Points Added \u2014 the raw sum of EPA across all plays. Volume-based: more plays = higher total. Measures overall impact, not per-play efficiency.",
+    "Total Expected Points Added \u2014 the sum of EPA over one kind of play: dropbacks for quarterbacks (the same plays as EPA/DB, so designed runs aren\u2019t included), carries for running backs, targets for receivers. Volume-based: more plays = a bigger total, up or down. With the heatmap off, its colour follows the player\u2019s per-play rate.",
   TCH: "Total touches \u2014 carries + receptions. Measures overall involvement in the offense.",
   "TCH/G":
     "Touches per game \u2014 (carries + receptions) \u00f7 games played. Measures per-game workload.",

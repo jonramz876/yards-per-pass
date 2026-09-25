@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import type { RBGapStat } from "@/lib/types";
+import { epaVsAverageClass, EPA_BAND } from "@/lib/stats/formatters";
 
 interface LeagueAvgStats {
   epa: number | null;
@@ -224,6 +225,10 @@ export default function PlayerGapCards({
             const barPct = divergence !== null
               ? Math.min(Math.abs(divergence) / maxDivergence, 1) * 50
               : 0;
+            // The EPA/carry value and its "vs league" number share one colour:
+            // against the "Lg avg" in the header, with the carry band — not
+            // against zero, since the average carry is below zero.
+            const vsLeagueColor = epaVsAverageClass(epa, leagueAvg.epa, EPA_BAND.carry);
 
             return (
               <div
@@ -244,7 +249,7 @@ export default function PlayerGapCards({
                 {/* EPA value */}
                 <div className="text-xs text-gray-500 mb-2">
                   EPA/carry: {epa !== null ? (
-                    <span className={epa >= 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                    <span className={`${vsLeagueColor} font-semibold`}>
                       {epa >= 0 ? "+" : ""}{epa.toFixed(3)}
                     </span>
                   ) : "\u2014"}
@@ -282,7 +287,7 @@ export default function PlayerGapCards({
                         <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
                           <span>vs league</span>
                           {lgDiv !== null && (
-                            <span className={lgPos ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                            <span className={`${vsLeagueColor} font-medium`}>
                               {lgPos ? "+" : ""}{lgDiv.toFixed(3)}
                             </span>
                           )}

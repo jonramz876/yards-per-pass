@@ -11,7 +11,7 @@ import { percentileOrMissing, getHeatmapPercentile, getHeatmapStyle } from "@/li
 import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { WR_RADAR_KEYS, getWRRadarVal } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
-import { formatStat, epaLeaderboardColor } from "@/lib/stats/formatters";
+import { formatStat, epaVsAverageClass, targetEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
@@ -82,7 +82,7 @@ const REC_TABS: Record<string, TabConfig> = {
       { key: "yards_per_route_run", label: "YPRR", tooltip: "YPRR", group: "efficiency" },
       { key: "targets_per_route_run", label: "TPRR", tooltip: "TPRR", group: "efficiency" },
       { key: "croe", label: "CROE", tooltip: "CROE", group: "efficiency" },
-      { key: "receiving_success_rate", label: "Recv SR%", tooltip: "Success%", group: "efficiency" },
+      { key: "receiving_success_rate", label: "Recv SR%", tooltip: "Recv SR%", group: "efficiency" },
       { key: "air_yards_share", label: "AY%", tooltip: "AY%", group: "efficiency" },
       { key: "total_receiving_epa", label: "Total EPA", tooltip: "Total EPA", group: "core" },
       { key: "snap_share", label: "Snap%", tooltip: "Snap%", group: "efficiency" },
@@ -439,12 +439,13 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
     }
   }
 
-  const epaColor = epaLeaderboardColor;
+  // Text colour for EPA/Tgt and Total EPA with the heatmap off: the player's
+  // EPA/target against the season's average target (every WR, TE and back,
+  // weighted by targets), not against zero — the average target is well above
+  // zero. Total EPA takes the colour of the row's EPA/Tgt.
+  const targetAvg = useMemo(() => targetEpaAverage(data), [data]);
 
   const isEpaCol = (key: string) => key === "epa_per_target" || key === "total_receiving_epa";
-
-  // suppress unused variable warning — season reserved for future footnotes
-  void season;
 
   return (
     <div>
@@ -732,7 +733,9 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           const cellClass = isHeatmapCol
                             ? "px-2 py-2 text-right tabular-nums"
                             : `px-2 py-2 text-right tabular-nums ${
-                                isEpaCol(col.key) ? `font-bold ${epaColor(val)}` : "text-gray-700"
+                                isEpaCol(col.key)
+                                  ? `font-bold ${epaVsAverageClass(rec.epa_per_target, targetAvg, EPA_BAND.target)}`
+                                  : "text-gray-700"
                               }`;
 
                           return (
@@ -785,8 +788,13 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
       <div className="mt-4 text-xs text-gray-400 space-y-1 border-t border-gray-100 pt-3">
         <p><span className="font-semibold text-gray-500">Data source:</span> nflverse play-by-play. Stats may differ slightly from Pro Football Reference.</p>
         <p><span className="font-semibold text-gray-500">Catch%</span> = receptions / targets. <span className="font-semibold text-gray-500">ADOT</span> = average depth of target. <span className="font-semibold text-gray-500">YAC/Rec</span> = yards after catch per reception.</p>
-        <p><span className="font-semibold text-gray-500">Tgt Share</span> = player targets / team pass attempts. Values may exceed typical ranges for players who changed teams mid-season.</p>
-        <p><span className="font-semibold text-gray-500">Snap%</span> = player snaps / team offensive snaps. <span className="font-semibold text-gray-500">Route%</span> = routes run / total snaps (pass catchers &gt; blockers).</p>
+        <p><span className="font-semibold text-gray-500">Tgt Share</span> = player targets / team targets (throws charged to a receiver). For a player traded mid-season, only targets with his main team count.</p>
+        <p><span className="font-semibold text-gray-500">Snap%</span> = player snaps / team offensive snaps. <span className="font-semibold text-gray-500">Route%</span> = share of the team&rsquo;s dropbacks he was on the field for.</p>
+        {targetAvg != null ? (
+          <p>With the heatmap off, EPA colours compare each player with the {season} average target ({formatStat("epa_per_target", targetAvg)} EPA, WRs, TEs and backs, weighted by targets): green = better, red = worse, grey = within 0.06. Total EPA takes the colour of the player&rsquo;s EPA/Tgt.</p>
+        ) : (
+          <p>EPA colours start once {season} has enough targets to set a league average.</p>
+        )}
       </div>
 
     </div>

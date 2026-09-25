@@ -29,7 +29,6 @@ import {
   buildReceivingTable,
   type ComparisonRow,
 } from "@/lib/stats/box-score";
-import { epaLeaderboardColor } from "@/lib/stats/formatters";
 import type { GamePlayerLines, TeamGame, TeamGameStat } from "@/lib/types";
 import {
   BUF_HOU_GAME,
@@ -97,23 +96,18 @@ describe("number formatting", () => {
     expect(epaCellClass(undefined)).toBe("text-gray-400");
   });
 
-  it("colours a PLAYER EPA cell the way every other player table on the site does", () => {
-    // epaCellClass wraps epaTextColor's +/-0.02 neutral band -- the right
-    // reference for a team's EPA/play, the wrong one for a player. James
-    // Cook's -0.01 EPA/CAR printed amber here and red on the RB leaderboard,
-    // which uses epaLeaderboardColor. Keep the null/NaN grey guard:
-    // epaLeaderboardColor has none of its own, and isNaN(null) is false.
-    expect(epaPlayerCellClass(0.56)).toBe("text-green-600");
-    expect(epaPlayerCellClass(-0.01)).toBe("text-red-600");
-    expect(epaPlayerCellClass(-0.46)).toBe("text-red-600");
-    expect(epaPlayerCellClass(0)).toBe("text-gray-700");
+  it("leaves a PLAYER EPA cell uncoloured until the page reads season averages (spec A D2f)", () => {
+    // The sign split called James Cook's -0.01 EPA/CAR red, though the average
+    // carry is about -0.10. The rest of the site now colours player EPA
+    // against the season's league average; the box score would need three
+    // more reads inside its 5 s budget for that, so it prints plain text for
+    // now. Keep the null/NaN grey guard (isNaN(null) is false).
+    for (const v of [0.56, -0.01, -0.46, 0, 0.09]) {
+      expect(epaPlayerCellClass(v), String(v)).toBe("text-gray-900");
+    }
     expect(epaPlayerCellClass(null)).toBe("text-gray-400");
     expect(epaPlayerCellClass(NaN)).toBe("text-gray-400");
     expect(epaPlayerCellClass(undefined)).toBe("text-gray-400");
-    // ...and it is the leaderboards' own rule, not a second copy of it.
-    for (const v of [-0.46, -0.01, 0, 0.09, 0.56]) {
-      expect(epaPlayerCellClass(v)).toBe(epaLeaderboardColor(v));
-    }
   });
 });
 

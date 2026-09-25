@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
 import GameLogTab from "@/components/player/GameLogTab";
-import type { GameResultsByTeam, ReceiverWeeklyStat } from "@/lib/types";
+import type { GameResultsByTeam, ReceiverWeeklyStat, RBWeeklyStat } from "@/lib/types";
 
 const base: ReceiverWeeklyStat = {
   player_id: "00-0038543", season: 2026, week: 1, team_id: "SEA", opponent_id: "NE",
@@ -243,5 +243,74 @@ describe("GameLogTab — Result links to the box score (box score spec §7)", ()
       <GameLogTab weeklyStats={[wk5]} position="WR" season={2025} teamId="TEN" gameResults={schedule} boxScoreSeasons={undefined as unknown as number[]} />
     );
     expect(resultCell(none, 5).textContent).toBe("W 22-21");
+  });
+});
+
+// Spec A §4.4 (T10): the Game Log colours each game's EPA against the season's
+// league average for that kind of play, not against zero (0.00 used to be green,
+// and every back's ordinary game red).
+describe("GameLogTab — EPA colours against the league average", () => {
+  const rbGame = (week: number, epa: number): RBWeeklyStat => ({
+    player_id: "00-0038545", season: 2026, week, team_id: "BUF", opponent_id: `O${week}`,
+    home_away: "home", result: "W", team_score: 30, opponent_score: 20,
+    carries: 13, rushing_yards: 57, rushing_tds: 0, epa_per_carry: epa, success_rate: 0.38,
+    yards_per_carry: 4.4, stuff_rate: 0.2, explosive_rate: 0.1, targets: 2, receptions: 2,
+    receiving_yards: 10, receiving_tds: 0, fumbles: 0, fumbles_lost: 0,
+  });
+
+  function epaClass(container: HTMLElement, label: string, week: number): string {
+    const headers = Array.from(container.querySelectorAll("thead th"));
+    const col = headers.findIndex((th) => (th.textContent ?? "").startsWith(label));
+    const row = Array.from(container.querySelectorAll("tbody tr")).find(
+      (tr) => tr.querySelectorAll("td").length > 2 && tr.querySelector("td")?.textContent === String(week),
+    )!;
+    return row.querySelectorAll("td")[col].className;
+  }
+  function legend(container: HTMLElement): string | null {
+    const p = Array.from(container.querySelectorAll("p")).find((el) => (el.textContent ?? "").startsWith("EPA colours compare"));
+    return p ? p.textContent : null;
+  }
+
+  it("RB: -0.05 and +0.20 are green, -0.10 grey, -0.14 red against a -0.10 average", () => {
+    const rows = [rbGame(1, -0.05), rbGame(2, 0.2), rbGame(3, -0.1), rbGame(4, -0.14)];
+    const { container } = render(
+      <GameLogTab weeklyStats={rows} position="RB" season={2026} teamId="BUF" gameResults={{}} boxScoreSeasons={[]} epaAverage={-0.1} />
+    );
+    expect(epaClass(container, "EPA/Car", 1)).toContain("text-green-600");
+    expect(epaClass(container, "EPA/Car", 2)).toContain("text-green-600");
+    expect(epaClass(container, "EPA/Car", 3)).toContain("text-gray-700");
+    expect(epaClass(container, "EPA/Car", 4)).toContain("text-red-600");
+    const text = legend(container);
+    expect(text).toContain("2026 league average (-0.10 per running-back carry)");
+    expect(text).toContain("grey = within 0.03");
+    expect(text).not.toMatch(/\\u[0-9a-fA-F]{4}/);
+  });
+
+  it("with no average yet, every EPA cell is uncoloured and there is no legend", () => {
+    const rows = [rbGame(1, -0.05), rbGame(2, 0.2), rbGame(3, 0)];
+    const { container } = render(
+      <GameLogTab weeklyStats={rows} position="RB" season={2026} teamId="BUF" gameResults={{}} boxScoreSeasons={[]} epaAverage={null} />
+    );
+    for (const w of [1, 2, 3]) {
+      expect(epaClass(container, "EPA/Car", w)).toContain("text-gray-700");
+      expect(epaClass(container, "EPA/Car", w)).not.toMatch(/text-(red|green)-/);
+    }
+    expect(legend(container)).toBeNull();
+  });
+
+  it("WR: uses the target band (0.06)", () => {
+    const rows: ReceiverWeeklyStat[] = [
+      { ...base, week: 1, epa_per_target: 0.28 },
+      { ...base, week: 2, epa_per_target: 0.3 },
+      { ...base, week: 3, epa_per_target: 0.16 },
+    ];
+    const { container } = render(
+      <GameLogTab weeklyStats={rows} position="WR" season={2026} teamId="SEA" gameResults={{}} boxScoreSeasons={[]} epaAverage={0.23} />
+    );
+    expect(epaClass(container, "EPA/Tgt", 1)).toContain("text-gray-700"); // +0.05: within 0.06
+    expect(epaClass(container, "EPA/Tgt", 2)).toContain("text-green-600");
+    expect(epaClass(container, "EPA/Tgt", 3)).toContain("text-red-600");
+    expect(legend(container)).toContain("(0.23 per target)");
+    expect(legend(container)).toContain("grey = within 0.06");
   });
 });

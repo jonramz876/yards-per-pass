@@ -17,6 +17,7 @@ import type {
 } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
 import { isCardPosition } from "@/lib/stats/tecmo-card";
+import { qbEpaAverages, targetEpaAverage, rbCarryEpaAverage } from "@/lib/stats/formatters";
 import PlayerHeader from "./PlayerHeader";
 import PlayerOverviewQB from "./PlayerOverviewQB";
 import PlayerOverviewWR from "./PlayerOverviewWR";
@@ -202,6 +203,18 @@ export default function PlayerPageContent({
       typedWeekly = weeklyStats as RBWeeklyStat[];
     }
 
+    // The Game Log colours each game's EPA against the season's league
+    // average for this position's kind of play; allPlayers is the season's
+    // full, unfiltered pool.
+    const epaAverage =
+      position === "QB"
+        ? qbEpaAverages(allPlayers as QBSeasonStat[]).dropback
+        : position === "WR" || position === "TE"
+          ? targetEpaAverage(allPlayers as ReceiverSeasonStat[])
+          : position === "RB" || position === "FB"
+            ? rbCarryEpaAverage(allPlayers as RBSeasonStat[])
+            : null;
+
     return (
       <GameLogTab
         weeklyStats={typedWeekly}
@@ -210,6 +223,7 @@ export default function PlayerPageContent({
         teamId={player.current_team_id}
         gameResults={gameResults}
         boxScoreSeasons={boxScoreSeasons}
+        epaAverage={epaAverage}
       />
     );
   }

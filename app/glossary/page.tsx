@@ -12,12 +12,12 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
     section: "Core Stats",
     term: "EPA (Expected Points Added)",
     definition:
-      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Above 0 = above average.",
+      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Positive means the play added expected points \u2014 but zero is not the league average: the average pass target is worth well above zero and the average running-back carry below it. Where this site colours a player\u2019s EPA green or red, it compares him with the league average for the same kind of play that season, not with zero; grey means close to average.",
   },
   {
     term: "EPA/Play",
     definition:
-      "EPA averaged across all plays (passing + rushing). The single best measure of a QB\u2019s total impact.",
+      "EPA averaged over a quarterback\u2019s dropbacks and designed runs (kneel-downs left out). The single best measure of a QB\u2019s total impact.",
   },
   {
     term: "EPA/Dropback (EPA/DB)",
@@ -32,7 +32,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Success Rate",
     definition:
-      "How often a play generates positive EPA (Expected Points Added > 0). This is the nflverse EPA-based definition, which may differ slightly from PFR\u2019s yardage-based formula (40%/50%/100% of needed yards). QB success rate on this site excludes sacks from the denominator.",
+      "How often a play generates positive EPA (Expected Points Added > 0) \u2014 nflverse\u2019s success flag, not a yards-to-go rule, so it can differ from yardage-based success rates such as Pro Football Reference\u2019s. QB success rate from season totals (leaderboards, player cards, team pages) leaves sacks out of the denominator; box score passing lines count them.",
   },
   {
     term: "First Downs (Box Score)",
@@ -79,7 +79,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Rush EPA",
     definition:
-      "EPA per rush attempt for a QB. Includes designed runs and scrambles, excludes kneels. Positive = above-average rushing.",
+      "EPA per rush attempt for a QB. Includes designed runs and scrambles, excludes kneels. The average QB rush is worth well above zero, so compare a quarterback with other quarterbacks, not with zero.",
   },
   {
     term: "Run Gap",
@@ -104,7 +104,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "EPA/Carry",
     definition:
-      "Expected Points Added per rushing attempt. Measures how much each carry changes a team\u2019s scoring chances. Positive = above-average efficiency on the ground.",
+      "Expected Points Added per rushing attempt. Measures how much each carry changes a team\u2019s scoring chances. The average running-back carry is worth less than zero, so a back at 0.00 is above average.",
   },
   {
     term: "Fumbles Lost (FL)",
@@ -114,7 +114,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Off EPA/Play",
     definition:
-      "Offensive EPA per play for a team. Measures how efficiently an offense generates expected points. Positive = above average.",
+      "Offensive EPA per play for a team, over its runs, passes and kneel-downs; plays wiped out by a penalty are left out (the box score counts them, so a team\u2019s figure there can differ). Positive = the offense added expected points. The league average is close to zero, but not exactly zero.",
   },
   {
     term: "Def EPA/Play",
@@ -124,7 +124,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Pass Rate",
     definition:
-      "Percentage of plays where a team chooses to pass. Influenced by game script (teams trailing pass more).",
+      "On Team Tiers: pass attempts as a share of all of a team\u2019s plays. Sacks count as plays but not as passes, and kneel-downs count as plays. The situation table on a team\u2019s page counts differently \u2014 sacks as passes, kneel-downs left out \u2014 so its figure runs higher. Influenced by game script (teams trailing pass more).",
   },
   {
     term: "Yards Per Target (Y/Tgt)",
@@ -144,23 +144,23 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   },
   {
     term: "YPRR (Yards Per Route Run)",
-    definition: "Receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted. A top-tier efficiency metric that removes volume bias \u2014 a receiver running 50 routes who gains 75 yards is more efficient than one running 150 routes for 100 yards.",
+    definition: "Receiving yards divided by routes run. Measures how productive a receiver is on every route, not just when targeted. A top-tier efficiency metric that removes volume bias \u2014 a receiver running 50 routes who gains 75 yards is more efficient than one running 150 routes for 100 yards. A route here is any pass thrown while the player was on the field \u2014 sacks and scrambles don\u2019t count, and neither do spikes \u2014 so a back or tight end who stayed in to block still gets one. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "TPRR (Targets Per Route Run)",
-    definition: "Targets divided by routes run. Measures how often a quarterback looks at a receiver on each route they run. High TPRR indicates a receiver who commands attention from the offense regardless of overall target volume.",
+    definition: "Targets divided by routes run. Measures how often a quarterback looks at a receiver on each route they run. High TPRR indicates a receiver who commands attention from the offense regardless of overall target volume. Routes are counted as in YPRR. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "Snap Count",
-    definition: "Total offensive plays a player was on the field for. Derived from play-by-play participation data \u2014 counts all play types (passes, runs, penalties). Does not include special teams snaps.",
+    definition: "Total offensive plays a player was on the field for: runs and passes, sacks and scrambles included. Plays wiped out by a penalty, kneel-downs, spikes and two-point tries aren\u2019t counted, and neither are special teams snaps. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "Snap Share (Snap%)",
-    definition: "Player\u2019s offensive snap count divided by their team\u2019s total offensive snaps. A snap share of 85% means the player was on the field for 85% of the team\u2019s offensive plays. The primary measure of a receiver\u2019s playing time.",
+    definition: "Player\u2019s offensive snap count divided by their team\u2019s total offensive snaps. A snap share of 85% means the player was on the field for 85% of the team\u2019s offensive plays. The primary measure of a receiver\u2019s playing time. For a player traded mid-season, his main team only. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   {
     term: "Route Participation Rate (Route%)",
-    definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks.",
+    definition: "Percentage of a team\u2019s dropback plays where this player was on the field. Measures how often a player is involved in the passing game. A WR with 95% route participation is on the field for nearly every pass play. A blocking TE at 60% is only out there for some passing downs. Industry-standard formula: player dropback snaps / team total dropbacks. For a player traded mid-season, his main team only. Needs nflverse\u2019s player-participation data; a season without it shows \u201c\u2014\u201d.",
   },
   { term: "DB/Game (Dropbacks per Game)", id: "db-game",
     definition: "Dropbacks divided by games played. Measures a QB\u2019s passing volume on a per-game basis. Used as the Volume axis on QB radar charts." },
@@ -212,7 +212,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
   {
     term: "Total EPA",
     id: "total-epa",
-    definition: "The raw sum of EPA across all plays. Unlike EPA/play or EPA/target, this is volume-based \u2014 more plays means a higher total. Measures overall impact rather than per-play efficiency. A QB with 50 Total EPA had more total impact than one with 30, even if the latter had better EPA/play.",
+    definition: "The raw sum of EPA over one kind of play: dropbacks for a quarterback (the same plays as EPA/Dropback, so designed runs aren\u2019t included), carries for a running back, targets for a receiver. Unlike EPA/play or EPA/target, it is volume-based \u2014 more plays means a bigger total, up or down. It measures overall impact rather than per-play efficiency.",
   },
   {
     term: "Total Touches (TCH)",

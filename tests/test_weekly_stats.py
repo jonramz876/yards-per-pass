@@ -580,3 +580,28 @@ class TestQBWeeklyKneelExclusion:
         aggregate_qb_weekly_stats(plays, make_roster('QB1', 'QB'), 2025)
         assert len(plays) == before
         assert (plays['play_type'] == 'qb_kneel').sum() == 3
+
+
+# --- Spec A T13: the glossary's box-score success sentence, bound to the code ---
+
+class TestWeeklyQBSuccessCountsSacks:
+    """Box score passing SUCC% reads qb_weekly_stats.success_rate, which averages
+    `success` over EVERY dropback, sacks included (the season number leaves
+    sacks out). The glossary's Success Rate entry says so.
+
+    Mutation: filter sacks out of the weekly success_rate aggregation."""
+
+    def test_weekly_success_counts_the_sack(self):
+        from ingest import aggregate_qb_weekly_stats
+        from test_leaderboard_stats import glossary_text
+        plays = pd.concat([
+            make_qb_play(play_id=1),
+            make_qb_play(play_id=2),
+            # 1 yard on 3rd-and-10, EPA-positive: the flag's success.
+            make_qb_play(play_id=3, down=3, ydstogo=10, yards_gained=1.0, passing_yards=1.0),
+            make_qb_play(play_id=4, sack=1, complete_pass=0, passing_yards=0.0, yards_gained=-7.0,
+                         success=0, epa=-1.2, receiver_player_id=None),
+        ], ignore_index=True)
+        result = aggregate_qb_weekly_stats(plays, make_roster('QB1', 'QB'), 2025)
+        assert result.iloc[0]['success_rate'] == pytest.approx(0.75)
+        assert 'box score passing lines count them' in glossary_text('Success Rate')

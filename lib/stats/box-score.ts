@@ -14,7 +14,7 @@ import type {
   TeamGame,
   TeamGameStat,
 } from "@/lib/types";
-import { EM_DASH, epaLeaderboardColor, epaTextColor } from "@/lib/stats/formatters";
+import { EM_DASH, epaTextColor } from "@/lib/stats/formatters";
 import { getTeam, getTeamColor } from "@/lib/data/teams";
 
 /* ─── Numbers ─── */
@@ -89,21 +89,19 @@ export function epaCellClass(v: number | null | undefined): string {
 /**
  * Tailwind text colour for a PLAYER EPA cell — EPA/DB, EPA/CAR, EPA/TGT.
  *
- * A plain sign split (epaLeaderboardColor), which is what every other player
- * table on this site uses: QBLeaderboard, RBLeaderboard and
- * ReceiverLeaderboard. Through epaCellClass the box score used the team band
- * instead, so James Cook's −0.01 EPA/CAR printed amber here and red on the RB
- * leaderboard — the site disagreeing with itself about one player's one
- * number. The band is also calibrated to the wrong baseline for two of the
- * three columns (league-average EPA/carry is about −0.10, EPA/target is
- * positive), so it called a better-than-average carry bad and a
- * worse-than-average target good.
+ * Plain text for now: player EPA is NOT coloured on the box score until this
+ * page reads the season's league averages. Everywhere else on the site a
+ * player's EPA is coloured against the league average for that kind of play
+ * (lib/stats/formatters.ts epaVsAverageClass), because zero is not average —
+ * the average carry is about −0.10 EPA and the average target is positive. A
+ * sign split here called James Cook's better-than-average −0.01 EPA/CAR bad.
+ * Doing it properly needs three more season-table reads inside getBoxScore's
+ * 5 s deadline (spec A D2f); that is the follow-up.
  *
- * The null / NaN → grey guard stays HERE: epaLeaderboardColor has none of its
- * own, and it is a spec §6 requirement (a dashed cell is grey, never amber).
+ * The null / NaN → grey guard stays: a dashed cell is grey (spec §6).
  */
 export function epaPlayerCellClass(v: number | null | undefined): string {
-  return isNum(v) ? epaLeaderboardColor(v) : "text-gray-400";
+  return isNum(v) ? "text-gray-900" : "text-gray-400";
 }
 
 /* ─── Game identity: the one rule per `games` column ─── */

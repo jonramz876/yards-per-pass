@@ -194,7 +194,7 @@ describe("GamePage — 2026_01_BUF_HOU renders the golden values", () => {
     expect(container.querySelector('[data-section="cost"]')?.textContent).toContain("A strip-sack counts in both the sack row and the turnover row.");
   });
 
-  it("player tables: order, team sub-headers, links, position tags, EPA colours, notes, no YPRR", async () => {
+  it("player tables: order, team sub-headers, links, position tags, plain EPA, notes, no YPRR", async () => {
     const { container } = render(await page("2026_01_BUF_HOU"));
     expect(Array.from(container.querySelectorAll("[data-player-table]")).map((t) => t.getAttribute("data-player-table"))).toEqual([
       "passing", "rushing", "receiving",
@@ -209,20 +209,23 @@ describe("GamePage — 2026_01_BUF_HOU renders the golden values", () => {
     expect(Array.from(allen.querySelectorAll("td")).map((td) => td.textContent)).toEqual([
       "Josh Allen", "20/29", "334", "2", "0", "2", "130.5", "+0.56", "+8.1", "47%", "13.2",
     ]);
-    expect(allen.querySelectorAll("td")[7].className).toContain("text-green-600");
+    // Spec A D2f: player EPA is plain text on the box score until the page
+    // reads season averages (a sign colour called Cook's better-than-average
+    // carry red). null/NaN would still be grey-400.
+    expect(allen.querySelectorAll("td")[7].className).toContain("text-gray-900");
+    expect(allen.querySelectorAll("td")[7].className).not.toMatch(/text-(red|green)-/);
 
     const rushing = container.querySelector('[data-player-table="rushing"]')!;
     const cook = rushing.querySelector('[data-player-id="00-0038545"]')!;
     expect(cook.querySelectorAll("td")[0].textContent).toBe("James CookRB");
-    // Player EPA takes the leaderboards' colour, not the team band's: Cook's
-    // −0.01 EPA/CAR is red here exactly as it is on the RB leaderboard.
-    expect(cook.querySelectorAll("td")[5].className).toContain("text-red-600");
+    expect(cook.querySelectorAll("td")[5].className).toContain("text-gray-900");
+    expect(cook.querySelectorAll("td")[5].className).not.toMatch(/text-(red|green)-/);
     expect(cook.querySelectorAll("td")[5].className).not.toContain("amber");
     const allenRush = rushing.querySelector('[data-player-id="00-0034857"]')!;
     expect(Array.from(allenRush.querySelectorAll("td")).map((td) => td.textContent)).toEqual([
       "Josh AllenQB", "5", "24", "2", "4.8", `${M}0.46`, "40%",
     ]);
-    expect(allenRush.querySelectorAll("td")[5].className).toContain("text-red-600");
+    expect(allenRush.querySelectorAll("td")[5].className).toContain("text-gray-900");
 
     const receiving = container.querySelector('[data-player-table="receiving"]')!;
     // Scoped to the sub-header row that owns it, and pinned to one TGT% cell
