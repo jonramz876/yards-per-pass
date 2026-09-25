@@ -1,4 +1,5 @@
 // app/page.tsx
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
@@ -12,6 +13,10 @@ import { seasonHasRouteData } from "@/lib/stats/radar";
 import type { TeamSeasonStat, PlayerSlug, ReceiverSeasonStat } from "@/lib/types";
 
 export const revalidate = 3600;
+
+export const metadata: Metadata = {
+  alternates: { canonical: process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com" },
+};
 
 /* ------------------------------------------------------------------ */
 /*  Leader qualifiers — PFR's per-team-game minimums                   */

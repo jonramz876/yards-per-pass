@@ -167,6 +167,22 @@ describe("CardPage", () => {
     expect(getLatestCardSeason).not.toHaveBeenCalled();
   });
 
+  it("card present on a past season → profile link keeps ?season=", async () => {
+    vi.mocked(getPlayerBySlug).mockResolvedValue(mahomes);
+    vi.mocked(getCardDataForPlayer).mockResolvedValue(card);
+    const { container } = render(await call("patrick-mahomes", "2025"));
+    expect(container.querySelector('a[href="/player/patrick-mahomes?season=2025"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/player/patrick-mahomes"]')).toBeNull();
+  });
+
+  it("card present on the default season → bare profile link", async () => {
+    vi.mocked(getPlayerBySlug).mockResolvedValue(mahomes);
+    vi.mocked(getCardDataForPlayer).mockResolvedValue(card);
+    const { container } = render(await call("patrick-mahomes"));
+    expect(container.querySelector('a[href="/player/patrick-mahomes"]')).not.toBeNull();
+    expect(container.querySelector('a[href^="/player/patrick-mahomes?"]')).toBeNull();
+  });
+
   it("?season=2099 → notFound, no stats query", async () => {
     vi.mocked(getPlayerBySlug).mockResolvedValue(mahomes);
     await expect(call("patrick-mahomes", "2099")).rejects.toThrow("NEXT_NOT_FOUND");

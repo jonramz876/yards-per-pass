@@ -123,7 +123,7 @@ describe("RB leaderboard: EPA colours against the league-average carry", () => {
 
   it("colours each back against -0.10, not against zero; Total EPA follows EPA/Car", () => {
     setURL("/rushing", "tab=epa");
-    const { container } = renderBoard(<RBLeaderboard data={BACKS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<RBLeaderboard data={BACKS} throughWeek={2} season={2026} defaultSeason={2026} />);
     const expected: Record<string, string> = {
       "Minus TwentyFive": "text-red-600",
       "Minus Fifteen": "text-red-600",
@@ -144,7 +144,7 @@ describe("RB leaderboard: EPA colours against the league-average carry", () => {
 
   it("shows no EPA colour before the season has 350 carries, and says why", () => {
     setURL("/rushing", "tab=epa");
-    const { container } = renderBoard(<RBLeaderboard data={BACKS.slice(0, 3)} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<RBLeaderboard data={BACKS.slice(0, 3)} throughWeek={2} season={2026} defaultSeason={2026} />);
     for (const b of BACKS.slice(0, 3)) {
       expect(colourOf(cellClass(container, b.player_name, "EPA/Car"))).toBe("text-gray-700");
       expect(colourOf(cellClass(container, b.player_name, "Total EPA"))).toBe("text-gray-700");
@@ -154,7 +154,7 @@ describe("RB leaderboard: EPA colours against the league-average carry", () => {
 
   it("footnote defines Success% by EPA, not a yardage rule", () => {
     setURL("/rushing", "");
-    const { container } = renderBoard(<RBLeaderboard data={BACKS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<RBLeaderboard data={BACKS} throughWeek={2} season={2026} defaultSeason={2026} />);
     const notes = footnotes(container);
     expect(notes).toContain("share of carries that gained expected points (EPA above zero)");
     expect(notes).not.toContain("stay on schedule");
@@ -174,7 +174,7 @@ describe("Receiver leaderboard: EPA colours against the league-average target", 
 
   it("with the heatmap off, EPA/Tgt is green/grey/red around +0.23 with a 0.06 band", () => {
     setURL("/receivers", "");
-    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} defaultSeason={2026} />);
     const heatmap = Array.from(container.querySelectorAll("label")).find((l) => l.textContent?.includes("Heatmap"))!;
     fireEvent.click(heatmap.querySelector("input")!);
     const expected: Record<string, string> = {
@@ -194,7 +194,7 @@ describe("Receiver leaderboard: EPA colours against the league-average target", 
 
   it("Total EPA on the Efficiency tab takes the colour of the player's EPA/Tgt", () => {
     setURL("/receivers", "tab=efficiency");
-    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} defaultSeason={2026} />);
     expect(colourOf(cellClass(container, "Plus Forty", "Total EPA"))).toBe("text-green-600");
     expect(colourOf(cellClass(container, "Plus TwentyNine", "Total EPA"))).toBe("text-gray-700");
     expect(colourOf(cellClass(container, "Plus Ten", "Total EPA"))).toBe("text-red-600");
@@ -202,14 +202,14 @@ describe("Receiver leaderboard: EPA colours against the league-average target", 
 
   it("has no average (and no colour) under 500 targets", () => {
     setURL("/receivers", "tab=efficiency");
-    const { container } = renderBoard(<ReceiverLeaderboard data={RECS.slice(0, 4)} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={RECS.slice(0, 4)} throughWeek={2} season={2026} defaultSeason={2026} />);
     expect(colourOf(cellClass(container, "Plus Forty", "Total EPA"))).toBe("text-gray-700");
     expect(footnotes(container)).toContain("EPA colours start once 2026 has enough targets to set a league average.");
   });
 
   it("footnotes divide by team targets and define Route% by dropbacks", () => {
     setURL("/receivers", "");
-    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} defaultSeason={2026} />);
     const notes = footnotes(container);
     expect(notes).toContain("player targets / team targets");
     expect(notes).toContain("dropbacks he was on the field for");
@@ -221,7 +221,7 @@ describe("Receiver leaderboard: EPA colours against the league-average target", 
 
   it("the Efficiency tab's Recv SR% column explains Recv SR%, not the QB Success%", () => {
     setURL("/receivers", "tab=efficiency");
-    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} defaultSeason={2026} />);
     const th = container.querySelectorAll("thead th")[col(container, "Recv SR%")];
     expect(th.querySelector('[aria-label="What is Recv SR%?"]')).not.toBeNull();
     expect(th.querySelector('[aria-label="What is Success%?"]')).toBeNull();
@@ -238,7 +238,7 @@ describe("QB leaderboard: three baselines", () => {
 
   it("EPA/DB and Total EPA use the dropback average, EPA/Play the play average, Rush EPA the QB-rush average", () => {
     setURL("/qb-leaderboard", "tab=epa");
-    const { container } = renderBoard(<QBLeaderboard data={QBS} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<QBLeaderboard data={QBS} throughWeek={2} season={2026} defaultSeason={2026} />);
     const expected: Record<string, [string, string]> = {
       "High Passer": ["text-green-600", "text-green-600"],
       "Mid Passer": ["text-gray-700", "text-gray-700"],
@@ -264,7 +264,7 @@ describe("QB leaderboard: three baselines", () => {
   it("when only the QB-rush floor is not met, Rush EPA stays grey and the legend says so", () => {
     setURL("/qb-leaderboard", "tab=epa");
     const fewRushes = QBS.map((q) => ({ ...q, rush_attempts: 10 })); // 30 rushes < 60
-    const { container } = renderBoard(<QBLeaderboard data={fewRushes} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<QBLeaderboard data={fewRushes} throughWeek={2} season={2026} defaultSeason={2026} />);
     for (const q of fewRushes) {
       expect(colourOf(cellClass(container, q.player_name, "Rush EPA"))).toBe("text-gray-700");
     }
@@ -277,7 +277,7 @@ describe("QB leaderboard: three baselines", () => {
   it("with no averages at all, says colours start later", () => {
     setURL("/qb-leaderboard", "tab=epa");
     const tiny = QBS.map((q) => ({ ...q, dropbacks: 100, attempts: 90, rush_attempts: 5 }));
-    const { container } = renderBoard(<QBLeaderboard data={tiny} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<QBLeaderboard data={tiny} throughWeek={2} season={2026} defaultSeason={2026} />);
     for (const q of tiny) expect(colourOf(cellClass(container, q.player_name, "EPA/DB"))).toBe("text-gray-700");
     expect(footnotes(container)).toContain("EPA colours start once 2026 has enough plays to set league averages.");
   });
@@ -295,7 +295,7 @@ describe("chaos pass: colours and legends follow the printed numbers", () => {
       rec("e5", "Low Receiver", 0.1553),
     ];
     setURL("/receivers", "tab=efficiency");
-    const { container } = renderBoard(<ReceiverLeaderboard data={recs} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={recs} throughWeek={2} season={2026} defaultSeason={2026} />);
     expect(footnotes(container)).toContain("(0.23 EPA, WRs, TEs and backs");
     expect(colourOf(cellClass(container, "Edge Receiver", "EPA/Tgt"))).toBe("text-gray-700");
     expect(colourOf(cellClass(container, "Edge Receiver", "Total EPA"))).toBe("text-gray-700");
@@ -308,7 +308,7 @@ describe("chaos pass: colours and legends follow the printed numbers", () => {
       qb("z1", "Plus Passer", { epa_per_db: 0.0987, epa_per_play: 0.1, rush_epa_per_play: 0.3 }),
       qb("z2", "Minus Passer", { epa_per_db: -0.1013, epa_per_play: 0.0, rush_epa_per_play: 0.2 }),
     ];
-    const { container } = renderBoard(<QBLeaderboard data={qbs} throughWeek={2} season={2023} />);
+    const { container } = renderBoard(<QBLeaderboard data={qbs} throughWeek={2} season={2023} defaultSeason={2026} />);
     const notes = footnotes(container);
     expect(notes).toContain("league average — 0.00 per dropback");
     expect(notes).not.toContain("-0.00");
@@ -326,7 +326,7 @@ describe("a missing Total EPA is never coloured", () => {
       rb("n3", "Other Back Two", -0.1),
       rb("n4", "Other Back Three", -0.1),
     ];
-    const { container } = renderBoard(<RBLeaderboard data={backs} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<RBLeaderboard data={backs} throughWeek={2} season={2026} defaultSeason={2026} />);
     const cls = cellClass(container, "No Total Back", "Total EPA");
     expect(cls).toContain("text-gray-400");
     expect(cls).not.toMatch(/text-(red|green)-/);
@@ -339,7 +339,7 @@ describe("a missing Total EPA is never coloured", () => {
       { ...rec("n1", "No Total Receiver", 0.6), total_receiving_epa: null },
       ...[2, 3, 4, 5].map((i) => rec(`n${i}`, `Other Receiver ${i}`, 0.2)),
     ];
-    const { container } = renderBoard(<ReceiverLeaderboard data={recs} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<ReceiverLeaderboard data={recs} throughWeek={2} season={2026} defaultSeason={2026} />);
     const cls = cellClass(container, "No Total Receiver", "Total EPA");
     expect(cls).toContain("text-gray-400");
     expect(cls).not.toMatch(/text-(red|green)-/);
@@ -351,7 +351,7 @@ describe("a missing Total EPA is never coloured", () => {
       { ...qb("n1", "No Total Passer", { epa_per_db: 0.3 }), total_epa: null },
       qb("n2", "Other Passer", { epa_per_db: 0.0 }),
     ];
-    const { container } = renderBoard(<QBLeaderboard data={qbs} throughWeek={2} season={2026} />);
+    const { container } = renderBoard(<QBLeaderboard data={qbs} throughWeek={2} season={2026} defaultSeason={2026} />);
     const cls = cellClass(container, "No Total Passer", "Total EPA");
     expect(cls).toContain("text-gray-400");
     expect(cls).not.toMatch(/text-(red|green)-/);

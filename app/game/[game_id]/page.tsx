@@ -55,9 +55,11 @@ export const revalidate = 3600;
  * means this visitor gets error.tsx — which is still the right trade, because
  * the alternative is showing numbers we cannot stand behind. If the page ever
  * needs to be cheap or resilient, making it genuinely cacheable is the fix,
- * and the first thing to check is what opts it out of the full route cache
- * (supabase-js sends its reads with `cache: "no-store"`, and the reads now
- * carry an AbortSignal, either of which forces dynamic rendering).
+ * and the first thing to check is what opts it out of the full route cache.
+ * The cause is not yet identified. It is not the Supabase reads' fetch
+ * options: postgrest-js 1.19.2 sends no `cache` option (supabase-js adds only
+ * headers), and an AbortSignal only skips request dedupe in Next 14.2.35.
+ * This page reads no searchParams, headers or cookies either.
  * Only the placeholder build has no database (hasNoDatabase), and
  * then the game simply isn't there. Do not add an in-render retry: error.tsx
  * already covers the failure, so a retry would only delay it.

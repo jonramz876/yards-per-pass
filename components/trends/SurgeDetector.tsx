@@ -7,6 +7,7 @@ import Image from "next/image";
 import { detectSurges, type SurgeEntry, type WeeklyValue } from "@/lib/stats/surge";
 import { getTeamLogo } from "@/lib/data/teams";
 import type { StatDef } from "@/lib/data/trends";
+import { playerHref } from "@/lib/utils";
 
 // --- Sparkline SVG ---
 function Sparkline({
@@ -97,11 +98,15 @@ function SurgeCard({
   window,
   rising,
   format,
+  season,
+  defaultSeason,
 }: {
   entry: SurgeEntry;
   window: number;
   rising: boolean;
   format: StatDef["format"];
+  season: number;
+  defaultSeason: number;
 }) {
   const logo = getTeamLogo(entry.teamId);
 
@@ -122,7 +127,7 @@ function SurgeCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <Link
-            href={`/player/${entry.slug}`}
+            href={playerHref(entry.slug, season, defaultSeason)}
             className="text-sm font-semibold text-navy hover:underline truncate"
           >
             {entry.playerName}
@@ -165,9 +170,13 @@ const POSITION_TABS = [
 export default function SurgeDetector({
   surgeData,
   stats,
+  season,
+  defaultSeason,
 }: {
   surgeData: Record<string, WeeklyValue[]>;
   stats: StatDef[];
+  season: number;
+  defaultSeason: number;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -296,6 +305,8 @@ export default function SurgeDetector({
                   window={window}
                   rising={true}
                   format={activeStat?.format ?? "epa"}
+                  season={season}
+                  defaultSeason={defaultSeason}
                 />
               ))
             )}
@@ -326,6 +337,8 @@ export default function SurgeDetector({
                   window={window}
                   rising={false}
                   format={activeStat?.format ?? "epa"}
+                  season={season}
+                  defaultSeason={defaultSeason}
                 />
               ))
             )}

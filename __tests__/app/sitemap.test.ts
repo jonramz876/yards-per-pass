@@ -8,7 +8,7 @@ vi.mock("@/lib/data/queries", () => ({
 vi.mock("@/lib/data/box-score", () => ({ getBoxScoreSeasons: vi.fn(async () => []) }));
 vi.mock("@/lib/data/games", () => ({ getPlayedRegularSeasonGameIds: vi.fn(async () => []) }));
 
-import sitemap from "@/app/sitemap";
+import sitemap, { revalidate } from "@/app/sitemap";
 import { getAllPlayerSlugs } from "@/lib/data/players";
 import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
 import { getBoxScoreSeasons } from "@/lib/data/box-score";
@@ -164,5 +164,9 @@ describe("sitemap — box score pages (box score spec §6)", () => {
     expect(logged).toHaveBeenCalledTimes(1);
     expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
     logged.mockRestore();
+  });
+
+  it("regenerates hourly, so new box scores and lastmod don't wait for a deploy (or never come)", () => {
+    expect(revalidate).toBe(3600);
   });
 });

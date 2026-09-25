@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import DashboardShell from "@/components/layout/DashboardShell";
 import MobileTeamList from "@/components/charts/MobileTeamList";
 import { getTeamStats, getDataFreshness, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
+import { canonicalSeason } from "@/lib/utils";
 
 // CRITICAL: D3 accesses window/document — must disable SSR
 const TeamScatterPlot = dynamic(
@@ -29,11 +30,15 @@ export async function generateMetadata({
   searchParams: Promise<{ season?: string }>;
 }): Promise<Metadata> {
   const { season } = await searchParams;
+  const seasons = await getAvailableSeasons();
   const parsed = season ? parseInt(season) : NaN;
-  const s = Number.isNaN(parsed) ? ((await getAvailableSeasons())[0] ?? fallbackSeason()) : parsed;
+  const s = Number.isNaN(parsed) ? (seasons[0] ?? fallbackSeason()) : parsed;
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
+  const cs = canonicalSeason(season, seasons);
   return {
     title: `NFL Team Tiers ${s}`,
     description: `See where all 32 NFL teams rank by offensive and defensive EPA for the ${s} season.`,
+    alternates: { canonical: `${base}/teams${cs != null ? `?season=${cs}` : ""}` },
   };
 }
 

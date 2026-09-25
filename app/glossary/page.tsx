@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "NFL Analytics Glossary",
   description:
     "Plain-English definitions for EPA, CPOE, success rate, ANY/A, passer rating, and every stat on Yards Per Pass.",
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com"}/glossary` },
 };
 
 const TERMS: { term: string; definition: string; id?: string; section?: string }[] = [
