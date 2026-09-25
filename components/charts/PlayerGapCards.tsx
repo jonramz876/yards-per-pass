@@ -209,6 +209,12 @@ export default function PlayerGapCards({
                 (Lg avg: {signed3(leagueAvg.epa)})
               </span>
             )}
+            {/* Why the EPA figures below are uncoloured: the baseline is too thin. */}
+            {leagueAvg.epa !== null && (leagueAvg.carries ?? 0) < EPA_AVERAGE_MIN_PLAYS.carry && (
+              <span className="text-gray-400 ml-1">
+                &middot; colours start at {EPA_AVERAGE_MIN_PLAYS.carry} league carries{isAllGaps ? "" : " in this gap"}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -290,7 +296,7 @@ export default function PlayerGapCards({
                 <div className="text-xs text-gray-500 mb-2">
                   EPA/carry: {epa !== null ? (
                     <span className={`${vsLeagueColor} font-semibold`}>
-                      {epa >= 0 ? "+" : ""}{epa.toFixed(3)}
+                      {signed3(epa)}
                     </span>
                   ) : "\u2014"}
                 </div>

@@ -118,3 +118,22 @@ describe("allRunsLeagueAvg (the All Runs baseline)", () => {
     expect(allRunsLeagueAvg([])).toEqual({ epa: null, yards: null, success: null, stuff: null, explosive: null, carries: 0 });
   });
 });
+
+describe("PlayerGapCards: review M2 / M7", () => {
+  const render1 = (epa: number, carries: number, gap = "LG") =>
+    render(
+      <PlayerGapCards gap={gap} stats={[{ ...gapRow("a", "Some Back", epa), gap }]} teamAvgEpa={-0.07} leagueRank={3} leagueAvg={{ ...LEAGUE, carries }} />,
+    ).container;
+
+  it("says why the cards are uncoloured below the 350-carry floor, and only then", () => {
+    expect(render1(-0.04, 349).textContent).toContain("colours start at 350 league carries in this gap");
+    expect(render1(-0.04, 350).textContent).not.toContain("colours start at");
+  });
+
+  it("the EPA value never prints a signed zero", () => {
+    const c = render1(-0.0004, 400);
+    const label = Array.from(c.querySelectorAll("div")).find((d) => (d.textContent ?? "").startsWith("EPA/carry:"))!;
+    expect(label.textContent).toBe("EPA/carry: 0.000");
+    expect(render1(0.0123, 400).textContent).toContain("EPA/carry: +0.012");
+  });
+});

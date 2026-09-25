@@ -817,7 +817,9 @@ class TestDefinitionsMatchCode:
     def test_rb_success_is_the_flag(self):
         """RB success = mean nflverse `success` (EPA > 0), not a yardage rule.
 
-        Mutation: compute success_rate from yards_gained in aggregate_rb_season_stats."""
+        Mutations: compute success_rate from yards_gained in aggregate_rb_season_stats
+        with a yards-to-go rule (PFR-style 40%/60%/100% of the distance, or simply
+        gained >= to go) or a fixed yardage; each gives a different rate here."""
         from ingest import aggregate_rb_season_stats
         base = {
             'rusher_player_id': 'RB1', 'rusher_player_name': 'Test RB', 'posteam': 'KC', 'defteam': 'BUF',
@@ -834,13 +836,24 @@ class TestDefinitionsMatchCode:
             'receiving_yards': None, 'yards_after_catch': None, 'home_team': 'KC', 'away_team': 'BUF',
             'result': 7, 'total_home_score': 24, 'total_away_score': 17,
         }
-        # Two 2-yard carries the flag calls successes, and a 6-yarder on
-        # 1st-and-20 it doesn't.
-        plays = pd.DataFrame([base, base, {**base, 'yards_gained': 6.0, 'rushing_yards': 6.0,
-                                           'success': 0, 'epa': -0.2, 'down': 1, 'ydstogo': 20}])
+        # The flag and every yardage rule disagree on this frame (review I2):
+        #   a 2-yard and a 5-yard carry on 3rd-and-1, success=1 (the 2-yarder
+        #     fails a fixed 4-yard rule);
+        #   a 6-yarder on 1st-and-10, success=0: 60% of the distance, a success
+        #     under a 40%-on-first-down rule;
+        #   a 6-yarder on 2nd-and-5, success=0: past the sticks, a success
+        #     under any yards-to-go rule.
+        # Flag: 2/4. PFR 40/60/100: 4/4. Gained >= to go: 3/4. Gained >= 4: 3/4.
+        no_gain = {'success': 0, 'epa': -0.05, 'yards_gained': 6.0, 'rushing_yards': 6.0}
+        plays = pd.DataFrame([
+            base,
+            {**base, 'yards_gained': 5.0, 'rushing_yards': 5.0},
+            {**base, **no_gain, 'down': 1, 'ydstogo': 10},
+            {**base, **no_gain, 'down': 2, 'ydstogo': 5},
+        ])
         roster = pd.DataFrame([{'gsis_id': 'RB1', 'position': 'RB'}])
         result = aggregate_rb_season_stats(plays, roster, 2025)
-        assert result.iloc[0]['success_rate'] == pytest.approx(2 / 3)
+        assert result.iloc[0]['success_rate'] == pytest.approx(2 / 4)
         note = footnote_text('components/tables/RBLeaderboard.tsx', 'Success%')
         assert 'EPA above zero' in note
         assert 'stay on schedule' not in note

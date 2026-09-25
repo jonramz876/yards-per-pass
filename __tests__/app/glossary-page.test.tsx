@@ -1,6 +1,8 @@
 // Spec A §4.9 (T7a, T7d): the glossary's stat definitions say what the code
 // computes. The paired pytest pins in tests/ (spec A T13) tie several of these
 // sentences to scripts/ingest.py; this file checks the page a visitor reads.
+import fs from "fs";
+import path from "path";
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import GlossaryPage from "@/app/glossary/page";
@@ -34,7 +36,10 @@ const OLD_FALSE = [
 
 // [entry, fragments its new wording must contain]
 const ENTRIES: [{ id?: string; term?: string }, string[]][] = [
-  [{ term: "EPA (Expected Points Added)" }, ["zero is not the league average", "not with zero; grey means close to average"]],
+  [
+    { term: "EPA (Expected Points Added)" },
+    ["zero is not the league average", "not with zero; grey means close to average", "heatmap instead shades"],
+  ],
   [{ term: "EPA/Play" }, ["dropbacks and designed runs (kneel-downs left out)"]],
   [
     { term: "Success Rate" },
@@ -66,6 +71,29 @@ describe("glossary definitions (spec A §4.9)", () => {
     const text = dd(page(), key);
     for (const f of fragments) expect(text).toContain(f);
     for (const old of OLD_FALSE) expect(text).not.toContain(old);
+  });
+
+  // Review I1: the EPA entry once said "Where this site colours a player's EPA
+  // green or red, it compares him with the league average" — false on the
+  // default leaderboard view (heatmap: rank in the qualified pool), the Game Log
+  // trend dots (the player's own average) and the gap card's "vs team" line. The
+  // claim must name only the surfaces whose text colour is epaVsAverageClass,
+  // and say how the heatmap differs.
+  it("EPA: the colour claim names only the surfaces that use the league-average rule", () => {
+    const text = dd(page(), { term: "EPA (Expected Points Added)" });
+    expect(text).not.toMatch(/where this site colours|everywhere on (this|the) site|every (green|red)/i);
+    const claimed: [string, string][] = [
+      ["the leaderboards with the heatmap off", "components/tables/QBLeaderboard.tsx"],
+      ["the leaderboards with the heatmap off", "components/tables/RBLeaderboard.tsx"],
+      ["the leaderboards with the heatmap off", "components/tables/ReceiverLeaderboard.tsx"],
+      ["the Game Log table", "components/player/GameLogTab.tsx"],
+      ["the run-gap player cards", "components/charts/PlayerGapCards.tsx"],
+    ];
+    for (const [phrase, file] of claimed) {
+      expect(text).toContain(phrase);
+      expect(fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8"), file).toContain("epaVsAverageClass(");
+    }
+    expect(text).toContain("The leaderboard heatmap instead shades each player against the other qualified players.");
   });
 
   it("no false string is left anywhere on the page", () => {

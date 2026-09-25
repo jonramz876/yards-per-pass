@@ -406,8 +406,12 @@ export default function QBLeaderboard({ data, throughWeek, season, slugMap = {} 
   function epaCellColor(key: string, qb: QBSeasonStat): string | null {
     switch (key) {
       case "epa_per_db":
-      case "total_epa":
         return epaVsAverageClass(qb.epa_per_db, qbAvg.dropback, EPA_BAND.dropback);
+      case "total_epa":
+        // A missing total prints a dash and stays dash-grey, whatever its rate.
+        return Number.isFinite(qb.total_epa)
+          ? epaVsAverageClass(qb.epa_per_db, qbAvg.dropback, EPA_BAND.dropback)
+          : "text-gray-400";
       case "epa_per_play":
         return epaVsAverageClass(qb.epa_per_play, qbAvg.play, EPA_BAND.play);
       case "rush_epa_per_play":

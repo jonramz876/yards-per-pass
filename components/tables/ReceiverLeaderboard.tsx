@@ -763,7 +763,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                             ? "px-2 py-2 text-right tabular-nums"
                             : `px-2 py-2 text-right tabular-nums ${
                                 isEpaCol(col.key)
-                                  ? `font-bold ${epaVsAverageClass(rec.epa_per_target, targetAvg, EPA_BAND.target)}`
+                                  ? `font-bold ${Number.isFinite(val) ? epaVsAverageClass(rec.epa_per_target, targetAvg, EPA_BAND.target) : "text-gray-400"}`
                                   : "text-gray-700"
                               }`;
 

@@ -12,7 +12,7 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
     section: "Core Stats",
     term: "EPA (Expected Points Added)",
     definition:
-      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Positive means the play added expected points \u2014 but zero is not the league average: the average pass target is worth well above zero and the average running-back carry below it. Where this site colours a player\u2019s EPA green or red, it compares him with the league average for the same kind of play that season, not with zero; grey means close to average.",
+      "How much each play changes a team\u2019s expected points. A 3rd-and-1 conversion is worth more than a 1st-and-10 three-yard gain. Positive means the play added expected points \u2014 but zero is not the league average: the average pass target is worth well above zero and the average running-back carry below it. Where a player\u2019s EPA number is printed in green or red text \u2014 the leaderboards with the heatmap off, the Game Log table, the run-gap player cards \u2014 it is compared with that season\u2019s league average for the same kind of play, not with zero; grey means close to average. The leaderboard heatmap instead shades each player against the other qualified players.",
   },
   {
     term: "EPA/Play",

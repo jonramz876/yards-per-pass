@@ -314,3 +314,47 @@ describe("chaos pass: colours and legends follow the printed numbers", () => {
     expect(notes).not.toContain("-0.00");
   });
 });
+
+// Review M1 (chaos C14): Total EPA takes its colour from the per-play rate, but
+// a Total that is itself missing prints a dash and must stay dash-grey.
+describe("a missing Total EPA is never coloured", () => {
+  it("RB", () => {
+    setURL("/rushing", "tab=epa");
+    const backs = [
+      { ...rb("n1", "No Total Back", 0.2), total_rushing_epa: null },
+      rb("n2", "Other Back One", -0.1),
+      rb("n3", "Other Back Two", -0.1),
+      rb("n4", "Other Back Three", -0.1),
+    ];
+    const { container } = renderBoard(<RBLeaderboard data={backs} throughWeek={2} season={2026} />);
+    const cls = cellClass(container, "No Total Back", "Total EPA");
+    expect(cls).toContain("text-gray-400");
+    expect(cls).not.toMatch(/text-(red|green)-/);
+    expect(colourOf(cellClass(container, "No Total Back", "EPA/Car"))).toBe("text-green-600");
+  });
+
+  it("Receivers", () => {
+    setURL("/receivers", "tab=efficiency");
+    const recs = [
+      { ...rec("n1", "No Total Receiver", 0.6), total_receiving_epa: null },
+      ...[2, 3, 4, 5].map((i) => rec(`n${i}`, `Other Receiver ${i}`, 0.2)),
+    ];
+    const { container } = renderBoard(<ReceiverLeaderboard data={recs} throughWeek={2} season={2026} />);
+    const cls = cellClass(container, "No Total Receiver", "Total EPA");
+    expect(cls).toContain("text-gray-400");
+    expect(cls).not.toMatch(/text-(red|green)-/);
+  });
+
+  it("QB", () => {
+    setURL("/qb-leaderboard", "tab=epa");
+    const qbs = [
+      { ...qb("n1", "No Total Passer", { epa_per_db: 0.3 }), total_epa: null },
+      qb("n2", "Other Passer", { epa_per_db: 0.0 }),
+    ];
+    const { container } = renderBoard(<QBLeaderboard data={qbs} throughWeek={2} season={2026} />);
+    const cls = cellClass(container, "No Total Passer", "Total EPA");
+    expect(cls).toContain("text-gray-400");
+    expect(cls).not.toMatch(/text-(red|green)-/);
+    expect(colourOf(cellClass(container, "No Total Passer", "EPA/DB"))).toBe("text-green-600");
+  });
+});

@@ -722,7 +722,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                             ? "px-2 py-2 text-right tabular-nums"
                             : `px-2 py-2 text-right tabular-nums ${
                                 isEpaCol(col.key)
-                                  ? `font-bold ${epaVsAverageClass(rb.epa_per_carry, carryAvg, EPA_BAND.carry)}`
+                                  ? `font-bold ${Number.isFinite(val) ? epaVsAverageClass(rb.epa_per_carry, carryAvg, EPA_BAND.carry) : "text-gray-400"}`
                                   : "text-gray-700"
                               }`;
 
