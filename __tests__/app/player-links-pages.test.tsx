@@ -52,7 +52,7 @@ import QBLeaderboard from "@/components/tables/QBLeaderboard";
 import ReceiverLeaderboard from "@/components/tables/ReceiverLeaderboard";
 import RBLeaderboard from "@/components/tables/RBLeaderboard";
 import SurgeDetector from "@/components/trends/SurgeDetector";
-import { getAvailableSeasons } from "@/lib/data/queries";
+import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 
 const SEASONS = [2026, 2025, 2024, 2023, 2022, 2021, 2020];
 
@@ -71,6 +71,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   dynamicProps.length = 0;
   vi.mocked(getAvailableSeasons).mockResolvedValue(SEASONS);
+  vi.mocked(fallbackSeason).mockReturnValue(2026);
 });
 
 const LEADERBOARD_PAGES: [string, Page, unknown][] = [
@@ -88,10 +89,13 @@ describe("season pages pass the viewed and the default season", () => {
     expect(props.defaultSeason).toBe(2026);
   });
 
+  // fallbackSeason() returns a year unlike SEASONS[0], so a hard-coded 2026
+  // (or a default taken from anywhere else) cannot pass.
   it.each(LEADERBOARD_PAGES)("%s with no seasons falls back to fallbackSeason()", async (_path, page, component) => {
     vi.mocked(getAvailableSeasons).mockResolvedValue([]);
+    vi.mocked(fallbackSeason).mockReturnValue(2030);
     await renderPage(page, { season: "2024" });
-    expect(lastProps(component).defaultSeason).toBe(2026);
+    expect(lastProps(component).defaultSeason).toBe(2030);
   });
 
   it("/run-gaps?team=BUF&season=2024 → RunGapDiagram", async () => {
@@ -104,8 +108,9 @@ describe("season pages pass the viewed and the default season", () => {
 
   it("/run-gaps with no seasons falls back to fallbackSeason()", async () => {
     vi.mocked(getAvailableSeasons).mockResolvedValue([]);
+    vi.mocked(fallbackSeason).mockReturnValue(2030);
     await renderPage(RunGapsPage as unknown as Page, { team: "BUF", season: "2024" });
     const diagram = dynamicProps.filter((p) => p.selectedTeam === "BUF");
-    expect(diagram[0].defaultSeason).toBe(2026);
+    expect(diagram[0].defaultSeason).toBe(2030);
   });
 });
