@@ -10,7 +10,8 @@ import { describe, it, expect } from "vitest";
 import rowsJson from "./fixtures/team-game-stats-2026-w1-3.json";
 import expectedJson from "./fixtures/team-stats-2026-w1-3.expected.json";
 import { buildTeamStats, num, RATE_COLUMNS, type TeamSideStats, type TeamStatsModel } from "@/lib/stats/team-stats";
-import { fmtFixed, fmtSignedInt } from "@/lib/stats/box-score";
+import * as P from "@/lib/stats/team-stats";
+import { fmtFixed, fmtSignedInt, STRIP_SACK_NOTE } from "@/lib/stats/box-score";
 import { NFL_TEAMS } from "@/lib/data/teams";
 
 type Row = Record<string, unknown>;
@@ -302,5 +303,318 @@ describe("1000+ rows", () => {
     expect(m.league.gp).toBe(1100);
     expect(m.teamsPlayed).toBe(32);
     expectSerialisable(m);
+  });
+});
+
+/* ─── Presentation pieces (spec §5.3-5.4) ─── */
+
+const MINUS = "−";
+const keys = (tab: P.TeamStatsTab, side: P.TeamStatsSide) => P.teamStatsColumns(tab, side).map((c) => c.key);
+
+describe("column table", () => {
+  it("per tab and side; Toxic is Offense only", () => {
+    expect(keys("eff", "off")).toEqual([
+      "epa", "pass_epa", "rush_epa", "sr", "pass_sr", "rush_sr", "fd", "pass_fd", "rush_fd",
+      "expl", "expl_rate", "expl_pass_rate", "expl_rush_rate", "toxic",
+    ]);
+    expect(keys("eff", "def")).toEqual(keys("eff", "off").filter((k) => k !== "toxic"));
+    expect(keys("downs", "off")).toEqual(["early_plays", "early_epa", "early_sr", "late_plays", "late_epa", "late_sr"]);
+    expect(keys("downs", "def")).toEqual(keys("downs", "off"));
+    expect(keys("cost", "off")).toEqual(["cost_to", "cost_sack", "cost_pen", "cost_total"]);
+    expect(keys("cost", "def")).toEqual(keys("cost", "off"));
+  });
+
+  it("neutral = the Plays columns; colour = the five EPA/play columns; tooltips only the three allowed keys", () => {
+    const all = (["eff", "downs", "cost"] as const).flatMap((t) => P.teamStatsColumns(t, "off"));
+    expect(all.filter((c) => c.neutral).map((c) => c.key)).toEqual(["early_plays", "late_plays"]);
+    expect(all.filter((c) => c.colour).map((c) => c.key)).toEqual(["epa", "pass_epa", "rush_epa", "early_epa", "late_epa"]);
+    expect(all.filter((c) => c.tooltip).map((c) => c.tooltip)).toEqual(["EPA / play", "Success rate", "Explosive plays"]);
+    expect(all.filter((c) => c.group).map((c) => c.group)).toEqual([
+      "EPA / play", "Success rate", "1st down rate", "Explosive plays", "Toxic",
+      "Early downs (1st–2nd)", "Late downs (3rd–4th)", "EPA lost per game",
+    ]);
+    expect(all.find((c) => c.key === "toxic")?.label).toBe("Diff");
+  });
+
+  it("tab labels", () => {
+    expect(P.TEAM_STATS_TABS.map((t) => P.TEAM_STATS_TAB_LABELS[t])).toEqual(["Efficiency", "Early vs Late Downs", "What It Cost Them"]);
+  });
+});
+
+describe("better-first direction and default sort", () => {
+  it("Offense: higher first everywhere; Defense (C3): lower first except neutral Plays", () => {
+    for (const tab of P.TEAM_STATS_TABS) {
+      for (const c of P.teamStatsColumns(tab, "off")) expect(P.betterFirstDir(c, "off")).toBe("desc");
+      for (const c of P.teamStatsColumns(tab, "def")) expect(P.betterFirstDir(c, "def"), c.key).toBe(c.neutral ? "desc" : "asc");
+    }
+  });
+
+  it("default sort = first non-neutral column", () => {
+    expect(P.defaultSortKey("eff")).toBe("epa");
+    expect(P.defaultSortKey("downs")).toBe("early_epa");
+    expect(P.defaultSortKey("cost")).toBe("cost_to");
+  });
+});
+
+describe("sortTeamRows", () => {
+  const col = (k: string) => P.teamStatsColumns("eff", "off").find((c) => c.key === k)!;
+  const synthetic = buildTeamStats([
+    row({ game_id: "g1", team_id: "SF", opponent_id: "ARI", epa_per_play: 0.2 }),
+    row({ game_id: "g2", team_id: "KC", opponent_id: "BUF", epa_per_play: 0.2 }),
+    row({ game_id: "g3", team_id: "DAL", opponent_id: "NYG", epa_per_play: -0.1 }),
+    row({ game_id: "g4", team_id: "MIA", opponent_id: "NE", epa_per_play: null }),
+  ]);
+  const order = (dir: P.SortDir) => P.sortTeamRows(synthetic.teams, col("epa"), "off", dir).map((t) => t.team);
+
+  it("nulls last in both directions; ties by team id ascending in both directions", () => {
+    const desc = order("desc");
+    const asc = order("asc");
+    expect(desc.slice(0, 3)).toEqual(["KC", "SF", "DAL"]);
+    expect(asc.slice(0, 3)).toEqual(["DAL", "KC", "SF"]);
+    // the rest are null (MIA's rate and the 28 teams without games), by id
+    const rest = NFL_TEAMS.map((t) => t.id).filter((id) => !["KC", "SF", "DAL"].includes(id)).sort();
+    expect(desc.slice(3)).toEqual(rest);
+    expect(asc.slice(3)).toEqual(rest);
+  });
+
+  it("does not mutate its input", () => {
+    const before = synthetic.teams.map((t) => t.team);
+    P.sortTeamRows(synthetic.teams, col("epa"), "off", "desc");
+    expect(synthetic.teams.map((t) => t.team)).toEqual(before);
+  });
+
+  it("Defense on the fixture: MIN then LV on EPA ascending", () => {
+    const c = P.teamStatsColumns("eff", "def")[0];
+    const sorted = P.sortTeamRows(MODEL.teams, c, "def", P.betterFirstDir(c, "def"));
+    expect(sorted.slice(0, 2).map((t) => t.team)).toEqual(["MIN", "LV"]);
+  });
+
+  it("a positive penalty cost ranks above −0.10 on Offense (higher first, not closer to zero)", () => {
+    const m = buildTeamStats([
+      row({ game_id: "g1", team_id: "PIT", opponent_id: "NE", epa_lost_penalties: 0.5 }),
+      row({ game_id: "g2", team_id: "WAS", opponent_id: "SEA", epa_lost_penalties: -0.1 }),
+    ]);
+    const c = P.teamStatsColumns("cost", "off").find((x) => x.key === "cost_pen")!;
+    expect(P.sortTeamRows(m.teams, c, "off", P.betterFirstDir(c, "off")).slice(0, 2).map((t) => t.team)).toEqual(["PIT", "WAS"]);
+    // Defense: more negative first — SEA's opponent lost 0.10, NE's gained 0.50
+    const d = P.teamStatsColumns("cost", "def").find((x) => x.key === "cost_pen")!;
+    expect(P.sortTeamRows(m.teams, d, "def", P.betterFirstDir(d, "def")).slice(0, 2).map((t) => t.team)).toEqual(["SEA", "NE"]);
+  });
+});
+
+describe("a team that hasn't played (I5)", () => {
+  const m = buildTeamStats([row({ team_id: "SF", opponent_id: "ARI" })]);
+  const nyj = team(m, "NYJ");
+
+  it("prints a dash in every cell on both sides", () => {
+    for (const side of ["off", "def"] as const) {
+      for (const tab of P.TEAM_STATS_TABS) {
+        for (const c of P.teamStatsColumns(tab, side)) {
+          expect(P.cellValue(nyj, c, side), `${side} ${c.key}`).toBeNull();
+          expect(P.formatCell(c, P.cellValue(nyj, c, side))).toBe("—");
+        }
+      }
+    }
+  });
+
+  it("sorts last on every column, both sides, both directions", () => {
+    for (const side of ["off", "def"] as const) {
+      for (const tab of P.TEAM_STATS_TABS) {
+        for (const c of P.teamStatsColumns(tab, side)) {
+          for (const dir of ["asc", "desc"] as const) {
+            const sorted = P.sortTeamRows(m.teams, c, side, dir);
+            const played = sorted.findIndex((t) => t.team === (side === "off" ? "SF" : "ARI"));
+            const idx = sorted.findIndex((t) => t.team === "NYJ");
+            expect(idx, `${side} ${c.key} ${dir}`).toBeGreaterThan(played);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("teamEpaClass (spec §5.3)", () => {
+  const avg = 0.008;
+  it("Offense: ±0.030 grey, +0.031 green, −0.031 red", () => {
+    expect(P.teamEpaClass(0.038, avg, "off")).toBe("text-gray-700");
+    expect(P.teamEpaClass(-0.022, avg, "off")).toBe("text-gray-700");
+    expect(P.teamEpaClass(0.039, avg, "off")).toBe("text-green-600");
+    expect(P.teamEpaClass(-0.023, avg, "off")).toBe("text-red-600");
+  });
+  it("Defense is the mirror: lower is green", () => {
+    expect(P.teamEpaClass(0.038, avg, "def")).toBe("text-gray-700");
+    expect(P.teamEpaClass(-0.022, avg, "def")).toBe("text-gray-700");
+    expect(P.teamEpaClass(0.039, avg, "def")).toBe("text-red-600");
+    expect(P.teamEpaClass(-0.023, avg, "def")).toBe("text-green-600");
+  });
+  it("compares values as printed at 3 dp", () => {
+    expect(P.teamEpaClass(0.0384, avg, "off")).toBe("text-gray-700"); // prints 0.038
+    expect(P.teamEpaClass(0.0386, avg, "off")).toBe("text-green-600"); // prints 0.039
+  });
+  it("null → gray-400; no average → gray-700; a value printing as −0.000", () => {
+    expect(P.teamEpaClass(null, avg, "off")).toBe("text-gray-400");
+    expect(P.teamEpaClass(null, avg, "def")).toBe("text-gray-400");
+    expect(P.teamEpaClass(0.5, null, "off")).toBe("text-gray-700");
+    expect(P.teamEpaClass(0.5, null, "def")).toBe("text-gray-700");
+    expect(P.teamEpaClass(-0.0001, 0, "off")).toBe("text-gray-700");
+    expect(P.teamEpaClass(-0.0001, 0, "def")).toBe("text-gray-700");
+  });
+  it("colour is on only once the league has 600 plays", () => {
+    expect(P.colourOn(MODEL)).toBe(true);
+    const oneGame = buildTeamStats(ROWS.slice(0, 2));
+    expect(oneGame.league.plays).toBeLessThan(600);
+    expect(P.colourOn(oneGame)).toBe(false);
+  });
+});
+
+describe("NFL average row (J2)", () => {
+  const eff = (k: string) => P.teamStatsColumns("eff", "off").find((c) => c.key === k)!;
+  it("counts are the average team; rates league-wide; toxic computed", () => {
+    expect(P.averageCell(MODEL, eff("expl"))).toBe("16.5");
+    expect(P.averageCell(MODEL, eff("epa"))).toBe("+0.008");
+    expect(P.averageCell(MODEL, eff("sr"))).toBe("44%");
+    expect(P.averageCell(MODEL, eff("toxic"))).toBe("0");
+    const late = P.teamStatsColumns("downs", "off").find((c) => c.key === "late_plays")!;
+    expect(P.averageCell(MODEL, late)).toBe(fmtFixed(1364 / 32, 1));
+    const total = P.teamStatsColumns("cost", "off").find((c) => c.key === "cost_total")!;
+    expect(P.averageCell(MODEL, total)).toBe(`${MINUS}16.02`);
+  });
+  it("the divisor is teamsPlayed (M3): week 1 minus one game → / 30", () => {
+    const week1 = ROWS.filter((r) => r.week === 1);
+    const m = buildTeamStats(week1.filter((r) => r.game_id !== week1[0].game_id));
+    expect(P.averageCell(m, eff("expl"))).toBe(fmtFixed(m.league.expl / 30, 1));
+    expect(P.averageCell(m, eff("expl"))).not.toBe(fmtFixed(m.league.expl / 32, 1));
+  });
+  it("a dash when no team has played", () => {
+    expect(P.averageCell(buildTeamStats([]), eff("expl"))).toBe("—");
+    expect(P.averageCell(buildTeamStats([]), eff("toxic"))).toBe("—");
+  });
+});
+
+describe("URL state", () => {
+  const parse = (q: string) => P.parseTeamStatsParams(new URLSearchParams(q));
+
+  it("defaults", () => {
+    expect(parse("")).toEqual({ side: "off", tab: "eff", sort: "epa", dir: "desc" });
+    expect(parse("side=def")).toEqual({ side: "def", tab: "eff", sort: "epa", dir: "asc" });
+    expect(parse("tab=downs")).toEqual({ side: "off", tab: "downs", sort: "early_epa", dir: "desc" });
+    expect(parse("tab=cost&side=def")).toEqual({ side: "def", tab: "cost", sort: "cost_to", dir: "asc" });
+  });
+
+  it("valid values are read", () => {
+    expect(parse("tab=downs&sort=late_plays&dir=asc")).toEqual({ side: "off", tab: "downs", sort: "late_plays", dir: "asc" });
+    expect(parse("sort=toxic")).toEqual({ side: "off", tab: "eff", sort: "toxic", dir: "desc" });
+  });
+
+  it("every invalid value falls back", () => {
+    expect(parse("side=zzz&tab=zzz&sort=zzz&dir=zzz")).toEqual(parse(""));
+    expect(parse("sort=toxic&side=def")).toEqual({ side: "def", tab: "eff", sort: "epa", dir: "asc" });
+    expect(parse("sort=cost_to")).toEqual(parse(""));
+    expect(parse("sort=gp")).toEqual(parse(""));
+    expect(parse("dir=up")).toEqual(parse(""));
+    expect(parse("sort=__proto__&tab=constructor&side=toString")).toEqual(parse(""));
+  });
+
+  it("build omits defaults and keeps other params", () => {
+    const base = new URLSearchParams("season=2025&side=def&sort=x");
+    expect(P.buildTeamStatsQuery(parse(""), base)).toBe("season=2025");
+    expect(P.buildTeamStatsQuery({ side: "def", tab: "eff", sort: "epa", dir: "asc" }, base)).toBe("season=2025&side=def");
+    expect(P.buildTeamStatsQuery({ side: "off", tab: "downs", sort: "late_epa", dir: "asc" }, new URLSearchParams())).toBe(
+      "tab=downs&sort=late_epa&dir=asc",
+    );
+  });
+
+  it("round-trips every tab × side × column × direction", () => {
+    for (const side of ["off", "def"] as const) {
+      for (const tab of P.TEAM_STATS_TABS) {
+        for (const c of P.teamStatsColumns(tab, side)) {
+          for (const dir of ["asc", "desc"] as const) {
+            const state = { side, tab, sort: c.key, dir };
+            expect(parse(P.buildTeamStatsQuery(state, new URLSearchParams()))).toEqual(state);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe("copy (spec §5.4)", () => {
+  it("C1 names Team Tiers and says plays are counted differently", () => {
+    expect(P.TEAM_TIERS_NOTE).toBe(
+      "These rankings add up every game’s box score, so they use the same play filter as the box scores and rbsdm.com. A team’s EPA/play here can differ from its figure on Team Tiers, which counts plays differently.",
+    );
+  });
+
+  it("C2 subtitles", () => {
+    expect(P.SUBTITLE.off).toBe("What each offense did");
+    expect(P.SUBTITLE.def).toBe("What opponents did against each team");
+  });
+
+  it("C3, C4, C5, C11 text", () => {
+    expect(P.DEFENSE_NOTE).toBe("Defense ranks what opponents did against each team, so lower EPA, success and explosive rates rank higher.");
+    expect(P.EXPLOSIVE_NOTE).toBe(
+      "Explosive plays are completions of 20+ yards and runs of 10+ (QB scrambles count as runs). The rush explosive rate divides by designed runs only, so a team with long scrambles can run high.",
+    );
+    expect(P.TOXIC_NOTE).toBe("Toxic differential is turnover margin plus explosive-play margin, one figure for the whole team.");
+    expect(P.AVERAGE_ROW_NOTE).toBe("In the NFL average row, rates are league-wide and counts are for the average team.");
+  });
+
+  it("C7 is built from the band constant; C7b names the season", () => {
+    expect(P.colourNote()).toBe("EPA/play is green (better) or red (worse) against the NFL average in the bottom row, grey within 0.03.");
+    expect(P.colourPendingNote(2026)).toBe("EPA colours start once the 2026 season has enough plays to set a league average.");
+  });
+
+  it("C8 shows for weeks 1-4 of the latest season only", () => {
+    expect(P.earlySeasonNote(1, true)).toBe("With only 1 week played, one game moves a team a long way.");
+    expect(P.earlySeasonNote(3, true)).toBe("With only 3 weeks played, one game moves a team a long way.");
+    expect(P.earlySeasonNote(4, true)).not.toBeNull();
+    expect(P.earlySeasonNote(5, true)).toBeNull();
+    expect(P.earlySeasonNote(null, true)).toBeNull();
+    expect(P.earlySeasonNote(0, true)).toBeNull();
+    expect(P.earlySeasonNote(3, false)).toBeNull();
+  });
+
+  it("C9 uncovered heading and body", () => {
+    expect(P.uncoveredHeading(2025, 2026)).toBe("Team stats start with the 2026 season");
+    expect(P.uncoveredHeading(2030, null)).toBe("Team stats aren’t available for the 2030 season");
+    expect(P.UNCOVERED_BODY).toBe("Earlier seasons aren’t available yet.");
+  });
+
+  it("C10 metadata copy", () => {
+    expect(P.teamStatsTitle(2026)).toBe("NFL Team Stats 2026");
+    expect(P.teamStatsDescription(2026)).toBe(
+      "Every NFL team's offense and defense for the 2026 season: EPA per play, success rate, explosive plays, early and late downs, and what turnovers, sacks and penalties cost.",
+    );
+  });
+
+  it("C6 / C6b cost notes; C6b agrees with the box score's strip-sack rule", () => {
+    expect(P.COST_NOTE.off).toBe(
+      "EPA each team lost per game to its own turnovers, sacks and penalties. Penalties count the team’s flags on both sides of the ball, as in the box score. Higher (less negative) is better.",
+    );
+    expect(P.COST_NOTE.def).toBe(
+      "EPA each team’s opponents lost per game to their own turnovers, sacks and penalties (their flags on both sides of the ball). More negative is better.",
+    );
+    for (const s of [P.STRIP_SACK_COST_NOTE, STRIP_SACK_NOTE]) {
+      expect(s.toLowerCase()).toContain("strip-sack");
+      expect(s).toContain("both");
+    }
+    expect(P.STRIP_SACK_COST_NOTE).toBe(
+      "A strip-sack counts in both the Turnovers and Sacks columns, as in the box score, so Total counts it twice.",
+    );
+  });
+
+  it("footnotes per side × tab", () => {
+    const f = (side: P.TeamStatsSide, tab: P.TeamStatsTab, extra: Partial<P.FootnoteState> = {}) =>
+      P.teamStatsFootnotes({ side, tab, colourOn: true, season: 2026, throughWeek: 3, isLatestSeason: true, ...extra });
+    const early = P.earlySeasonNote(3, true)!;
+    expect(f("off", "eff")).toEqual([P.EXPLOSIVE_NOTE, P.TOXIC_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
+    expect(f("def", "eff")).toEqual([P.DEFENSE_NOTE, P.EXPLOSIVE_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
+    expect(f("off", "downs")).toEqual([P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
+    expect(f("def", "downs")).toEqual([P.DEFENSE_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
+    expect(f("off", "cost")).toEqual([P.COST_NOTE.off, P.STRIP_SACK_COST_NOTE, early]);
+    expect(f("def", "cost")).toEqual([P.COST_NOTE.def, P.STRIP_SACK_COST_NOTE, early]);
+    expect(f("off", "eff", { colourOn: false })).toContain(P.colourPendingNote(2026));
+    expect(f("off", "eff", { colourOn: false })).not.toContain(P.colourNote());
+    expect(f("off", "eff", { throughWeek: 9 })).not.toContain(early);
   });
 });
