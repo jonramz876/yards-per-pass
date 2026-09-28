@@ -26,8 +26,10 @@ export async function generateMetadata({
   const seasons = await getAvailableSeasons();
   const s = parseSeasonParam(season) ?? seasons[0] ?? fallbackSeason();
 
-  // No seasons from data_freshness: the body throws (J4) and renders the error
-  // page, so the metadata makes no claim about coverage either way.
+  // No seasons from data_freshness: coverage is unknown. The body throws only
+  // if the team_game_stats read is also empty (J4); otherwise it renders the
+  // table for this season with no meta description. Either way the metadata
+  // makes no claim: title only, no probe, no noindex.
   if (seasons.length === 0) return { title: teamStatsTitle(s) };
 
   // An uncovered season is a 200 message page: keep it out of search results,

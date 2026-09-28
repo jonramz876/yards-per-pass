@@ -159,7 +159,8 @@ export default function TeamStatsTable({ model, season, throughWeek, isLatestSea
         <table className="w-full text-sm">
           <thead>
             <tr>
-              <th colSpan={3} className="bg-navy" />
+              <th colSpan={2} className="bg-navy sticky left-0 z-20" />
+              <th className="bg-navy" />
               {groupsOf(columns).map((g, i) => (
                 <th
                   key={`${g.label}-${i}`}
@@ -206,7 +207,7 @@ export default function TeamStatsTable({ model, season, throughWeek, isLatestSea
                     <img src={getTeamLogo(t.team)} width={20} height={20} alt="" loading="lazy" className="inline-block" />
                   )}
                   <span className="font-semibold text-navy">{t.team}</span>
-                  <span className="hidden sm:inline text-gray-500 font-normal">{t.name}</span>
+                  {known && <span className="hidden sm:inline text-gray-500 font-normal">{t.name}</span>}
                 </>
               );
               return (

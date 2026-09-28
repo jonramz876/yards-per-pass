@@ -294,6 +294,24 @@ describe("TeamStatsTable — teams without games and unknown ids", () => {
     const tr = teamRow(container, "XYZ");
     expect(tr.querySelector("a")).toBeNull();
     expect(tr.querySelector("img")).toBeNull();
-    expect(tr.textContent).toContain("XYZ");
+    expect(tr.querySelectorAll("td")[1].textContent).toBe("XYZ");
+  });
+
+  it("a known team shows its id and its name", () => {
+    const { container } = renderTable();
+    expect(teamRow(container, "SF").querySelectorAll("td")[1].textContent).toBe("SFSan Francisco 49ers");
+  });
+});
+
+describe("TeamStatsTable — header", () => {
+  it("the group row's cell above # and Team is pinned like the columns below it; GP's is not", () => {
+    const { container } = renderTable();
+    const top = container.querySelectorAll("thead tr")[0].querySelectorAll("th");
+    expect(top[0].colSpan).toBe(2);
+    for (const cls of ["sticky", "left-0", "z-20", "bg-navy"]) expect(hasClass(top[0], cls), cls).toBe(true);
+    expect(top[1].colSpan).toBe(1);
+    expect(hasClass(top[1], "sticky")).toBe(false);
+    const second = container.querySelectorAll("thead tr")[1].querySelectorAll("th");
+    expect(hasClass(second[0], "left-0") && hasClass(second[1], "left-10")).toBe(true);
   });
 });

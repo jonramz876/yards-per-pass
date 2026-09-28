@@ -139,7 +139,7 @@ describe("/team-stats metadata", () => {
     expect(m.description).toContain("for the 2025 season");
   });
 
-  it("no seasons from data_freshness: the body throws, so the metadata makes no claim (title only, no probe)", async () => {
+  it("no seasons from data_freshness: coverage is unknown (the body throws only if the read is also empty), so the metadata makes no claim — title only, no probe", async () => {
     vi.mocked(getAvailableSeasons).mockResolvedValue([]);
     const m = await meta();
     expect(m).toEqual({ title: "NFL Team Stats 2026" });
