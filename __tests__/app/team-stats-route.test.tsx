@@ -142,9 +142,9 @@ describe("/team-stats metadata", () => {
   it("no seasons from data_freshness: coverage is unknown (the body throws only if the read is also empty), so the metadata makes no claim — title only, no probe", async () => {
     vi.mocked(getAvailableSeasons).mockResolvedValue([]);
     const m = await meta();
-    expect(m).toEqual({ title: "NFL Team Stats 2026" });
+    expect(m).toEqual({ title: "NFL Team Stats 2026", alternates: { canonical: "https://yardsperpass.com/team-stats" } });
     expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
-    expect(await meta("2025")).toEqual({ title: "NFL Team Stats 2025" });
+    expect(await meta("2025")).toEqual({ title: "NFL Team Stats 2025", alternates: { canonical: "https://yardsperpass.com/team-stats" } });
   });
 
   it("a probe failure is logged and leaves the page indexable", async () => {

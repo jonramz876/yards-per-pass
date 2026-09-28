@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { getAvailableSeasons, getDataFreshness, fallbackSeason } from "@/lib/data/queries";
 import { getTeamStatsSeason } from "@/lib/data/team-stats";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { canonicalSeason } from "@/lib/utils";
 import {
   UNCOVERED_BODY,
   buildTeamStats,
@@ -25,12 +26,17 @@ export async function generateMetadata({
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
   const s = parseSeasonParam(season) ?? seasons[0] ?? fallbackSeason();
+  // The canonical the other season pages got in PR #24: bare, or ?season= for
+  // a real past season in data_freshness.
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
+  const cs = canonicalSeason(season, seasons);
+  const alternates = { canonical: `${base}/team-stats${cs != null ? `?season=${cs}` : ""}` };
 
   // No seasons from data_freshness: coverage is unknown. The body throws only
   // if the team_game_stats read is also empty (J4); otherwise it renders the
   // table for this season with no meta description. Either way the metadata
   // makes no claim: title only, no probe, no noindex.
-  if (seasons.length === 0) return { title: teamStatsTitle(s) };
+  if (seasons.length === 0) return { title: teamStatsTitle(s), alternates };
 
   // An uncovered season is a 200 message page: keep it out of search results,
   // like the box score's message pages. Fail-open on purpose: a probe error
@@ -53,9 +59,10 @@ export async function generateMetadata({
       title: teamStatsTitle(s),
       description: `${uncoveredHeading(s, first !== null && s < first ? first : null)}.`,
       robots: { index: false, follow: true },
+      alternates,
     };
   }
-  return { title: teamStatsTitle(s), description: teamStatsDescription(s) };
+  return { title: teamStatsTitle(s), description: teamStatsDescription(s), alternates };
 }
 
 export default async function TeamStatsPage({

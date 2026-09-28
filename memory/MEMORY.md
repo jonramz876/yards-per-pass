@@ -119,7 +119,7 @@
 - **Golden fixture rule:** `__tests__/stats/fixtures/team-game-stats-2026-w1-3.json` + `team-stats-2026-w1-3.expected.json` (from `docs/superpowers/specs/team-stats-reference/aggregate.py` / `make_fixture.py`). **Never re-capture them to make a test pass.**
 - `fetchAllRows` gained an optional 4th arg `{ signal, order }`; with none, the query is call-for-call unchanged for every old caller (pinned by `__tests__/data/utils.test.ts`).
 - A team with GP 0 on a side shows dashes for counts too (not 0) and sorts last. An id not in `NFL_TEAMS`: no logo, no link.
-- **Pending:** Task 10 (canonical tag) lands only after PR #24 merges (adds `canonicalSeason`); `memory/MEMORY.md` will conflict with #24 at that rebase.
+- Canonical (Task 10, after PR #24 merged into the branch): `generateMetadata` uses `canonicalSeason` like the other season pages (bare, or `?season=` for a real past season) on every return path; `/team-stats` is in `SEASON_PAGES` in `__tests__/app/canonical.test.ts`.
 
 ## Known debt (2026-09-05)
 

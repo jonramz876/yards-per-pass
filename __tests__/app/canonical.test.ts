@@ -40,6 +40,11 @@ vi.mock("@/lib/data/trends", () => ({
   SURGE_STATS: [],
 }));
 vi.mock("@/lib/data/games", () => ({ hasScheduleForSeason: vi.fn(async () => false) }));
+vi.mock("@/lib/data/team-stats", () => ({ getTeamStatsSeason: vi.fn() }));
+vi.mock("@/lib/data/box-score", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/data/box-score")>()),
+  getBoxScoreSeasonsCached: vi.fn(async () => [2026]),
+}));
 
 import { getAvailableSeasons } from "@/lib/data/queries";
 import { metadata as homeMetadata } from "@/app/page";
@@ -52,6 +57,7 @@ import { generateMetadata as receiversMeta } from "@/app/receivers/page";
 import { generateMetadata as rushingMeta } from "@/app/rushing/page";
 import { generateMetadata as trendsMeta } from "@/app/trends/page";
 import { generateMetadata as runGapsMeta } from "@/app/run-gaps/page";
+import { generateMetadata as teamStatsMeta } from "@/app/team-stats/page";
 
 const BASE = "https://yardsperpass.com";
 
@@ -64,6 +70,7 @@ const SEASON_PAGES: [string, Gen][] = [
   ["/rushing", rushingMeta as Gen],
   ["/trends", trendsMeta as Gen],
   ["/run-gaps", runGapsMeta as Gen],
+  ["/team-stats", teamStatsMeta as Gen],
 ];
 
 const meta = (gen: Gen, params: Record<string, string> = {}) =>

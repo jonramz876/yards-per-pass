@@ -316,7 +316,7 @@ PR #24 (`quickwin-b-search`, 2 commits on origin, not on main) adds `canonicalSe
 
 This spec **does not copy** that helper (two copies would drift). Instead:
 - Tasks 1-9 don't touch the lines #24 changes except `app/sitemap.ts` and `__tests__/app/sitemap.test.ts` (different hunks, should auto-merge) and `memory/MEMORY.md` (Task 9 and #24 both edit it; resolve by hand at the Task 10 rebase), and nothing in lib/utils.ts.
-- Task 10 may run **after** Task 11 when #24 lands later; the table order does not require it first. As built on 2026-09-28, Task 10 was skipped: #24 had not merged, so it lands as a follow-up after #24.
+- Task 10 may run **after** Task 11 when #24 lands later; the table order does not require it first. As built on 2026-09-28, Task 10 was first skipped because #24 had not merged; once #24 merged, main was merged into the branch (not rebased: PR #26 was already open) and Task 10 was done.
 - **Task 10 is gated on #24 merging:** rebase `team-stats-page` onto the new main; in `generateMetadata` add `alternates: { canonical: \`${base}/team-stats${cs != null ? \`?season=${cs}\` : ""}\` }` with `cs = canonicalSeason(season, seasons)` exactly as #24's rushing page does; add `["/team-stats", teamStatsMeta]` to `SEASON_PAGES` in `__tests__/app/canonical.test.ts` (which then asserts bare / junk / past-season / empty-list cases for this page too), and mock `@/lib/data/team-stats` / `@/lib/data/box-score` there.
 - If Jon wants this page live before #24 lands, ship Tasks 1-9 and do Task 10 as #24's follow-up — the page is then in the same state as every other season page today (no canonical). Team Stats links to no player pages, so `playerHref` is not needed.
 
@@ -358,7 +358,7 @@ Every commit: the task's tests fail first, then pass; full vitest + tsc + lint (
 | 7 | Route: page, loading, error, metadata (§5.2) | `app/team-stats/page.tsx`, `app/team-stats/loading.tsx`, `app/team-stats/error.tsx`, `__tests__/app/team-stats-route.test.tsx` | vitest that file |
 | 8 | Nav, sitemap, revalidate (§7) | `components/layout/Navbar.tsx`, `app/sitemap.ts`, `app/api/revalidate/route.ts`, `__tests__/components/Navbar.test.tsx`, `__tests__/app/sitemap.test.ts`, `__tests__/app/revalidate-route.test.ts` | vitest those 3 files |
 | 9 | Docs (§7) | `.claude/CLAUDE.md`, `memory/MEMORY.md` | read-through |
-| 10 | Canonical — **only after #24 merges** (§8); skipped in the 2026-09-28 build, lands after #24 | rebase; `app/team-stats/page.tsx`, `__tests__/app/canonical.test.ts` | vitest `__tests__/app/canonical.test.ts` + full suite |
+| 10 | Canonical — **only after #24 merges** (§8); done after #24 merged (merged main into the branch rather than rebasing, since PR #26 was open) | rebase; `app/team-stats/page.tsx`, `__tests__/app/canonical.test.ts` | vitest `__tests__/app/canonical.test.ts` + full suite |
 | 11 | Quality gates, in order: build (placeholder env); **chaos agent** (.claude/CLAUDE.md:15-26: null/NaN rows, zero-pass and zero-rush teams, a missing opponent row, 0 rows, 1000+ rows, unknown team ids, junk `side/tab/sort/dir/season` params, a string-typed season list) — fix every CRASH/ERROR; code review; push; PR; Vercel preview checked at 375, 768, 1024 and 1280 px, compared with main: no nav label wraps that doesn't wrap on main, and no nav element ends further right than on main; at 375 the page itself does not scroll sideways, and the table scrolls inside its box; CI green; merge | — | as listed |
 
 ## 12. Live acceptance checks (after deploy)
