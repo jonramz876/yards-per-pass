@@ -102,6 +102,17 @@
 - Tests: `__tests__/stats/box-score.test.ts`, `__tests__/data/box-score.test.ts`, `__tests__/data/games.test.ts`, `__tests__/components/game/*.test.tsx`, `__tests__/components/MetricTooltip.test.tsx`, `__tests__/app/game-route.test.tsx`, `__tests__/app/game-error.test.tsx`, `__tests__/app/team-route.test.tsx`, `__tests__/app/revalidate-route.test.ts`, plus the link tests in `ScheduleSection.test.tsx`, `GameLogTab.test.tsx`, `player-route.test.ts`, `sitemap.test.ts`.
 - Follow-ups (spec §13, none built here): `/scores` + homepage strip (PR 4 reuses `Scoreboard`/`buildScoreboard`), percentile colouring, the 2020–2025 backfill, an OG image for game pages, making `epaTextColor` itself null-safe, and the remaining glossary entries for EPA/play, success rate, explosive plays and toxic differential (only the first-down double-count entry shipped with this PR).
 
+## Team Stats page `/team-stats` (2026-09-28, branch team-stats-page)
+
+- Spec: `docs/superpowers/specs/2026-09-28-team-stats-design.md` (spec review I1-I5, M1-M8 applied). Season leaderboard of all 32 teams **summed from `team_game_stats`** (the box score's rbsdm play filter), Offense/Defense toggle, tabs Efficiency / Early vs Late Downs / What It Cost Them. Nav: right after Team Tiers (desktop row now `gap-6`).
+- Files: `lib/data/team-stats.ts` (server-only read: 30 columns, ordered `game_id, team_id`, `boxScoreDeadline()`), `lib/stats/team-stats.ts` (pure aggregator `buildTeamStats` + columns/sort/colour/URL/copy), `components/tables/TeamStatsTable.tsx`, `app/team-stats/*`.
+- The documented exception to "stats only in ingest.py": arithmetic runs **server-side at request time** over stored per-game rows. Every rate is play-weighted Σ(rate × den)/Σ den — never the mean of game rates (NYG late EPA: −0.094 weighted vs +0.074 mean). Defense = opponents' rows. Costs are per game; Total double-counts strip-sacks (footnote says so).
+- **Decisions:** J1 Penalties kept, worded as the team's own flags on both sides of the ball; J2 average row shows the average team for counts (league total ÷ `teamsPlayed`); J3 empty-season message "Team stats start with the {first} season" with no backfill promise; J4 an empty read **throws** for no seasons, the newest season, or a probe-covered season — any other empty season is a noindex message page.
+- **Golden fixture rule:** `__tests__/stats/fixtures/team-game-stats-2026-w1-3.json` + `team-stats-2026-w1-3.expected.json` (from `docs/superpowers/specs/team-stats-reference/aggregate.py` / `make_fixture.py`). **Never re-capture them to make a test pass.**
+- `fetchAllRows` gained an optional 4th arg `{ signal, order }`; with none, the query is call-for-call unchanged for every old caller (pinned by `__tests__/data/utils.test.ts`).
+- A team with GP 0 on a side shows dashes for counts too (not 0) and sorts last. An id not in `NFL_TEAMS`: no logo, no link.
+- **Pending:** Task 10 (canonical tag) lands only after PR #24 merges (adds `canonicalSeason`); `memory/MEMORY.md` will conflict with #24 at that rebase.
+
 ## Known debt (2026-09-05)
 
 - 8 npm vulnerabilities (6 high: `next`, `@supabase/auth-js`, `glob`, `postcss`) fixable only by the **Next.js 14 → 16 major upgrade** — deliberate deferral, needs its own session.
