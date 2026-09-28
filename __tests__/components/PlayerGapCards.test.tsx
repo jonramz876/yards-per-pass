@@ -40,7 +40,7 @@ describe("PlayerGapCards EPA colours", () => {
         gap="LG"
         stats={[gapRow("a", "Better Back", -0.04), gapRow("b", "Average Back", -0.1)]}
         teamAvgEpa={-0.07}
-        leagueRank={3}
+        leagueRank={3} season={2026} defaultSeason={2026}
         leagueAvg={LEAGUE}
       />,
     );
@@ -68,7 +68,7 @@ describe("PlayerGapCards: sample cut-off and printed-number rule", () => {
     const at = (carries: number) =>
       card(
         render(
-          <PlayerGapCards gap="LG" stats={[gapRow("a", "Better Back", -0.04)]} teamAvgEpa={-0.07} leagueRank={3} leagueAvg={{ ...LEAGUE, carries }} />,
+          <PlayerGapCards gap="LG" stats={[gapRow("a", "Better Back", -0.04)]} teamAvgEpa={-0.07} leagueRank={3} season={2026} defaultSeason={2026} leagueAvg={{ ...LEAGUE, carries }} />,
         ).container,
         "Better Back",
       );
@@ -82,7 +82,7 @@ describe("PlayerGapCards: sample cut-off and printed-number rule", () => {
 
   it("compares the numbers the card prints (to 0.001): -0.050 against -0.080 is grey, and vs league reads +0.030", () => {
     const { container } = render(
-      <PlayerGapCards gap="LG" stats={[gapRow("a", "Edge Back", -0.0496)]} teamAvgEpa={-0.07} leagueRank={3} leagueAvg={{ ...LEAGUE, epa: -0.0804 }} />,
+      <PlayerGapCards gap="LG" stats={[gapRow("a", "Edge Back", -0.0496)]} teamAvgEpa={-0.07} leagueRank={3} season={2026} defaultSeason={2026} leagueAvg={{ ...LEAGUE, epa: -0.0804 }} />,
     );
     const el = card(container, "Edge Back");
     expect(el.textContent).toContain("-0.050");
@@ -94,7 +94,7 @@ describe("PlayerGapCards: sample cut-off and printed-number rule", () => {
 
   it("never prints a signed zero for the league average", () => {
     const { container } = render(
-      <PlayerGapCards gap="LG" stats={[gapRow("a", "Some Back", 0.1)]} teamAvgEpa={0} leagueRank={3} leagueAvg={{ ...LEAGUE, epa: -0.0004 }} />,
+      <PlayerGapCards gap="LG" stats={[gapRow("a", "Some Back", 0.1)]} teamAvgEpa={0} leagueRank={3} season={2026} defaultSeason={2026} leagueAvg={{ ...LEAGUE, epa: -0.0004 }} />,
     );
     expect(container.textContent).toContain("Lg avg: 0.000");
     expect(container.textContent).not.toContain("-0.000");
@@ -122,7 +122,7 @@ describe("allRunsLeagueAvg (the All Runs baseline)", () => {
 describe("PlayerGapCards: review M2 / M7", () => {
   const render1 = (epa: number, carries: number, gap = "LG") =>
     render(
-      <PlayerGapCards gap={gap} stats={[{ ...gapRow("a", "Some Back", epa), gap }]} teamAvgEpa={-0.07} leagueRank={3} leagueAvg={{ ...LEAGUE, carries }} />,
+      <PlayerGapCards gap={gap} stats={[{ ...gapRow("a", "Some Back", epa), gap }]} teamAvgEpa={-0.07} leagueRank={3} season={2026} defaultSeason={2026} leagueAvg={{ ...LEAGUE, carries }} />,
     ).container;
 
   it("says why the cards are uncoloured below the 350-carry floor, and only then", () => {

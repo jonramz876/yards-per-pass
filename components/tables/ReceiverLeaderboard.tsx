@@ -12,11 +12,14 @@ import { classifyWR, classifyTE } from "@/lib/stats/archetypes";
 import { WR_RADAR_KEYS, getWRRadarVal, seasonHasRouteData } from "@/lib/stats/radar";
 import { wrFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 import { formatStat, formatEpaAverage, epaVsAverageClass, targetEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
+import { playerHref } from "@/lib/utils";
 
 interface ReceiverLeaderboardProps {
   data: ReceiverSeasonStat[];
   throughWeek: number;
   season: number;
+  /** The site's default (newest) season: player links on it stay bare. */
+  defaultSeason: number;
   slugMap?: Record<string, string>;
 }
 
@@ -206,7 +209,7 @@ export function receiverArchetypeMap(data: ReceiverSeasonStat[]): Record<string,
   return map;
 }
 
-export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap = {} }: ReceiverLeaderboardProps) {
+export default function ReceiverLeaderboard({ data, throughWeek, season, defaultSeason, slugMap = {} }: ReceiverLeaderboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -732,7 +735,7 @@ export default function ReceiverLeaderboard({ data, throughWeek, season, slugMap
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(rec.team_id) }} />
                             <Link
-                              href={`/player/${slugMap[rec.player_id] || rec.player_id}`}
+                              href={playerHref(slugMap[rec.player_id] || rec.player_id, season, defaultSeason)}
                               className="font-semibold text-navy hover:text-nflred hover:underline transition-colors"
                             >
                               {rec.player_name}

@@ -9,6 +9,7 @@ import { isCardPosition, resolveCardSeason } from "@/lib/stats/tecmo-card";
 import type { TecmoCardData } from "@/lib/stats/tecmo-card";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import CardPageActions from "./CardPageActions";
+import { playerHref } from "@/lib/utils";
 
 export const revalidate = 3600;
 
@@ -236,7 +237,7 @@ export default async function CardPage({
 
       {/* Link back to player profile */}
       <a
-        href={`/player/${slug}`}
+        href={playerHref(slug, season, seasons[0] ?? fallbackSeason())}
         style={{
           marginTop: 12,
           fontSize: 14,

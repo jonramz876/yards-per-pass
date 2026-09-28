@@ -7,12 +7,14 @@ import type { QBSeasonStat, CrossLinkReceiver } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import { buildQBCardData, qbEligible, QB_MIN_ATT_PER_GAME } from "@/lib/stats/tecmo-card";
+import { playerHref } from "@/lib/utils";
 
 interface PlayerOverviewQBProps {
   stats: QBSeasonStat;
   /** Full, unfiltered QB pool for the season — buildQBCardData applies eligibility itself. */
   allQBs: QBSeasonStat[];
   season: number;
+  defaultSeason: number;
   teamId: string;
   topReceivers?: CrossLinkReceiver[];
   headshotUrl?: string | null;
@@ -23,6 +25,7 @@ export default function PlayerOverviewQB({
   stats,
   allQBs,
   season,
+  defaultSeason,
   teamId,
   topReceivers = [],
   headshotUrl = null,
@@ -62,7 +65,7 @@ export default function PlayerOverviewQB({
             {topReceivers.map((r) => (
               <div key={r.player_id} className="flex items-center justify-between text-sm">
                 {r.slug ? (
-                  <Link href={`/player/${r.slug}`} className="text-navy hover:text-nflred hover:underline transition-colors font-medium">
+                  <Link href={playerHref(r.slug, season, defaultSeason)} className="text-navy hover:text-nflred hover:underline transition-colors font-medium">
                     {r.player_name}
                   </Link>
                 ) : (

@@ -231,6 +231,7 @@ export default async function PlayerPage({
           allPlayers={allPlayers}
           season={currentSeason}
           seasons={seasons}
+          defaultSeason={seasons[0] || fallbackSeason()}
           position={player.position}
           tab={tab || "overview"}
           crossLinkReceivers={crossLinkReceivers}

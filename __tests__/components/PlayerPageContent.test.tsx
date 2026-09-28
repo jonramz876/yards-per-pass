@@ -32,6 +32,7 @@ function renderPage(routes: number | null, tab: string, position = "WR") {
       weeklyStats={[]}
       allPlayers={POOL}
       season={2026}
+      defaultSeason={2026}
       seasons={[2026, 2025]}
       position={position}
       tab={tab}

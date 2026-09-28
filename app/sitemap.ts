@@ -7,6 +7,8 @@ import { normalizeGameId } from "@/lib/stats/box-score";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import type { MetadataRoute } from "next";
 
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
   let players: { slug: string }[] = [];
@@ -59,17 +61,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Box scores: every played regular-season game of a season that has
   // team_game_stats rows (box score spec §6). Same documented exception as the
-  // slugs above: a failed read drops every game URL until the next rebuild
-  // (memory/MEMORY.md, "Homepage resilience" follow-ups) — logged, below.
+  // slugs above (memory/MEMORY.md, "Homepage resilience" follow-ups): a failed
+  // read drops every game URL until the next hourly regeneration — logged,
+  // below.
   //
-  // "Until the next rebuild" is literal, and accepted: this file exports
-  // neither `revalidate` nor `dynamic`, so Next generates /sitemap.xml
-  // statically at build time and /api/revalidate does not (and cannot) refresh
-  // it. A week's new box scores enter the sitemap at the next deploy, not at
-  // the next ingest. Left as is deliberately — the player slug list has always
-  // behaved this way — but the set behind it now grows by ~16 URLs a week, so
-  // if that latency ever matters the fix is `export const revalidate = 3600`
-  // here, not a revalidatePath in /api/revalidate.
+  // `revalidate = 3600` is what keeps this file current: without it Next
+  // treats the route as static and its Supabase reads as cache-forever
+  // (one-year fetch-cache entries keyed without a build id), so even a deploy
+  // re-served the old lastmod and game list (frozen at Sep 12 / Sep 21 until
+  // this fix). ISR serves the previous copy to the first request after the
+  // hour and rebuilds in the background, so a new box score appears one crawl
+  // later. Do not switch to `dynamic = "force-dynamic"`: in a Next 14 route
+  // handler that does not bypass the fetch cache.
   //
   // This is a serial chain: getAvailableSeasons, then one limit(1) probe per
   // candidate season, then one game-id read per covered season (1 + N + M

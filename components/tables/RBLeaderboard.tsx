@@ -11,11 +11,14 @@ import { computePercentile, getHeatmapPercentile, getHeatmapStyle } from "@/lib/
 import { classifyRB } from "@/lib/stats/archetypes";
 import { rbFantasyPoints, type ScoringFormat } from "@/lib/stats/fantasy";
 import { formatStat, formatEpaAverage, epaVsAverageClass, rbCarryEpaAverage, EPA_BAND } from "@/lib/stats/formatters";
+import { playerHref } from "@/lib/utils";
 
 interface RBLeaderboardProps {
   data: RBSeasonStat[];
   throughWeek: number;
   season: number;
+  /** The site's default (newest) season: player links on it stay bare. */
+  defaultSeason: number;
   slugMap?: Record<string, string>;
 }
 
@@ -170,7 +173,7 @@ function getVal(rb: RBSeasonStat, key: string, scoringFmt?: ScoringFormat): numb
 const INVERTED_COLS = new Set(["stuff_rate"]);
 
 
-export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} }: RBLeaderboardProps) {
+export default function RBLeaderboard({ data, throughWeek, season, defaultSeason, slugMap = {} }: RBLeaderboardProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -689,7 +692,7 @@ export default function RBLeaderboard({ data, throughWeek, season, slugMap = {} 
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamColor(rb.team_id) }} />
                             <Link
-                              href={`/player/${slugMap[rb.player_id] || rb.player_id}`}
+                              href={playerHref(slugMap[rb.player_id] || rb.player_id, season, defaultSeason)}
                               className="font-semibold text-navy hover:text-nflred hover:underline transition-colors"
                             >
                               {rb.player_name}

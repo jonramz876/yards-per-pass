@@ -29,6 +29,7 @@ import TeamPage from "@/app/team/[team_id]/page";
 import TeamHubContent from "@/components/team/TeamHubContent";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import { getAvailableSeasons } from "@/lib/data/queries";
+import { getTeamHubData } from "@/lib/data/team-hub";
 
 async function contentProps(teamId = "buf") {
   render(
@@ -93,5 +94,30 @@ describe("TeamPage — box score link gate (spec §7)", () => {
   it("unknown team still 404s", async () => {
     await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
+  });
+});
+
+describe("TeamPage — player links keep the viewed season", () => {
+  async function propsFor(season: string) {
+    render(
+      await TeamPage({
+        params: Promise.resolve({ team_id: "buf" }),
+        searchParams: Promise.resolve({ season }),
+      })
+    );
+    const calls = vi.mocked(TeamHubContent).mock.calls;
+    return calls[calls.length - 1][0];
+  }
+
+  it("passes the site's default season down", async () => {
+    vi.mocked(getTeamHubData).mockResolvedValueOnce({ currentSeason: 2024, seasons: [2026, 2025, 2024] } as never);
+    const props = await propsFor("2024");
+    expect(props.defaultSeason).toBe(2026);
+  });
+
+  it("trap: the hub's season list leads with next season; the default is still the page's newest", async () => {
+    vi.mocked(getTeamHubData).mockResolvedValueOnce({ currentSeason: 2026, seasons: [2027, 2026, 2025] } as never);
+    const props = await propsFor("2026");
+    expect(props.defaultSeason).toBe(2026);
   });
 });

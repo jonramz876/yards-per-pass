@@ -7,12 +7,14 @@ import type { ReceiverSeasonStat, CrossLinkQB } from "@/lib/types";
 import { getTeam } from "@/lib/data/teams";
 import TecmoPlayerCard from "@/components/player/TecmoPlayerCard";
 import { buildWRCardData, wrEligible, WR_MIN_TGT_PER_GAME } from "@/lib/stats/tecmo-card";
+import { playerHref } from "@/lib/utils";
 
 interface PlayerOverviewWRProps {
   stats: ReceiverSeasonStat;
   /** Full, unfiltered receiver pool for the season — buildWRCardData applies eligibility and position matching itself. */
   allReceivers: ReceiverSeasonStat[];
   season: number;
+  defaultSeason: number;
   teamId: string;
   teamQBData?: CrossLinkQB;
   headshotUrl?: string | null;
@@ -23,6 +25,7 @@ export default function PlayerOverviewWR({
   stats,
   allReceivers,
   season,
+  defaultSeason,
   teamId,
   teamQBData,
   headshotUrl = null,
@@ -63,7 +66,7 @@ export default function PlayerOverviewWR({
           </h3>
           <div className="flex items-center justify-between text-sm">
             {teamQBData.slug ? (
-              <Link href={`/player/${teamQBData.slug}`} className="text-navy hover:text-nflred hover:underline transition-colors font-medium">
+              <Link href={playerHref(teamQBData.slug, season, defaultSeason)} className="text-navy hover:text-nflred hover:underline transition-colors font-medium">
                 {teamQBData.player_name}
               </Link>
             ) : (

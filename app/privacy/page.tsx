@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description: "Privacy policy for Yards Per Pass, an NFL analytics website.",
+  alternates: { canonical: `${process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com"}/privacy` },
 };
 
 export default function PrivacyPage() {
