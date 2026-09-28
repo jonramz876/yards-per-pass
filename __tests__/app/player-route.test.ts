@@ -209,6 +209,12 @@ describe("PlayerPage — Game Log results (box score spec §9)", () => {
     logged.mockRestore();
   });
 
+  it("passes the site's default season down, so past-season cross-links keep ?season=", async () => {
+    const props = await contentProps();
+    expect(props.season).toBe(2025);
+    expect(props.defaultSeason).toBe(2026);
+  });
+
   it("logs nothing when the games read succeeds", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getReceiverWeeklyStats).mockResolvedValue([row(5, "TEN")]);

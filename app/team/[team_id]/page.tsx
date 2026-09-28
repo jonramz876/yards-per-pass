@@ -109,6 +109,7 @@ export default async function TeamPage({
         team={team}
         data={data}
         boxScoreSeasons={boxScoreSeasons}
+        defaultSeason={seasons[0] || fallbackSeason()}
       />
     </>
   );

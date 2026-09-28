@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { QBSeasonStat, ReceiverSeasonStat, TeamSeasonStat, DataFreshness } from "@/lib/types";
 import { ordinal } from "@/lib/stats/percentiles";
 import TecmoSectionCard from "@/components/team/TecmoSectionCard";
+import { playerHref } from "@/lib/utils";
 
 interface PassingSectionProps {
   teamQBs: QBSeasonStat[];
@@ -15,6 +16,8 @@ interface PassingSectionProps {
   freshness: DataFreshness | null;
   primaryColor: string;
   secondaryColor: string;
+  season: number;
+  defaultSeason: number;
 }
 
 function fmt(val: number | null, decimals = 2): string {
@@ -41,6 +44,8 @@ export default function PassingSection({
   freshness,
   primaryColor,
   secondaryColor,
+  season,
+  defaultSeason,
 }: PassingSectionProps) {
   // Compute pass EPA rank
   const sorted = [...allTeamStats].sort((a, b) => b.off_pass_epa - a.off_pass_epa);
@@ -76,7 +81,7 @@ export default function PassingSection({
         <div className="bg-gray-50 rounded-lg p-4 mb-5">
           <div className="flex items-center justify-between mb-3">
             <Link
-              href={`/player/${slugMap[startingQB.player_id] || startingQB.player_id}`}
+              href={playerHref(slugMap[startingQB.player_id] || startingQB.player_id, season, defaultSeason)}
               className="text-base font-bold text-navy hover:text-nflred hover:underline"
             >
               {startingQB.player_name}
@@ -119,7 +124,7 @@ export default function PassingSection({
                   </td>
                   <td className="px-3 py-2 text-left font-medium">
                     <Link
-                      href={`/player/${slugMap[rec.player_id] || rec.player_id}`}
+                      href={playerHref(slugMap[rec.player_id] || rec.player_id, season, defaultSeason)}
                       className="text-navy hover:text-nflred hover:underline"
                     >
                       {rec.player_name}

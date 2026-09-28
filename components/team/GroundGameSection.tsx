@@ -7,6 +7,7 @@ import type { RBGapStat, TeamSeasonStat, DataFreshness } from "@/lib/types";
 import GapBarChart from "@/components/charts/GapBarChart";
 import { ordinal } from "@/lib/stats/percentiles";
 import TecmoSectionCard from "@/components/team/TecmoSectionCard";
+import { playerHref } from "@/lib/utils";
 
 interface GroundGameSectionProps {
   teamRBGaps: RBGapStat[];
@@ -14,6 +15,7 @@ interface GroundGameSectionProps {
   slugMap: Record<string, string>;
   allTeamStats: TeamSeasonStat[];
   season: number;
+  defaultSeason: number;
   freshness: DataFreshness | null;
   primaryColor: string;
   secondaryColor: string;
@@ -42,6 +44,7 @@ export default function GroundGameSection({
   slugMap,
   allTeamStats,
   season,
+  defaultSeason,
   freshness,
   primaryColor,
   secondaryColor,
@@ -146,7 +149,7 @@ export default function GroundGameSection({
                 <tr key={rb.playerId} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="px-3 py-2 text-left font-medium">
                     <Link
-                      href={`/player/${slugMap[rb.playerId] || rb.playerId}`}
+                      href={playerHref(slugMap[rb.playerId] || rb.playerId, season, defaultSeason)}
                       className="text-navy hover:text-nflred hover:underline"
                     >
                       {rb.name}

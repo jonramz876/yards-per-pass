@@ -32,6 +32,8 @@ interface PlayerPageContentProps {
   allPlayers: unknown[];
   season: number;
   seasons: number[];
+  /** The site's default (newest) season: cross-links on it stay bare. */
+  defaultSeason: number;
   position: string;
   tab: string;
   crossLinkReceivers?: CrossLinkReceiver[];
@@ -61,6 +63,7 @@ export default function PlayerPageContent({
   allPlayers,
   season,
   seasons,
+  defaultSeason,
   position,
   tab,
   crossLinkReceivers = [],
@@ -108,6 +111,7 @@ export default function PlayerPageContent({
           stats={stat}
           allQBs={allPlayers as QBSeasonStat[]}
           season={season}
+          defaultSeason={defaultSeason}
           teamId={player.current_team_id}
           topReceivers={crossLinkReceivers}
           headshotUrl={player.headshot_url ?? null}
@@ -132,6 +136,7 @@ export default function PlayerPageContent({
           stats={stat}
           allReceivers={allPlayers as ReceiverSeasonStat[]}
           season={season}
+          defaultSeason={defaultSeason}
           teamId={player.current_team_id}
           teamQBData={crossLinkQB ?? undefined}
           headshotUrl={player.headshot_url ?? null}
