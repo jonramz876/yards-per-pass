@@ -9,6 +9,7 @@ import SearchPalette from "@/components/search/SearchPalette";
 
 const NAV_LINKS = [
   { href: "/teams", label: "Team Tiers" },
+  { href: "/team-stats", label: "Team Stats" },
   { href: "/qb-leaderboard", label: "Passing" },
   { href: "/receivers", label: "Receiving" },
   { href: "/rushing", label: "Rushing" },
@@ -54,7 +55,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop links + search */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-6">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}

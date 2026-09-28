@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
 
   revalidatePath("/");
   revalidatePath("/teams");
+  revalidatePath("/team-stats");
   revalidatePath("/qb-leaderboard");
   revalidatePath("/run-gaps");
   revalidatePath("/receivers");

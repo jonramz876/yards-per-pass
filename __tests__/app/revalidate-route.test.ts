@@ -28,6 +28,11 @@ describe("/api/revalidate", () => {
     expect(paths).toContainEqual(["/card", "layout"]);
   });
 
+  it("refreshes /team-stats (the /team layout call does not cover it)", async () => {
+    await post("s3cret");
+    expect(vi.mocked(revalidatePath).mock.calls).toContainEqual(["/team-stats"]);
+  });
+
   it("revalidates nothing without the secret", async () => {
     const res = await post("wrong");
     expect(res.status).toBe(401);
