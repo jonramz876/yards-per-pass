@@ -91,6 +91,26 @@ describe("/team-stats page", () => {
   it("junk season param falls back to the newest season", async () => {
     expect((await page("zzz")).props.currentSeason).toBe(2026);
   });
+
+  it("an implausible season (out of 1999-2100) is treated as absent, never sent to the database", async () => {
+    for (const bad of ["99999999999999999999", "1e9", "0x7EA", "-1", "0", "1998", "2101"]) {
+      vi.mocked(getTeamStatsSeason).mockClear();
+      const shell = await page(bad);
+      expect(shell.props.currentSeason, bad).toBe(2026);
+      expect(getTeamStatsSeason).toHaveBeenCalledWith(2026, [2026, 2025]);
+      const m = await meta(bad);
+      expect(m.title, bad).toBe("NFL Team Stats 2026");
+      expect(m.robots, bad).toBeUndefined();
+    }
+    expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
+  });
+
+  it("the range edges 1999 and 2100 are real seasons to the page (the message)", async () => {
+    vi.mocked(getTeamStatsSeason).mockResolvedValue({ state: "uncovered", firstSeason: null });
+    expect((await page("2100")).props.currentSeason).toBe(2100);
+    expect((await page("1999")).props.currentSeason).toBe(1999);
+    expect((await meta("1999")).title).toBe("NFL Team Stats 1999");
+  });
 });
 
 describe("/team-stats metadata", () => {
@@ -117,6 +137,14 @@ describe("/team-stats metadata", () => {
     const m = await meta("2025");
     expect(m.robots).toBeUndefined();
     expect(m.description).toContain("for the 2025 season");
+  });
+
+  it("no seasons from data_freshness: the body throws, so the metadata makes no claim (title only, no probe)", async () => {
+    vi.mocked(getAvailableSeasons).mockResolvedValue([]);
+    const m = await meta();
+    expect(m).toEqual({ title: "NFL Team Stats 2026" });
+    expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
+    expect(await meta("2025")).toEqual({ title: "NFL Team Stats 2025" });
   });
 
   it("a probe failure is logged and leaves the page indexable", async () => {

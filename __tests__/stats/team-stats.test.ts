@@ -491,6 +491,19 @@ describe("NFL average row (J2)", () => {
   });
 });
 
+describe("parseSeasonParam (chaos ERROR 2)", () => {
+  it("a whole number from 1999 to 2100, parsed like parseInt; anything else is absent", () => {
+    expect(P.parseSeasonParam("2026")).toBe(2026);
+    expect(P.parseSeasonParam("1999")).toBe(1999);
+    expect(P.parseSeasonParam("2100")).toBe(2100);
+    expect(P.parseSeasonParam("2025.9")).toBe(2025);
+    expect(P.parseSeasonParam(" 2025")).toBe(2025);
+    for (const bad of [undefined, "", "abc", "99999999999999999999", "1e9", "0x7EA", "-1", "-0", "0", "1998", "2101", "%00"]) {
+      expect(P.parseSeasonParam(bad), String(bad)).toBeNull();
+    }
+  });
+});
+
 describe("URL state", () => {
   const parse = (q: string) => P.parseTeamStatsParams(new URLSearchParams(q));
 
@@ -551,7 +564,8 @@ describe("copy (spec §5.4)", () => {
   });
 
   it("C3, C4, C5, C11 text", () => {
-    expect(P.DEFENSE_NOTE).toBe("Defense ranks what opponents did against each team, so lower EPA, success and explosive rates rank higher.");
+    expect(P.DEFENSE_NOTE.eff).toBe("Defense ranks what opponents did against each team, so lower EPA, success and explosive rates rank higher.");
+    expect(P.DEFENSE_NOTE.downs).toBe("Defense ranks what opponents did against each team, so lower EPA and success rates rank higher.");
     expect(P.EXPLOSIVE_NOTE).toBe(
       "Explosive plays are completions of 20+ yards and runs of 10+ (QB scrambles count as runs). The rush explosive rate divides by designed runs only, so a team with long scrambles can run high.",
     );
@@ -608,13 +622,35 @@ describe("copy (spec §5.4)", () => {
       P.teamStatsFootnotes({ side, tab, colourOn: true, season: 2026, throughWeek: 3, isLatestSeason: true, ...extra });
     const early = P.earlySeasonNote(3, true)!;
     expect(f("off", "eff")).toEqual([P.EXPLOSIVE_NOTE, P.TOXIC_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
-    expect(f("def", "eff")).toEqual([P.DEFENSE_NOTE, P.EXPLOSIVE_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
+    expect(f("def", "eff")).toEqual([P.DEFENSE_NOTE.eff, P.EXPLOSIVE_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
     expect(f("off", "downs")).toEqual([P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
-    expect(f("def", "downs")).toEqual([P.DEFENSE_NOTE, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
+    expect(f("def", "downs")).toEqual([P.DEFENSE_NOTE.downs, P.AVERAGE_ROW_NOTE, P.colourNote(), early]);
     expect(f("off", "cost")).toEqual([P.COST_NOTE.off, P.STRIP_SACK_COST_NOTE, early]);
     expect(f("def", "cost")).toEqual([P.COST_NOTE.def, P.STRIP_SACK_COST_NOTE, early]);
     expect(f("off", "eff", { colourOn: false })).toContain(P.colourPendingNote(2026));
     expect(f("off", "eff", { colourOn: false })).not.toContain(P.colourNote());
     expect(f("off", "eff", { throughWeek: 9 })).not.toContain(early);
+  });
+
+  it("each tab's footnotes mention only what that tab shows", () => {
+    // term in a footnote -> a column key that must be on that tab and side
+    const TERMS: [RegExp, (k: string) => boolean][] = [
+      [/explosive/i, (k) => k.startsWith("expl")],
+      [/toxic/i, (k) => k === "toxic"],
+      [/success/i, (k) => k.endsWith("sr")],
+      [/turnovers|sacks|penalties|strip-sack/i, (k) => k.startsWith("cost_")],
+      [/EPA\/play|lower EPA/, (k) => k.endsWith("epa")],
+    ];
+    for (const side of ["off", "def"] as const) {
+      for (const tab of P.TEAM_STATS_TABS) {
+        const keys = P.teamStatsColumns(tab, side).map((c) => c.key as string);
+        const notes = P.teamStatsFootnotes({ side, tab, colourOn: true, season: 2026, throughWeek: 3, isLatestSeason: true });
+        for (const note of notes) {
+          for (const [term, isColumn] of TERMS) {
+            if (term.test(note)) expect(keys.some(isColumn), `${side} ${tab}: ${term} in "${note}"`).toBe(true);
+          }
+        }
+      }
+    }
   });
 });

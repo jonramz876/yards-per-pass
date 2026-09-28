@@ -162,9 +162,16 @@ describe("TeamStatsTable — Defense", () => {
   it("no Toxic column; C3 and the Defense subtitle shown", () => {
     const { container } = renderTable("side=def");
     expect(container.querySelector("thead th[data-key='toxic']")).toBeNull();
-    expect(footnotes(container)).toContain(P.DEFENSE_NOTE);
+    expect(footnotes(container)).toContain(P.DEFENSE_NOTE.eff);
     expect(footnotes(container)).not.toContain(P.TOXIC_NOTE);
     expect(container.textContent).toContain("What opponents did against each team");
+  });
+
+  it("Downs tab: the Defense note does not mention explosive rates", () => {
+    const { container } = renderTable("side=def&tab=downs");
+    const notes = footnotes(container);
+    expect(notes).toContain(P.DEFENSE_NOTE.downs);
+    expect(notes.join(" ").toLowerCase()).not.toContain("explosive");
   });
 
   it("?side=def&sort=toxic falls back to EPA", () => {

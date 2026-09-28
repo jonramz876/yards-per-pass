@@ -50,9 +50,12 @@ describe("Navbar", () => {
     expect(links[0].className).not.toContain("font-semibold");
   });
 
-  it("the desktop row is gap-6 (nine links fit at 1280 without wrapping)", () => {
+  it("the desktop row is gap-3, gap-6 from xl (measured 2026-09-28: no label wraps at 1024, one line at 1280)", () => {
     const { row } = desktopLinks();
-    expect(row.className.split(/\s+/)).toContain("gap-6");
-    expect(row.className.split(/\s+/)).not.toContain("gap-8");
+    const cls = row.className.split(/\s+/);
+    expect(cls).toContain("gap-3");
+    expect(cls).toContain("xl:gap-6");
+    expect(cls).not.toContain("gap-8");
+    expect(cls).not.toContain("gap-6");
   });
 });

@@ -7,6 +7,7 @@ import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import {
   UNCOVERED_BODY,
   buildTeamStats,
+  parseSeasonParam,
   teamStatsDescription,
   teamStatsTitle,
   uncoveredHeading,
@@ -23,8 +24,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
-  const parsed = season ? parseInt(season) : NaN;
-  const s = Number.isNaN(parsed) ? (seasons[0] ?? fallbackSeason()) : parsed;
+  const s = parseSeasonParam(season) ?? seasons[0] ?? fallbackSeason();
+
+  // No seasons from data_freshness: the body throws (J4) and renders the error
+  // page, so the metadata makes no claim about coverage either way.
+  if (seasons.length === 0) return { title: teamStatsTitle(s) };
 
   // An uncovered season is a 200 message page: keep it out of search results,
   // like the box score's message pages. Fail-open on purpose: a probe error
@@ -59,8 +63,9 @@ export default async function TeamStatsPage({
 }) {
   const { season } = await searchParams;
   const seasons = await getAvailableSeasons();
-  const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
+  // An implausible ?season= (outside 1999-2100) is treated as absent, here and
+  // in generateMetadata, so it can never reach the database.
+  const currentSeason = parseSeasonParam(season) ?? (seasons[0] || fallbackSeason());
 
   const [data, freshness] = await Promise.all([
     getTeamStatsSeason(currentSeason, seasons),

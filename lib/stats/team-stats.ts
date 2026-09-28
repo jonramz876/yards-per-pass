@@ -396,6 +396,24 @@ export function averageCell(model: TeamStatsModel, c: TeamStatsColumn): string {
   return c.format(v as number | null);
 }
 
+/* The ?season= param */
+
+/** Plausible seasons: nflverse play-by-play starts in 1999; 2100 is a generous ceiling. */
+export const SEASON_PARAM_MIN = 1999;
+export const SEASON_PARAM_MAX = 2100;
+
+/**
+ * `?season=` as the leaderboards read it (parseInt, so "2025.9" is 2025), but
+ * only a whole number from 1999 to 2100 counts; anything else is absent (the
+ * default season). Without the range, ?season=99999999999999999999 reached
+ * Postgres as .eq("season", 1e20) and failed the page (chaos ERROR 2).
+ */
+export function parseSeasonParam(raw: string | undefined): number | null {
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return Number.isInteger(n) && n >= SEASON_PARAM_MIN && n <= SEASON_PARAM_MAX ? n : null;
+}
+
 /* URL state (the leaderboards' pattern): side=def, tab=downs|cost, sort=<key>, dir=asc|desc; defaults omitted. */
 
 export interface TeamStatsState {
@@ -444,9 +462,11 @@ export const SUBTITLE: Record<TeamStatsSide, string> = {
   def: "What opponents did against each team",
 };
 
-/** C3 — Defense, Efficiency and Downs tabs. */
-export const DEFENSE_NOTE =
-  "Defense ranks what opponents did against each team, so lower EPA, success and explosive rates rank higher.";
+/** C3 — Defense, Efficiency and Downs tabs; each names only what its tab shows (Downs has no explosive column). */
+export const DEFENSE_NOTE: Record<"eff" | "downs", string> = {
+  eff: "Defense ranks what opponents did against each team, so lower EPA, success and explosive rates rank higher.",
+  downs: "Defense ranks what opponents did against each team, so lower EPA and success rates rank higher.",
+};
 
 /** C4 — Efficiency tab. */
 export const EXPLOSIVE_NOTE =
@@ -518,7 +538,7 @@ export interface FootnoteState {
 export function teamStatsFootnotes(s: FootnoteState): string[] {
   const out: string[] = [];
   const epaTab = s.tab === "eff" || s.tab === "downs";
-  if (s.side === "def" && epaTab) out.push(DEFENSE_NOTE);
+  if (s.side === "def" && (s.tab === "eff" || s.tab === "downs")) out.push(DEFENSE_NOTE[s.tab]);
   if (s.tab === "eff") out.push(EXPLOSIVE_NOTE);
   if (s.tab === "eff" && s.side === "off") out.push(TOXIC_NOTE);
   if (s.tab === "cost") out.push(COST_NOTE[s.side], STRIP_SACK_COST_NOTE);
