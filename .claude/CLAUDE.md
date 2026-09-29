@@ -29,10 +29,10 @@ Team roster spec: `docs/superpowers/specs/2026-03-18-review-team-roster-design.m
 
 - This is a Next.js 14 App Router project with TypeScript, Tailwind v4, and D3.js
 - Data lives in Supabase (PostgreSQL with RLS)
-- All stat computation happens in `scripts/ingest.py` — never compute stats client-side
-- Data fetching: `lib/data/queries.ts`, `lib/data/receivers.ts`, `lib/data/rushing.ts`, `lib/data/players.ts`, `lib/data/team-hub.ts`, `lib/data/run-gaps.ts`, `lib/data/games.ts` (schedule + official final scores — server-only, never import it from a `"use client"` file), `lib/data/box-score.ts` (the `/game/[game_id]` page and the box score link gate — server-only; its pure builders are in `lib/stats/box-score.ts`)
+- All stat computation happens in `scripts/ingest.py` — never compute stats client-side — exception: `/team-stats` sums `team_game_stats` rows in `lib/stats/team-stats.ts` on the server (play-weighted, spec 2026-09-28)
+- Data fetching: `lib/data/queries.ts`, `lib/data/receivers.ts`, `lib/data/rushing.ts`, `lib/data/players.ts`, `lib/data/team-hub.ts`, `lib/data/run-gaps.ts`, `lib/data/games.ts` (schedule + official final scores — server-only, never import it from a `"use client"` file), `lib/data/box-score.ts` (the `/game/[game_id]` page and the box score link gate — server-only; its pure builders are in `lib/stats/box-score.ts`), `lib/data/team-stats.ts` (the `/team-stats` season read — server-only; pure builders in `lib/stats/team-stats.ts`)
 - Fantasy points: `lib/stats/fantasy.ts` — PPR/Half/Standard scoring, computed client-side from existing stats
-- Nav labels: Team Tiers | Passing | Receiving | Rushing | Run Gaps | Glossary
+- Nav labels: Team Tiers | Team Stats | Passing | Receiving | Rushing | Run Gaps | Glossary
 - Supabase has a 1000-row server limit — use `fetchAllRows()` from `lib/data/utils.ts` for large tables
 - After any DB data change, trigger ISR revalidation via the webhook at `/api/revalidate`
 - Static/ISR pages must not swallow data errors into a rendered page. Rethrow unless there is no database (see `hasNoDatabase` in `app/page.tsx`); known exception pending follow-up: `app/sitemap.ts`. An in-render retry of the same Supabase query is a no-op in Next 14 (per-render fetch dedupe). Consequence: a persistent Supabase problem fails every Vercel build (production and previews) until the database recovers; the live site keeps its last good copy.

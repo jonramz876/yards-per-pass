@@ -41,7 +41,17 @@ describe("sitemap", () => {
     const entries = await sitemap();
     expect(entries.filter((e) => e.url.includes("/card/"))).toHaveLength(0);
     expect(entries.filter((e) => e.url.includes("/player/"))).toHaveLength(3);
-    expect(entries).toHaveLength(10 + 32 + 3);
+    expect(entries).toHaveLength(11 + 32 + 3);
+  });
+
+  it("lists /team-stats right after /teams, stamped with the data freshness", async () => {
+    const entries = await sitemap();
+    const i = entries.findIndex((e) => e.url === "https://yardsperpass.com/team-stats");
+    expect(i).toBeGreaterThan(0);
+    expect(entries[i - 1].url).toBe("https://yardsperpass.com/teams");
+    expect((entries[i].lastModified as Date).toISOString()).toBe("2026-09-10T16:42:00.000Z");
+    expect(entries[i].priority).toBe(0.9);
+    expect(entries[i].changeFrequency).toBe("weekly");
   });
 
   it("lastmod is data_freshness.last_updated, not request time", async () => {
@@ -78,7 +88,7 @@ describe("sitemap", () => {
   it("Supabase down for slugs → static + team pages only", async () => {
     vi.mocked(getAllPlayerSlugs).mockRejectedValue(new Error("boom"));
     const entries = await sitemap();
-    expect(entries).toHaveLength(10 + 32);
+    expect(entries).toHaveLength(11 + 32);
   });
 
   it("1,250 slugs (past the 1,000-row cap) → 1,250 player URLs, no duplicates", async () => {
@@ -107,7 +117,7 @@ describe("sitemap — box score pages (box score spec §6)", () => {
     expect(getBoxScoreSeasons).toHaveBeenCalledWith([2026, 2025]);
     expect(getPlayedRegularSeasonGameIds).toHaveBeenCalledTimes(1);
     expect(getPlayedRegularSeasonGameIds).toHaveBeenCalledWith(2026);
-    expect(entries).toHaveLength(10 + 32 + 3 + 2);
+    expect(entries).toHaveLength(11 + 32 + 3 + 2);
   });
 
   it("lists none when no season is covered, and none (no throw) when the reads fail", async () => {
@@ -117,7 +127,7 @@ describe("sitemap — box score pages (box score spec §6)", () => {
     vi.mocked(getBoxScoreSeasons).mockRejectedValue(new Error("boom"));
     const entries = await sitemap();
     expect(entries.filter((e) => e.url.includes("/game/"))).toHaveLength(0);
-    expect(entries).toHaveLength(10 + 32 + 3);
+    expect(entries).toHaveLength(11 + 32 + 3);
     vi.mocked(getBoxScoreSeasons).mockResolvedValue([2026]);
     vi.mocked(getPlayedRegularSeasonGameIds).mockRejectedValue(new Error("boom"));
     expect((await sitemap()).filter((e) => e.url.includes("/game/"))).toHaveLength(0);
