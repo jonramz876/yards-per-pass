@@ -31,6 +31,7 @@
 - `DataNotYetPublished` exception: a 404, empty file, or zero usable REG plays on the **current** season is a benign skip (exit 0, clear log). Any non-empty current-season file with real plays is ingested — even a single game (~180 rows), per Jon's "update every night after at least 1 game" requirement. Historical seasons keep the 1,000-row minimum and fail loudly.
 - Truncation guard: ingest refuses to write if the new file's max week is lower than `data_freshness.through_week` (protects against nflverse re-publishing a truncated file; `cleanup_stale_rows` would otherwise delete players/teams). Accepted residual risk: a sparse republish that keeps the latest week would pass the guard.
 - nflverse publishes `play_by_play_{year}.parquet` only after the first games are played; rosters appear earlier.
+- **`validate_data` low-volume rule (PR #27, 2026-09-29):** the `epa_per_db` ±5 check applies only to QBs with ≥ `EPA_DB_CHECK_MIN_DROPBACKS` (10) dropbacks; lower-volume outliers log a warning. It used to abort the whole season write — A.Dalton's single 2026 dropback (a pick at CHI −9, −5.57 EPA) blocked every refresh after Week 3 MNF. Columns are coerced with `pd.to_numeric`; unknown/negative/boolean dropbacks count as high volume (still checked). Any new per-player range check must think about 1-play samples the same way. Tests: `tests/test_validate_data.py`.
 - **nflverse publish timing (week 1 2026):** PBP updates are usually hand-triggered by a maintainer soon after games — ~03:20–06:10 UTC after night games, ~21 UTC for Sunday's early window (all 15 week-1 Sunday games were up by 04:23 UTC Monday). Their unattended scheduled builds land ~10–14 UTC. Uploads use `gh release upload --clobber`, so the file 404s for a few seconds per upload.
 
 ## GitHub Actions (jonramz876/yards-per-pass)
@@ -120,6 +121,12 @@
 - `fetchAllRows` gained an optional 4th arg `{ signal, order }`; with none, the query is call-for-call unchanged for every old caller (pinned by `__tests__/data/utils.test.ts`).
 - A team with GP 0 on a side shows dashes for counts too (not 0) and sorts last. An id not in `NFL_TEAMS`: no logo, no link.
 - Canonical (Task 10, after PR #24 merged into the branch): `generateMetadata` uses `canonicalSeason` like the other season pages (bare, or `?season=` for a real past season) on every return path; `/team-stats` is in `SEASON_PAGES` in `__tests__/app/canonical.test.ts`.
+
+## Pinned table columns (PR #28, 2026-09-29)
+
+- QB/RB/Receiver leaderboards and TeamStatsTable pin a rank column at `left-0` and the player/team column at `left-14` (56px) / `left-10` (40px). A `w-*` on a table cell is only a hint, so the rank column rendered narrower and scrolled cells showed through the gap on phones. Fix: every rank-column cell (header, body, Team AVG, NFL AVG, league row) wraps its content in a fixed-width non-wrapping block, inner = offset − 16px padding (`w-10` → 56px, `w-6` → 40px). Don't use `min-w`/`max-w` on cells (WebKit ignores them) or `<col>` widths. Tests read the expected inner width from the second cell's `left-N` class.
+- Pre-existing, not fixed: the QB, Receiver and Rushing pages are wider than the viewport at 768–1280px (whole page scrolls sideways).
+- Vercel preview URLs need a Vercel login; verify a branch locally with `npx --no-install next dev -p 3100` run from the repo folder.
 
 ## Known debt (2026-09-05)
 
