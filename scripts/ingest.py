@@ -4045,6 +4045,9 @@ def update_freshness(conn, season: int, through_week: int):
     log.info("Updated freshness: season=%d, through_week=%d", season, through_week)
 
 
+EPA_DB_CHECK_MIN_DROPBACKS = 10
+
+
 def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame, receiver_stats: pd.DataFrame = None):
     """Sanity-check aggregated stats before writing to DB. Raises ValueError on failure."""
     errors = []
@@ -4064,8 +4067,20 @@ def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame, receiver_sta
     if (pr < 0).any() or (pr > 158.4).any():
         errors.append("QB passer_rating outside [0, 158.3]")
 
-    epa_db = qb_stats['epa_per_db'].dropna()
-    if (epa_db.abs() > 5.0).any():
+    # A single play can legitimately exceed |5| EPA (e.g. a red-zone pick), so
+    # low-volume passers only get a warning; the range check is for real samples.
+    epa_db = qb_stats['epa_per_db']
+    epa_out = epa_db.notna() & (epa_db.abs() > 5.0)
+    if 'dropbacks' in qb_stats.columns:
+        low_volume = qb_stats['dropbacks'] < EPA_DB_CHECK_MIN_DROPBACKS
+    else:
+        low_volume = pd.Series(False, index=qb_stats.index)
+    for _, row in qb_stats[epa_out & low_volume].iterrows():
+        log.warning(
+            "Low-volume QB epa_per_db outside [-5.0, 5.0] (not an error): player_id=%s player_name=%s dropbacks=%s epa_per_db=%.3f",
+            row.get('player_id'), row.get('player_name'), row.get('dropbacks'), row['epa_per_db'],
+        )
+    if (epa_out & ~low_volume).any():
         errors.append("QB epa_per_db outside [-5.0, 5.0]")
 
     if receiver_stats is not None and not receiver_stats.empty:
