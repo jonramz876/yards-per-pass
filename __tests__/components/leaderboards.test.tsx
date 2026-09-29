@@ -358,3 +358,111 @@ describe("a missing Total EPA is never coloured", () => {
     expect(colourOf(cellClass(container, "No Total Passer", "EPA/DB"))).toBe("text-green-600");
   });
 });
+
+// Sticky-gap fix (2026-09-29): the pinned rank column must be exactly as wide
+// as the pinned player column's left offset, or scrolled cells show through
+// between them. jsdom has no layout, so pin it by class: every rank cell wraps
+// its content in a fixed-width block whose width + px-2 (2 + 2 spacing units)
+// equals the player column's `left-N`.
+const tokens = (el: Element) => el.className.split(/\s+/);
+function leftOffset(el: Element): number {
+  const t = tokens(el).find((c) => /^left-\d+$/.test(c));
+  if (!t) throw new Error(`no left-N on <${el.tagName}> "${el.className}"`);
+  return Number(t.slice(5));
+}
+/** Every row's rank cell holds one fixed-width, non-wrapping block of `left - 4`. */
+function expectRankCellsFit(container: HTMLElement) {
+  const rows = Array.from(container.querySelectorAll<HTMLTableRowElement>("thead tr, tbody tr"));
+  expect(rows.length).toBeGreaterThan(1);
+  for (const tr of rows) {
+    const cells = tr.querySelectorAll(":scope > th, :scope > td");
+    const [rank, second] = [cells[0], cells[1]];
+    const label = (tr.textContent ?? "").slice(0, 30);
+    expect(tokens(rank), label).toContain("left-0");
+    expect(tokens(rank), label).toContain("px-2");
+    const n = leftOffset(second);
+    expect(n, label).toBeGreaterThan(0);
+    expect(rank.children, label).toHaveLength(1);
+    const inner = rank.children[0];
+    expect(tokens(inner), label).toContain(`w-${n - 4}`);
+    expect(tokens(inner), label).toContain("whitespace-nowrap");
+    expect(inner.textContent, label).toBe(rank.textContent);
+  }
+}
+const rowWith = (container: HTMLElement, text: string) =>
+  Array.from(container.querySelectorAll("tbody tr")).filter((r) => (r.textContent ?? "").includes(text));
+
+describe("pinned rank column is exactly as wide as the player column's offset", () => {
+  const BACKS = [
+    rb("r1", "Minus TwentyFive", -0.25),
+    rb("r2", "Minus Fifteen", -0.15),
+    rb("r3", "Minus Ten", -0.1),
+    rb("r4", "Minus Three", -0.03),
+    rb("r5", "Plus Three", 0.03),
+  ];
+  const RECS = [
+    rec("w1", "Plus Forty", 0.4),
+    rec("w2", "Plus TwentyNine", 0.29),
+    rec("w3", "Plus TwentyThree", 0.23, 100, "TE"),
+    rec("w4", "Plus Ten", 0.1),
+    rec("w5", "Plus Thirteen Back", 0.13, 100, "RB"),
+  ];
+  const QBS = [
+    qb("q1", "High Passer", { epa_per_db: 0.2, epa_per_play: 0.1, rush_epa_per_play: 0.43 }),
+    qb("q2", "Mid Passer", { epa_per_db: 0.05, epa_per_play: 0.05, rush_epa_per_play: 0.29 }),
+    qb("q3", "Low Passer", { epa_per_db: -0.1, epa_per_play: 0.0, rush_epa_per_play: 0.15 }),
+  ];
+
+  it("QB: header, body and NFL AVG rows", () => {
+    setURL("/qb-leaderboard", "");
+    const { container } = renderBoard(<QBLeaderboard data={QBS} throughWeek={2} season={2026} defaultSeason={2026} />);
+    expect(rowWith(container, "NFL AVG")).toHaveLength(1);
+    expect(container.querySelector("thead th")?.textContent).toBe("Rank");
+    expectRankCellsFit(container);
+  });
+
+  it("RB: header, body, team AVG and NFL AVG rows", () => {
+    setURL("/rushing", "team=BUF");
+    const { container } = renderBoard(<RBLeaderboard data={BACKS} throughWeek={2} season={2026} defaultSeason={2026} />);
+    expect(rowWith(container, "BUF AVG")).toHaveLength(1);
+    expect(rowWith(container, "NFL AVG")).toHaveLength(1);
+    expectRankCellsFit(container);
+  });
+
+  it("Receivers: header, body, team AVG and NFL AVG rows", () => {
+    setURL("/receivers", "team=KC");
+    const { container } = renderBoard(<ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} defaultSeason={2026} />);
+    expect(rowWith(container, "KC AVG")).toHaveLength(1);
+    expect(rowWith(container, "NFL AVG")).toHaveLength(1);
+    expectRankCellsFit(container);
+  });
+
+  it("5-character ranks (WR130) stay whole inside the rank block", () => {
+    setURL("/receivers", "");
+    const many = Array.from({ length: 130 }, (_, i) => rec(`m${i}`, `Receiver ${i}`, 0.3 - i * 0.001));
+    const { container } = renderBoard(<ReceiverLeaderboard data={many} throughWeek={2} season={2026} defaultSeason={2026} />);
+    const ranks = Array.from(container.querySelectorAll("tbody tr")).map((r) => r.querySelector("td")?.textContent?.trim());
+    expect(ranks).toContain("WR130");
+    expectRankCellsFit(container);
+  });
+
+  it("tabs without rank: the player column is pinned at left-0 and there is no rank cell", () => {
+    const cases: [string, string, () => ReactElement, string][] = [
+      ["/qb-leaderboard", "tab=passing", () => <QBLeaderboard data={QBS} throughWeek={2} season={2026} defaultSeason={2026} />, "High Passer"],
+      ["/rushing", "tab=rushing", () => <RBLeaderboard data={BACKS} throughWeek={2} season={2026} defaultSeason={2026} />, "Plus Three"],
+      ["/receivers", "tab=receiving", () => <ReceiverLeaderboard data={RECS} throughWeek={2} season={2026} defaultSeason={2026} />, "Plus Forty"],
+    ];
+    for (const [path, q, ui, name] of cases) {
+      setURL(path, q);
+      const { container, unmount } = renderBoard(ui());
+      const firstTh = container.querySelector("thead th")!;
+      expect(firstTh.textContent, q).toBe("Player");
+      expect(tokens(firstTh), q).toContain("left-0");
+      const firstTd = row(container, name).querySelector("td")!;
+      expect(firstTd.textContent, q).toContain(name);
+      expect(tokens(firstTd), q).toContain("left-0");
+      expect(container.textContent, q).not.toMatch(/\b(QB|RB|WR|TE)\d+\b/);
+      unmount();
+    }
+  });
+});

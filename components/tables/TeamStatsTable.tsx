@@ -175,7 +175,7 @@ export default function TeamStatsTable({ model, season, throughWeek, isLatestSea
               ))}
             </tr>
             <tr>
-              <th className={`bg-navy text-white px-2 py-2 text-left text-xs font-semibold ${stickyRank} z-20`}>#</th>
+              <th className={`bg-navy text-white px-2 py-2 text-left text-xs font-semibold ${stickyRank} z-20`}><div className="w-6 whitespace-nowrap">#</div></th>
               <th className={`bg-navy text-white px-2 py-2 text-left text-xs font-semibold ${stickyTeam} z-20`}>Team</th>
               <th className="bg-navy text-white px-2 py-2 text-right text-xs font-semibold">GP</th>
               {columns.map((c) => {
@@ -213,7 +213,7 @@ export default function TeamStatsTable({ model, season, throughWeek, isLatestSea
               return (
                 <tr key={t.team} data-team={t.team} className="group border-t border-gray-100 hover:bg-gray-50/50">
                   <td className={`px-2 py-2 text-gray-400 font-bold tabular-nums text-xs bg-white group-hover:bg-gray-50 ${stickyRank}`}>
-                    {rankValue === null ? EM_DASH : i + 1}
+                    <div className="w-6 whitespace-nowrap">{rankValue === null ? EM_DASH : i + 1}</div>
                   </td>
                   <td className={`px-2 py-2 whitespace-nowrap bg-white group-hover:bg-gray-50 ${stickyTeam}`}>
                     {known ? (
@@ -245,7 +245,7 @@ export default function TeamStatsTable({ model, season, throughWeek, isLatestSea
               );
             })}
             <tr data-average="" className="border-t border-gray-200 bg-gray-50 font-semibold text-gray-600">
-              <td className={`px-2 py-2 bg-gray-50 ${stickyRank}`} />
+              <td className={`px-2 py-2 bg-gray-50 ${stickyRank}`}><div className="w-6 whitespace-nowrap" /></td>
               <td className={`px-2 py-2 whitespace-nowrap bg-gray-50 ${stickyTeam}`}>NFL average</td>
               <td className="px-2 py-2" />
               {columns.map((c) => (
