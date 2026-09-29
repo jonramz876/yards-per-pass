@@ -550,7 +550,7 @@ export default function QBLeaderboard({ data, throughWeek, season, defaultSeason
         <table className="w-full text-sm">
           <thead>
             <tr>
-              {activeTabConfig.showRank && <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-14 sticky left-0 z-20">Rank</th>}
+              {activeTabConfig.showRank && <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold w-14 sticky left-0 z-20"><div className="w-10 whitespace-nowrap">Rank</div></th>}
               <th className={`bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold min-w-[130px] sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-20`}>Player</th>
               <th className="bg-navy text-white px-2 py-2.5 text-left text-xs font-semibold">Team</th>
               {columns.map((col) => (
@@ -606,7 +606,7 @@ export default function QBLeaderboard({ data, throughWeek, season, defaultSeason
 
                   const avgRow = showAvgBefore ? (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}><div className="w-10 whitespace-nowrap" /></td>}
                       <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>
@@ -631,7 +631,7 @@ export default function QBLeaderboard({ data, throughWeek, season, defaultSeason
                       >
                         {activeTabConfig.showRank && (
                           <td className="px-2 py-2 text-gray-400 font-bold tabular-nums text-xs w-14 sticky left-0 z-10 bg-white group-hover:bg-gray-50/50 font-mono">
-                            QB{rankMap[qb.player_id] ?? idx + 1}
+                            <div className="w-10 whitespace-nowrap">QB{rankMap[qb.player_id] ?? idx + 1}</div>
                           </td>
                         )}
                         <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10 bg-white group-hover:bg-gray-50/50`}>
@@ -692,7 +692,7 @@ export default function QBLeaderboard({ data, throughWeek, season, defaultSeason
                   if (!belongsAfterLast) return null;
                   return (
                     <tr key="nfl-avg" className="border-t border-amber-400">
-                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}></td>}
+                      {activeTabConfig.showRank && <td className="px-2 py-2 sticky left-0 z-10" style={{ background: "#fef3c7" }}><div className="w-10 whitespace-nowrap" /></td>}
                       <td className={`px-2 py-2 sticky ${activeTabConfig.showRank ? "left-14" : "left-0"} z-10`} style={{ background: "#fef3c7", color: "#92400e", fontWeight: 700, fontStyle: "italic" }}>
                         NFL AVG
                       </td>

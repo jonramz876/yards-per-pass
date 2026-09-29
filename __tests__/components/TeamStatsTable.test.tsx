@@ -315,3 +315,28 @@ describe("TeamStatsTable — header", () => {
     expect(hasClass(second[0], "left-0") && hasClass(second[1], "left-10")).toBe(true);
   });
 });
+
+// Sticky-gap fix (2026-09-29): the # column must be exactly as wide as the Team
+// column's left offset. Every # cell wraps its content in a fixed-width block
+// whose width + px-2 (4 spacing units) equals Team's `left-N`.
+describe("TeamStatsTable — pinned # column width", () => {
+  it("the header, every team row and the average row hold a block of left - 4", () => {
+    const { container } = renderTable();
+    const rows = [container.querySelectorAll("thead tr")[1], ...bodyRows(container)];
+    expect(rows).toHaveLength(34);
+    expect(avgRow(container)).toBeTruthy();
+    for (const tr of rows) {
+      const [rank, team] = Array.from(tr.querySelectorAll(":scope > th, :scope > td"));
+      const label = (tr.textContent ?? "").slice(0, 30);
+      const leftTok = team.className.split(/\s+/).find((c) => /^left-\d+$/.test(c));
+      expect(leftTok, label).toBeDefined();
+      const n = Number(leftTok!.slice(5));
+      expect(hasClass(rank, "left-0") && hasClass(rank, "px-2"), label).toBe(true);
+      expect(rank.children, label).toHaveLength(1);
+      const inner = rank.children[0];
+      expect(hasClass(inner, `w-${n - 4}`), label).toBe(true);
+      expect(hasClass(inner, "whitespace-nowrap"), label).toBe(true);
+      expect(inner.textContent, label).toBe(rank.textContent);
+    }
+  });
+});
