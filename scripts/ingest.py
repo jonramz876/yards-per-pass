@@ -4069,16 +4069,22 @@ def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame, receiver_sta
 
     # A single play can legitimately exceed |5| EPA (e.g. a red-zone pick), so
     # low-volume passers only get a warning; the range check is for real samples.
-    epa_db = qb_stats['epa_per_db']
-    epa_out = epa_db.notna() & (epa_db.abs() > 5.0)
+    # Coerce to numbers so odd dtypes can't crash the check. Unknown, negative or
+    # boolean dropbacks don't count as low volume, so those rows are still checked.
+    epa_db = pd.to_numeric(qb_stats['epa_per_db'], errors='coerce')
+    epa_out = (epa_db.notna() & (epa_db.abs() > 5.0)).fillna(False).astype(bool)
     if 'dropbacks' in qb_stats.columns:
-        low_volume = qb_stats['dropbacks'] < EPA_DB_CHECK_MIN_DROPBACKS
+        db_raw = qb_stats['dropbacks']
+        is_bool = db_raw.map(pd.api.types.is_bool).astype(bool)
+        db = pd.to_numeric(db_raw.astype(object).where(~is_bool), errors='coerce')
+        low_volume = ((db >= 0) & (db < EPA_DB_CHECK_MIN_DROPBACKS)).fillna(False).astype(bool)
     else:
         low_volume = pd.Series(False, index=qb_stats.index)
-    for _, row in qb_stats[epa_out & low_volume].iterrows():
+    warn_mask = epa_out & low_volume
+    for (_, row), value in zip(qb_stats[warn_mask].iterrows(), epa_db[warn_mask].tolist()):
         log.warning(
             "Low-volume QB epa_per_db outside [-5.0, 5.0] (not an error): player_id=%s player_name=%s dropbacks=%s epa_per_db=%.3f",
-            row.get('player_id'), row.get('player_name'), row.get('dropbacks'), row['epa_per_db'],
+            row.get('player_id'), row.get('player_name'), row.get('dropbacks'), float(value),
         )
     if (epa_out & ~low_volume).any():
         errors.append("QB epa_per_db outside [-5.0, 5.0]")

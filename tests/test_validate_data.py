@@ -94,6 +94,53 @@ class TestEpaPerDbVolumeGate:
         with pytest.raises(ValueError, match=r"QB epa_per_db outside \[-5\.0, 5\.0\]"):
             validate_data(_team(), qb)
 
+    def test_string_dropbacks_do_not_crash(self, caplog):
+        # dropbacks as text: '50' is coerced and checked; clean frame passes
+        qb = _with_row('00-0044444', 'S.Text', 50, 0.2)
+        qb['dropbacks'] = qb['dropbacks'].astype(str)
+        with caplog.at_level('WARNING', logger='ingest'):
+            validate_data(_team(), qb)
+        # and a text high-volume outlier still raises
+        qb.loc[1, 'epa_per_db'] = 6.0
+        with pytest.raises(ValueError, match=r"QB epa_per_db outside"):
+            validate_data(_team(), qb)
+
+    def test_object_epa_with_none_is_ignored(self, caplog):
+        qb = _with_row('00-0055555', 'N.One', 0, math.nan)
+        qb['epa_per_db'] = qb['epa_per_db'].astype(object)
+        qb.loc[1, 'epa_per_db'] = None
+        with caplog.at_level('WARNING', logger='ingest'):
+            validate_data(_team(), qb)
+        assert caplog.text == ''
+
+    def test_string_epa_low_volume_warns_with_value(self, caplog):
+        qb = _with_row('00-0088888', 'S.Epa', 1, 6.0)
+        qb['epa_per_db'] = qb['epa_per_db'].astype(str)
+        with caplog.at_level('WARNING', logger='ingest'):
+            validate_data(_team(), qb)
+        assert 'epa_per_db=6.000' in caplog.text
+
+    def test_nullable_na_dropbacks_is_checked(self):
+        qb = _with_row('00-0066666', 'U.Known', 1, 6.0)
+        qb['dropbacks'] = qb['dropbacks'].astype('Int64')
+        qb.loc[1, 'dropbacks'] = pd.NA
+        with pytest.raises(ValueError, match=r"QB epa_per_db outside"):
+            validate_data(_team(), qb)
+
+    @pytest.mark.parametrize('bad_db', [-5, True])
+    def test_garbage_dropbacks_is_checked(self, bad_db):
+        qb = _with_row('00-0077777', 'G.Arbage', 1, 6.0)
+        qb['dropbacks'] = qb['dropbacks'].astype(object)
+        qb.loc[1, 'dropbacks'] = bad_db
+        with pytest.raises(ValueError, match=r"QB epa_per_db outside"):
+            validate_data(_team(), qb)
+
+    def test_all_bool_dropbacks_column_is_checked(self):
+        qb = _with_row('00-0077777', 'G.Arbage', 1, 6.0)
+        qb['dropbacks'] = [True, True]
+        with pytest.raises(ValueError, match=r"QB epa_per_db outside"):
+            validate_data(_team(), qb)
+
     def test_error_and_warning_rows_together(self, caplog):
         # Non-default index to make sure masks align on the full frame
         qb = _qb(player_id=['00-0027973', '00-0011111'],
