@@ -4273,7 +4273,7 @@ def connect_with_retry(db_url, deadline):
         try:
             conn = psycopg2.connect(db_url, connect_timeout=CONNECT_TIMEOUT_SECONDS)
             # Session-level SET (committed so it outlives this transaction): a statement stuck
-            # behind a platform slowdown fails in 2 min instead of running until the server's limit.
+            # behind a platform slowdown fails in 3 min instead of running until the server's limit.
             # Done with SET rather than the libpq `options` startup parameter, which the pooler
             # may not pass through.
             cur = conn.cursor()
