@@ -4244,7 +4244,7 @@ MIN_ATTEMPT_SECONDS = 10 * 60          # a slow failing attempt took ~10 min on 
 CONNECT_TIMEOUT_SECONDS = 30
 CONNECT_RETRY_WAITS = (30, 60, 120, 240)   # between 5 connect attempts
 SEASON_RETRY_WAITS = (120, 300)            # before the 2 extra season attempts
-STATEMENT_TIMEOUT_MS = 120_000             # healthy DB phase is 6-19 s in total
+STATEMENT_TIMEOUT_MS = 180_000             # healthy DB phase is 6-19 s in total; ~58 s seen during a slowdown
 TRANSIENT_DB_ERRORS = (
     psycopg2.OperationalError,             # includes QueryCanceled (statement timeout)
     psycopg2.InterfaceError,               # connection already closed

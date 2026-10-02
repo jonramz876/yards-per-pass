@@ -119,11 +119,13 @@ class TestConnectWithRetry:
         assert clock.sleeps == [30, 60]
         assert connect.calls[0][1].get("connect_timeout") == 30
 
-    def test_sets_120s_statement_timeout_on_every_connection(self, clock, monkeypatch):
+    def test_sets_180s_statement_timeout_on_every_connection(self, clock, monkeypatch):
+        # 180 s, not 120: the slowest statement that still succeeded during the
+        # 9/29-10/1 Supabase slowdown took ~58 s, and 120 s left only 2x headroom.
         good = FakeConn("good")
         monkeypatch.setattr(ingest.psycopg2, "connect", ScriptedConnect([good]))
         ingest.connect_with_retry(FAKE_URL, full_deadline(clock))
-        assert any("statement_timeout" in s and "120000" in s for s in good.executed)
+        assert any("statement_timeout" in s and "180000" in s for s in good.executed)
         assert good.commits >= 1  # session-level SET must survive the next transaction
 
     def test_failed_statement_timeout_set_counts_as_failed_attempt(self, clock, monkeypatch):
