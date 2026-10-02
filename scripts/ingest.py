@@ -16,6 +16,7 @@ from urllib.error import HTTPError
 
 import pandas as pd
 import psycopg2
+import psycopg2.errors
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 
@@ -47,8 +48,11 @@ def retry(max_retries=3, delay=5, backoff=2):
             while True:
                 try:
                     return func(*args, **kwargs)
-                except (DataQualityError, DataNotYetPublished):
-                    raise  # Fast-fail: bad/absent data won't fix itself on retry
+                except (DataQualityError, DataNotYetPublished, psycopg2.Error):
+                    # Fast-fail: bad/absent data won't fix itself on retry, and a DB statement
+                    # error aborts the transaction, so retrying inside it can never succeed.
+                    # Transient DB errors are retried per season in run_seasons instead.
+                    raise
                 except Exception as e:
                     retries += 1
                     if retries > max_retries:
@@ -4232,6 +4236,129 @@ def process_season(season: int, conn, dry_run: bool = False):
         raise
 
 
+# --- Riding out database blips (Supabase pooler timeouts / latency spikes) ---
+# The whole run gets one wall-clock budget so it finishes inside the workflow's
+# timeout-minutes: 30. Only retries are gated by it; a first attempt always runs.
+RUN_BUDGET_SECONDS = 24 * 60
+MIN_ATTEMPT_SECONDS = 10 * 60          # a slow failing attempt took ~10 min on 9/29
+CONNECT_TIMEOUT_SECONDS = 30
+CONNECT_RETRY_WAITS = (30, 60, 120, 240)   # between 5 connect attempts
+SEASON_RETRY_WAITS = (120, 300)            # before the 2 extra season attempts
+STATEMENT_TIMEOUT_MS = 120_000             # healthy DB phase is 6-19 s in total
+TRANSIENT_DB_ERRORS = (
+    psycopg2.OperationalError,             # includes QueryCanceled (statement timeout)
+    psycopg2.InterfaceError,               # connection already closed
+    psycopg2.errors.QueryCanceled,
+    psycopg2.errors.InFailedSqlTransaction,
+)
+
+
+def _close_quietly(conn):
+    try:
+        conn.close()
+    except Exception as e:
+        log.warning("Closing the old database connection failed (ignored): %s", e)
+
+
+def connect_with_retry(db_url, deadline):
+    """psycopg2.connect with retries on OperationalError, plus a session statement_timeout.
+
+    Up to 1 + len(CONNECT_RETRY_WAITS) attempts. Never sleeps when the wait plus one more
+    connect attempt would pass `deadline` (a time.monotonic() value); re-raises instead.
+    Logs only the error text and attempt number, never db_url.
+    """
+    max_attempts = len(CONNECT_RETRY_WAITS) + 1
+    for attempt in range(1, max_attempts + 1):
+        conn = None
+        try:
+            conn = psycopg2.connect(db_url, connect_timeout=CONNECT_TIMEOUT_SECONDS)
+            # Session-level SET (committed so it outlives this transaction): a statement stuck
+            # behind a platform slowdown fails in 2 min instead of running until the server's limit.
+            # Done with SET rather than the libpq `options` startup parameter, which the pooler
+            # may not pass through.
+            cur = conn.cursor()
+            cur.execute(f"SET statement_timeout = {STATEMENT_TIMEOUT_MS}")
+            conn.commit()
+            return conn
+        except psycopg2.OperationalError as e:
+            if conn is not None:
+                _close_quietly(conn)
+            if attempt == max_attempts:
+                log.error("Database connect failed (attempt %d/%d) — giving up: %s", attempt, max_attempts, e)
+                raise
+            wait = CONNECT_RETRY_WAITS[attempt - 1]
+            remaining = deadline - time.monotonic()
+            if wait + CONNECT_TIMEOUT_SECONDS > remaining:
+                log.error("Database connect failed (attempt %d/%d) — giving up: deadline (%.0f s left, "
+                          "a retry needs %d s): %s", attempt, max_attempts, remaining,
+                          wait + CONNECT_TIMEOUT_SECONDS, e)
+                raise
+            log.warning("Database connect failed (attempt %d/%d), retrying in %d s: %s",
+                        attempt, max_attempts, wait, e)
+            time.sleep(wait)
+
+
+def run_seasons(seasons, db_url, dry_run, deadline):
+    """Connect (unless dry run), then schedules + process_season for each season.
+
+    A transient DB error (TRANSIENT_DB_ERRORS) re-runs that season from the start on a
+    fresh connection, at most len(SEASON_RETRY_WAITS) extra times and only while a full
+    attempt still fits before `deadline`. The fresh connection replaces `conn` for every
+    later season and is the one closed at the end. Dry run never connects.
+    """
+    conn = None
+    if not dry_run:
+        conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+
+    try:
+        for season in seasons:
+            retries = 0
+            while True:
+                if conn is not None and conn.closed:
+                    log.warning("Database connection is closed — reconnecting before season %d", season)
+                    conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                # Schedules ingest BEFORE process_season and outside its DataNotYetPublished
+                # skip: the schedule must land even when no PBP exists yet (pre-season).
+                # Its own except — the one below catches only DataNotYetPublished, so an
+                # unwrapped schedules failure would kill the whole run. Re-run on a retried
+                # attempt (idempotent upsert) so a blip here doesn't leave scores stale.
+                try:
+                    ingest_schedules(conn, season)
+                except Exception as e:
+                    log.warning("Schedules ingest for %d failed — continuing: %s", season, e)
+                if conn is not None and conn.closed:
+                    log.warning("Database connection closed during schedules — reconnecting before season %d", season)
+                    conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                try:
+                    process_season(season, conn, dry_run=dry_run)
+                except DataNotYetPublished as e:
+                    log.info("Season %d skipped — %s Nothing ingested; will succeed once data exists.", season, e)
+                except TRANSIENT_DB_ERRORS as e:
+                    if conn is None:
+                        raise  # dry run: nothing to reconnect
+                    if retries >= len(SEASON_RETRY_WAITS):
+                        log.error("Season %d failed after %d attempts — giving up: %s", season, retries + 1, e)
+                        raise
+                    wait = SEASON_RETRY_WAITS[retries]
+                    remaining = deadline - time.monotonic()
+                    needed = wait + MIN_ATTEMPT_SECONDS + CONNECT_TIMEOUT_SECONDS
+                    if remaining < needed:
+                        log.error("Season %d hit a transient database error — giving up: deadline "
+                                  "(%.0f s left, a retry needs %d s): %s", season, remaining, needed, e)
+                        raise
+                    retries += 1
+                    log.warning("Season %d hit a transient database error (attempt %d of %d), "
+                                "reconnecting in %d s: %s", season, retries, len(SEASON_RETRY_WAITS) + 1, wait, e)
+                    _close_quietly(conn)
+                    time.sleep(wait)
+                    conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                    continue
+                break
+    finally:
+        if conn is not None:
+            _close_quietly(conn)
+
+
 def main():
     parser = argparse.ArgumentParser(description="nflverse → Supabase ETL for Yards Per Pass")
     parser.add_argument('--season', type=int, help='Process a single season')
@@ -4243,32 +4370,16 @@ def main():
         parser.error("Specify --season YEAR or --all")
 
     seasons = list(range(FIRST_SEASON, CURRENT_SEASON + 1)) if args.all else [args.season]
+    deadline = time.monotonic() + RUN_BUDGET_SECONDS
 
-    conn = None
+    db_url = None
     if not args.dry_run:
         db_url = os.environ.get('DATABASE_URL')
         if not db_url:
             log.error("DATABASE_URL not set. Add it to .env or environment.")
             sys.exit(1)
-        conn = psycopg2.connect(db_url, connect_timeout=30)
 
-    try:
-        for season in seasons:
-            # Schedules ingest BEFORE process_season and outside its DataNotYetPublished
-            # skip: the schedule must land even when no PBP exists yet (pre-season).
-            # Its own except — the one below catches only DataNotYetPublished, so an
-            # unwrapped schedules failure would kill the whole run.
-            try:
-                ingest_schedules(conn, season)
-            except Exception as e:
-                log.warning("Schedules ingest for %d failed — continuing: %s", season, e)
-            try:
-                process_season(season, conn, dry_run=args.dry_run)
-            except DataNotYetPublished as e:
-                log.info("Season %d skipped — %s Nothing ingested; will succeed once data exists.", season, e)
-    finally:
-        if conn:
-            conn.close()
+    run_seasons(seasons, db_url, args.dry_run, deadline)
 
     log.info("Done!")
 
