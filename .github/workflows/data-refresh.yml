@@ -97,6 +97,7 @@ jobs:
       # days) just means a normal full run.
       - name: Restore refresh state
         if: steps.offseason.outputs.skip != 'true'
+        continue-on-error: true  # a cache outage must never stop the refresh: no state = a full run
         uses: actions/cache/restore@v4
         with:
           path: .ingest-state
@@ -141,6 +142,7 @@ jobs:
       # committed schedule rows, and the next run must know a revalidate is owed.
       - name: Save refresh state
         if: always() && steps.offseason.outputs.skip != 'true' && hashFiles('.ingest-state/state.json') != ''
+        continue-on-error: true  # a failed save only costs the next run a full run
         uses: actions/cache/save@v4
         with:
           path: .ingest-state

@@ -97,3 +97,11 @@ class TestWorkflowFile:
         steps = doc['jobs']['refresh']['steps']
         assert [s.get('id') for s in steps if s.get('id')] == ['offseason', 'vars', 'ingest']
         assert doc['concurrency'] == {'group': 'data-refresh', 'cancel-in-progress': False}
+
+    @pytest.mark.parametrize("step", ['Restore refresh state', 'Save refresh state'])
+    def test_a_cache_outage_can_never_fail_the_refresh(self, step):
+        """Chaos RISK-4: the cache is an optimisation. If the cache service is down the
+        restore must not stop the ingest (no state = a full run) and the save must not
+        turn a good refresh red."""
+        block = _step_block(_workflow_text('data-refresh.yml'), step)
+        assert "\n        continue-on-error: true" in block
