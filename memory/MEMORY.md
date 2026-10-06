@@ -48,7 +48,7 @@
 
 - Python is `py -3` (plain `python` is not installed). Tests: `py -3 -m pytest tests/ -q`.
 - Local build needs the placeholder env vars CI uses: `NEXT_PUBLIC_SUPABASE_URL=https://placeholder.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder-key-for-build-only npm run build`.
-- Frontend tests: `npx vitest run` (642 tests / 37 files after box scores PR 3). Python: `py -3 -m pytest tests/ -q` (459 tests: 453 pass, 5 skip without `YPP_PBP_PARQUET`, 1 strict xfail).
+- Frontend tests: `npx vitest run` (1286 tests / 71 files after read resilience PR 1A). Python: `py -3 -m pytest tests/ -q` (537 pass, 19 skip without `YPP_PBP_PARQUET`, 1 strict xfail).
 - Agent/tool shells reset the working directory between calls, so `cd` does not carry over: use absolute paths — `node <repo>/node_modules/vitest/vitest.mjs run --root <repo>`, `node <repo>/node_modules/typescript/bin/tsc --noEmit -p <repo>/tsconfig.json`, `npm --prefix <repo> run lint`, `py -3 -m pytest <repo>/tests -q`.
 - Running pytest dirties the tracked `tests/__pycache__/*.pyc` files; use `PYTHONDONTWRITEBYTECODE=1 … -p no:cacheprovider`, and never stage `__pycache__`.
 
