@@ -157,6 +157,31 @@ class RawPlays:
         return pd.concat(frames, ignore_index=True)
 
 
+@pytest.fixture(autouse=True)
+def no_real_network_or_database(monkeypatch):
+    """Safety net for every test in tests/: a test that forgets to fake the network
+    or the database fails instead of reaching out. Local files (the parquet fixture)
+    and in-memory buffers still read normally; only http(s) URLs are refused."""
+    import ingest
+
+    def refuse(*a, **k):
+        raise AssertionError("test tried to reach the network or a database")
+
+    def local_only(real):
+        def read(source, *a, **k):
+            if isinstance(source, str) and source.lower().startswith(('http://', 'https://')):
+                refuse()
+            return real(source, *a, **k)
+        return read
+
+    monkeypatch.setattr(ingest, "urlopen", refuse)
+    monkeypatch.setattr(ingest.psycopg2, "connect", refuse)
+    monkeypatch.setattr(ingest.pd, "read_csv", local_only(pd.read_csv))
+    monkeypatch.setattr(ingest.pd, "read_parquet", local_only(pd.read_parquet))
+    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
+    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+
+
 @pytest.fixture
 def raw() -> RawPlays:
     return RawPlays

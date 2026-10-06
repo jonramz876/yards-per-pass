@@ -15,8 +15,8 @@ import psycopg2.errors
 import pytest
 
 import ingest
-from test_refresh_io import (  # noqa: F401  (h and the autouse safety net are fixtures)
-    PBP, Harness, h, no_real_network_or_database, schedules_frame,
+from test_refresh_io import (  # noqa: F401  (h is a fixture)
+    PBP, Harness, h, schedules_frame,
 )
 
 REAL_PROCESS_SEASON = ingest.process_season

@@ -20,8 +20,8 @@ import psycopg2
 import pytest
 
 import ingest
-from test_refresh_io import (  # noqa: F401  (h and the autouse safety net are fixtures)
-    PARTICIPATION, PBP, ROSTER, Harness, h, no_real_network_or_database, schedules_frame,
+from test_refresh_io import (  # noqa: F401  (h is a fixture)
+    PARTICIPATION, PBP, ROSTER, Harness, h, schedules_frame,
 )
 from test_refresh_ddl import REAL_INGEST_SCHEDULES, REAL_PROCESS_SEASON, RealPipeline, RecordingConn
 
@@ -186,8 +186,8 @@ class TestEntryDroppedOnceAnAttemptStarts:
         assert after['2026'] == before['2026']               # old digest: the next run runs it
         assert h.summary().splitlines() == [
             "2024: skipped: sources unchanged",
-            "2025: FAILED (pbp changed)",
-            "2026: not attempted (pbp changed)",             # NOTE-9: not "FAILED"
+            "2025: FAILED during a full run (reason for full run: pbp changed)",
+            "2026: not attempted (was due: pbp changed)",             # NOTE-9: not "FAILED"
         ]
 
 
@@ -465,7 +465,160 @@ class TestSummaryOfAFailedRun:
         with pytest.raises(psycopg2.OperationalError):
             h.run(season="all")
         assert h.summary().splitlines() == [
-            "2025: FAILED (state file not found)",
-            "2026: not attempted (state file not found)",
+            "2025: FAILED during a full run (reason for full run: state file not found)",
+            "2026: not attempted (was due: state file not found)",
         ]
         assert h.changed() == "true"
+
+
+# --- code review fixes (2026-10-06) -------------------------------------------------------
+
+REAL_UPSERT_TEAMS = ingest.upsert_teams
+
+
+class TestSchedulesOkIsPerAttempt:
+    def test_schedules_fine_on_attempt_1_but_failing_on_the_attempt_that_commits(self, h):
+        """Transient retry: the schedules ingest worked the first time and failed on the
+        retry whose season committed. That attempt cannot vouch for the schedule rows."""
+        h.pipeline.schedule_errors[2026] = [None, psycopg2.errors.UniqueViolation("schedules boom")]
+        h.pipeline.season_errors[2026] = [psycopg2.OperationalError("blip")]
+        assert h.run() == 2
+        assert len(h.pipeline.schedule_calls) == 2 and len(h.pipeline.season_calls) == 2
+        assert '2026' not in h.state()['seasons']
+        assert 'schema_hash' not in h.state()
+        h.hours_pass(4)
+        assert h.run() == 1
+
+
+class TestSummaryWording:
+    def test_committed_but_not_recorded_says_so_and_why(self, h):
+        """Review M3: otherwise nothing on the Actions page explains why no run is ever skipped."""
+        h.github.assets['pbp_participation'][PARTICIPATION] = "sha256:part-2026"
+        h.pipeline.participation_loaded = False
+        h.run()
+        assert h.summary().strip() == (
+            "2026: full run (state file not found): 9,469 rows sent; "
+            "next run will also be full (participation file listed but not loaded)")
+
+    def test_failed_schedules_ingest_is_named_too(self, h):
+        h.pipeline.schedule_errors[2026] = [psycopg2.errors.UndefinedColumn("column weekday does not exist")]
+        h.run()
+        assert h.summary().strip() == (
+            "2026: full run (state file not found): 9,197 rows sent; "
+            "next run will also be full (schedules ingest failed)")
+
+    def test_recorded_run_has_no_such_note(self, h):
+        h.run()
+        assert "next run" not in h.summary()
+
+    def test_skipped_run_that_still_revalidates_logs_why(self, h, caplog):
+        """Review M7."""
+        h.run()                                   # the POST after this run failed: no marker
+        h.hours_pass(4)
+        with caplog.at_level(logging.INFO, logger="ingest"):
+            assert h.run() == 0
+        assert h.changed() == "true"
+        assert "revalidate still owed for the data change at 2026-10-06T12:00:00Z" in caplog.text
+        h.mark_revalidated()
+        h.hours_pass(4)
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger="ingest"):
+            h.run()
+        assert h.changed() == "false"
+        assert "revalidate still owed" not in caplog.text
+
+
+class TestRowsSentIsExact:
+    """Review M1: upsert_teams always sends its fixed team list (36 rows), not
+    len(team_stats), and the data_freshness stamp is a row too."""
+
+    def test_row_count_against_known_frames(self, h, web, monkeypatch):
+        RealPipeline(h, monkeypatch)
+        monkeypatch.setattr(ingest, "upsert_teams", REAL_UPSERT_TEAMS)
+        monkeypatch.setattr(ingest, "aggregate_team_stats",
+                            lambda *a, **k: pd.DataFrame({"team_id": ["BUF", "HOU"]}))                # 2
+        monkeypatch.setattr(ingest, "aggregate_qb_stats",
+                            lambda *a, **k: pd.DataFrame({"player_id": ["a", "b", "c"]}))             # 3
+        monkeypatch.setattr(ingest, "aggregate_rb_gap_stats",
+                            lambda *a, **k: pd.DataFrame({"player_id": ["r"] * 5}))                   # 5
+        monkeypatch.setattr(ingest, "aggregate_team_game_stats",
+                            lambda *a, **k: pd.DataFrame({"game_id": ["g1"] * 4}))                    # 4
+        monkeypatch.setattr(ingest, "generate_player_slugs",
+                            lambda *a, **k: pd.DataFrame({"player_id": ["a"] * 7}))                   # 7
+        conn = RecordingConn()
+        result = ingest.process_season(2026, conn)
+        assert sum(1 for s in conn.statements if s.startswith("INSERT INTO teams")) == 1
+        assert result["rows_sent"] == 36 + 2 + 3 + 5 + 4 + 7 + 1      # teams list + frames + freshness
+
+    def test_upsert_teams_reports_its_fixed_list(self, monkeypatch):
+        sent = {}
+        monkeypatch.setattr(ingest, "execute_values", lambda cur, sql, rows: sent.setdefault("rows", rows))
+        assert REAL_UPSERT_TEAMS(RecordingConn(), pd.DataFrame({"team_id": ["BUF"]})) == 36
+        assert len(sent["rows"]) == 36
+
+    def test_summary_line_adds_the_schedule_rows(self, h, web, monkeypatch):
+        RealPipeline(h, monkeypatch)
+        monkeypatch.setattr(ingest, "upsert_teams", REAL_UPSERT_TEAMS)
+        h.run()
+        # 36 teams + 1 team_stats + 1 qb + 1 freshness + 2 schedule rows (the fixture's 2026 games)
+        assert h.summary().strip() == "2026: full run (state file not found): 41 rows sent"
+
+
+class TestDownloadTimeout:
+    def test_downloads_pass_a_generous_timeout(self, web, monkeypatch):
+        timeouts = []
+        inner = ingest.urlopen                       # the FakeWeb installed by `web`
+
+        def spy(target, timeout=None):
+            timeouts.append(timeout)
+            return inner(target, timeout=timeout)
+        monkeypatch.setattr(ingest, "urlopen", spy)
+        web.files[URL] = parquet_bytes(pd.DataFrame({"a": [1]}))
+        ingest._read_parquet_url(URL)
+        assert timeouts == [ingest.DOWNLOAD_TIMEOUT_SECONDS]
+        assert ingest.DOWNLOAD_TIMEOUT_SECONDS >= 60
+
+    def test_a_timed_out_download_is_retried_like_any_network_error(self, h, web, monkeypatch):
+        monkeypatch.setattr(ingest.time, "sleep", lambda s: None)
+        url, data = source_files(web, h)["roster"]
+        inner = ingest.urlopen
+        attempts = []
+
+        def flaky(target, timeout=None):
+            attempts.append(target)
+            if len(attempts) == 1:
+                raise TimeoutError("The read operation timed out")
+            return inner(target, timeout=timeout)
+        monkeypatch.setattr(ingest, "urlopen", flaky)
+        frame = REAL_DOWNLOAD_ROSTER(2026)
+        assert len(frame) == 120 and len(attempts) == 2
+        assert ingest._DOWNLOAD_DIGESTS[url] == sha(data)
+
+
+class TestTombstone:
+    """Review M4: when a run leaves no state file, the workflow writes this before the
+    save step, so the newest cached state never claims anything."""
+
+    def test_tombstone_loads_and_means_a_full_run(self, h):
+        h.state_dir.mkdir(parents=True)
+        h.state_path.write_text(ingest.STATE_TOMBSTONE + "\n", encoding="utf-8")
+        assert ingest._load_state(str(h.state_path)) == ({"version": 1, "seasons": {}}, None)
+        assert h.run() == 1
+        assert h.summary().strip() == "2026: full run (no stored fingerprint): 9,469 rows sent"
+        assert h.pipeline.season_calls[-1][2] == {}          # no schema hash in a tombstone: DDL pass
+
+
+class TestGuardCoversTheWholeDirectory:
+    def test_urls_are_refused_but_local_reads_work(self, tmp_path):
+        """Review M9: the safety net lives in conftest.py (autouse for all of tests/)."""
+        with pytest.raises(AssertionError):
+            ingest.pd.read_parquet("https://example.invalid/x.parquet")
+        with pytest.raises(AssertionError):
+            ingest.pd.read_csv("https://example.invalid/x.csv")
+        with pytest.raises(AssertionError):
+            ingest.urlopen("https://example.invalid/")
+        with pytest.raises(AssertionError):
+            ingest.psycopg2.connect("postgresql://nobody@nowhere.invalid/db")
+        path = tmp_path / "local.parquet"
+        pd.DataFrame({"a": [1]}).to_parquet(path)
+        assert len(ingest.pd.read_parquet(str(path))) == 1

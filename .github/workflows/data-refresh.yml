@@ -138,10 +138,21 @@ jobs:
             echo "::warning::ISR revalidation failed with HTTP $STATUS — site may serve stale data (the next run will try again)"
           fi
 
+      # Ingest removes the state file when it cannot trust or write it. Saving nothing would let the next
+      # run restore an OLDER cached state that might still match, so save an empty one instead: it claims
+      # nothing, and the next run is a full run. (The text is STATE_TOMBSTONE in scripts/ingest.py.)
+      - name: Leave an empty state if the run left none
+        if: always() && steps.offseason.outputs.skip != 'true'
+        run: |
+          mkdir -p .ingest-state
+          if [ ! -s .ingest-state/state.json ]; then
+            echo '{"version": 1, "seasons": {}}' > .ingest-state/state.json
+          fi
+
       # After the revalidate step, so its marker is saved too. always(): a failed ingest may still have
       # committed schedule rows, and the next run must know a revalidate is owed.
       - name: Save refresh state
-        if: always() && steps.offseason.outputs.skip != 'true' && hashFiles('.ingest-state/state.json') != ''
+        if: always() && steps.offseason.outputs.skip != 'true'
         continue-on-error: true  # a failed save only costs the next run a full run
         uses: actions/cache/save@v4
         with:

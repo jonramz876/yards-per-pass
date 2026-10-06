@@ -130,7 +130,9 @@ class Pipeline:
         self.schedule_calls.append((season, conn, kwargs))
         queue = self.schedule_errors.get(season, [])
         if queue:
-            raise queue.pop(0)
+            error = queue.pop(0)     # None = this call succeeds
+            if error is not None:
+                raise error
         return 272
 
 
@@ -219,17 +221,8 @@ def h(monkeypatch, tmp_path):
     return Harness(monkeypatch, tmp_path)
 
 
-@pytest.fixture(autouse=True)
-def no_real_network_or_database(monkeypatch):
-    """Safety net: a test that forgets to fake these fails instead of going out."""
-    def refuse(*a, **k):
-        raise AssertionError("test tried to reach the network or a database")
-    monkeypatch.setattr(ingest, "urlopen", refuse, raising=False)
-    monkeypatch.setattr(ingest.psycopg2, "connect", refuse)
-    monkeypatch.setattr(ingest.pd, "read_csv", refuse)
-    monkeypatch.setattr(ingest.pd, "read_parquet", refuse)
-    monkeypatch.delenv("GITHUB_OUTPUT", raising=False)
-    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
+# The no-network / no-database safety net is autouse for the whole tests/ directory:
+# see no_real_network_or_database in conftest.py.
 
 
 # --- the release API ------------------------------------------------------------
@@ -805,7 +798,7 @@ class TestStepSummary:
         h.pipeline.season_errors[2026] = [KeyError("boom")]
         with pytest.raises(KeyError):
             h.run()
-        assert h.summary().strip() == "2026: FAILED (state file not found)"
+        assert h.summary().strip() == "2026: FAILED during a full run (reason for full run: state file not found)"
 
     def test_one_line_per_season(self, h, monkeypatch):
         monkeypatch.setattr(ingest, "FIRST_SEASON", 2025)

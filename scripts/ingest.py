@@ -156,6 +156,7 @@ def make_slug(name: str) -> str:
 # skip-unchanged bookkeeping records a file's digest only when it is the digest of
 # the bytes that were actually ingested (RefreshTracker.season_committed).
 _DOWNLOAD_DIGESTS = {}
+DOWNLOAD_TIMEOUT_SECONDS = 120   # healthy downloads take 1-2 s; pandas' own URL read had no timeout at all
 
 
 def _read_parquet_url(url: str) -> pd.DataFrame:
@@ -166,7 +167,10 @@ def _read_parquet_url(url: str) -> pd.DataFrame:
     URLError on a network failure. A digest is kept only for bytes that parsed.
     """
     _DOWNLOAD_DIGESTS.pop(url, None)
-    with urlopen(url) as response:
+    # The timeout is per socket operation (connect, each read), not for the whole
+    # file: it only ends a stalled connection. A timeout is an ordinary exception, so
+    # @retry on download_pbp/download_roster retries it and participation falls back.
+    with urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
         data = response.read()
     df = pd.read_parquet(io.BytesIO(data))
     _DOWNLOAD_DIGESTS[url] = "sha256:" + hashlib.sha256(data).hexdigest()
@@ -1552,6 +1556,7 @@ def upsert_teams(conn, teams_df: pd.DataFrame):
                 rows,
             )
         log.info("Upserted %d teams", len(rows))
+    return len(rows)   # the fixed team list, not len(teams_df): process_season's rows-sent count
 
 
 @retry(max_retries=2, delay=3)
@@ -3969,11 +3974,12 @@ def ensure_team_game_stats_columns(conn):
     add columns to the table that already exists in production (team radar spec §3.2).
 
     Like the other ensure_* functions this takes a brief exclusive lock on the
-    table on every run and commits on its own, so it must stay BEFORE the season
+    table whenever it runs (since refresh PR C: only when ingest.py changed, there is
+    no state file, or --force) and commits on its own, so it must stay BEFORE the season
     transaction — inside it, this commit would commit a half-written season.
     Rows written before the first refresh after the columns exist hold NULL."""
     with conn.cursor() as cur:
-        # ADD COLUMN asks for an ACCESS EXCLUSIVE lock on every run, even once the
+        # ADD COLUMN asks for an ACCESS EXCLUSIVE lock whenever it runs, even once the
         # columns exist. If anything holds a read lock, the ALTER waits — and every
         # new site read of team_game_stats queues behind it for as long as it does
         # (up to the 180 s statement timeout). Give up after 10 s instead: that
@@ -4360,7 +4366,7 @@ def process_season(season: int, conn, dry_run: bool = False, ensure_schema: bool
         log.info("schema unchanged: skipped 17 ensure steps")
 
     try:
-        upsert_teams(conn, team_stats)
+        teams_sent = upsert_teams(conn, team_stats)
         upsert_team_stats(conn, team_stats)
         upsert_qb_stats(conn, qb_stats)
         upsert_qb_pass_location_stats(conn, qb_pass_loc)
@@ -4405,13 +4411,16 @@ def process_season(season: int, conn, dry_run: bool = False, ensure_schema: bool
     # What the skip-unchanged bookkeeping (RefreshTracker) needs to know about this
     # run. `participation_loaded` matters: download_participation falls back to None
     # on any error, and a season written without routes must not be recorded as done.
-    sent_frames = [team_stats, team_stats, qb_stats, qb_pass_loc, rb_gap_stats, rb_gap_stats_weekly,
+    sent_frames = [team_stats, qb_stats, qb_pass_loc, rb_gap_stats, rb_gap_stats_weekly,
                    def_gap_stats, receiver_stats, rb_season_stats, qb_weekly, receiver_weekly,
                    rb_weekly, dd_stats, sit_stats, team_game_stats, player_slugs_df]
+    # upsert_teams sends its own fixed list (36 teams), and update_freshness one row.
+    rows_sent = (teams_sent if isinstance(teams_sent, int) else 0) + 1
+    rows_sent += sum(len(f) for f in sent_frames if f is not None)
     return {
         'participation_loaded': participation is not None,
         'source_digests': source_digests,
-        'rows_sent': sum(len(f) for f in sent_frames if f is not None),
+        'rows_sent': rows_sent,
         'through_week': through_week,
     }
 
@@ -4484,7 +4493,11 @@ def connect_with_retry(db_url, deadline):
 # every doubt (API error, missing digest, unreadable state, old state) means "run".
 MAX_SKIP_AGE_SECONDS = 20 * 60 * 60        # one run a day is always a full run
 STATE_VERSION = 1
-ABSENT = 'absent'                          # the release lists no asset with that exact name
+# An empty state: loads fine, claims nothing, so every season is a full run. The workflow
+# writes exactly this text before its save step when a run left no state file, so a
+# removed state can never be shadowed by an older cached copy (data-refresh.yml).
+STATE_TOMBSTONE = '{"version": 1, "seasons": {}}'
+ABSENT = 'absent'                         # the release lists no asset with that exact name
 RELEASE_API_URL = "https://api.github.com/repos/nflverse/nflverse-data/releases/tags/{tag}"
 RELEASE_API_TIMEOUT_SECONDS = 20
 # fingerprint part, release tag, exact asset name
@@ -4839,6 +4852,7 @@ class RefreshTracker:
             else:
                 entry[part] = got
 
+        plan['not_recorded'] = '; '.join(problems)   # shown in the step summary
         if problems:
             self.state['seasons'].pop(str(season), None)
             log.warning("Season %d: fingerprint not recorded (%s) — the next run will be a full run",
@@ -4895,16 +4909,22 @@ class RefreshTracker:
             if not plan['run']:
                 lines.append(f"{season}: skipped: sources unchanged")
             elif plan['status'] == 'done':
-                lines.append(f"{season}: full run ({plan['reason']}): {rows:,} rows sent")
+                line = f"{season}: full run ({plan['reason']}): {rows:,} rows sent"
+                if plan.get('not_recorded'):
+                    # committed, but nothing skippable was recorded: say so, or a cause
+                    # that persists makes every run a full run with no visible reason
+                    line += f"; next run will also be full ({plan['not_recorded']})"
+                lines.append(line)
             elif plan['status'] == 'not yet published':
                 lines.append(f"{season}: full run ({plan['reason']}): not yet published, {rows:,} rows sent")
             elif plan['status'] is None and failure_shown:
                 # the run stopped at an earlier season and never reached this one
-                lines.append(f"{season}: not attempted ({plan['reason']})")
+                lines.append(f"{season}: not attempted (was due: {plan['reason']})")
             else:
                 # the season that failed — or, if none had started (the database
-                # connection could not be opened), the first one that was due
-                lines.append(f"{season}: FAILED ({plan['reason']})")
+                # connection could not be opened), the first one that was due. The
+                # bracket is why the run was a full run, NOT why it failed (see the log).
+                lines.append(f"{season}: FAILED during a full run (reason for full run: {plan['reason']})")
                 failure_shown = True
         return lines
 
@@ -4912,7 +4932,13 @@ class RefreshTracker:
         """One line per season in the Actions step summary, and the `changed` output."""
         for line in self.summary_lines():
             _append_github_file('GITHUB_STEP_SUMMARY', line)
-        _append_github_file('GITHUB_OUTPUT', f"changed={'true' if self.changed() else 'false'}")
+        changed = self.changed()
+        if changed and not self.committed and self.plans and not any(p['run'] for p in self.plans.values()):
+            # every season was skipped, yet the workflow will POST /api/revalidate
+            log.info("Nothing new, but a revalidate still owed for the data change at %s "
+                     "(the last one failed or never ran) — changed=true",
+                     self.state.get('last_change_at') or 'an unknown time')
+        _append_github_file('GITHUB_OUTPUT', f"changed={'true' if changed else 'false'}")
 
 
 def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):

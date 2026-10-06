@@ -36,7 +36,7 @@ class TestWorkflowFile:
         assert names == [
             'Set up Python', 'Cache pip dependencies', 'Install dependencies', 'Check for offseason',
             'Resolve season', 'Restore refresh state', 'Run ingest', 'Trigger ISR revalidation',
-            'Save refresh state', 'Keep scheduled workflow alive',
+            'Leave an empty state if the run left none', 'Save refresh state', 'Keep scheduled workflow alive',
         ]
 
     def test_cron_lines_and_concurrency_group_unchanged(self):
@@ -74,8 +74,20 @@ class TestWorkflowFile:
     def test_state_is_saved_after_revalidate_even_when_ingest_failed(self):
         block = _step_block(_workflow_text('data-refresh.yml'), 'Save refresh state')
         assert "uses: actions/cache/save@v4" in block
-        assert "if: always() && steps.offseason.outputs.skip != 'true' && hashFiles('.ingest-state/state.json') != ''" in block
+        assert "        if: always() && steps.offseason.outputs.skip != 'true'\n" in block
+        assert "hashFiles" not in block          # the tombstone step guarantees a file to save
         assert "key: ingest-state-${{ github.run_id }}-${{ github.run_attempt }}" in block
+
+    def test_a_run_that_left_no_state_file_saves_an_empty_one(self):
+        """Review M4: without this, a run whose state file was removed (unreadable, or the
+        write failed) saves nothing, and the next run restores an OLDER cache whose entry
+        could still match. The empty state is what ingest calls STATE_TOMBSTONE."""
+        text = _workflow_text('data-refresh.yml')
+        block = _step_block(text, 'Leave an empty state if the run left none')
+        assert "        if: always() && steps.offseason.outputs.skip != 'true'\n" in block
+        assert "if [ ! -s .ingest-state/state.json ]; then" in block
+        assert f"echo '{ingest.STATE_TOMBSTONE}' > .ingest-state/state.json" in block
+        assert "mkdir -p .ingest-state" in block
 
     def test_keepalive_still_always_runs(self):
         block = _step_block(_workflow_text('data-refresh.yml'), 'Keep scheduled workflow alive')
