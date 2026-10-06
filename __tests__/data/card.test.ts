@@ -82,19 +82,35 @@ describe("getLatestCardSeason", () => {
     expect(calls).toEqual([]);
   });
 
-  it("no rows → null", async () => {
+  it("no rows → null, and nothing is logged (it is a real answer)", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     result = { data: [], error: null };
     expect(await getLatestCardSeason(player({}))).toBeNull();
+    expect(logged).not.toHaveBeenCalled();
+    logged.mockRestore();
   });
 
-  it("error → null", async () => {
+  // Read resilience rule (.claude/CLAUDE.md): a read may degrade only if it
+  // logs. This lookup only decides whether the "no card" message links to an
+  // older card, so it still answers null on failure, but no longer silently.
+  it("error → null, logged with the player", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     result = { data: null, error: { message: "boom" } };
     expect(await getLatestCardSeason(player({}))).toBeNull();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("patrick-mahomes");
+    expect(String(logged.mock.calls[0][1])).toContain("boom");
+    logged.mockRestore();
   });
 
-  it("client throws → null", async () => {
+  it("client throws → null, logged with the player", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     clientThrows = true;
     expect(await getLatestCardSeason(player({}))).toBeNull();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("patrick-mahomes");
+    expect(String(logged.mock.calls[0][1])).toContain("no supabase env");
+    logged.mockRestore();
   });
 
   it("season value guards", async () => {

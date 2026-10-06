@@ -12,6 +12,7 @@
 // on it. The team and player pages catch the seasons probe and render no links.
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
+import { queryError } from "@/lib/data/utils";
 import { getGame, getTeamSchedule, type GameRecord } from "@/lib/data/games";
 import { getAvailableSeasons } from "@/lib/data/queries";
 import { QB_WEEKLY_NUMERIC, RECEIVER_WEEKLY_NUMERIC, RB_WEEKLY_NUMERIC } from "@/lib/data/players";
@@ -160,7 +161,7 @@ export async function getBoxScoreSeasons(
         .eq("season", season)
         .limit(1)
         .abortSignal(signal);
-      if (error) throw new Error(`Failed to fetch box score seasons: ${error.message}`);
+      if (error) throw queryError("box score seasons", error);
       return (data?.length ?? 0) > 0 ? season : null;
     })
   );
@@ -243,7 +244,7 @@ export async function getTeamGameStats(
     .select("*")
     .eq("game_id", gameId)
     .abortSignal(signal);
-  if (error) throw new Error(`Failed to fetch team game stats for ${gameId}: ${error.message}`);
+  if (error) throw queryError(`team game stats for ${gameId}`, error);
   return (data ?? []).map((row) =>
     parseNumericFields<TeamGameStat>(row as unknown as TeamGameStat, TEAM_GAME_NUMERIC)
   );
@@ -271,7 +272,7 @@ export async function getGamePlayerLines(
       .eq("week", week)
       .in("team_id", teamIds)
       .abortSignal(signal);
-    if (error) throw new Error(`Failed to fetch ${table} for ${season} week ${week}: ${error.message}`);
+    if (error) throw queryError(`${table} for ${season} week ${week}`, error);
     return (data ?? []).map((row) => parseNumericFields<T>(row as unknown as T, numeric));
   };
   const [qbs, receivers, rbs] = await Promise.all([
@@ -294,7 +295,7 @@ export async function getGamePlayerLines(
       .select("player_id, player_name, position, slug")
       .in("player_id", ids)
       .abortSignal(signal);
-    if (error) throw new Error(`Failed to fetch player identities: ${error.message}`);
+    if (error) throw queryError("player identities", error);
     for (const row of (data ?? []) as PlayerIdentity[]) {
       if (typeof row?.player_id !== "string") continue;
       players[row.player_id] = {
@@ -383,10 +384,11 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     if (ownSeason.length > 0) return { state: "pending", game: played, records };
 
     const seasons = await getAvailableSeasons();
-    // getAvailableSeasons returns [] on a query error; a real database always
-    // has data_freshness rows, so empty means the read failed (homepage rule).
+    // getAvailableSeasons throws on a query error, so [] here is a table with
+    // no rows. A real database always has data_freshness rows, so that still
+    // means something is broken (homepage rule): throw rather than guess.
     if (seasons.length === 0) {
-      throw new Error("Box score: no seasons from data_freshness (query failed or table empty)");
+      throw new Error("Box score: no seasons from data_freshness (table empty)");
     }
     const covered = await getBoxScoreSeasons(seasons, signal);
     // Same rule one table over: data_freshness lists seasons, yet not one of

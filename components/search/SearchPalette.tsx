@@ -20,6 +20,12 @@ interface SearchPaletteProps {
   onClose: () => void;
 }
 
+// Shown when the player query failed or timed out, in place of "No results",
+// which would be false (read resilience spec §1.5, S1). A string constant, not
+// JSX text: lint rejects a bare apostrophe in JSX, and JSX text does not
+// decode escape sequences.
+const PLAYER_SEARCH_UNAVAILABLE = "Player search isn't responding right now. Try again in a moment.";
+
 export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -27,6 +33,9 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
+  // True when the last player query failed (an error from Supabase, a timeout,
+  // or a client that could not be created). Team matches are unaffected.
+  const [playerSearchFailed, setPlayerSearchFailed] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Focus input when palette opens
@@ -35,6 +44,7 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
       setQuery("");
       setResults([]);
       setSelectedIndex(0);
+      setPlayerSearchFailed(false);
       // Small delay to ensure modal is rendered before focusing
       setTimeout(() => inputRef.current?.focus(), 50);
     }
@@ -60,6 +70,7 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
     if (!trimmed) {
       setResults([]);
       setSelectedIndex(0);
+      setPlayerSearchFailed(false);
       return;
     }
 
@@ -81,18 +92,23 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
 
     // Search players (Supabase ilike)
     let playerResults: SearchResult[] = [];
+    let playersFailed = false;
     if (trimmed.length >= 2) {
       setLoading(true);
       try {
         const supabase = getSupabaseClient();
-        const { data } = await supabase
+        // supabase-js reports a failed or timed-out request as `error`, not as
+        // a rejection, so it has to be read: `data` is null either way.
+        const { data, error } = await supabase
           .from("player_slugs")
           .select("player_id, slug, player_name, position, current_team_id")
           .ilike("player_name", `%${trimmed}%`)
           .order("player_name")
           .limit(10);
 
-        if (data) {
+        if (error) {
+          playersFailed = true;
+        } else if (data) {
           playerResults = (data as PlayerSlug[]).map((p) => {
             const team = NFL_TEAMS.find((t) => t.id === p.current_team_id);
             return {
@@ -105,7 +121,9 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
           });
         }
       } catch {
-        // Silently fail — team results still show
+        // The client could not be created, or the request threw. Team results
+        // still show; the visitor is told player search is down.
+        playersFailed = true;
       } finally {
         setLoading(false);
       }
@@ -115,6 +133,7 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
     const combined = [...teamResults, ...playerResults].slice(0, 10);
     setResults(combined);
     setSelectedIndex(0);
+    setPlayerSearchFailed(playersFailed);
   }, []);
 
   // Debounced input handler
@@ -220,8 +239,15 @@ export default function SearchPalette({ open, onClose }: SearchPaletteProps) {
           </ul>
         )}
 
+        {/* Player search failed: said under any team matches, never "No results" */}
+        {query.trim().length > 0 && playerSearchFailed && !loading && (
+          <div className="py-4 px-4 text-center text-sm text-gray-500" role="status">
+            {PLAYER_SEARCH_UNAVAILABLE}
+          </div>
+        )}
+
         {/* Empty state */}
-        {query.trim().length > 0 && results.length === 0 && !loading && (
+        {query.trim().length > 0 && results.length === 0 && !loading && !playerSearchFailed && (
           <div className="py-8 text-center text-sm text-gray-400">
             No results for &ldquo;{query.trim()}&rdquo;
           </div>

@@ -25,7 +25,13 @@ vi.mock("@/lib/supabase/server", () => {
   };
 });
 
-import { getGameResults, getGame, getTeamSchedule, getPlayedRegularSeasonGameIds } from "@/lib/data/games";
+import {
+  getGameResults,
+  getGame,
+  getTeamSchedule,
+  getPlayedRegularSeasonGameIds,
+  hasScheduleForSeason,
+} from "@/lib/data/games";
 
 /** A `games` row as PostgREST returns it (defaults: 2025 week 1, BAL 40 @ BUF 41). */
 function game(over: Record<string, unknown>) {
@@ -302,6 +308,32 @@ describe("getPlayedRegularSeasonGameIds (sitemap)", () => {
     expect(await getPlayedRegularSeasonGameIds(2026)).toEqual([
       "2026_01_BUF_HOU", "2026_02_DET_BUF", "2026_03_NE_SEA",
     ]);
+  });
+});
+
+describe("hasScheduleForSeason (read resilience spec §1.2)", () => {
+  it("is true when the season has a game row", async () => {
+    result = { data: [{ game_id: "2027_01_BUF_MIA" }], error: null };
+    expect(await hasScheduleForSeason(2027)).toBe(true);
+    expect(calls).toContainEqual(["from", "games"]);
+    expect(calls).toContainEqual(["eq", "season", 2027]);
+    expect(calls).toContainEqual(["limit", 1]);
+  });
+
+  it("is false only when the read succeeded with no rows", async () => {
+    result = { data: [], error: null };
+    expect(await hasScheduleForSeason(2027)).toBe(false);
+    result = { data: null, error: null };
+    expect(await hasScheduleForSeason(2027)).toBe(false);
+  });
+
+  // It used to answer false here, and the homepage cached the wrong standings
+  // season for an hour.
+  it("throws an Error on a query error instead of answering false", async () => {
+    result = { data: null, error: { message: "TypeError: fetch failed" } };
+    const err = await hasScheduleForSeason(2027).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe("Failed to fetch schedule probe for 2027: TypeError: fetch failed");
   });
 });
 

@@ -13,6 +13,12 @@ export interface SelectedPlayer {
   current_team_id: string;
 }
 
+// Shown when the search failed or timed out. Without it a failed search shows
+// nothing, exactly like a name nobody has (read resilience spec §1.5, S2; the
+// same sentence as the site search). A string constant, not JSX text: lint
+// rejects a bare apostrophe in JSX, and JSX text does not decode escapes.
+const PLAYER_SEARCH_UNAVAILABLE = "Player search isn't responding right now. Try again in a moment.";
+
 interface PlayerSearchInputProps {
   label: string;
   selected: SelectedPlayer | null;
@@ -32,6 +38,9 @@ export default function PlayerSearchInput({
   const [results, setResults] = useState<SelectedPlayer[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  // True when the last search failed (an error from Supabase, a timeout, or a
+  // client that could not be created), as opposed to finding nobody.
+  const [searchFailed, setSearchFailed] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,32 +49,48 @@ export default function PlayerSearchInput({
     async (q: string) => {
       if (q.length < 2) {
         setResults([]);
+        setSearchFailed(false);
         return;
       }
       setLoading(true);
-      const supabase = getSupabaseClient();
-      let qb = supabase
-        .from("player_slugs")
-        .select("player_id, slug, player_name, position, current_team_id")
-        .ilike("player_name", `%${q}%`)
-        .limit(10);
+      try {
+        const supabase = getSupabaseClient();
+        let qb = supabase
+          .from("player_slugs")
+          .select("player_id, slug, player_name, position, current_team_id")
+          .ilike("player_name", `%${q}%`)
+          .limit(10);
 
-      if (positionFilter) {
-        // RB pool includes FBs
-        if (positionFilter === "RB") {
-          qb = qb.in("position", ["RB", "FB"]);
-        } else {
-          qb = qb.eq("position", positionFilter);
+        if (positionFilter) {
+          // RB pool includes FBs
+          if (positionFilter === "RB") {
+            qb = qb.in("position", ["RB", "FB"]);
+          } else {
+            qb = qb.eq("position", positionFilter);
+          }
         }
+        // supabase-js reports a failed or timed-out request as `error`, not as
+        // a rejection. Unread, it looked exactly like a name nobody has.
+        const { data, error } = await qb;
+        if (error) {
+          setResults([]);
+          setSearchFailed(true);
+          return;
+        }
+        let filtered = (data as SelectedPlayer[]) || [];
+        if (excludePlayerId) {
+          filtered = filtered.filter((p) => p.player_id !== excludePlayerId);
+        }
+        setResults(filtered);
+        setSelectedIndex(0);
+        setSearchFailed(false);
+      } catch {
+        // The client could not be created, or the request threw.
+        setResults([]);
+        setSearchFailed(true);
+      } finally {
+        setLoading(false);
       }
-      const { data } = await qb;
-      let filtered = (data as SelectedPlayer[]) || [];
-      if (excludePlayerId) {
-        filtered = filtered.filter((p) => p.player_id !== excludePlayerId);
-      }
-      setResults(filtered);
-      setSelectedIndex(0);
-      setLoading(false);
     },
     [positionFilter, excludePlayerId]
   );
@@ -81,6 +106,7 @@ export default function PlayerSearchInput({
     onSelect(player);
     setQuery("");
     setResults([]);
+    setSearchFailed(false);
     setOpen(false);
   };
 
@@ -88,6 +114,7 @@ export default function PlayerSearchInput({
     onSelect(null);
     setQuery("");
     setResults([]);
+    setSearchFailed(false);
   };
 
   // Close dropdown on outside click
@@ -167,6 +194,14 @@ export default function PlayerSearchInput({
       {open && loading && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-400">
           Searching...
+        </div>
+      )}
+      {open && !loading && searchFailed && (
+        <div
+          role="status"
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-500"
+        >
+          {PLAYER_SEARCH_UNAVAILABLE}
         </div>
       )}
     </div>

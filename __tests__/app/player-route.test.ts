@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 vi.mock("next/navigation", () => ({
   notFound: vi.fn(() => {
@@ -55,10 +55,21 @@ vi.mock("@/components/ui/Breadcrumbs", () => ({
 import { render } from "@testing-library/react";
 import PlayerPage, { generateMetadata } from "@/app/player/[slug]/page";
 import PlayerPageContent from "@/components/player/PlayerPageContent";
-import { getPlayerBySlug, getReceiverWeeklyStats } from "@/lib/data/players";
+import { notFound } from "next/navigation";
+import {
+  getPlayerBySlug,
+  getQBWeeklyStats,
+  getReceiverWeeklyStats,
+  getRBWeeklyStats,
+  getTeamTopReceivers,
+  getTeamStartingQB,
+  getQBPassLocationStats,
+} from "@/lib/data/players";
 import { getGameResults } from "@/lib/data/games";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
-import { getAvailableSeasons } from "@/lib/data/queries";
+import { getAvailableSeasons, getQBStats, fallbackSeason } from "@/lib/data/queries";
+import { getReceiverStats } from "@/lib/data/receivers";
+import { getRBSeasonStats } from "@/lib/data/rushing";
 import type { ReceiverWeeklyStat } from "@/lib/types";
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -283,12 +294,171 @@ describe("PlayerPage — box score link gate (box score spec §7)", () => {
     logged.mockRestore();
   });
 
-  it("logs the silent path: no seasons from data_freshness means no links", async () => {
+});
+
+// Read resilience spec §1.2. Before PR 1A a failed read on this page became
+// the Not Found page (player row), or "No QB stats found for X in 2026" for a
+// player who has stats (season table / weekly rows, swallowed by an outer
+// catch). Core reads now reject, which Next hands to error.tsx.
+describe("PlayerPage — a failed read is an error, never Not Found or an empty page", () => {
+  const allen = {
+    player_id: "00-0034857",
+    slug: "josh-allen",
+    player_name: "Josh Allen",
+    position: "QB",
+    current_team_id: "BUF",
+    headshot_url: null,
+    jersey_number: 17,
+  };
+  const shakir = { ...allen, player_id: "00-0037261", slug: "khalil-shakir", player_name: "Khalil Shakir", position: "WR" };
+  const cook = { ...allen, player_id: "00-0037248", slug: "james-cook", player_name: "James Cook", position: "RB" };
+  const FAILED = new Error("Failed to fetch something: TypeError: fetch failed");
+  const REAL_URL = "https://abcdefghijklmnop.supabase.co";
+
+  const page = (slug: string) =>
+    PlayerPage({ params: Promise.resolve({ slug }), searchParams: Promise.resolve({}) });
+
+  async function contentProps(slug: string) {
+    render(await page(slug));
+    const calls = vi.mocked(PlayerPageContent).mock.calls;
+    return calls[calls.length - 1][0];
+  }
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(notFound).mockImplementation(() => {
+      throw new Error("NEXT_NOT_FOUND");
+    });
+    vi.mocked(getPlayerBySlug).mockResolvedValue(allen);
+    vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025]);
+    vi.mocked(fallbackSeason).mockReturnValue(2026);
+    vi.mocked(getQBStats).mockResolvedValue([]);
+    vi.mocked(getReceiverStats).mockResolvedValue([]);
+    vi.mocked(getRBSeasonStats).mockResolvedValue([]);
+    vi.mocked(getQBWeeklyStats).mockResolvedValue([]);
+    vi.mocked(getReceiverWeeklyStats).mockResolvedValue([]);
+    vi.mocked(getRBWeeklyStats).mockResolvedValue([]);
+    vi.mocked(getTeamTopReceivers).mockResolvedValue([]);
+    vi.mocked(getTeamStartingQB).mockResolvedValue(null);
+    vi.mocked(getQBPassLocationStats).mockResolvedValue([]);
+    vi.mocked(getGameResults).mockResolvedValue({});
+    vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026]);
+    vi.mocked(PlayerPageContent).mockReturnValue(null as never);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", REAL_URL);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("player row read fails → the page throws that error and notFound is NOT called", async () => {
+    vi.mocked(getPlayerBySlug).mockRejectedValue(new Error("Failed to fetch player josh-allen: TypeError: fetch failed"));
+    await expect(page("josh-allen")).rejects.toThrow("Failed to fetch player josh-allen");
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it("generateMetadata: player row read fails → rejects; no 'Player Not Found' title for a real player", async () => {
+    vi.mocked(getPlayerBySlug).mockRejectedValue(new Error("Failed to fetch player josh-allen: TypeError: fetch failed"));
+    await expect(generateMetadata({ params: Promise.resolve({ slug: "josh-allen" }) })).rejects.toThrow(
+      "Failed to fetch player josh-allen",
+    );
+  });
+
+  it("seasons read fails → throws", async () => {
+    vi.mocked(getAvailableSeasons).mockRejectedValue(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(page("josh-allen")).rejects.toThrow("Failed to fetch seasons");
+  });
+
+  it("an empty data_freshness table with a real database → throws (homepage rule)", async () => {
+    vi.mocked(getAvailableSeasons).mockResolvedValue([]);
+    await expect(page("josh-allen")).rejects.toThrow(/no seasons/);
+    expect(getQBStats).not.toHaveBeenCalled();
+  });
+
+  it("an empty seasons list with no database (placeholder build) → renders on the fallback season", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://placeholder.supabase.co");
+    vi.mocked(getAvailableSeasons).mockResolvedValue([]);
+    const props = await contentProps("josh-allen");
+    expect(props.season).toBe(2026);
+  });
+
+  it.each([
+    ["QB season table", allen, () => vi.mocked(getQBStats).mockRejectedValue(FAILED)],
+    ["QB weekly rows", allen, () => vi.mocked(getQBWeeklyStats).mockRejectedValue(FAILED)],
+    ["receiver season table", shakir, () => vi.mocked(getReceiverStats).mockRejectedValue(FAILED)],
+    ["receiver weekly rows", shakir, () => vi.mocked(getReceiverWeeklyStats).mockRejectedValue(FAILED)],
+    ["RB season table", cook, () => vi.mocked(getRBSeasonStats).mockRejectedValue(FAILED)],
+    ["RB weekly rows", cook, () => vi.mocked(getRBWeeklyStats).mockRejectedValue(FAILED)],
+  ])("%s read fails → throws (it used to render 'No stats found')", async (_name, player, breakIt) => {
+    vi.mocked(getPlayerBySlug).mockResolvedValue(player);
+    breakIt();
+    await expect(page(player.slug)).rejects.toThrow("Failed to fetch something");
+    expect(PlayerPageContent).not.toHaveBeenCalled();
+  });
+
+  it("a raw (non-Error) rejection from the RB season table still rejects", async () => {
+    vi.mocked(getPlayerBySlug).mockResolvedValue(cook);
+    vi.mocked(getRBSeasonStats).mockRejectedValue({ message: "TypeError: fetch failed" });
+    await expect(page("james-cook")).rejects.toBeDefined();
+  });
+
+  it.each([
+    ["Team's Top Receivers box", allen, () => vi.mocked(getTeamTopReceivers).mockRejectedValue(FAILED), "crossLinkReceivers", []],
+    ["passing map", allen, () => vi.mocked(getQBPassLocationStats).mockRejectedValue(FAILED), "passLocationStats", []],
+    ["Team QB box", shakir, () => vi.mocked(getTeamStartingQB).mockRejectedValue(FAILED), "crossLinkQB", null],
+  ] as const)("%s read fails → the page still renders without it, and the failure is logged", async (_name, player, breakIt, prop, empty) => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
-    await contentProps();
+    vi.mocked(getPlayerBySlug).mockResolvedValue(player);
+    breakIt();
+    const props = await contentProps(player.slug);
+    expect(props[prop]).toEqual(empty);
+    expect(props.player).toEqual(player);
     expect(logged).toHaveBeenCalledTimes(1);
-    expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
+    expect(String(logged.mock.calls[0][0])).toContain(player.slug);
+    expect(String(logged.mock.calls[0][0])).toContain("2026");
+    expect(logged.mock.calls[0][1]).toBe(FAILED);
+    logged.mockRestore();
+  });
+
+  // Chaos regression (PR 1A): a ?season= Postgres cannot store (the column is
+  // INTEGER) made the stat reads fail, and since those reads are now core the
+  // page showed the error card with a "Try again" that could never work. Main
+  // had rendered an empty page. An implausible season is treated as absent
+  // (parseSeasonParam, 1999-2100), so no read ever carries it.
+  it.each([
+    ["past the INTEGER range", "99999999999"],
+    ["absurdly long", "99999999999999999999"],
+    ["negative", "-5"],
+    ["zero", "0"],
+    ["not a number", "abc"],
+    ["scientific notation", "1e9"],
+    ["before any NFL data", "1850"],
+    ["empty", ""],
+  ])("a junk ?season= (%s) renders the default season and never reaches a loader", async (_name, season) => {
+    render(await PlayerPage({ params: Promise.resolve({ slug: "josh-allen" }), searchParams: Promise.resolve({ season }) }));
+    const calls = vi.mocked(PlayerPageContent).mock.calls;
+    const props = calls[calls.length - 1][0];
+    expect(props.season).toBe(2026);
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(2026);
+    expect(vi.mocked(getQBWeeklyStats)).toHaveBeenCalledWith("00-0034857", 2026);
+    expect(vi.mocked(getTeamTopReceivers)).toHaveBeenCalledWith("BUF", 2026, 5);
+    expect(vi.mocked(getQBPassLocationStats)).toHaveBeenCalledWith("00-0034857", 2026);
+  });
+
+  it("a decimal ?season= keeps its whole year, as before", async () => {
+    render(await PlayerPage({ params: Promise.resolve({ slug: "josh-allen" }), searchParams: Promise.resolve({ season: "2025.5" }) }));
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(2025);
+  });
+
+  it.each(["2025", "2020", "1999", "2027", "2100"])("a plausible ?season=%s is still honoured", async (season) => {
+    render(await PlayerPage({ params: Promise.resolve({ slug: "josh-allen" }), searchParams: Promise.resolve({ season }) }));
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(Number(season));
+  });
+
+  it("a healthy render logs nothing", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    await contentProps("josh-allen");
+    expect(logged).not.toHaveBeenCalled();
     logged.mockRestore();
   });
 });

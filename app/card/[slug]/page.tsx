@@ -47,7 +47,10 @@ export async function generateMetadata({
     try {
       hasCard = (await getCardDataForPlayer(player, season)) != null;
     } catch {
-      // Lookup failed — the page itself 404s on this path; leave robots alone.
+      // Lookup failed — the page itself throws to the error card on this
+      // path; leave robots alone. (The one metadata read that IS caught: it
+      // only decides noindex for a no-card page. The player and seasons reads
+      // above are not caught, so a failed read never yields a guessed title.)
     }
   }
 
@@ -166,7 +169,7 @@ export default async function CardPage({
 }) {
   const { slug } = await params;
   const { season: seasonParam } = await searchParams;
-  const player = await getPlayerBySlug(slug);
+  const player = await getPlayerBySlug(slug); // throws on a failed read; null only for an unknown slug
   if (!player) notFound(); // unknown slug stays a 404
 
   const seasons = await getAvailableSeasons();
@@ -179,12 +182,11 @@ export default async function CardPage({
 
   // Assembly (position branching, stat lookup) is shared with the OG image and
   // the download route — see lib/data/card.ts.
-  let card: TecmoCardData | null = null;
-  try {
-    card = await getCardDataForPlayer(player, season);
-  } catch {
-    notFound();
-  }
+  //
+  // Not caught (read resilience spec §1.2): a failed stats read throws to
+  // app/error.tsx, a real 500. It used to call notFound(), which told visitors
+  // and crawlers that a real player's card does not exist.
+  const card: TecmoCardData | null = await getCardDataForPlayer(player, season);
 
   if (!card) {
     // Real player, no card for this season: K/P (never have one), or no stat

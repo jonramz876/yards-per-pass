@@ -20,6 +20,7 @@ vi.mock("@/lib/data/card", () => ({
   getLatestCardSeason: vi.fn(),
 }));
 
+import { notFound } from "next/navigation";
 import CardPage, { generateMetadata } from "@/app/card/[slug]/page";
 import { getPlayerBySlug } from "@/lib/data/players";
 import { getAvailableSeasons } from "@/lib/data/queries";
@@ -68,6 +69,7 @@ const md = (slug: string, season?: string) =>
   });
 
 beforeEach(() => {
+  vi.mocked(notFound).mockClear();
   vi.mocked(getPlayerBySlug).mockReset();
   vi.mocked(getAvailableSeasons).mockReset();
   vi.mocked(getCardDataForPlayer).mockReset();
@@ -197,10 +199,28 @@ describe("CardPage", () => {
     expect(getCardDataForPlayer).not.toHaveBeenCalled();
   });
 
-  it("stats query throws → notFound (unchanged)", async () => {
+  // Read resilience spec §1.2: a failed read used to 404 a real player's card.
+  // It now throws to the error card (a real 500: /card has no loading.tsx).
+  it("stats query throws → the page throws that error; notFound is NOT called", async () => {
     vi.mocked(getPlayerBySlug).mockResolvedValue(mahomes);
-    vi.mocked(getCardDataForPlayer).mockRejectedValue(new Error("boom"));
-    await expect(call("patrick-mahomes", "2025")).rejects.toThrow("NEXT_NOT_FOUND");
+    vi.mocked(getCardDataForPlayer).mockRejectedValue(new Error("Failed to fetch QB stats: TypeError: fetch failed"));
+    await expect(call("patrick-mahomes", "2025")).rejects.toThrow("Failed to fetch QB stats");
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it("player row read fails → throws; notFound is NOT called", async () => {
+    vi.mocked(getPlayerBySlug).mockRejectedValue(
+      new Error("Failed to fetch player patrick-mahomes: TypeError: fetch failed"),
+    );
+    await expect(call("patrick-mahomes")).rejects.toThrow("Failed to fetch player patrick-mahomes");
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it("seasons read fails → throws; notFound is NOT called", async () => {
+    vi.mocked(getPlayerBySlug).mockResolvedValue(mahomes);
+    vi.mocked(getAvailableSeasons).mockRejectedValue(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(call("patrick-mahomes")).rejects.toThrow("Failed to fetch seasons");
+    expect(notFound).not.toHaveBeenCalled();
   });
 
   it("empty seasons list → fallbackSeason() used, message still renders", async () => {
@@ -284,5 +304,19 @@ describe("card generateMetadata", () => {
     vi.mocked(getPlayerBySlug).mockResolvedValue(null);
     const meta = await md("not-a-real-player");
     expect(String(meta.title)).toContain("Player Not Found");
+  });
+
+  // Read resilience spec §1.2: a failed read in generateMetadata is not caught.
+  it("player row read fails → rejects; no 'Player Not Found' title for a real player", async () => {
+    vi.mocked(getPlayerBySlug).mockRejectedValue(
+      new Error("Failed to fetch player patrick-mahomes: TypeError: fetch failed"),
+    );
+    await expect(md("patrick-mahomes")).rejects.toThrow("Failed to fetch player patrick-mahomes");
+  });
+
+  it("seasons read fails → rejects; no canonical is guessed", async () => {
+    vi.mocked(getPlayerBySlug).mockResolvedValue(mahomes);
+    vi.mocked(getAvailableSeasons).mockRejectedValue(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(md("patrick-mahomes", "2025")).rejects.toThrow("Failed to fetch seasons");
   });
 });

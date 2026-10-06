@@ -3,7 +3,7 @@
 // this module from a "use client" file. The pure aggregator and presentation
 // pieces live in lib/stats/team-stats.ts.
 import { parseNumericFields } from "@/lib/utils";
-import { fetchAllRows } from "@/lib/data/utils";
+import { fetchAllRows, queryError } from "@/lib/data/utils";
 import { TEAM_GAME_NUMERIC, boxScoreDeadline, getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import type { TeamGameStat } from "@/lib/types";
 
@@ -37,7 +37,7 @@ export type TeamStatsSeason =
  *
  * `seasons` is getAvailableSeasons() (data_freshness, newest first). An empty
  * read throws when it can only mean a broken read (J4): no seasons at all
- * (getAvailableSeasons swallows its own error into []), the newest season
+ * (getAvailableSeasons throws on a query error, so [] is an empty table), the newest season
  * (its rows and its data_freshness row are written in one transaction), or a
  * season the box score probe says has rows. Every other empty season is a
  * message page.
@@ -54,9 +54,7 @@ export async function getTeamStatsSeason(season: number, seasons: number[]): Pro
   } catch (err) {
     // fetchAllRows rejects with the raw PostgREST object; make it a real Error
     // so error.tsx and the logs get a message (lib/data/games.ts:292-303).
-    const e = err as { message?: unknown } | null;
-    const message = typeof e?.message === "string" ? e.message : JSON.stringify(err);
-    throw new Error(`Failed to fetch team_game_stats for ${season}: ${message}`);
+    throw queryError(`team_game_stats for ${season}`, err);
   }
 
   if (raw.length > 0) {
@@ -65,7 +63,7 @@ export async function getTeamStatsSeason(season: number, seasons: number[]): Pro
   }
 
   if (seasons.length === 0) {
-    throw new Error("Team stats: no seasons from data_freshness (query failed or table empty)");
+    throw new Error("Team stats: no seasons from data_freshness (table empty)");
   }
   if (season === seasons[0]) {
     throw new Error(

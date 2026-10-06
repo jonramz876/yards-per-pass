@@ -3,7 +3,7 @@
  * Fetches all weekly stats for a season and converts to WeeklyValue format.
  */
 
-import { fetchAllRows } from "./utils";
+import { fetchAllRows, queryError } from "./utils";
 import type { PlayerSlug } from "@/lib/types";
 import type { WeeklyValue } from "@/lib/stats/surge";
 
@@ -76,7 +76,13 @@ export async function getWeeklyForStat(
   season: number,
   slugMap: Map<string, PlayerSlug>,
 ): Promise<WeeklyValue[]> {
-  const rows = await fetchAllRows(stat.table, `player_id,week,${stat.column}`, { season });
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows(stat.table, `player_id,week,${stat.column}`, { season });
+  } catch (err) {
+    // fetchAllRows rejects with the raw PostgREST object; loaders throw Errors.
+    throw queryError("weekly stats", err);
+  }
   return buildWeeklyValues(rows, stat.column, slugMap, stat.positions);
 }
 
@@ -96,9 +102,14 @@ export async function getAllSurgeData(
 
   // Fetch each table once, extract multiple stats from it
   const tableKeys = Object.keys(tableStats);
-  const tableRows = await Promise.all(
-    tableKeys.map((table) => fetchAllRows(table, "*", { season }))
-  );
+  let tableRows: Record<string, unknown>[][];
+  try {
+    tableRows = await Promise.all(
+      tableKeys.map((table) => fetchAllRows(table, "*", { season }))
+    );
+  } catch (err) {
+    throw queryError("weekly stats", err);
+  }
 
   for (let i = 0; i < tableKeys.length; i++) {
     const stats = tableStats[tableKeys[i]];

@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
+import { queryError } from "@/lib/data/utils";
 import type { ReceiverSeasonStat } from "@/lib/types";
 
 const RECEIVER_NUMERIC_FIELDS = [
@@ -38,7 +39,7 @@ export async function getReceiverStats(
   }
 
   const { data, error } = await query;
-  if (error) throw new Error(`Failed to fetch receiver stats: ${error.message}`);
+  if (error) throw queryError("receiver stats", error);
   if (!data) return [];
 
   return data.map((row) =>

@@ -7,6 +7,8 @@ import type { GameResultsByTeam, QBPassLocationStat } from "@/lib/types";
 import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getGameResults } from "@/lib/data/games";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { hasNoDatabase } from "@/lib/supabase/server";
+import { parseSeasonParam } from "@/lib/stats/team-stats";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getTeam } from "@/lib/data/teams";
@@ -22,6 +24,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  // Not caught on purpose (read resilience spec §1.2): a failed read throws,
+  // and Next shows the route's error card. A caught failure would title a real
+  // player's page "Player Not Found", or guess a canonical for it.
   const player = await getPlayerBySlug(slug);
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
   if (!player) {
@@ -86,14 +91,19 @@ export default async function PlayerPage({
   if (!player) notFound();
 
   const seasons = await getAvailableSeasons();
-  const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
+  // An implausible ?season= (outside 1999-2100, or not a number) is treated as
+  // absent, so it can never reach the database: the season columns are
+  // INTEGER, and ?season=99999999999 made every stat read fail, which since
+  // those reads became core showed the error card for a mistyped link.
+  const currentSeason = parseSeasonParam(season) ?? (seasons[0] || fallbackSeason());
 
-  if (seasons.length === 0) {
-    // getAvailableSeasons swallows its own query error and returns [], and the
-    // probe below then short-circuits without querying, throwing, or reaching
-    // its catch — so the links would vanish with nothing logged at all.
-    console.error("Player page: no seasons from data_freshness; Game Log results will not link");
+  // getAvailableSeasons throws on a query error (the route's error card
+  // shows), so [] is a table with no rows. A real database always has
+  // data_freshness rows, so that is broken too: throw rather than render a
+  // player page on a guessed season (the homepage's rule). Only with no
+  // database at all (CI / local placeholder build) does the fallback stand.
+  if (seasons.length === 0 && !hasNoDatabase()) {
+    throw new Error("Player page: no seasons from data_freshness (table empty)");
   }
 
   // Box score links (spec §7) render only for seasons with team_game_stats
@@ -117,7 +127,14 @@ export default async function PlayerPage({
     }
   })();
 
-  // Fetch position-specific data in parallel — catch errors so page doesn't 500
+  // Fetch position-specific data in parallel.
+  //
+  // Read resilience spec §1.2: the position's season table and the weekly rows
+  // are CORE. If either read fails this throws and error.tsx shows "Unable to
+  // load player data". They used to be swallowed (a .catch on the table, an
+  // outer try/catch on the rest), which rendered "No QB stats found for X in
+  // 2026" for a player who has stats. The cross-link boxes and the passing map
+  // MAY DEGRADE: the page renders without them and the failure is logged.
   let seasonStats: unknown[] = [];
   let weeklyStats: unknown[] = [];
   let allPlayers: unknown[] = [];
@@ -125,51 +142,64 @@ export default async function PlayerPage({
   let crossLinkQB: Awaited<ReturnType<typeof getTeamStartingQB>> = null;
   let passLocationStats: QBPassLocationStat[] = [];
 
-  try {
-    if (player.position === "QB") {
-      const [allQBs, weekly, teamReceivers, passLocStats] = await Promise.all([
-        getQBStats(currentSeason).catch(() => []),
-        getQBWeeklyStats(player.player_id, currentSeason),
-        getTeamTopReceivers(player.current_team_id, currentSeason, 5).catch(() => []),
-        getQBPassLocationStats(player.player_id, currentSeason).catch(() => []),
-      ]);
-      const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
-      seasonStats = playerSeason;
-      weeklyStats = weekly;
-      // Full, unfiltered pool — buildQBCardData applies the per-game
-      // eligibility rule (QB_MIN_ATT_PER_GAME) internally.
-      allPlayers = allQBs;
-      crossLinkReceivers = teamReceivers;
-      passLocationStats = passLocStats;
-    } else if (player.position === "WR" || player.position === "TE") {
-      const [allReceivers, weekly, teamQB] = await Promise.all([
-        getReceiverStats(currentSeason).catch(() => []),
-        getReceiverWeeklyStats(player.player_id, currentSeason),
-        getTeamStartingQB(player.current_team_id, currentSeason).catch(() => null),
-      ]);
-      const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
-      seasonStats = playerSeason;
-      weeklyStats = weekly;
-      // Full, unfiltered pool — buildWRCardData applies the per-game
-      // eligibility rule (WR_MIN_TGT_PER_GAME) and position matching internally.
-      allPlayers = allReceivers;
-      crossLinkQB = teamQB;
-    } else if (player.position === "RB" || player.position === "FB") {
-      // FBs are carried in the RB stat tables.
-      const [allRBs, weekly] = await Promise.all([
-        getRBSeasonStats(currentSeason).catch(() => []),
-        // Weekly rows still power the Game Log tab.
-        getRBWeeklyStats(player.player_id, currentSeason),
-      ]);
-      const playerSeason = allRBs.filter((r) => r.player_id === player.player_id);
-      seasonStats = playerSeason;
-      weeklyStats = weekly;
-      // Full, unfiltered pool — buildRBCardData applies the per-game
-      // eligibility rule (RB_MIN_CAR_PER_GAME) internally.
-      allPlayers = allRBs;
-    }
-  } catch {
-    // Data fetch failed — page will render with empty data
+  /** Log a read the page can live without, naming the player and season. */
+  const logDegraded = (what: string, err: unknown) =>
+    console.error(`Player page: ${what} unavailable for ${slug} (${currentSeason}); rendering without it`, err);
+
+  if (player.position === "QB") {
+    const [allQBs, weekly, teamReceivers, passLocStats] = await Promise.all([
+      getQBStats(currentSeason),
+      getQBWeeklyStats(player.player_id, currentSeason),
+      getTeamTopReceivers(player.current_team_id, currentSeason, 5).catch(
+        (err: unknown): Awaited<ReturnType<typeof getTeamTopReceivers>> => {
+          logDegraded("team top receivers", err);
+          return [];
+        }
+      ),
+      getQBPassLocationStats(player.player_id, currentSeason).catch((err: unknown): QBPassLocationStat[] => {
+        logDegraded("passing map", err);
+        return [];
+      }),
+    ]);
+    const playerSeason = allQBs.filter((qb) => qb.player_id === player.player_id);
+    seasonStats = playerSeason;
+    weeklyStats = weekly;
+    // Full, unfiltered pool — buildQBCardData applies the per-game
+    // eligibility rule (QB_MIN_ATT_PER_GAME) internally.
+    allPlayers = allQBs;
+    crossLinkReceivers = teamReceivers;
+    passLocationStats = passLocStats;
+  } else if (player.position === "WR" || player.position === "TE") {
+    const [allReceivers, weekly, teamQB] = await Promise.all([
+      getReceiverStats(currentSeason),
+      getReceiverWeeklyStats(player.player_id, currentSeason),
+      getTeamStartingQB(player.current_team_id, currentSeason).catch(
+        (err: unknown): Awaited<ReturnType<typeof getTeamStartingQB>> => {
+          logDegraded("team quarterback", err);
+          return null;
+        }
+      ),
+    ]);
+    const playerSeason = allReceivers.filter((r) => r.player_id === player.player_id);
+    seasonStats = playerSeason;
+    weeklyStats = weekly;
+    // Full, unfiltered pool — buildWRCardData applies the per-game
+    // eligibility rule (WR_MIN_TGT_PER_GAME) and position matching internally.
+    allPlayers = allReceivers;
+    crossLinkQB = teamQB;
+  } else if (player.position === "RB" || player.position === "FB") {
+    // FBs are carried in the RB stat tables.
+    const [allRBs, weekly] = await Promise.all([
+      getRBSeasonStats(currentSeason),
+      // Weekly rows still power the Game Log tab.
+      getRBWeeklyStats(player.player_id, currentSeason),
+    ]);
+    const playerSeason = allRBs.filter((r) => r.player_id === player.player_id);
+    seasonStats = playerSeason;
+    weeklyStats = weekly;
+    // Full, unfiltered pool — buildRBCardData applies the per-game
+    // eligibility rule (RB_MIN_CAR_PER_GAME) internally.
+    allPlayers = allRBs;
   }
 
   // Game Log scores come from `games` (box score spec §9). Look up every team

@@ -20,12 +20,13 @@ beforeEach(() => {
 });
 
 describe("GamePageError (box score spec §6)", () => {
-  it("makes 'Try again' actually retry the server read", () => {
+  it("'Try again' retries the server read exactly once (the retry lives in ErrorState)", () => {
     // In Next 14 reset() re-renders the client error boundary against the RSC
-    // payload it already holds; it does not re-run the Server Component. The
-    // only error this boundary can ever see IS a Server Component throw (from
-    // loadBoxScore), so without router.refresh() the button re-shows the same
-    // error for ever.
+    // payload it already holds; it does not re-run the Server Component, so
+    // without router.refresh() the button re-shows the same error for ever.
+    // Since read resilience PR 1A the refresh is ErrorState's, for every
+    // route (__tests__/components/ErrorState.test.tsx pins the transition).
+    // This wrapper must pass plain `reset`: its own refresh would make two.
     const reset = vi.fn();
     render(<GamePageError error={ERROR} reset={reset} />);
     fireEvent.click(screen.getByText("Try again"));
