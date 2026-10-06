@@ -15,7 +15,11 @@ import { teamRadarSlice, type TeamRadarSlice } from "@/lib/stats/team-radar";
  * without the memo every image request (64 cards, each also fetched once more
  * by the Download button and by every link-preview crawler) would read the
  * seasons list and the season's rows again. With it: one of each a minute per
- * instance, and a refresh reaches new images within a minute.
+ * instance, and a refresh reaches new images within a minute, unless a
+ * share-page view in the same instance filled the rows memo from the page's
+ * hour-long data cache first (the image is then as old as the page, never
+ * older). A read that RESOLVES empty is kept for the minute like any other
+ * answer; only a rejection is dropped at once.
  *
  * It is NOT what bounds the share PAGE. The page exports `revalidate = 3600`,
  * so its reads are already in Next's data cache for up to an hour (cleared by

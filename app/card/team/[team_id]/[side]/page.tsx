@@ -16,6 +16,7 @@ import { getTeam } from "@/lib/data/teams";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { loadTeamRadarCard } from "@/lib/data/team-radar-card";
 import { hasNoDatabase } from "@/lib/supabase/server";
+import { canonicalSeason } from "@/lib/utils";
 import { textColorForBackground } from "@/lib/stats/formatters";
 import type { Team } from "@/lib/types";
 import TeamRadarChart from "@/components/team/TeamRadarChart";
@@ -107,9 +108,9 @@ const loadShare = cache(async (teamId: string, requested: number | null): Promis
     console.error(message);
     throw new Error(message);
   }
-  // The canonicalSeason rule: only a real season other than the newest gets a
-  // URL of its own; ?season=<newest> is the bare page.
-  const canonicalParam = requested !== null && seasons.includes(requested) && requested !== seasons[0] ? requested : null;
+  // The site's one canonical rule: only a real season other than the newest
+  // gets a URL of its own; ?season=<newest> is the bare page.
+  const canonicalParam = canonicalSeason(requested === null ? undefined : String(requested), seasons);
   return { slice, seasons, season, canonicalParam };
 });
 
