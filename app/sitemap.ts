@@ -83,10 +83,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const seasons = await getAvailableSeasons();
     if (seasons.length === 0) {
-      // getAvailableSeasons swallows its own query error and returns [], and
-      // getBoxScoreSeasons([]) short-circuits before any query — so without
-      // this the sitemap drops every game URL with nothing logged anywhere
-      // (observed in a no-database build).
+      // getAvailableSeasons throws on a query error (caught and logged below),
+      // so [] here is a data_freshness table with no rows. getBoxScoreSeasons([])
+      // short-circuits before any query — so without this the sitemap would
+      // drop every game URL with nothing logged anywhere.
       console.error("Sitemap: no seasons from data_freshness; no box score URLs");
     }
     const covered = await getBoxScoreSeasons(seasons);

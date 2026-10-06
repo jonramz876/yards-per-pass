@@ -240,11 +240,19 @@ with React's `startTransition` and `useRouter` from `next/navigation`. Why the t
 | an `init.signal` (box score assembly, `/team-stats`, `getBoxScoreSeasons`) | passes the call through **unchanged**. The explicit deadline is the only deadline. Never shortened, never combined |
 | a `Request` object as `input` with no `init` | adds the signal through `init` (postgrest-js never does this; covered for completeness) |
 
-The signal covers the whole request including reading the body. A timeout rejects with a `TimeoutError`; postgrest-js returns it as `error.message = "TimeoutError: ..."`.
+The limit covers the whole request including reading the body. A timeout rejects with an `Error` named `TimeoutError` whose message is `read timed out after 5 s` (or `15 s`); postgrest-js returns it as `error.message = "TimeoutError: read timed out after 5 s"`, which is what the logs and `/api/health` show.
 
-If `AbortSignal.timeout` is missing (very old browser), use `AbortController` + `setTimeout`.
+**As built (PR 1B, 2026-10-06), three deliberate differences from the sketch above:**
 
-One read escapes the box score's single 5 s budget: `getBoxScore` calls `getAvailableSeasons()` with no signal on its no-rows path (`lib/data/box-score.ts` line 385). After Part B that read gets its own 5 s, so a `pending` / `uncovered` game can take up to 10 s to fail. Fix in this PR: give `getAvailableSeasons` an optional `signal` argument and pass the assembly's signal there.
+- **`AbortController` + `setTimeout`, not `AbortSignal.timeout`.** Same effect, and it works everywhere, follows fake timers in tests, lets the reason carry our own short message, and lets the timer be cleared.
+- **The wrapper reads the body itself and hands on a new `Response`** (same status, status text and headers). That is how the limit covers a gateway that sends headers and then stalls, and it is what lets the timer be cleared the moment the read ends, so no timer is ever left running. supabase-js reads the whole body next anyway, so nothing extra is buffered. Consequence: the caller does not get the *same* `Response` object (test 4 in 1.6 is replaced by "status, headers and body come through whole, and no timer is left").
+- **A nonsense limit (0, negative, not finite) falls back to 5 s** instead of failing every read at once. A limit above 60 s is capped at 60 s (`SUPABASE_READ_TIMEOUT_MAX_MS`): `setTimeout` cannot hold 2^31 ms and Node turns such a delay into 1 ms.
+- **The limit is a race, not only an abort (added after the chaos pass, R1).** 1.3 above chose "(a) pass an AbortSignal" over "(b) race against a timer". It needs both. Next removes the signal from a fetch it makes to refresh a **stale** data-cache entry (`next/dist/server/lib/patch-fetch.js` 415 to 418 and 431 to 435: `signal: isStale ? undefined : signal`), which is every read of an ISR regeneration of `/`. With abort alone that read stayed open until undici's own 300 s limit, and the wrapper then reported the minutes-long wait as "5 s". Now the timer itself rejects the read at the limit; the request is still aborted (frees the socket where the fetch listens); the abandoned request's late rejection is handled and a late answer's body is cancelled. Only the timer produces the `TimeoutError`; a read that fails on its own keeps its own error.
+- **The limit is a total deadline for one read, body included (chaos R2, by design).** A body that drips for 20 s used to succeed after 20 s and now fails at 5 s. Each `fetchAllRows` page has its own 5 s, so only a single page slower than 5 s is affected.
+
+The factories pass `(input, init) => fetch(input, init)`, not `fetch` itself, so the global is looked up at call time (Next replaces it).
+
+One read escapes the box score's single 5 s budget: `getBoxScore` calls `getAvailableSeasons()` with no signal on its no-rows path (`lib/data/box-score.ts` line 385). After Part B that read gets its own 5 s, so a `pending` / `uncovered` game can take up to 10 s to fail. Fixed in PR 1B: `getAvailableSeasons` takes an optional `signal` argument and `getBoxScore` passes the assembly's signal there.
 
 #### Why a real signal, and what it costs
 
@@ -265,7 +273,7 @@ Cost of (a), per page view, until PR 2 lands (PR 2 removes all of it for the rea
 | `/card/[slug]` | +3 | player row, seasons list, the position's season table |
 | `/game/[game_id]`, `/` | 0 | already on explicit signals / no duplicates |
 
-That is roughly +15% requests in normal operation, all small indexed reads. The audit found the database is not load-bound, so this is acceptable for the gap between PR 1 and PR 2. If PR 2 is delayed more than a week, add the per-request memo from 2.6 to these three loaders as a small follow-up.
+**Corrected after PR 1B's code review:** this estimate assumed these reads go to the database on every view. They do not (see "What Next already caches" in section 2): on every page that exports `revalidate = 3600` the second identical read in a render is a data-cache hit, and the chaos pass measured no extra requests. The lost dedupe can only cost a request where reads are not cached (a `revalidate = 0` route); none was observed on pages. The figure as first written: roughly +15% requests in normal operation, all small indexed reads. The audit found the database is not load-bound, so this is acceptable for the gap between PR 1 and PR 2. If PR 2 is delayed more than a week, add the per-request memo from 2.6 to these three loaders as a small follow-up.
 
 Side effect worth knowing: MEMORY says an in-render retry of the same query is a no-op because Next replays the memoised failure. With a signal on every read that is no longer true.
 
@@ -396,6 +404,33 @@ Forced failure, no real outage needed, on Jon's machine. Never the real database
 
 Result of the 1A run on 2026-10-06 (branch `read-resilience-1a`, `next dev`, stub on 127.0.0.1:54399): every row passed. The seven season pages, `/team/BUF` and `/player/josh-allen` returned 200 and showed their own card; `/player`, `/qb-leaderboard` and the other season pages had no `<title>` (metadata read failed first), `/team/BUF` kept its title (its metadata reads nothing). `/`, `/card/josh-allen` and `/game/2026_01_BUF_HOU` returned 500 with the card; `/card` was not Not Found. `/compare` 200 with the card, `/compare?season=2026` 200 with the tool. `/api/health` 503 `no-store`; `/api/stat-card/josh-allen` 503 `no-store`, `Retry-After: 60`, S4. `/sitemap.xml` 200 with 43 URLs. S1 (under "Buffalo Bills"), S2 and S3 all appeared. One click on "Try again" after the stub recovered turned the `/game` card into the Not Found page. In the browser the stub is another origin with no CORS headers, so the browser-side reads failed as blocked requests rather than as 503s: the same code path (`error` set). The OG image route returned 500 locally with `failed to pipe response` / `Invalid URL`, the known `@vercel/og` failure on Windows (not this change), so step 6 is still open: check the header on a Vercel preview.
 
+Result of the 1B run on 2026-10-06 (branch `read-resilience-1b`, `next dev`, a socket on 127.0.0.1:54399 that accepts and never answers; second pass, routes already compiled; time to the end of the response):
+
+| Route class | Status | Time |
+|---|---|---|
+| `/teams`, `/team-stats`, `/qb-leaderboard`, `/receivers`, `/rushing`, `/trends`, `/run-gaps`, `/compare` | 200, then the card | 5.5 to 5.8 s |
+| `/team/BUF`, `/player/josh-allen` | 200, then the card (read in a browser for `/player`) | 6.0 to 6.3 s |
+| `/` | 500 | 5.7 s |
+| `/api/health` | 503 `no-store`, `TimeoutError: read timed out after 5 s` | 5.8 s |
+| `/api/stat-card/josh-allen` | 503 `no-store`, `Retry-After: 60` | 5.5 s |
+| **`/card/josh-allen`, `/game/2026_01_BUF_HOU`** | 500 | **10.8 to 11.0 s** |
+| `/sitemap.xml` | 200, 43 URLs | 15.7 s (three reads, each caught in turn; PR 3) |
+| Site search (browser) | team match at once, then S1 | 15.3 s |
+| `/compare?season=2026`, `/glossary`, `/privacy`, `/team/XYZ` | unchanged | under 1.2 s |
+
+Nothing hung. **`/card` and `/game` take two limits, not one.** They are the two routes with no `loading.tsx` whose `generateMetadata` reads the database; the timing is consistent with that read running a second time when Next builds the 500 page, but the cause was not traced in source. For `/game` both passes are its own 5 s assembly deadline, so this is probably how `/game` already behaved. Not fixed in 1B: answering `getPlayerBySlug` from the cache (PR 2) removes it for `/card`. One more thing seen, older than this work: the search palette shows "No results" for the 200 ms before a search starts.
+
+Stale-cache run, after the chaos pass (2026-10-06; `next build` + `next start` on a scratch copy against a local stub, the prerendered homepage and every `.next/cache/fetch-cache` entry aged two hours, stub then silent):
+
+| Request | Before the race (and on main) | Now |
+|---|---|---|
+| `/` (ISR, stale page) | 200 `STALE` at once; the regeneration's read stayed open for minutes; later visits pinned `STALE` with no new request, even after the gateway recovered | 200 `STALE` in 0.2 s; **the regeneration's read ends 5.2 s after the request** (`Failed to fetch seasons: TimeoutError: read timed out after 5 s`), the old page is kept; once the stub answered again a retry regenerated the page and visits were `HIT` |
+| `/player/josh-allen`, `/team/BUF?season=2026` (dynamic, their cached reads stale) | no response within 20 s | **unchanged: no response within 40 s, and no timeout is logged** |
+
+Why the dynamic pages are unchanged, and why the wrapper cannot change it: for a stale entry outside a regeneration, Next hands the **stale rows** to the caller at once (so the wrapper sees a fast, successful read and the page has its data) and starts its own background refresh by calling the original fetch directly, without the signal (`patch-fetch.js` 517 to 534). That refresh is below the wrapper. Under `next start` the response is held open until it settles (undici's 300 s); on Vercel pending refreshes are handed to `waitUntil`, so the visitor probably gets the page at once and the function lingers. Not tested on Vercel. Same as main. What this means for PR 2 (corrected after PR 1B's code review, I2). **Do not put `cache: "no-store"` in the wrapper.** From `patch-fetch.js`: an explicit `no-store` sets the fetch's revalidate to 0 (305 to 306), then the page's (374 to 388), and whenever the render is a static generation it **throws `DynamicServerError`** (555 to 570). That is the build and every ISR regeneration of `/` and `/sitemap.xml`: a blanket `no-store` would take both out of ISR, and a stall would be a 500 for every homepage visitor instead of the last good copy. Nothing is needed in the wrapper: `unstable_cache` runs its callback with `fetchCache: "force-no-store"`, which already makes every read inside it skip the fetch cache with the signal kept and without that throw (the throw only tests an explicit `cache` option). So this lingering refresh disappears for each read as PR 2 moves it inside `unstable_cache`; reads left outside keep today's behaviour.
+
+Known and left for PR 3 (code review M1): the race covers only the wrapper's own limit. A read that passes its own signal goes through untouched, and Next strips that signal on the stale-entry path exactly as above. `app/sitemap.ts` calls `getBoxScoreSeasons(seasons)`, which brings the box score deadline; on a sitemap regeneration where the seasons entry is fresh but the probe entries are stale and the gateway is stalled, that read waits for undici's 300 s. Crawlers keep the old sitemap; the cost is a held function and a copy pinned `STALE`. Same as main. PR 3 rewrites the sitemap's reads and should either drop the explicit signal there (so the wrapper's race applies) or race the caller's signal too.
+
 **1B run: a socket that never answers.** Same steps with `node -e "require('net').createServer(()=>{}).listen(54399)"` as the stand-in. Now every row must finish in 5 to 7 s with the same statuses as the 1A run, and S1 appears after about 15 s (browser limit).
 
 Why not a Vercel preview pointed at a dead host: `next build` prerenders `/`, which throws when the database is unreachable, so that deployment never finishes building.
@@ -465,7 +500,7 @@ Gate **G2**: on the preview, read the logged byte counts for every cached key be
 |---|---|
 | fresh entry | cached rows, no database read. With the 6 h window and a purge after each refresh, **this is the normal state during a stall**, and the main stall survival |
 | stale entry, database healthy | stale rows now; background refresh; next request gets new rows |
-| stale entry, database stalled | stale rows now; background refresh fails after 5 s, is logged, entry stays. Repeats on each request. **This is the stall survival.** |
+| stale entry, database stalled | stale rows now; background refresh fails after 5 s, is logged, entry stays. Repeats on each request. **This is the stall survival.** Re-checked after PR 1B's chaos pass and it holds, for two reasons: `unstable_cache` runs its callback with `fetchCache: "force-no-store"` (`unstable-cache.js` 139, 156, 209), so the reads inside it never take the stale-entry path that drops the signal; and the read limit is now a race, so it ends at 5 s even if a fetch underneath does not listen. (The reads pages make **directly** today are different: see the stale-cache run in 1.7.) |
 | no entry, database healthy | reads the database, stores, returns |
 | no entry, database stalled | throws after 5 s; nothing stored; error card (PR 1) |
 | over 2 MB | never stored; every request reads the database; warning logged by our wrapper |
@@ -518,6 +553,25 @@ So the refresh workflow's revalidate step (`.github/workflows/data-refresh.yml`,
 | `/api/health` | its job is to read the database |
 | `getPlayerBySlug` | **Now in PR 2** (review I5), not as its own entry: it is answered from the cached `player_slugs` rows that loader #1 already stores (find by `slug` in memory). Takes `/card` to zero live reads and removes the first read, and the metadata read, from all 1,300 player pages |
 | per-team reads (`getRBGapStats(team)`, `getDefGapStats(team)`, down-distance, schedules, game results) | PR 2b: cache the season-level table once and filter in memory, after measuring sizes |
+
+### 2.2a What Next already caches (established from source during PR 1B's review; verify on Vercel before building PR 2)
+
+PR 2 was written as if every page view reads the database. From source, that is not so:
+
+| Fact | Where |
+|---|---|
+| Every page file exports `revalidate = 3600` (`/`, `/player`, `/team`, `/card`, `/game`, the season pages, the sitemap), and Next copies that into the render's store on every render, dynamic ones included | `app-render/create-component-tree.js` 131 to 135 |
+| Reading `searchParams` does **not** set it to 0 at request time: in a dynamic render the raw object is returned and the dynamic-access tracker never runs. It runs only in the build pass, which is what marks the route dynamic | `client/components/search-params.js` 43 to 49; `app-render/dynamic-rendering.js` 123 |
+| supabase-js's `Authorization` header only disables caching when the route's revalidate is already 0. With 3600 the read is "auto cache": cacheable for 3600 s and keyed | `lib/patch-fetch.js` 314, 322, 354 to 370, 389 to 393 |
+| The signal is not part of the cache key, so PR 1B changed no key and no cache write | `lib/incremental-cache/index.js` 259 to 273 |
+
+So, on main and since: the direct Supabase reads of **every page that exports `revalidate = 3600` are already in Next's fetch data cache for an hour**. That includes the ISR homepage and sitemap, the `searchParams` pages (`/player`, `/team`, `/card`, `/teams`, `/team-stats`, the three leaderboards, `/run-gaps`, `/trends`) and `/game`. `/compare` exports no `revalidate`, so its reads are stored with `revalidate = false` (a year) and cleared only by `/api/revalidate`'s `revalidatePath("/compare")`. Not cached: `/api/health` (`revalidate = 0`) and non-GET route handlers. The decision is made entirely in `patch-fetch.js`; Vercel only swaps the storage, so this should hold there, but **nobody has observed it on Vercel**. The local evidence: under `next start` a second load of any page made no gateway request, and warm pages kept rendering with the stub down.
+
+What this changes in PR 2, to settle in its spec review before any code:
+
+- **The request counts in 2.3 ("Now" column) and the claim that database reads "drop sharply" (about 90% in the audit) must be re-measured.** A warm page already makes few or no database reads within the hour. PR 2's real gains are a longer window (6 h), a purge that is health-gated, an entry that is never replaced by an empty or failed read, and one shared entry per table instead of one per query URL.
+- **A warm page already survives a stall** for reads whose entry is under an hour old, and serves stale rows after that (with the lingering background refresh described in 1.7). "Today every page shows the error card in a stall" is true only for cold keys.
+- Verify first, on the preview, with `NEXT_PRIVATE_DEBUG_CACHE=1`: load `/qb-leaderboard` twice and look for `got fetch cache entry` on the Supabase URLs. If Vercel does not cache them, the original PR 2 numbers stand.
 
 ### 2.3 Which loaders ship when
 

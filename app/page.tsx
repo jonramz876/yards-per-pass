@@ -69,8 +69,11 @@ function buildSlugMap(slugs: PlayerSlug[]): Map<string, string> {
 // retrying in ~30s; during `next build` it fails the deploy, so the previous
 // one stays live. No database (CI / local placeholder build): return, and the
 // caller renders with whatever it has.
-// Do not add an in-render retry: Next 14 replays identical fetches from a
-// per-render memo, failures included (next/dist/server/lib/dedupe-fetch.js).
+// No in-render retry here on purpose. (It used to be pointless: Next 14
+// replayed an identical fetch's failure from a per-render memo. Since every
+// Supabase read carries a time-limit signal, lib/supabase/timeout.ts, that
+// memo is skipped and a retry would be a real request; adding one is a
+// decision for the read resilience spec, §1.3 "No retry in PR 1".)
 function rethrowUnlessNoDatabase(err: unknown): void {
   if (hasNoDatabase()) return;
   if (err instanceof Error) throw err;
