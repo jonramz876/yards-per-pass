@@ -33,6 +33,7 @@ import {
   type TeamStatsState,
   type TeamStatsTab,
 } from "@/lib/stats/team-stats";
+import { RADAR_MIN_TEAMS, TEAM_STATS_RADAR_NOTE } from "@/lib/stats/team-radar";
 
 interface TeamStatsTableProps {
   model: TeamStatsModel;
@@ -153,6 +154,13 @@ export default function TeamStatsTable({ model, season, throughWeek, isLatestSea
         </Link>
         {noteAfter}
       </p>
+
+      {/* Team radar spec R9: only once enough teams have played for a radar to exist. */}
+      {model.teamsPlayed >= RADAR_MIN_TEAMS && (
+        <p data-radar-pointer className="text-xs text-gray-500 -mt-2 mb-4">
+          {TEAM_STATS_RADAR_NOTE}
+        </p>
+      )}
 
       {/* Table */}
       <div className="border border-gray-200 rounded-md overflow-x-auto">

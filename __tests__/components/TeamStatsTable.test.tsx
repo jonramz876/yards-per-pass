@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import rowsJson from "../stats/fixtures/team-game-stats-2026-w1-3.json";
 import { buildTeamStats, type TeamStatsModel } from "@/lib/stats/team-stats";
 import * as P from "@/lib/stats/team-stats";
+import { RADAR_MIN_TEAMS, TEAM_STATS_RADAR_NOTE } from "@/lib/stats/team-radar";
 
 const nav = vi.hoisted(() => ({
   params: new URLSearchParams(),
@@ -338,5 +339,46 @@ describe("TeamStatsTable — pinned # column width", () => {
       expect(hasClass(inner, "whitespace-nowrap"), label).toBe(true);
       expect(inner.textContent, label).toBe(rank.textContent);
     }
+  });
+});
+
+// Team radar spec 2026-10-06, copy row R9 (review M9): the sentence pointing at
+// the team-page radars shows only once enough teams have played for a radar to
+// exist (RADAR_MIN_TEAMS), on every tab and side, and is not a table footnote.
+describe("TeamStatsTable — the team radar pointer (R9)", () => {
+  const pointer = (c: HTMLElement) => c.querySelector("[data-radar-pointer]")?.textContent ?? null;
+  const SENTENCE = "Each team’s page has a radar of its explosive, success, sack, stuff and turnover rates.";
+  /** The first `games` week-1 games: two teams each. */
+  const modelWith = (games: number) => {
+    const ids = Array.from(new Set(ROWS.filter((r) => r.week === 1).map((r) => r.game_id))).slice(0, games);
+    return buildTeamStats(ROWS.filter((r) => ids.includes(r.game_id)));
+  };
+
+  it("rendered with all 32 teams played, on every tab and side", () => {
+    for (const q of ["", "side=def", "tab=downs", "tab=cost&side=def"]) {
+      expect(pointer(renderTable(q).container), q).toBe(SENTENCE);
+    }
+    expect(SENTENCE).toBe(TEAM_STATS_RADAR_NOTE);
+  });
+
+  it("not rendered with 6 teams played; rendered with 8 (the radar threshold)", () => {
+    const six = modelWith(3);
+    expect(six.teamsPlayed).toBe(6);
+    expect(pointer(renderTable("", { model: six }).container)).toBeNull();
+    const eight = modelWith(4);
+    expect(eight.teamsPlayed).toBe(RADAR_MIN_TEAMS);
+    expect(pointer(renderTable("", { model: eight }).container)).toBe(SENTENCE);
+  });
+
+  it("not rendered with 7 teams played (one short of the threshold)", () => {
+    const ids = Array.from(new Set(ROWS.filter((r) => r.week === 1).map((r) => r.game_id))).slice(0, 4);
+    const rows = ROWS.filter((r) => ids.includes(r.game_id));
+    const seven = buildTeamStats(rows.slice(0, 7));
+    expect(seven.teamsPlayed).toBe(7);
+    expect(pointer(renderTable("", { model: seven }).container)).toBeNull();
+  });
+
+  it("is not one of the table's footnotes", () => {
+    expect(footnotes(renderTable().container)).not.toContain(SENTENCE);
   });
 });

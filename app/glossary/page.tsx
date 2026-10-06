@@ -1,5 +1,10 @@
 // app/glossary/page.tsx
 import type { Metadata } from "next";
+import {
+  TEAM_SACK_RATE_DEFINITION,
+  TEAM_STUFF_RATE_DEFINITION,
+  TEAM_TURNOVER_RATE_DEFINITION,
+} from "@/lib/stats/team-radar";
 
 export const metadata: Metadata = {
   title: "NFL Analytics Glossary",
@@ -102,6 +107,11 @@ const TERMS: { term: string; definition: string; id?: string; section?: string }
     definition:
       "1 minus Stuff Rate \u2014 the percentage of carries NOT stopped at or behind the line of scrimmage. Higher is better. Used in the RB radar chart as a positive-direction metric (100% = never stuffed).",
   },
+  // Team radar (spec 2026-10-06, copy rows R17-R19): the same sentences as the
+  // "Team sack rate" / "Team turnover rate" / "Team stuff rate" tooltips.
+  { term: "Team Sack Rate", id: "team-sack-rate", definition: TEAM_SACK_RATE_DEFINITION },
+  { term: "Team Turnover Rate", id: "team-turnover-rate", definition: TEAM_TURNOVER_RATE_DEFINITION },
+  { term: "Team Stuff Rate", id: "team-stuff-rate", definition: TEAM_STUFF_RATE_DEFINITION },
   {
     term: "EPA/Carry",
     definition:
