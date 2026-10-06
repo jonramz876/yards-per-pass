@@ -8,6 +8,7 @@ import { createClient as createRealClient } from "@supabase/supabase-js";
 import {
   SUPABASE_READ_TIMEOUT_MS,
   SUPABASE_BROWSER_READ_TIMEOUT_MS,
+  SUPABASE_READ_TIMEOUT_MAX_MS,
   withReadTimeout,
 } from "@/lib/supabase/timeout";
 import { queryError, summarizeUpstreamError } from "@/lib/data/utils";
@@ -138,6 +139,182 @@ describe("withReadTimeout — a read that never answers", () => {
     expect(await stateOf(read)).toBe("pending");
     await vi.advanceTimersByTimeAsync(1);
     expect(((await settled) as Error).message).toBe("read timed out after 5 s");
+  });
+});
+
+// Chaos R1 / R1b. Aborting is not enough: Next removes the signal from a
+// fetch it makes to refresh a STALE data-cache entry
+// (next/dist/server/lib/patch-fetch.js: `signal: isStale ? undefined : signal`),
+// so on an ISR regeneration the fetch underneath never hears the abort. The
+// first version of the wrapper then waited minutes (undici's own 300 s limit)
+// and reported that wait as "timed out after 5 s". The limit has to be a race:
+// the timer itself ends the read, whether or not the fetch is listening.
+describe("withReadTimeout — a fetch that ignores its signal (Next's stale-entry refresh)", () => {
+  /** A fetch that never looks at init.signal; the test settles it by hand. */
+  function deafFetch() {
+    let resolve!: (r: Response) => void;
+    let reject!: (e: unknown) => void;
+    let calls = 0;
+    const fn = (() => {
+      calls += 1;
+      return new Promise<Response>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+    }) as unknown as typeof fetch;
+    return { fn, resolve: (r: Response) => resolve(r), reject: (e: unknown) => reject(e), calls: () => calls };
+  }
+
+  /** Collect unhandled rejections for the duration of a test. */
+  function watchUnhandled() {
+    const seen: unknown[] = [];
+    const listener = (reason: unknown) => {
+      seen.push(reason);
+    };
+    process.on("unhandledRejection", listener);
+    return {
+      seen,
+      /** Give Node a real turn of the event loop to report anything, then stop watching. */
+      async settle() {
+        vi.useRealTimers();
+        await new Promise((r) => setTimeout(r, 30));
+        process.off("unhandledRejection", listener);
+        return seen;
+      },
+    };
+  }
+
+  it("never settles: still waiting at 4.999 s, rejected at exactly 5 s, no timer left", async () => {
+    const deaf = deafFetch();
+    const read = withReadTimeout(deaf.fn)("https://x.supabase.co/rest/v1/t");
+    const settled = read.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(await stateOf(read)).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    const err = (await settled) as Error;
+    expect(err.name).toBe("TimeoutError");
+    expect(err.message).toBe("read timed out after 5 s");
+    expect(vi.getTimerCount()).toBe(0);
+    expect(deaf.calls()).toBe(1);
+  });
+
+  it("rejects late with a network error: the caller already had the timeout at 5 s, and nothing is left unhandled", async () => {
+    const unhandled = watchUnhandled();
+    const deaf = deafFetch();
+    const settled = withReadTimeout(deaf.fn)("https://x.supabase.co/rest/v1/t").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(5000);
+    const err = (await settled) as Error;
+    expect(err.message).toBe("read timed out after 5 s");
+
+    // 12 s later the socket finally dies.
+    await vi.advanceTimersByTimeAsync(12_000);
+    deaf.reject(new TypeError("fetch failed"));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(await unhandled.settle()).toEqual([]);
+  });
+
+  it("answers late: the answer is discarded, its body is cancelled, and no timer is left", async () => {
+    const unhandled = watchUnhandled();
+    const deaf = deafFetch();
+    const read = withReadTimeout(deaf.fn)("https://x.supabase.co/rest/v1/t");
+    const settled = read.then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error }),
+    );
+    await vi.advanceTimersByTimeAsync(5000);
+    const outcome = await settled;
+    expect((outcome as { error: Error }).error.message).toBe("read timed out after 5 s");
+
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('[{"season":2026}]'));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    deaf.resolve(new Response(body, { status: 200 }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(cancelled).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await unhandled.settle()).toEqual([]);
+  });
+
+  it("answers in time but the body then stalls, ignoring the signal: still ends at 5 s", async () => {
+    const unhandled = watchUnhandled();
+    const stalledBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('[{"season":'));
+        // never closes, never errors, does not look at any signal
+      },
+    });
+    const fetchImpl = (() => Promise.resolve(new Response(stalledBody, { status: 200 }))) as unknown as typeof fetch;
+    const read = withReadTimeout(fetchImpl)("https://x.supabase.co/rest/v1/t");
+    const settled = read.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(await stateOf(read)).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(((await settled) as Error).message).toBe("read timed out after 5 s");
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await unhandled.settle()).toEqual([]);
+  });
+
+  it("fails BEFORE the limit with its own error: reported as that error, never relabelled a timeout", async () => {
+    const deaf = deafFetch();
+    const settled = withReadTimeout(deaf.fn)("https://x.supabase.co/rest/v1/t").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(3000);
+    const failure = new TypeError("fetch failed");
+    deaf.reject(failure);
+    expect(await settled).toBe(failure);
+    expect(vi.getTimerCount()).toBe(0);
+    // And the timer that was cleared really is gone.
+    await vi.advanceTimersByTimeAsync(10_000);
+  });
+
+  it("through supabase-js: { data: null, error } at 5 s even though the fetch never heard the abort", async () => {
+    const deaf = deafFetch();
+    const client = createRealClient("https://x.supabase.co", "anon-key", {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: withReadTimeout(deaf.fn) },
+    });
+    const pending = Promise.resolve(client.from("data_freshness").select("season"));
+    await vi.advanceTimersByTimeAsync(5000);
+    const { data, error } = await pending;
+    expect(data).toBeNull();
+    expect(error?.message).toBe("TimeoutError: read timed out after 5 s");
+  });
+});
+
+// Chaos R3. setTimeout cannot hold more than 2^31 - 1 ms: Node warns, sets
+// the delay to 1 ms, and every healthy read then fails at once.
+describe("withReadTimeout — an oversized limit is capped", () => {
+  it("the cap is one minute", () => {
+    expect(SUPABASE_READ_TIMEOUT_MAX_MS).toBe(60_000);
+  });
+
+  it.each([2 ** 31, 3e9, 1e12, 60_001])("a limit of %s ms behaves as 60 s, not as 1 ms", async (ms) => {
+    const { fn } = hangingFetch();
+    const read = withReadTimeout(fn, ms)("https://x.supabase.co/rest/v1/t");
+    const settled = read.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(await stateOf(read)).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(((await settled) as Error).message).toBe("read timed out after 60 s");
+  });
+
+  it("a healthy read succeeds under an oversized limit", async () => {
+    const fast = (() => Promise.resolve(new Response("[]", { status: 200 }))) as unknown as typeof fetch;
+    const res = await withReadTimeout(fast, 2 ** 31)("https://x.supabase.co/rest/v1/t");
+    expect(await res.text()).toBe("[]");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("the two real limits are far under the cap", () => {
+    expect(SUPABASE_READ_TIMEOUT_MS).toBeLessThan(SUPABASE_READ_TIMEOUT_MAX_MS);
+    expect(SUPABASE_BROWSER_READ_TIMEOUT_MS).toBeLessThan(SUPABASE_READ_TIMEOUT_MAX_MS);
   });
 });
 
