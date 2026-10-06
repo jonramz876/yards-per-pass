@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import ErrorState from "@/components/ui/ErrorState";
 import { normalizeGameId } from "@/lib/stats/box-score";
 import { getTeam } from "@/lib/data/teams";
@@ -14,7 +14,6 @@ export default function GamePageError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const router = useRouter();
   const params = useParams<{ game_id: string }>();
 
   useEffect(() => {
@@ -38,15 +37,10 @@ export default function GamePageError({
   return (
     <ErrorState
       title="Unable to load this box score"
-      // reset() re-renders the client error boundary against the RSC payload
-      // it already holds; it does not re-run the Server Component. The only
-      // error this boundary can ever see IS a Server Component throw (from
-      // loadBoxScore), so without router.refresh() "Try again" re-shows the
-      // same error for ever.
-      reset={() => {
-        router.refresh();
-        reset();
-      }}
+      // Plain reset: ErrorState's "Try again" does the router.refresh() that
+      // re-runs the Server Component, for every route. A second refresh here
+      // would fetch the page twice.
+      reset={reset}
       links={links}
     />
   );
