@@ -638,3 +638,212 @@ export function radarCardHref(teamId: string, side: RadarSide, season: number, d
 export function radarBandAside(season: number, throughWeek: number | null): string {
   return throughWeek != null && Number.isFinite(throughWeek) ? `${season} · Through Week ${throughWeek}` : `${season}`;
 }
+
+/* ─── Share cards (PR 3; spec §7, §8 R2, R8, R14-R16) ─── */
+
+/** The last URL segment of a share page: exactly "offense" or "defense". Anything else is no side (a 404). */
+export function parseRadarSide(raw: string | null | undefined): RadarSide | null {
+  return raw === "offense" ? "off" : raw === "defense" ? "def" : null;
+}
+
+export function radarSideSlug(side: RadarSide): "offense" | "defense" {
+  return side === "off" ? "offense" : "defense";
+}
+
+const SIDE_WORD: Record<RadarSide, string> = { off: "Offense", def: "Defense" };
+
+/** R2 on the card: the table's first header. The defense one is the short form. */
+export const RADAR_CARD_SUBTITLE: Record<RadarSide, string> = {
+  off: "What the offense did",
+  def: "What opponents did",
+};
+
+/** R8 — the card's footer line. N is the teams that have played. */
+export function radarCardFooter(teamsPlayed: number): string {
+  return `Farther out = better rank among the ${teamsPlayed} teams · dashed ring = middle of the league`;
+}
+
+/** The card's site line (page and image). */
+export const RADAR_CARD_SITE_LINE = "YARDSPERPASS.COM · DATA: NFLVERSE";
+
+/** R14 — the share page's title (complete: the page sets it as an absolute title). */
+export function radarShareTitle(teamName: string, side: RadarSide, season: number): string {
+  return `${teamName} ${SIDE_WORD[side]} Radar ${season} — Yards Per Pass`;
+}
+
+/** "a", "a and b", "a, b and c". */
+function listOf(parts: string[]): string {
+  if (parts.length <= 1) return parts.join("");
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+}
+
+/**
+ * R14b — the share page's description. A spoke with no value is left out of
+ * the list; "every NFL team" only when all 32 have played; the week is the
+ * largest week in the radar rows (the same read as the numbers).
+ */
+export function radarShareDescription(
+  teamName: string,
+  side: RadarSide,
+  throughWeek: number | null | undefined,
+  teamsPlayed: number,
+  model: RadarSideModel,
+): string {
+  const has = (key: RadarAxisKey) => {
+    const i = RADAR_AXES.findIndex((a) => a.key === key);
+    return i >= 0 && model.spokes[i] != null && model.spokes[i].value !== null;
+  };
+  const week = typeof throughWeek === "number" && Number.isFinite(throughWeek) ? ` through Week ${throughWeek}` : "";
+  const among = teamsPlayed === 32 ? "every NFL team" : `the ${teamsPlayed} teams that have played`;
+  let body: string;
+  if (side === "off") {
+    const parts: string[] = [];
+    if (has("expl_pass") && has("expl_rush")) parts.push("explosive pass and run rates");
+    else if (has("expl_pass")) parts.push("explosive pass rate");
+    else if (has("expl_rush")) parts.push("explosive run rate");
+    if (has("pass_sr") && has("rush_sr")) parts.push("pass and run success");
+    else if (has("pass_sr")) parts.push("pass success");
+    else if (has("rush_sr")) parts.push("run success");
+    if (has("sack")) parts.push("sack rate");
+    if (has("stuff")) parts.push("stuff rate");
+    if (has("to")) parts.push("turnover rate");
+    body = listOf(parts);
+  } else {
+    const allowed: string[] = [];
+    if (has("expl_pass") || has("expl_rush")) allowed.push("explosive plays");
+    if (has("pass_sr") || has("rush_sr")) allowed.push("success rates");
+    const own: string[] = [];
+    if (has("sack")) own.push("sack");
+    if (has("stuff")) own.push("stuff");
+    if (has("to")) own.push("takeaway");
+    const halves: string[] = [];
+    if (allowed.length > 0) halves.push(`the ${listOf(allowed)} it allowed`);
+    if (own.length > 0) halves.push(`its ${listOf(own)} ${own.length === 1 ? "rate" : "rates"}`);
+    body = halves.join(", and ");
+  }
+  const sideWord = side === "off" ? "offense" : "defense";
+  return `${teamName} ${sideWord}${week}${body ? `: ${body}` : ""}, ranked against ${among}.`;
+}
+
+/** R16 — the button under each radar on the team page. */
+export function radarShareButtonText(side: RadarSide): string {
+  return `Share ${radarSideSlug(side)} radar`;
+}
+
+/** R16 — on a share page, the link to the other side's page. */
+export function radarOtherSideLinkText(teamName: string, otherSide: RadarSide): string {
+  return `See the ${teamName} ${radarSideSlug(otherSide)} radar →`;
+}
+
+/** R16 — on a share page, the link back to the team page. */
+export function radarTeamPageLinkText(teamName: string): string {
+  return `View the full ${teamName} page →`;
+}
+
+export const RADAR_COPY_LINK_TEXT = "Copy Link";
+export const RADAR_COPIED_TEXT = "Copied!";
+export const RADAR_DOWNLOAD_TEXT = "Download Image";
+
+/** What the image route answers (503) when a read failed. */
+export const RADAR_IMAGE_UNAVAILABLE = "Team radar image temporarily unavailable. Try again in a few minutes.";
+
+/** The card band's right-hand text: "Offense Radar · 2026 · Through Week 3". */
+export function radarCardBandAside(side: RadarSide, season: number, throughWeek: number | null): string {
+  return `${SIDE_WORD[side]} Radar · ${radarBandAside(season, throughWeek)}`;
+}
+
+/** The team page's radar section for the viewed season: bare for the default season. */
+export function radarTeamPageHref(teamId: string, season: number, defaultSeason: number): string {
+  return `/team/${teamId}${season === defaultSeason ? "" : `?season=${season}`}#team-radar`;
+}
+
+/**
+ * The image route's URL. It always names the season: the share page links the
+ * route itself because a file-convention image gets no query string. `week`
+ * (ignored by the route) makes each week a new URL for platforms that cache a
+ * preview by URL (review M7); `download` asks for an attachment.
+ */
+export function radarImageHref(
+  teamId: string,
+  side: RadarSide,
+  season: number,
+  options: { week?: number | null; download?: boolean } = {},
+): string {
+  const week = typeof options.week === "number" && Number.isFinite(options.week) ? `&w=${options.week}` : "";
+  return `/api/team-radar/${teamId}/${radarSideSlug(side)}?season=${season}${week}${options.download ? "&download=1" : ""}`;
+}
+
+/** The downloaded file's name. Only letters and digits of the team id survive: it goes into a header value. */
+export function radarDownloadFilename(teamId: string, side: RadarSide, season: number): string {
+  const safe = String(teamId ?? "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "team";
+  return `${safe}-${radarSideSlug(side)}-${Math.trunc(Number(season)) || 0}-radar.png`;
+}
+
+/* ─── Chart geometry: one source for the SVG chart and the 1200×630 image ─── */
+
+export interface RadarGeometry {
+  w: number; h: number; cx: number; cy: number;
+  /** outer radius */ r: number;
+  /** label distance past the outer ring */ gap: number;
+  /** label line height */ lh: number;
+  /** font size */ f: number;
+  /** base stroke width */ sw: number;
+  /** vertex dot radius */ dot: number;
+}
+
+/**
+ * `sm`: the team page (unchanged since PR 2). `lg`: the share page's single
+ * large radar; 680 wide, not 640, because the longest label ("100.0% · T-32nd"
+ * on Sack rate and Run success) ran about 4 units past both edges (PR 2 chaos
+ * R7). `card`: the radar inside the 1200×630 image's left half.
+ */
+export const RADAR_SIZES: Record<"sm" | "lg" | "card", RadarGeometry> = {
+  sm: { w: 420, h: 340, cx: 210, cy: 168, r: 104, gap: 12, lh: 13, f: 11, sw: 1, dot: 3 },
+  lg: { w: 680, h: 520, cx: 340, cy: 262, r: 172, gap: 15, lh: 21, f: 17, sw: 1.5, dot: 5 },
+  card: { w: 640, h: 456, cx: 320, cy: 232, r: 160, gap: 14, lh: 20, f: 16, sw: 1.5, dot: 5 },
+};
+
+/**
+ * A label's width is estimated as this share of the font size per character
+ * (no text can be measured where the tests and the image are built). The
+ * fit test holds the two new sizes to it.
+ */
+export const RADAR_LABEL_CHAR_WIDTH = 0.6;
+
+const SPOKES = RADAR_AXES.length;
+
+/** Spoke `i`'s direction: the first straight up, then clockwise. */
+export function radarAngle(i: number): number {
+  return -Math.PI / 2 + (i * 2 * Math.PI) / SPOKES;
+}
+
+/** The point on spoke `i` at `radius` from the centre. */
+export function radarPoint(g: RadarGeometry, radius: number, i: number): [number, number] {
+  const a = radarAngle(i);
+  return [g.cx + radius * Math.cos(a), g.cy + radius * Math.sin(a)];
+}
+
+/** A closed path through the points, one decimal each (svg <path>; the image cannot use <polygon>). */
+export function radarPathD(points: ReadonlyArray<readonly [number, number]>): string {
+  return points.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ") + "Z";
+}
+
+export type RadarAnchor = "start" | "middle" | "end";
+
+/** Where spoke `i`'s two-line label goes: x, the two baselines, and which way the text runs from x. */
+export function radarLabelPosition(g: RadarGeometry, i: number): { x: number; y1: number; y2: number; anchor: RadarAnchor } {
+  const a = radarAngle(i);
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const x = g.cx + (g.r + g.gap) * cos;
+  const y = g.cy + (g.r + g.gap) * sin;
+  const anchor: RadarAnchor = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
+  const y1 = sin < -0.5 ? y - g.lh * 1.05 : sin > 0.5 ? y + g.lh * 0.8 : y - g.lh * 0.15;
+  return { x, y1, y2: y1 + g.lh, anchor };
+}
+
+/** A score the chart can plot: finite, clamped to 0-1. Anything else (or no value) is a missing spoke. */
+export function plottableScore(s: Pick<RadarSpoke, "score" | "value">): number | null {
+  if (s.value === null || s.score === null || !Number.isFinite(s.score)) return null;
+  return Math.min(1, Math.max(0, s.score));
+}
