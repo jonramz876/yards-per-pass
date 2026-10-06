@@ -90,12 +90,16 @@ export function fallbackSeason(): number {
   return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
-export async function getAvailableSeasons(): Promise<number[]> {
+export async function getAvailableSeasons(signal?: AbortSignal): Promise<number[]> {
   const supabase = createServerClient();
-  const { data, error } = await supabase
+  const query = supabase
     .from("data_freshness")
     .select("season")
     .order("season", { ascending: false });
+  // Optional, never a default: the box score assembly passes its one deadline
+  // so this read stays inside that single 5 s budget. Every other caller
+  // passes nothing and gets the client's own 5 s limit (lib/supabase/timeout.ts).
+  const { data, error } = await (signal ? query.abortSignal(signal) : query);
 
   // A failed read throws; [] means the table really has no rows (read
   // resilience spec §1.2). Callers used to guess "empty means it failed".

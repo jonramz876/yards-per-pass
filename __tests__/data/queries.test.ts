@@ -6,7 +6,7 @@ let result: { data: unknown; error: unknown } = { data: [], error: null };
 
 vi.mock("@/lib/supabase/server", () => {
   const builder: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "or", "order", "limit", "range", "maybeSingle"]) {
+  for (const m of ["select", "eq", "or", "order", "limit", "range", "maybeSingle", "abortSignal"]) {
     builder[m] = (...a: unknown[]) => {
       calls.push([m, ...a]);
       return builder;
@@ -53,6 +53,20 @@ describe("getAvailableSeasons", () => {
       error: null,
     };
     expect(await getAvailableSeasons()).toEqual([2026]);
+  });
+
+  // Read resilience PR 1B: the box score assembly hands this read its own
+  // deadline, so the read stays inside the assembly's single 5 s budget
+  // instead of getting a fresh 5 s from the client's default limit.
+  it("forwards a caller's AbortSignal, and adds none without one", async () => {
+    result = { data: [{ season: 2026 }], error: null };
+    await getAvailableSeasons();
+    expect(calls.some((c) => c[0] === "abortSignal")).toBe(false);
+
+    calls.length = 0;
+    const signal = AbortSignal.timeout(5000);
+    expect(await getAvailableSeasons(signal)).toEqual([2026]);
+    expect(calls).toContainEqual(["abortSignal", signal]);
   });
 
   // Read resilience spec §1.2: a failed read must not look like an empty one.
