@@ -686,11 +686,30 @@ describe("copy", () => {
       "Turnovers ÷ drives",
       "Runs for no gain or a loss ÷ designed runs",
       "Designed runs with EPA above zero",
-      "Runs of 10+ yards ÷ designed runs",
+      "Runs of 10+ yards ÷ designed runs incl. penalty-wiped runs and two-point tries",
     ]);
     const def = RADAR_AXES.map((a) => R.axisSubline(a, "def"));
     expect(def[3]).toBe("Opponent turnovers ÷ opponent drives");
     expect(def.filter((_, i) => i !== 3)).toEqual(RADAR_AXES.map((a) => R.axisSubline(a, "off")).filter((_, i) => i !== 3));
+  });
+
+  // Code review M1: the Stuff row and the Explosive run row both said "÷ designed
+  // runs" over two different counts (BUF 78 and 80). The Explosive run sub-line
+  // now says what its larger count includes; these bind it to the columns.
+  it("R7: Explosive run's sub-line names the wider run count it divides by (rush_plays ≥ designed_runs)", () => {
+    const axis = (k: RadarAxisKey) => RADAR_AXES.find((a) => a.key === k)!;
+    expect(axis("expl_rush").subline).toContain("incl. penalty-wiped runs and two-point tries");
+    expect(axis("expl_rush").den).toEqual(["rush_plays"]);
+    expect(axis("stuff").subline).toBe("Runs for no gain or a loss ÷ designed runs");
+    expect(axis("stuff").den).toEqual(["designed_runs"]);
+    for (const r of ROWS) {
+      expect(r.designed_runs as number, `${r.game_id} ${r.team_id}`).toBeLessThanOrEqual(r.rush_plays as number);
+    }
+    const buf = ROWS.filter((r) => r.team_id === "BUF");
+    const sum = (c: string) => buf.reduce((s, r) => s + (r[c] as number), 0);
+    expect([sum("designed_runs"), sum("rush_plays")]).toEqual([78, 80]);
+    expect(spoke(MODEL, "BUF", "off", "stuff").count).toEqual([6, 78]);
+    expect(spoke(MODEL, "BUF", "off", "expl_rush").count).toEqual([16, 80]);
   });
 
   it("R6: the early-season note only in weeks 1-4 of the newest season; footnotes in order R3, R4, R5, R5b, R6", () => {

@@ -79,7 +79,9 @@ export const RADAR_AXES: readonly RadarAxis[] = [
   {
     key: "expl_rush", label: "Explosive run", offHigherBetter: true,
     num: "explosive_rush", den: ["rush_plays"], weighted: false, nullable: false,
-    subline: "Runs of 10+ yards ÷ designed runs",
+    // Divides by rush_plays, which is never smaller than the Stuff row's
+    // designed_runs (BUF 80 against 78), so the sub-line says what it adds.
+    subline: "Runs of 10+ yards ÷ designed runs incl. penalty-wiped runs and two-point tries",
   },
 ];
 

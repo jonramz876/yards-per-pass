@@ -10,8 +10,8 @@ Never from the TypeScript: a failing golden means the two disagree.
   turnover rate  = sum(turnovers) / sum(total_drives)
   stuff rate     = sum(stuffed_runs) / sum(designed_runs)   (None if any row is NULL)
   offense = the team's own rows; defense = rows where opponent_id is the team.
-  rank = competition rank among teams with a value (1 = best, ties share the
-  better place); offense: higher is better for the first, second, sixth and
+  rank = competition rank among teams with a row of their own and a value
+  (1 = best; two rates within 1e-9 are a tie and share the better place); offense: higher is better for the first, second, sixth and
   seventh spokes, lower for sack / turnover / stuff; defense: the reverse.
 
 Run: py -3 make_radar_expected.py <rows json> <out json> [mockup radar_2026.json]
