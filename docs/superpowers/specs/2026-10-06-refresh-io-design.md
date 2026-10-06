@@ -239,7 +239,7 @@ How to read them:
 
 All four go on top of `main` (`team-radar-pr1` has merged). **Dependencies: A and B are independent. C needs A** (it stores its schema hash in A's state file). **D needs B** (it reads B's written counts). A and C therefore ship together as one pull request with two commit series; B and D follow later. Each is safely revertable: with no state file (PR A reverted, or a local / seed run) PR C's code runs the schema statements every time, exactly as today.
 
-Tests: `tests/test_refresh_io.py` (PR A), `tests/test_refresh_workflow.py` (PR A, the workflow checklist) and `tests/test_refresh_ddl.py` (PR C), using the `FakeConn` / `FakeCursor` / `monkeypatch` pattern of `tests/test_refresh_resilience.py`. No test touches the network: the GitHub API call and the downloads are faked.
+Tests: `tests/test_refresh_io.py` (PR A), `tests/test_refresh_workflow.py` (PR A, the workflow checklist), `tests/test_refresh_ddl.py` (PR C) and `tests/test_refresh_hardening.py` (the fixes from the chaos test, marked "as built" below), using the `FakeConn` / `FakeCursor` / `monkeypatch` pattern of `tests/test_refresh_resilience.py`. No test touches the network: the GitHub API call and the downloads are faked.
 
 | PR | Saves | Risk |
 |---|---|---|
@@ -302,8 +302,11 @@ Tests: `tests/test_refresh_io.py` (PR A), `tests/test_refresh_workflow.py` (PR A
    - every part of the fingerprint was known;
    - the schedules ingest of that attempt did not fail (its failure is only a warning in `run_seasons`, so it must be checked explicitly);
    - **the participation file that the API listed was actually loaded.** `download_participation` returns nothing on any error, including the few-second 404 during an nflverse `--clobber` upload; the season then commits with routes and snaps as NULL. If the API showed a digest but the load fell back, the fingerprint is not recorded.
+   - **(as built, chaos RISK-6 and WRONG-SKIP-2) what is recorded for pbp, roster and participation is the sha256 of the bytes this run actually downloaded, and only when it equals the digest the API listed before the run.** The three downloads go through `_read_parquet_url` (fetch the bytes, hash them, parse from memory: the same mechanics pandas uses for a URL). A re-upload between the listing and the download, in either order, means a mismatch and nothing is recorded. A file that loaded is never recorded as `absent`.
 
-   When the season committed but any condition fails, the season's stored entry is **removed** (and the reason logged), so the next run is a full run. Removing rather than keeping matters: a forced run that wrote NULL routes must not leave an older, still-matching entry behind. `DataNotYetPublished`, `DataQualityError` (truncation guard) or any exception records nothing and leaves the stored entry alone (the season's transaction rolled back, so the database still matches it).
+   When the season committed but any condition fails, no entry is written for the season (and the reason is logged), so the next run is a full run.
+
+   **(as built, chaos WRONG-SKIP-1) The stored entry is dropped as soon as an attempt at the season starts**, on disk, before the first write (`season_started`), and again when the schedule rows commit. Only a successful season puts an entry back. So `DataNotYetPublished`, `DataQualityError`, any exception, or the process dying between the season's commit and the state write all leave the season with no entry: the next run is a full run. (Revision 2 originally kept the old entry on a failed season; that allowed a wrong skip when schedule rows changed A → B, committed, the season failed, and the rows went back to A.)
 
    The state file is saved straight after each season, so a later season failing in an `--all` run does not lose an earlier one.
 9. **`changed` and the revalidate POST (I3).** `last_change_at` is stamped whenever a run commits anything (schedule rows or a season). The workflow's revalidate step writes `revalidated_at` only on HTTP 200. Ingest writes `changed=true|false` to `$GITHUB_OUTPUT`:
@@ -323,7 +326,8 @@ Tests: `tests/test_refresh_io.py` (PR A), `tests/test_refresh_workflow.py` (PR A
     - **The `concurrency: data-refresh` group is load-bearing for this design**: it serialises restore, ingest, save, so a queued run restores what the previous one saved. Do not remove it.
     - Scheduled runs use the default branch's cache. A manual run from another branch can read main's cache but saves into its own scope, which is the right behaviour. Eviction (GitHub drops entries unused for 7 days) or a miss means a full run. No extra permission is needed.
     - `seed.yml` is not changed and passes no state file: always a full run with DDL, as today.
-12. If nflverse re-uploads between the digest read and the download, the stored digest is the older one and the next run runs again: an extra run, never a missed one.
+12. If nflverse re-uploads between the digest read and the download, the downloaded bytes do not hash to the listed digest, nothing is recorded (point 8) and the next run runs again: an extra run, never a missed one, whichever of the two GitHub served first.
+    - As built, after the chaos test: `continue-on-error: true` on the cache restore and save steps (a cache outage can never fail the refresh). A state file that cannot be loaded for any reason, including `RecursionError` on deeply nested JSON, is a full run and the file is removed at once, so the save step cannot re-save it. If the bookkeeping itself cannot be set up, the run goes ahead as a plain full run without it. In an `--all` run that stops early, the seasons never reached are reported as `not attempted`, not `FAILED`.
 13. Before the season's first play-by-play file exists, every run is `DataNotYetPublished`, nothing is recorded, and every run does what it does today (schedules upsert, then the skip message). Nothing is saved there and nothing is lost.
 
 **Where the state lives (decided: Actions cache file).**
