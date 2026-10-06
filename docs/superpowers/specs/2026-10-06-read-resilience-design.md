@@ -252,7 +252,7 @@ The limit covers the whole request including reading the body. A timeout rejects
 
 The factories pass `(input, init) => fetch(input, init)`, not `fetch` itself, so the global is looked up at call time (Next replaces it).
 
-One read escapes the box score's single 5 s budget: `getBoxScore` calls `getAvailableSeasons()` with no signal on its no-rows path (`lib/data/box-score.ts` line 385). After Part B that read gets its own 5 s, so a `pending` / `uncovered` game can take up to 10 s to fail. Fix in this PR: give `getAvailableSeasons` an optional `signal` argument and pass the assembly's signal there.
+One read escapes the box score's single 5 s budget: `getBoxScore` calls `getAvailableSeasons()` with no signal on its no-rows path (`lib/data/box-score.ts` line 385). After Part B that read gets its own 5 s, so a `pending` / `uncovered` game can take up to 10 s to fail. Fixed in PR 1B: `getAvailableSeasons` takes an optional `signal` argument and `getBoxScore` passes the assembly's signal there.
 
 #### Why a real signal, and what it costs
 
@@ -273,7 +273,7 @@ Cost of (a), per page view, until PR 2 lands (PR 2 removes all of it for the rea
 | `/card/[slug]` | +3 | player row, seasons list, the position's season table |
 | `/game/[game_id]`, `/` | 0 | already on explicit signals / no duplicates |
 
-That is roughly +15% requests in normal operation, all small indexed reads. The audit found the database is not load-bound, so this is acceptable for the gap between PR 1 and PR 2. If PR 2 is delayed more than a week, add the per-request memo from 2.6 to these three loaders as a small follow-up.
+**Corrected after PR 1B's code review:** this estimate assumed these reads go to the database on every view. They do not (see "What Next already caches" in section 2): on every page that exports `revalidate = 3600` the second identical read in a render is a data-cache hit, and the chaos pass measured no extra requests. The lost dedupe can only cost a request where reads are not cached (a `revalidate = 0` route); none was observed on pages. The figure as first written: roughly +15% requests in normal operation, all small indexed reads. The audit found the database is not load-bound, so this is acceptable for the gap between PR 1 and PR 2. If PR 2 is delayed more than a week, add the per-request memo from 2.6 to these three loaders as a small follow-up.
 
 Side effect worth knowing: MEMORY says an in-render retry of the same query is a no-op because Next replays the memoised failure. With a signal on every read that is no longer true.
 
@@ -427,7 +427,9 @@ Stale-cache run, after the chaos pass (2026-10-06; `next build` + `next start` o
 | `/` (ISR, stale page) | 200 `STALE` at once; the regeneration's read stayed open for minutes; later visits pinned `STALE` with no new request, even after the gateway recovered | 200 `STALE` in 0.2 s; **the regeneration's read ends 5.2 s after the request** (`Failed to fetch seasons: TimeoutError: read timed out after 5 s`), the old page is kept; once the stub answered again a retry regenerated the page and visits were `HIT` |
 | `/player/josh-allen`, `/team/BUF?season=2026` (dynamic, their cached reads stale) | no response within 20 s | **unchanged: no response within 40 s, and no timeout is logged** |
 
-Why the dynamic pages are unchanged, and why the wrapper cannot change it: for a stale entry outside a regeneration, Next hands the **stale rows** to the caller at once (so the wrapper sees a fast, successful read and the page has its data) and starts its own background refresh by calling the original fetch directly, without the signal (`patch-fetch.js` 517 to 534). That refresh is below the wrapper. Under `next start` the response is held open until it settles (undici's 300 s); on Vercel pending refreshes are handed to `waitUntil`, so the visitor probably gets the page at once and the function lingers. Not tested on Vercel. Same as main. Two things follow for PR 2's review: (1) under `next start` the pages' direct Supabase reads are being answered from Next's fetch data cache today (a second load of a page made no gateway request); whether Vercel does the same was not verified, and it bears on PR 2's request counts; (2) if this lingering refresh matters, the fix is to take Supabase reads out of Next's fetch cache (`cache: "no-store"` in the wrapper) once PR 2's own cache exists, not before.
+Why the dynamic pages are unchanged, and why the wrapper cannot change it: for a stale entry outside a regeneration, Next hands the **stale rows** to the caller at once (so the wrapper sees a fast, successful read and the page has its data) and starts its own background refresh by calling the original fetch directly, without the signal (`patch-fetch.js` 517 to 534). That refresh is below the wrapper. Under `next start` the response is held open until it settles (undici's 300 s); on Vercel pending refreshes are handed to `waitUntil`, so the visitor probably gets the page at once and the function lingers. Not tested on Vercel. Same as main. What this means for PR 2 (corrected after PR 1B's code review, I2). **Do not put `cache: "no-store"` in the wrapper.** From `patch-fetch.js`: an explicit `no-store` sets the fetch's revalidate to 0 (305 to 306), then the page's (374 to 388), and whenever the render is a static generation it **throws `DynamicServerError`** (555 to 570). That is the build and every ISR regeneration of `/` and `/sitemap.xml`: a blanket `no-store` would take both out of ISR, and a stall would be a 500 for every homepage visitor instead of the last good copy. Nothing is needed in the wrapper: `unstable_cache` runs its callback with `fetchCache: "force-no-store"`, which already makes every read inside it skip the fetch cache with the signal kept and without that throw (the throw only tests an explicit `cache` option). So this lingering refresh disappears for each read as PR 2 moves it inside `unstable_cache`; reads left outside keep today's behaviour.
+
+Known and left for PR 3 (code review M1): the race covers only the wrapper's own limit. A read that passes its own signal goes through untouched, and Next strips that signal on the stale-entry path exactly as above. `app/sitemap.ts` calls `getBoxScoreSeasons(seasons)`, which brings the box score deadline; on a sitemap regeneration where the seasons entry is fresh but the probe entries are stale and the gateway is stalled, that read waits for undici's 300 s. Crawlers keep the old sitemap; the cost is a held function and a copy pinned `STALE`. Same as main. PR 3 rewrites the sitemap's reads and should either drop the explicit signal there (so the wrapper's race applies) or race the caller's signal too.
 
 **1B run: a socket that never answers.** Same steps with `node -e "require('net').createServer(()=>{}).listen(54399)"` as the stand-in. Now every row must finish in 5 to 7 s with the same statuses as the 1A run, and S1 appears after about 15 s (browser limit).
 
@@ -551,6 +553,25 @@ So the refresh workflow's revalidate step (`.github/workflows/data-refresh.yml`,
 | `/api/health` | its job is to read the database |
 | `getPlayerBySlug` | **Now in PR 2** (review I5), not as its own entry: it is answered from the cached `player_slugs` rows that loader #1 already stores (find by `slug` in memory). Takes `/card` to zero live reads and removes the first read, and the metadata read, from all 1,300 player pages |
 | per-team reads (`getRBGapStats(team)`, `getDefGapStats(team)`, down-distance, schedules, game results) | PR 2b: cache the season-level table once and filter in memory, after measuring sizes |
+
+### 2.2a What Next already caches (established from source during PR 1B's review; verify on Vercel before building PR 2)
+
+PR 2 was written as if every page view reads the database. From source, that is not so:
+
+| Fact | Where |
+|---|---|
+| Every page file exports `revalidate = 3600` (`/`, `/player`, `/team`, `/card`, `/game`, the season pages, the sitemap), and Next copies that into the render's store on every render, dynamic ones included | `app-render/create-component-tree.js` 131 to 135 |
+| Reading `searchParams` does **not** set it to 0 at request time: in a dynamic render the raw object is returned and the dynamic-access tracker never runs. It runs only in the build pass, which is what marks the route dynamic | `client/components/search-params.js` 43 to 49; `app-render/dynamic-rendering.js` 123 |
+| supabase-js's `Authorization` header only disables caching when the route's revalidate is already 0. With 3600 the read is "auto cache": cacheable for 3600 s and keyed | `lib/patch-fetch.js` 314, 322, 354 to 370, 389 to 393 |
+| The signal is not part of the cache key, so PR 1B changed no key and no cache write | `lib/incremental-cache/index.js` 259 to 273 |
+
+So, on main and since: the direct Supabase reads of **every page that exports `revalidate = 3600` are already in Next's fetch data cache for an hour**. That includes the ISR homepage and sitemap, the `searchParams` pages (`/player`, `/team`, `/card`, `/teams`, `/team-stats`, the three leaderboards, `/run-gaps`, `/trends`) and `/game`. `/compare` exports no `revalidate`, so its reads are stored with `revalidate = false` (a year) and cleared only by `/api/revalidate`'s `revalidatePath("/compare")`. Not cached: `/api/health` (`revalidate = 0`) and non-GET route handlers. The decision is made entirely in `patch-fetch.js`; Vercel only swaps the storage, so this should hold there, but **nobody has observed it on Vercel**. The local evidence: under `next start` a second load of any page made no gateway request, and warm pages kept rendering with the stub down.
+
+What this changes in PR 2, to settle in its spec review before any code:
+
+- **The request counts in 2.3 ("Now" column) and the claim that database reads "drop sharply" (about 90% in the audit) must be re-measured.** A warm page already makes few or no database reads within the hour. PR 2's real gains are a longer window (6 h), a purge that is health-gated, an entry that is never replaced by an empty or failed read, and one shared entry per table instead of one per query URL.
+- **A warm page already survives a stall** for reads whose entry is under an hour old, and serves stale rows after that (with the lingering background refresh described in 1.7). "Today every page shows the error card in a stall" is true only for cold keys.
+- Verify first, on the preview, with `NEXT_PRIVATE_DEBUG_CACHE=1`: load `/qb-leaderboard` twice and look for `got fetch cache entry` on the Supabase URLs. If Vercel does not cache them, the original PR 2 numbers stand.
 
 ### 2.3 Which loaders ship when
 
