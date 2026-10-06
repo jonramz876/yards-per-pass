@@ -7,7 +7,7 @@ import { fetchAllRows, queryError } from "@/lib/data/utils";
 import { TEAM_GAME_NUMERIC, boxScoreDeadline, getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import type { TeamGameStat } from "@/lib/types";
 
-/** The columns the page reads — not "*": 30 of team_game_stats' 62 columns. */
+/** The columns the page reads — not "*": 30 of team_game_stats' 64 columns. */
 export const TEAM_STATS_COLUMNS = [
   "game_id", "team_id", "opponent_id", "season", "week",
   "plays", "pass_plays", "rush_plays", "early_plays", "late_plays",

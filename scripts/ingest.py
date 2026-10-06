@@ -3372,6 +3372,8 @@ TEAM_GAME_STATS_COLS = [
     'early_plays', 'early_epa_per_play', 'early_success_rate',
     'late_plays', 'late_epa_per_play', 'late_success_rate',
     'explosive_plays', 'explosive_rate', 'explosive_pass', 'explosive_rush',
+    # stuff rate (team radar spec §3.1): stuffed_runs / designed_runs
+    'designed_runs', 'stuffed_runs',
     # what it cost them
     'epa_lost_turnovers', 'epa_lost_sacks', 'epa_lost_penalties',
     # traditional (official box-score conventions)
@@ -3391,6 +3393,7 @@ TEAM_GAME_STATS_COLS = [
 TEAM_GAME_STATS_INT_COLS = [
     'plays', 'pass_plays', 'rush_plays', 'early_plays', 'late_plays',
     'explosive_plays', 'explosive_pass', 'explosive_rush',
+    'designed_runs', 'stuffed_runs',
     'first_downs', 'first_downs_pass', 'first_downs_rush', 'first_downs_penalty',
     'third_down_att', 'third_down_conv', 'fourth_down_att', 'fourth_down_conv',
     'total_plays', 'total_yards', 'total_drives', 'net_passing_yards',
@@ -3469,6 +3472,16 @@ def _team_game_efficiency(reg: pd.DataFrame) -> pd.DataFrame:
     # Both rules are penalty-safe: no_play rows have yards_gained 0.
     eff['expl_pass'] = ((eff['complete_pass'] == 1) & (eff['yards_gained'] >= 20)).astype(int)
     eff['expl_rush'] = (((eff['rush'] == 1) | (eff['qb_scramble'] == 1)) & (eff['yards_gained'] >= 10)).astype(int)
+    # Stuff rate (team radar spec §3.1). NOT penalty-safe without play_type: a
+    # penalty-wiped run stays in this set as rush == 1, play_type 'no_play',
+    # yards_gained 0 — a stuff by yards alone (it doubled DET's week-1 count, 8
+    # for 4). rush == 1 already leaves out kneels and scrambles; a 2-point try
+    # has no line to gain. So designed_runs is never larger than rush_plays,
+    # which keeps the wiped runs and the 2-point runs (equal when a team has
+    # neither).
+    designed = (eff['rush'] == 1) & (eff['play_type'] == 'run') & (eff['two_point_attempt'] != 1)
+    eff['designed_run'] = designed.astype(int)
+    eff['stuffed_run'] = (designed & (eff['yards_gained'] <= 0)).astype(int)
 
     def sums(sub: pd.DataFrame, prefix: str, first_down: bool) -> pd.DataFrame:
         spec = {
@@ -3489,6 +3502,8 @@ def _team_game_efficiency(reg: pd.DataFrame) -> pd.DataFrame:
         eff.groupby(['game_id', 'posteam']).agg(
             explosive_pass=('expl_pass', 'sum'),
             explosive_rush=('expl_rush', 'sum'),
+            designed_runs=('designed_run', 'sum'),
+            stuffed_runs=('stuffed_run', 'sum'),
         ),
     ]
     out = pd.concat(parts, axis=1).reset_index().rename(columns={'posteam': 'team_id'})
@@ -3787,6 +3802,8 @@ def ensure_team_game_stats_table(conn):
                 explosive_rate NUMERIC,
                 explosive_pass INT,
                 explosive_rush INT,
+                designed_runs INT,
+                stuffed_runs INT,
                 epa_lost_turnovers NUMERIC,
                 epa_lost_sacks NUMERIC,
                 epa_lost_penalties NUMERIC,
@@ -3840,6 +3857,32 @@ def ensure_team_game_stats_table(conn):
         """)
     conn.commit()
     log.info("Ensured team_game_stats table exists with RLS")
+
+
+def ensure_team_game_stats_columns(conn):
+    """Add the stuff-rate columns to team_game_stats (idempotent). NOT inside @retry.
+    ensure_team_game_stats_table is CREATE TABLE IF NOT EXISTS only, so it cannot
+    add columns to the table that already exists in production (team radar spec §3.2).
+
+    Like the other ensure_* functions this takes a brief exclusive lock on the
+    table on every run and commits on its own, so it must stay BEFORE the season
+    transaction — inside it, this commit would commit a half-written season.
+    Rows written before the first refresh after the columns exist hold NULL."""
+    with conn.cursor() as cur:
+        # ADD COLUMN asks for an ACCESS EXCLUSIVE lock on every run, even once the
+        # columns exist. If anything holds a read lock, the ALTER waits — and every
+        # new site read of team_game_stats queues behind it for as long as it does
+        # (up to the 180 s statement timeout). Give up after 10 s instead: that
+        # raises LockNotAvailable, an OperationalError, so run_seasons retries the
+        # season. SET LOCAL lasts only for this function's own transaction.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
+        for col, typ in [
+            ('designed_runs', 'INT'),
+            ('stuffed_runs', 'INT'),
+        ]:
+            cur.execute(f"ALTER TABLE team_game_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
+    conn.commit()
+    log.info("Ensured team_game_stats has designed_runs/stuffed_runs columns")
 
 
 @retry(max_retries=2, delay=3)
@@ -4191,6 +4234,7 @@ def process_season(season: int, conn, dry_run: bool = False):
     ensure_team_situational_table(conn)
     ensure_player_slugs_table(conn)
     ensure_team_game_stats_table(conn)
+    ensure_team_game_stats_columns(conn)
 
     try:
         upsert_teams(conn, team_stats)
