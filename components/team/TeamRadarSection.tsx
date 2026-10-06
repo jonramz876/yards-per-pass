@@ -51,8 +51,10 @@ const TONE_CLASS: Record<RankTone, string> = {
   none: "text-slate-300",
 };
 
-const TH = "border-b border-slate-200 px-1.5 py-[7px] text-right text-[10.5px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap";
-const TD = "border-b border-slate-100 px-1.5 py-[7px] text-right align-top";
+const TH = "border-b border-slate-200 py-[7px] text-[10.5px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap";
+const TD = "border-b border-slate-100 py-[7px] align-top";
+const NUM = "px-1.5 text-right";
+const FIRST = "pl-0 pr-1.5 text-left";
 
 /** The sentence shown instead of the radars, per state. */
 function messageFor(radar: Exclude<TeamRadarSlice, { state: "ready" }>, teamName: string): string {
@@ -85,10 +87,10 @@ function SideTable({
     <table className="mt-1 w-full border-collapse text-[13px] tabular-nums">
       <thead>
         <tr>
-          <th className={`${TH} pl-0 text-left`}>Stat</th>
-          <th className={TH}>{teamId}</th>
-          <th className={TH}>Rank</th>
-          <th className={TH}>NFL avg</th>
+          <th className={`${TH} ${FIRST}`}>Stat</th>
+          <th className={`${TH} ${NUM}`}>{teamId}</th>
+          <th className={`${TH} ${NUM}`}>Rank</th>
+          <th className={`${TH} ${NUM}`}>NFL avg</th>
         </tr>
       </thead>
       <tbody>
@@ -98,7 +100,7 @@ function SideTable({
           const tone = rankTone(spoke.rank, spoke.pool);
           return (
             <tr key={axis.key} data-axis={axis.key} data-missing={missing ? "true" : undefined}>
-              <td className={`${TD} pl-0 text-left ${missing ? "text-slate-400" : "text-slate-900"}`}>
+              <td className={`${TD} ${FIRST} ${missing ? "text-slate-400" : "text-slate-900"}`}>
                 {axisLabel(axis, sideKey)}
                 {axis.tooltip && <MetricTooltip metric={axis.tooltip} />}
                 <span className="mt-px block text-[11.5px] font-normal text-slate-400">
@@ -106,10 +108,10 @@ function SideTable({
                   {spoke.count ? ` (${spoke.count[0]} of ${spoke.count[1]})` : ""}
                 </span>
               </td>
-              <td className={`${TD} whitespace-nowrap ${missing ? "text-slate-400" : "font-bold text-slate-900"}`}>
+              <td className={`${TD} ${NUM} whitespace-nowrap ${missing ? "text-slate-400" : "font-bold text-slate-900"}`}>
                 {fmtRadarPct(spoke.value)}
               </td>
-              <td className={`${TD} whitespace-nowrap`}>
+              <td className={`${TD} ${NUM} whitespace-nowrap`}>
                 <span
                   data-rank-tone={tone}
                   className={`inline-block min-w-[38px] rounded px-1.5 py-0.5 text-center text-[11px] font-bold ${TONE_CLASS[tone]}`}
@@ -117,7 +119,7 @@ function SideTable({
                   {rankCellLabel(spoke, teamsPlayed)}
                 </span>
               </td>
-              <td className={`${TD} whitespace-nowrap text-slate-500`}>{fmtRadarPct(league[axis.key])}</td>
+              <td className={`${TD} ${NUM} whitespace-nowrap text-slate-500`}>{fmtRadarPct(league[axis.key])}</td>
             </tr>
           );
         })}
