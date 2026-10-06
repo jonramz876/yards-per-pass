@@ -2,7 +2,7 @@
 // Schedule + results for one team-season, from the `games` table
 // (nflverse schedules; see ingest_schedules in scripts/ingest.py).
 import { createServerClient } from "@/lib/supabase/server";
-import { fetchAllRows } from "@/lib/data/utils";
+import { fetchAllRows, queryError } from "@/lib/data/utils";
 import { normalizeGameType } from "@/lib/stats/box-score";
 import type { TeamGame, GameResultsByTeam } from "@/lib/types";
 
@@ -175,7 +175,7 @@ export async function getTeamSchedule(
   // BOX_SCORE_READ_DEADLINE_MS).
   const { data, error } = await (signal ? query.abortSignal(signal) : query);
 
-  if (error) throw new Error(`Failed to fetch schedule: ${error.message}`);
+  if (error) throw queryError("schedule", error);
   if (!data) return [];
 
   // Derive against the same id the query filtered on, so home/away can't flip.
@@ -217,7 +217,7 @@ export async function getGameResults(
     .eq("season", season)
     .or(`home_team.in.(${list}),away_team.in.(${list})`);
 
-  if (error) throw new Error(`Failed to fetch game results: ${error.message}`);
+  if (error) throw queryError("game results", error);
 
   const results: GameResultsByTeam = {};
   for (const row of (data ?? []) as unknown as GameRow[]) {
@@ -269,7 +269,7 @@ export async function getGame(gameId: string, signal?: AbortSignal): Promise<Gam
   const query = supabase.from("games").select("*").eq("game_id", gameId).limit(1);
   // Optional deadline; see getTeamSchedule above.
   const { data, error } = await (signal ? query.abortSignal(signal) : query);
-  if (error) throw new Error(`Failed to fetch game ${gameId}: ${error.message}`);
+  if (error) throw queryError(`game ${gameId}`, error);
   const row = ((data ?? []) as unknown as GameRow[])[0];
   if (!row) return null;
   return {
@@ -331,6 +331,6 @@ export async function hasScheduleForSeason(season: number): Promise<boolean> {
     .eq("season", season)
     .limit(1);
 
-  if (error) throw new Error(`Failed to fetch schedule probe for ${season}: ${error.message}`);
+  if (error) throw queryError(`schedule probe for ${season}`, error);
   return (data?.length ?? 0) > 0;
 }

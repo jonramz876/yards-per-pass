@@ -420,6 +420,41 @@ describe("PlayerPage — a failed read is an error, never Not Found or an empty 
     logged.mockRestore();
   });
 
+  // Chaos regression (PR 1A): a ?season= Postgres cannot store (the column is
+  // INTEGER) made the stat reads fail, and since those reads are now core the
+  // page showed the error card with a "Try again" that could never work. Main
+  // had rendered an empty page. An implausible season is treated as absent
+  // (parseSeasonParam, 1999-2100), so no read ever carries it.
+  it.each([
+    ["past the INTEGER range", "99999999999"],
+    ["absurdly long", "99999999999999999999"],
+    ["negative", "-5"],
+    ["zero", "0"],
+    ["not a number", "abc"],
+    ["scientific notation", "1e9"],
+    ["before any NFL data", "1850"],
+    ["empty", ""],
+  ])("a junk ?season= (%s) renders the default season and never reaches a loader", async (_name, season) => {
+    render(await PlayerPage({ params: Promise.resolve({ slug: "josh-allen" }), searchParams: Promise.resolve({ season }) }));
+    const calls = vi.mocked(PlayerPageContent).mock.calls;
+    const props = calls[calls.length - 1][0];
+    expect(props.season).toBe(2026);
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(2026);
+    expect(vi.mocked(getQBWeeklyStats)).toHaveBeenCalledWith("00-0034857", 2026);
+    expect(vi.mocked(getTeamTopReceivers)).toHaveBeenCalledWith("BUF", 2026, 5);
+    expect(vi.mocked(getQBPassLocationStats)).toHaveBeenCalledWith("00-0034857", 2026);
+  });
+
+  it("a decimal ?season= keeps its whole year, as before", async () => {
+    render(await PlayerPage({ params: Promise.resolve({ slug: "josh-allen" }), searchParams: Promise.resolve({ season: "2025.5" }) }));
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(2025);
+  });
+
+  it.each(["2025", "2020", "1999", "2027", "2100"])("a plausible ?season=%s is still honoured", async (season) => {
+    render(await PlayerPage({ params: Promise.resolve({ slug: "josh-allen" }), searchParams: Promise.resolve({ season }) }));
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(Number(season));
+  });
+
   it("a healthy render logs nothing", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     await contentProps("josh-allen");

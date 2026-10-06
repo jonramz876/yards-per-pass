@@ -24,7 +24,7 @@ vi.mock("@/lib/supabase/server", () => {
   };
 });
 
-import { getAvailableSeasons, getDataFreshness } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats } from "@/lib/data/queries";
 
 beforeEach(() => {
   calls.length = 0;
@@ -61,6 +61,26 @@ describe("getAvailableSeasons", () => {
     const err = await getAvailableSeasons().catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toBe("Failed to fetch seasons: TypeError: fetch failed");
+  });
+
+  // Chaos K2: this logged "Failed to fetch seasons: undefined".
+  it("an error with no message still says something useful (its code and details)", async () => {
+    result = { data: null, error: { code: "PGRST301", details: "JWT expired", hint: null } };
+    const err = await getAvailableSeasons().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).not.toContain("undefined");
+    expect((err as Error).message).toContain("PGRST301");
+    expect((err as Error).message).toContain("JWT expired");
+  });
+
+  it("the loaders that already threw before PR 1A get the same treatment", async () => {
+    result = { data: null, error: { code: "57014" } };
+    for (const load of [() => getTeamStats(2026), () => getQBStats(2026), () => getDataFreshness(2026)]) {
+      const err = await load().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).not.toContain("undefined");
+      expect((err as Error).message).toContain("57014");
+    }
   });
 
   it("returns [] only when the read succeeded with no rows", async () => {

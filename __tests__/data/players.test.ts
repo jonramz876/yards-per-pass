@@ -82,6 +82,47 @@ describe("getPlayerBySlug", () => {
     expect(await getPlayerBySlug("no-such-player")).toBeNull();
   });
 
+  // Chaos K1: a slug Postgres or the gateway itself refuses (a NUL byte is a
+  // 400, an absurd length a 414) came back as a query error, so since PR 1A it
+  // read as "database down" on /player, /card and /api/stat-card instead of
+  // "no such player". No player can have such a slug (scripts/ingest.py
+  // make_slug emits only a-z, 0-9 and hyphens), so the answer is null with no
+  // read at all.
+  it.each([
+    ["a NUL byte", "\u0000"],
+    ["a NUL byte inside a name", "josh\u0000allen"],
+    ["an empty slug", ""],
+    ["an absurd length", "a".repeat(5000)],
+    ["101 characters", "a".repeat(101)],
+    ["a space", "josh allen"],
+    ["a slash", "josh/allen"],
+    ["a percent sign", "josh%00allen"],
+    ["a newline", "josh\nallen"],
+    ["a filter-syntax attempt", "x,player_id.eq.1"],
+    ["non-Latin letters", "josé-allen"],
+  ])("returns null without reading for a slug no player can have: %s", async (_name, slug) => {
+    results = [FAIL]; // a read would throw
+    expect(await getPlayerBySlug(slug)).toBeNull();
+    expect(calls).toHaveLength(0);
+  });
+
+  it.each([
+    "josh-allen",
+    "amon-ra-st-brown",
+    "dj-moore-chi",
+    "josh-allen-qb",
+    "mike-williams-00-0033536",
+    "a",
+    "a".repeat(100),
+    "Josh-Allen",
+    "d'andre-swift",
+    "t.j.-watt",
+  ])("still reads for a plausible slug: %s", async (slug) => {
+    results = [{ data: null, error: null }];
+    expect(await getPlayerBySlug(slug)).toBeNull();
+    expect(calls).toContainEqual(["eq", "slug", slug]);
+  });
+
   it("throws on a query error, so a failed read is never a 404", async () => {
     results = [FAIL];
     const err = await rejection(getPlayerBySlug("josh-allen"));

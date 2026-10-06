@@ -1,6 +1,7 @@
 // lib/data/queries.ts
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
+import { queryError } from "@/lib/data/utils";
 import type { TeamSeasonStat, QBSeasonStat, DataFreshness } from "@/lib/types";
 
 const TEAM_NUMERIC_FIELDS = [
@@ -42,7 +43,7 @@ export async function getTeamStats(
     .select("*")
     .eq("season", season);
 
-  if (error) throw new Error(`Failed to fetch team stats: ${error.message}`);
+  if (error) throw queryError("team stats", error);
   if (!data) return [];
 
   return data.map(
@@ -59,7 +60,7 @@ export async function getQBStats(
     .select("*")
     .eq("season", season);
 
-  if (error) throw new Error(`Failed to fetch QB stats: ${error.message}`);
+  if (error) throw queryError("QB stats", error);
   if (!data) return [];
 
   return data.map(
@@ -79,7 +80,7 @@ export async function getDataFreshness(season?: number): Promise<DataFreshness |
   // (a real answer: null), so an `error` here always means the read failed.
   const { data, error } = await query.maybeSingle();
 
-  if (error) throw new Error(`Failed to fetch data freshness: ${error.message}`);
+  if (error) throw queryError("data freshness", error);
   return (data as DataFreshness | null) ?? null;
 }
 
@@ -98,7 +99,7 @@ export async function getAvailableSeasons(): Promise<number[]> {
 
   // A failed read throws; [] means the table really has no rows (read
   // resilience spec §1.2). Callers used to guess "empty means it failed".
-  if (error) throw new Error(`Failed to fetch seasons: ${error.message}`);
+  if (error) throw queryError("seasons", error);
   // Coerced, not trusted: this is the single place a season leaves the
   // database, and every downstream gate asks Number.isInteger of it. If
   // data_freshness.season ever arrived as text (a column type change, a view

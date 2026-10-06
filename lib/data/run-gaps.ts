@@ -30,7 +30,7 @@ export async function getRBGapStats(
       .select("*")
       .eq("season", season)
       .eq("team_id", teamId);
-    if (error) throw new Error(`Failed to fetch RB gap stats: ${error.message}`);
+    if (error) throw queryError("RB gap stats", error);
     if (!data) return [];
     return data.map((row) =>
       parseNumericFields<RBGapStat>(row as unknown as RBGapStat, RB_GAP_NUMERIC_FIELDS)
@@ -150,7 +150,7 @@ export async function getRBGapStatsWeekly(
     .eq("situation", situation)
     .eq("field_zone", fieldZone);
 
-  if (error) throw new Error(`Failed to fetch weekly gap stats: ${error.message}`);
+  if (error) throw queryError("weekly gap stats", error);
   if (!data) return [];
 
   return data.map((row) =>

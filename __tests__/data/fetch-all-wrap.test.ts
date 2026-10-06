@@ -10,7 +10,9 @@ vi.mock("@/lib/data/utils", async (importOriginal) => ({
   fetchAllRows: (...args: unknown[]) => fetchAllRows(...args),
 }));
 
-import { queryError } from "@/lib/data/utils";
+import fs from "fs";
+import path from "path";
+import { queryError, summarizeUpstreamError } from "@/lib/data/utils";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getAllSurgeData, getWeeklyForStat, SURGE_STATS } from "@/lib/data/trends";
 import type { PlayerSlug } from "@/lib/types";
@@ -51,6 +53,78 @@ describe("queryError", () => {
     const loop: Record<string, unknown> = {};
     loop.self = loop;
     expect(queryError("x", loop).message).toBe("Failed to fetch x: [object Object]");
+  });
+});
+
+// Chaos K3: when the gateway answers with a web page (a Cloudflare 522),
+// postgrest-js puts the whole body in error.message. Unbounded, that was 8 KB
+// of HTML in every log line and in /api/health's answer.
+describe("queryError keeps an upstream error body short", () => {
+  const HTML_522 =
+    "<!DOCTYPE html><html><head><title>yardsperpass.supabase.co | 522: Connection timed out</title></head><body>" +
+    "<script>alert('xss')</script>" +
+    "<p>filler</p>".repeat(700) +
+    "</body></html>";
+
+  it("an 8 KB HTML error page becomes one short sentence with the page title and no markup", () => {
+    expect(HTML_522.length).toBeGreaterThan(8000);
+    const err = queryError("seasons", { message: HTML_522 });
+    expect(err.message).toBe(
+      "Failed to fetch seasons: upstream returned an HTML error page (yardsperpass.supabase.co | 522: Connection timed out)",
+    );
+    expect(err.message).not.toMatch(/[<>]/);
+  });
+
+  it("an HTML page with no title still says what it was", () => {
+    const err = queryError("seasons", { message: "<html><body><h1>Bad gateway</h1></body></html>" });
+    expect(err.message).toBe("Failed to fetch seasons: upstream returned an HTML error page");
+  });
+
+  it("the HTTP status is named when the caller knows it", () => {
+    expect(summarizeUpstreamError({ message: HTML_522 }, 522)).toBe(
+      "upstream returned an HTML error page (HTTP 522, yardsperpass.supabase.co | 522: Connection timed out)",
+    );
+    expect(summarizeUpstreamError({ message: "<html></html>" }, 502)).toBe(
+      "upstream returned an HTML error page (HTTP 502)",
+    );
+  });
+
+  it("a long plain-text message is cut at 300 characters and says how much was dropped", () => {
+    const err = queryError("x", { message: "a".repeat(1000) });
+    expect(err.message).toBe(`Failed to fetch x: ${"a".repeat(300)}... (700 more characters)`);
+  });
+
+  it("a message of exactly 300 characters is left alone", () => {
+    expect(summarizeUpstreamError({ message: "b".repeat(300) })).toBe("b".repeat(300));
+  });
+
+  it("the cause does not smuggle the oversized body back into the logs", () => {
+    const err = queryError("seasons", { message: HTML_522, code: "", details: "d".repeat(5000), hint: null });
+    expect(JSON.stringify(err.cause).length).toBeLessThan(1000);
+    expect(JSON.stringify(err.cause)).not.toContain("<script>");
+  });
+
+  it("a short message is unchanged, and so is its cause (guard)", () => {
+    const raw = { message: "TypeError: fetch failed", code: "", details: "", hint: "" };
+    const err = queryError("seasons", raw);
+    expect(err.message).toBe("Failed to fetch seasons: TypeError: fetch failed");
+    expect(err.cause).toBe(raw);
+  });
+});
+
+// Chaos K2: loaders built their message from `error.message` directly, so an
+// error with no message logged "Failed to fetch seasons: undefined".
+describe("no loader builds its message from error.message directly", () => {
+  it("every lib/data file reports a query error through queryError", () => {
+    const dir = path.resolve(__dirname, "../../lib/data");
+    const offenders: string[] = [];
+    for (const file of fs.readdirSync(dir)) {
+      const text = fs.readFileSync(path.join(dir, file), "utf8");
+      text.split(/\r?\n/).forEach((line, i) => {
+        if (line.includes("${error.message}")) offenders.push(`${file}:${i + 1}`);
+      });
+    }
+    expect(offenders).toEqual([]);
   });
 });
 

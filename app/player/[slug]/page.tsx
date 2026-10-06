@@ -8,6 +8,7 @@ import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/quer
 import { getGameResults } from "@/lib/data/games";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import { hasNoDatabase } from "@/lib/supabase/server";
+import { parseSeasonParam } from "@/lib/stats/team-stats";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getTeam } from "@/lib/data/teams";
@@ -90,8 +91,11 @@ export default async function PlayerPage({
   if (!player) notFound();
 
   const seasons = await getAvailableSeasons();
-  const parsed = season ? parseInt(season) : NaN;
-  const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
+  // An implausible ?season= (outside 1999-2100, or not a number) is treated as
+  // absent, so it can never reach the database: the season columns are
+  // INTEGER, and ?season=99999999999 made every stat read fail, which since
+  // those reads became core showed the error card for a mistyped link.
+  const currentSeason = parseSeasonParam(season) ?? (seasons[0] || fallbackSeason());
 
   // getAvailableSeasons throws on a query error (the route's error card
   // shows), so [] is a table with no rows. A real database always has

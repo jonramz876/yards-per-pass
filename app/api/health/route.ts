@@ -1,6 +1,7 @@
 // app/api/health/route.ts
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { summarizeUpstreamError } from "@/lib/data/utils";
 
 // Always read the database. Without this Next treats GET as static and its Supabase read as cache-forever (it reported Sep 10 data on Sep 25).
 // `dynamic = "force-dynamic"` alone is not enough in Next 14: the read would still come from the fetch cache.
@@ -24,11 +25,14 @@ export async function GET() {
       .from("data_freshness")
       .select("*")
       .order("season", { ascending: false });
-    if (result.error) return unavailable(result.error.message);
+    // summarizeUpstreamError: always a string (an error with no message shows
+    // its code and details), never the upstream's HTML error page, never more
+    // than about 300 characters. This body goes to whoever asks.
+    if (result.error) return unavailable(summarizeUpstreamError(result.error, result.status));
     data = result.data;
   } catch (err) {
     // createServerClient throws on missing env vars; a rejected read lands here too.
-    return unavailable(err instanceof Error ? err.message : String(err));
+    return unavailable(summarizeUpstreamError(typeof err === "string" ? { message: err } : err));
   }
 
   return NextResponse.json({

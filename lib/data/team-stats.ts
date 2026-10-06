@@ -3,7 +3,7 @@
 // this module from a "use client" file. The pure aggregator and presentation
 // pieces live in lib/stats/team-stats.ts.
 import { parseNumericFields } from "@/lib/utils";
-import { fetchAllRows } from "@/lib/data/utils";
+import { fetchAllRows, queryError } from "@/lib/data/utils";
 import { TEAM_GAME_NUMERIC, boxScoreDeadline, getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import type { TeamGameStat } from "@/lib/types";
 
@@ -54,9 +54,7 @@ export async function getTeamStatsSeason(season: number, seasons: number[]): Pro
   } catch (err) {
     // fetchAllRows rejects with the raw PostgREST object; make it a real Error
     // so error.tsx and the logs get a message (lib/data/games.ts:292-303).
-    const e = err as { message?: unknown } | null;
-    const message = typeof e?.message === "string" ? e.message : JSON.stringify(err);
-    throw new Error(`Failed to fetch team_game_stats for ${season}: ${message}`);
+    throw queryError(`team_game_stats for ${season}`, err);
   }
 
   if (raw.length > 0) {

@@ -45,12 +45,27 @@ export const RB_WEEKLY_NUMERIC = [
 // read succeeded with no rows. Callers decide what a throw means.
 
 /**
+ * The shape a player slug can have. scripts/ingest.py make_slug emits only
+ * a-z, 0-9 and single hyphens (collision suffixes add a team code, a position
+ * or a player id: same characters), and the longest real slug is far under 100
+ * characters. Deliberately generous (capitals, apostrophes, dots, underscores)
+ * so nothing real is ever refused here; the database still decides whether the
+ * slug exists. Its job is only to stop input the database would reject.
+ */
+const PLAUSIBLE_SLUG = /^[A-Za-z0-9._'-]{1,100}$/;
+
+/**
  * The player row for a slug, or null when no player has it. Throws on a query
  * error: a failed read must never look like an unknown player (a 404).
  */
 export async function getPlayerBySlug(
   slug: string
 ): Promise<PlayerSlug | null> {
+  // A slug no player can have is "no such player" without asking: Postgres
+  // and the gateway refuse some of them outright (a NUL byte is a 400, an
+  // absurd length a 414), and that refusal would otherwise come back as a
+  // query error and read as "database down" instead of a 404.
+  if (!PLAUSIBLE_SLUG.test(slug)) return null;
   const supabase = createServerClient();
   // maybeSingle, not single: no row is `data: null, error: null`, so an
   // `error` here always means the read failed.
@@ -59,7 +74,7 @@ export async function getPlayerBySlug(
     .select("*")
     .eq("slug", slug)
     .maybeSingle();
-  if (error) throw new Error(`Failed to fetch player ${slug}: ${error.message}`);
+  if (error) throw queryError(`player ${slug}`, error);
   if (!data) return null;
   return data as PlayerSlug;
 }
@@ -82,7 +97,7 @@ export async function getPlayerSlugsByIds(playerIds: string[]): Promise<PlayerSl
     .from("player_slugs")
     .select("*")
     .in("player_id", playerIds);
-  if (error) throw new Error(`Failed to fetch player slugs: ${error.message}`);
+  if (error) throw queryError("player slugs", error);
   if (!data) return [];
   return data as PlayerSlug[];
 }
@@ -98,7 +113,7 @@ export async function getQBWeeklyStats(
     .eq("player_id", playerId)
     .eq("season", season)
     .order("week");
-  if (error) throw new Error(`Failed to fetch QB weekly stats: ${error.message}`);
+  if (error) throw queryError("QB weekly stats", error);
   if (!data) return [];
   return data.map((row) =>
     parseNumericFields<QBWeeklyStat>(
@@ -119,7 +134,7 @@ export async function getReceiverWeeklyStats(
     .eq("player_id", playerId)
     .eq("season", season)
     .order("week");
-  if (error) throw new Error(`Failed to fetch receiver weekly stats: ${error.message}`);
+  if (error) throw queryError("receiver weekly stats", error);
   if (!data) return [];
   return data.map((row) =>
     parseNumericFields<ReceiverWeeklyStat>(
@@ -140,7 +155,7 @@ export async function getRBWeeklyStats(
     .eq("player_id", playerId)
     .eq("season", season)
     .order("week");
-  if (error) throw new Error(`Failed to fetch RB weekly stats: ${error.message}`);
+  if (error) throw queryError("RB weekly stats", error);
   if (!data) return [];
   return data.map((row) =>
     parseNumericFields<RBWeeklyStat>(
@@ -164,7 +179,7 @@ export async function getTeamTopReceivers(
     .eq("season", season)
     .order("targets", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(`Failed to fetch team top receivers: ${error.message}`);
+  if (error) throw queryError("team top receivers", error);
   if (!data) return [];
 
   // Fetch slugs for linking
@@ -196,7 +211,7 @@ export async function getTeamStartingQB(
     .eq("season", season)
     .order("dropbacks", { ascending: false })
     .limit(1);
-  if (error) throw new Error(`Failed to fetch team starting QB: ${error.message}`);
+  if (error) throw queryError("team starting QB", error);
   if (!data || data.length === 0) return null;
 
   const row = data[0];
@@ -234,7 +249,7 @@ export async function getQBPassLocationStats(
     .select("*")
     .eq("player_id", playerId)
     .eq("season", season);
-  if (error) throw new Error(`Failed to fetch QB pass location stats: ${error.message}`);
+  if (error) throw queryError("QB pass location stats", error);
   if (!data) return [];
   return data.map((row) =>
     parseNumericFields<QBPassLocationStat>(

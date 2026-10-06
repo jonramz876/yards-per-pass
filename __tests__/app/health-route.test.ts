@@ -58,6 +58,51 @@ describe("/api/health", () => {
     expect(await res.json()).toEqual({ status: "error", message: "Missing Supabase env vars." });
   });
 
+  // Chaos K2: JSON.stringify dropped an undefined message, so the body was
+  // just {"status":"error"}.
+  it("the error body always has a message string, even when the upstream error has none", async () => {
+    for (const error of [{}, { code: "PGRST301", details: "JWT expired" }, { message: null }, { message: 42 }]) {
+      order.mockResolvedValue({ data: null, error, status: 401 });
+      const res = await GET();
+      expect(res.status).toBe(503);
+      const body = await res.json();
+      expect(body.status).toBe("error");
+      expect(typeof body.message).toBe("string");
+      expect(body.message.length).toBeGreaterThan(0);
+      expect(body.message).not.toContain("undefined");
+    }
+    order.mockResolvedValue({ data: null, error: { code: "PGRST301", details: "JWT expired" } });
+    expect((await (await GET()).json()).message).toContain("PGRST301");
+  });
+
+  // Chaos K3: an upstream HTML error page was echoed whole (8 KB) to any caller.
+  it("an 8 KB upstream HTML error page is answered with one short sentence, not the page", async () => {
+    const html =
+      "<!DOCTYPE html><html><head><title>yardsperpass.supabase.co | 522: Connection timed out</title></head><body>" +
+      "<script>alert('xss')</script>" +
+      "<p>filler</p>".repeat(700) +
+      "</body></html>";
+    expect(html.length).toBeGreaterThan(8000);
+    order.mockResolvedValue({ data: null, error: { message: html }, status: 522 });
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    const text = await res.text();
+    expect(text.length).toBeLessThan(400);
+    expect(text).not.toContain("<script>");
+    expect(JSON.parse(text)).toEqual({
+      status: "error",
+      message:
+        "upstream returned an HTML error page (HTTP 522, yardsperpass.supabase.co | 522: Connection timed out)",
+    });
+  });
+
+  it("a long plain-text upstream error is cut at 300 characters", async () => {
+    order.mockResolvedValue({ data: null, error: { message: "x".repeat(5000) }, status: 500 });
+    const body = await (await GET()).json();
+    expect(body.message).toBe(`${"x".repeat(300)}... (4700 more characters)`);
+  });
+
   it("returns 503 when the read rejects with something that is not an Error", async () => {
     order.mockRejectedValue("socket hang up");
     const res = await GET();

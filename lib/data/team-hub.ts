@@ -9,6 +9,7 @@ import { getAllPlayerSlugs } from "@/lib/data/players";
 import { getTeamSchedule } from "@/lib/data/games";
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
+import { queryError } from "@/lib/data/utils";
 import type {
   TeamSeasonStat,
   QBSeasonStat,
@@ -64,7 +65,7 @@ async function getDownDistanceStats(season: number, teamId: string): Promise<{ t
     .select("*")
     .eq("season", season)
     .in("team_id", [teamId, "NFL"]);
-  if (error) throw new Error(`Failed to fetch down and distance stats: ${error.message}`);
+  if (error) throw queryError("down and distance stats", error);
   if (!data) return { team: [], nfl: [] };
   const parsed = data.map((r: Record<string, unknown>) => parseNumericFields<TeamDownDistanceStat>(r as unknown as TeamDownDistanceStat, DD_NUMERIC as unknown as string[]));
   return {
@@ -79,7 +80,7 @@ async function getSituationalStats(season: number): Promise<TeamSituationalStat[
     .from("team_situational_stats")
     .select("*")
     .eq("season", season);
-  if (error) throw new Error(`Failed to fetch situational stats: ${error.message}`);
+  if (error) throw queryError("situational stats", error);
   if (!data) return [];
   return data.map((r: Record<string, unknown>) => parseNumericFields<TeamSituationalStat>(r as unknown as TeamSituationalStat, SIT_NUMERIC as unknown as string[]));
 }

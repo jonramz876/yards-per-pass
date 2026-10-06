@@ -128,6 +128,35 @@ describe("TeamPage — a failed read is an error, never a blank team page", () =
     expect(vi.mocked(getTeamHubData).mock.calls[0]).toEqual(["BUF", 2026, false]);
   });
 
+  // Chaos regression (PR 1A): a ?season= Postgres cannot store (the column is
+  // INTEGER) made the hub's reads fail, and since they are now core the page
+  // showed the error card with a "Try again" that could never work. An
+  // implausible season is treated as absent (parseSeasonParam, 1999-2100).
+  it.each([
+    ["past the INTEGER range", "99999999999"],
+    ["absurdly long", "99999999999999999999"],
+    ["negative", "-5"],
+    ["zero", "0"],
+    ["not a number", "abc"],
+    ["scientific notation", "1e9"],
+    ["before any NFL data", "1850"],
+    ["empty", ""],
+  ])("a junk ?season= (%s) renders the default season and never reaches the hub's reads", async (_name, season) => {
+    render(await TeamPage({ params: Promise.resolve({ team_id: "buf" }), searchParams: Promise.resolve({ season }) }));
+    expect(vi.mocked(getTeamHubData).mock.calls).toEqual([["BUF", 2026, true]]);
+    expect(TeamHubContent).toHaveBeenCalled();
+  });
+
+  it("a decimal ?season= keeps its whole year, as before", async () => {
+    render(await TeamPage({ params: Promise.resolve({ team_id: "buf" }), searchParams: Promise.resolve({ season: "2025.5" }) }));
+    expect(vi.mocked(getTeamHubData).mock.calls).toEqual([["BUF", 2025, false]]);
+  });
+
+  it.each(["2025", "1999", "2027", "2100"])("a plausible ?season=%s is still honoured", async (season) => {
+    render(await TeamPage({ params: Promise.resolve({ team_id: "buf" }), searchParams: Promise.resolve({ season }) }));
+    expect(vi.mocked(getTeamHubData).mock.calls[0][1]).toBe(Number(season));
+  });
+
   it("an unknown team is a 404 decided before any read, so it stays a 404 when the database is down", async () => {
     await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(getAvailableSeasons).not.toHaveBeenCalled();
