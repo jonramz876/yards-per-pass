@@ -88,7 +88,7 @@ export function num(v: unknown): number | null {
 }
 
 /** Σ(rate × den) / Σ den over rows with a rate and a non-zero denominator; null when Σ den is 0. */
-function wavg(rows: readonly Row[], rate: string, den: string): number | null {
+export function wavg(rows: readonly Row[], rate: string, den: string): number | null {
   let top = 0;
   let bot = 0;
   for (const r of rows) {
@@ -102,7 +102,7 @@ function wavg(rows: readonly Row[], rate: string, den: string): number | null {
 }
 
 /** Σ (num(v) ?? 0). */
-function total(rows: readonly Row[], col: string): number {
+export function total(rows: readonly Row[], col: string): number {
   let s = 0;
   for (const r of rows) s += num(r[col]) ?? 0;
   return s;
