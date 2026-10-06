@@ -81,22 +81,35 @@ async function loadSans(): Promise<ArrayBuffer> {
   );
 }
 
+type RadarImageFont = { name: string; data: ArrayBuffer; style: "normal"; weight: 400 };
+
 /**
- * The `fonts` option for ImageResponse. A font that cannot be read is logged
- * and left out (the image then draws its text in whichever font remains, or
- * in next/og's default when neither loads): a missing font never turns the
- * image into an error.
+ * The `fonts` option for ImageResponse. A font that cannot be read is logged,
+ * never thrown: a missing font must not turn the image into an error.
+ *
+ * - Both load: both are registered.
+ * - Only the pixel font is missing: the readable font alone (the band loses
+ *   its pixel look, nothing else changes).
+ * - The readable font is missing: `undefined`, even when the pixel font
+ *   loaded. Satori draws a family it does not have in the first font it does
+ *   have, so registering the pixel font alone would draw every label and the
+ *   whole table in Press Start 2P: unreadable and far too wide. With no fonts
+ *   option next/og uses its own default font for everything.
+ *
+ * `load` exists for the tests; callers pass nothing.
  */
-export async function radarImageFonts(): Promise<{ name: string; data: ArrayBuffer; style: "normal"; weight: 400 }[] | undefined> {
-  const fonts: { name: string; data: ArrayBuffer; style: "normal"; weight: 400 }[] = [];
-  for (const [name, load] of [[SANS, loadSans], [PIXEL, loadPixel]] as const) {
+export async function radarImageFonts(
+  load: { sans: () => Promise<ArrayBuffer>; pixel: () => Promise<ArrayBuffer> } = { sans: loadSans, pixel: loadPixel },
+): Promise<RadarImageFont[] | undefined> {
+  const fonts: RadarImageFont[] = [];
+  for (const [name, read] of [[SANS, load.sans], [PIXEL, load.pixel]] as const) {
     try {
-      fonts.push({ name, data: await load(), style: "normal", weight: 400 });
+      fonts.push({ name, data: await read(), style: "normal", weight: 400 });
     } catch (err) {
       console.error(`Team radar image: font ${name} unavailable`, err);
     }
   }
-  return fonts.length > 0 ? fonts : undefined;
+  return fonts.some((f) => f.name === SANS) ? fonts : undefined;
 }
 
 // ------------------------------------------------------------------ colours

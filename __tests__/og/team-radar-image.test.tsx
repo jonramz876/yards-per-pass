@@ -310,6 +310,36 @@ describe("fonts: bundled files only, never fetched at request time", () => {
     expect(Array.from(used).sort()).toEqual(["PIXEL", "SANS"]);
   });
 
+  // With only the pixel font registered Satori would draw every label and the
+  // whole table in Press Start 2P (unreadable, and far too wide). No fonts at
+  // all makes next/og use its own default for everything instead.
+  it("the readable font missing but the pixel font present: NO fonts are registered, so the table is never drawn in the pixel font", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const pixel = async () => new ArrayBuffer(20_000);
+    const fonts = await radarImageFonts({
+      sans: async () => {
+        throw new Error("ENOENT");
+      },
+      pixel,
+    });
+    expect(fonts).toBeUndefined();
+    expect(String(error.mock.calls[0][0])).toContain("RadarSans");
+    error.mockRestore();
+  });
+
+  it("the pixel font missing but the readable font present: the readable font alone is registered (the band loses its pixel look, nothing else)", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fonts = await radarImageFonts({
+      sans: async () => new ArrayBuffer(20_000),
+      pixel: async () => {
+        throw new Error("ENOENT");
+      },
+    });
+    expect(fonts!.map((f) => f.name)).toEqual(["RadarSans"]);
+    expect(String(error.mock.calls[0][0])).toContain("PressStart");
+    error.mockRestore();
+  });
+
   it("a font that cannot be read is logged and left out, not thrown (the image still renders)", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const cwd = vi.spyOn(process, "cwd").mockReturnValue(join(__dirname, "no-such-dir"));
