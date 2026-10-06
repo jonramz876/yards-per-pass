@@ -6,6 +6,9 @@ aggregates team and QB season stats, and upserts into Supabase PostgreSQL.
 """
 
 import argparse
+import hashlib
+import importlib.metadata as importlib_metadata
+import json
 import logging
 import os
 import sys
@@ -13,6 +16,7 @@ import time
 from datetime import datetime, timezone
 from functools import wraps
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 import pandas as pd
 import psycopg2
@@ -3290,26 +3294,12 @@ def ensure_games_table(conn):
     log.info("Ensured games table exists with RLS")
 
 
-def ingest_schedules(conn, season: int):
-    """Upsert one season's schedule + results into games.
+def _schedule_rows(df: pd.DataFrame) -> list:
+    """One season's schedule frame (GAMES_COLS only) as the tuples sent to Postgres.
 
-    Future games carry null scores and fill in as they're played, so this runs
-    every refresh: ON CONFLICT updates scores plus gameday/gametime/weekday
-    (reschedules move the date AND the day name).
-
-    conn is None (dry run) → log the would-upsert count and write nothing.
+    Shared by ingest_schedules and schedules_fingerprint, so the fingerprint that
+    decides whether a refresh can be skipped is taken over exactly what is written.
     """
-    schedules = download_schedules()
-    df = schedules[schedules['season'] == season]
-    if df.empty:
-        log.warning("No schedule rows for season %d — nothing to ingest", season)
-        return
-    df = df[GAMES_COLS]
-
-    if conn is None:
-        log.info("[DRY RUN] Would upsert %d schedule rows for %d", len(df), season)
-        return
-
     # Missing scores/gametime MUST reach psycopg2 as None. home_score is float64
     # and gametime the pandas 3 string dtype, neither of which can hold None —
     # and `.where(cond, None)` does not help (pandas reads that None as "fill
@@ -3330,6 +3320,31 @@ def ingest_schedules(conn, season: int):
             else:
                 values.append(str(v))
         rows.append(tuple(values))
+    return rows
+
+
+def ingest_schedules(conn, season: int):
+    """Upsert one season's schedule + results into games.
+
+    Future games carry null scores and fill in as they're played, so this runs
+    every refresh: ON CONFLICT updates scores plus gameday/gametime/weekday
+    (reschedules move the date AND the day name).
+
+    conn is None (dry run) → log the would-upsert count and write nothing.
+    Returns the number of rows sent (None when nothing was written).
+    """
+    schedules = download_schedules()
+    df = schedules[schedules['season'] == season]
+    if df.empty:
+        log.warning("No schedule rows for season %d — nothing to ingest", season)
+        return
+    df = df[GAMES_COLS]
+
+    if conn is None:
+        log.info("[DRY RUN] Would upsert %d schedule rows for %d", len(df), season)
+        return
+
+    rows = _schedule_rows(df)
 
     col_names = ', '.join(GAMES_COLS)
     update_set = ', '.join(
@@ -3355,6 +3370,7 @@ def ingest_schedules(conn, season: int):
         log.error("Schedules ingest for %d FAILED — rolled back", season)
         raise
     log.info("Upserted %d schedule rows for %d", len(rows), season)
+    return len(rows)
 
 
 # --- team_game_stats: one row per team per game (box score spec §4/§5) ---
@@ -4279,6 +4295,18 @@ def process_season(season: int, conn, dry_run: bool = False):
         log.error("Season %d FAILED — rolled back all changes", season)
         raise
 
+    # What the skip-unchanged bookkeeping (RefreshTracker) needs to know about this
+    # run. `participation_loaded` matters: download_participation falls back to None
+    # on any error, and a season written without routes must not be recorded as done.
+    sent_frames = [team_stats, team_stats, qb_stats, qb_pass_loc, rb_gap_stats, rb_gap_stats_weekly,
+                   def_gap_stats, receiver_stats, rb_season_stats, qb_weekly, receiver_weekly,
+                   rb_weekly, dd_stats, sit_stats, team_game_stats, player_slugs_df]
+    return {
+        'participation_loaded': participation is not None,
+        'rows_sent': sum(len(f) for f in sent_frames if f is not None),
+        'through_week': through_week,
+    }
+
 
 # --- Riding out database blips (Supabase pooler timeouts / latency spikes) ---
 # The whole run gets one wall-clock budget so it finishes inside the workflow's
@@ -4342,13 +4370,359 @@ def connect_with_retry(db_url, deadline):
             time.sleep(wait)
 
 
-def run_seasons(seasons, db_url, dry_run, deadline):
+# --- Skip the refresh when nothing ingest uses has changed ---------------------------
+# docs/superpowers/specs/2026-10-06-refresh-io-design.md (revision 2), PR A.
+# Only active with --state-file (the scheduled workflow). A skip needs positive proof:
+# every doubt (API error, missing digest, unreadable state, old state) means "run".
+MAX_SKIP_AGE_SECONDS = 20 * 60 * 60        # one run a day is always a full run
+STATE_VERSION = 1
+ABSENT = 'absent'                          # the release lists no asset with that exact name
+RELEASE_API_URL = "https://api.github.com/repos/nflverse/nflverse-data/releases/tags/{tag}"
+RELEASE_API_TIMEOUT_SECONDS = 20
+# fingerprint part, release tag, exact asset name
+SOURCE_ASSETS = (
+    ('pbp', 'pbp', 'play_by_play_{season}.parquet'),
+    ('roster', 'weekly_rosters', 'roster_weekly_{season}.parquet'),
+    ('participation', 'pbp_participation', 'pbp_participation_{season}.parquet'),
+)
+FINGERPRINT_PARTS = ('code', 'pbp', 'roster', 'participation', 'schedules')
+REVALIDATED_MARKER = 'revalidated_at'      # written beside the state file by the workflow on HTTP 200
+_STAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"       # same as the workflow's `date -u +%Y-%m-%dT%H:%M:%SZ`
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _stamp(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).strftime(_STAMP_FORMAT)
+
+
+def _parse_stamp(value):
+    """A UTC stamp written by _stamp (or the workflow) → aware datetime; anything else → None."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.strptime(value.strip(), _STAMP_FORMAT).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def compute_code_hash(script_dir=None):
+    """sha256 over ingest.py, requirements.txt and the running pandas/numpy/pyarrow versions.
+
+    Any change to the code or to the libraries that do the arithmetic forces one full
+    run. None (= unknown, so the run goes ahead) if anything cannot be read.
+    """
+    try:
+        here = script_dir or os.path.dirname(os.path.abspath(__file__))
+        digest = hashlib.sha256()
+        for name in ('ingest.py', 'requirements.txt'):
+            with open(os.path.join(here, name), 'rb') as f:
+                digest.update(f"{name}:{hashlib.sha256(f.read()).hexdigest()}\n".encode('utf-8'))
+        for package in ('pandas', 'numpy', 'pyarrow'):
+            digest.update(f"{package}=={importlib_metadata.version(package)}\n".encode('utf-8'))
+        return digest.hexdigest()
+    except Exception as e:
+        log.warning("Could not compute the code hash (treated as changed): %s", e)
+        return None
+
+
+def fetch_release_assets(tag, token=None):
+    """{asset name: digest or None} for one nflverse-data release, or None on any doubt.
+
+    One attempt, no retries: a failure only costs a normal full run. The token is
+    sent as a header and never logged.
+    """
+    headers = {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'yards-per-pass-ingest',
+    }
+    if token:
+        headers['Authorization'] = f"Bearer {token}"
+    try:
+        request = Request(RELEASE_API_URL.format(tag=tag), headers=headers)
+        with urlopen(request, timeout=RELEASE_API_TIMEOUT_SECONDS) as response:
+            status = getattr(response, 'status', None)
+            if status != 200:
+                log.warning("Release API for '%s' answered HTTP %s — treating its files as changed", tag, status)
+                return None
+            body = json.loads(response.read().decode('utf-8'))
+        assets = body.get('assets') if isinstance(body, dict) else None
+        if not isinstance(assets, list):
+            log.warning("Release API for '%s' returned no asset list — treating its files as changed", tag)
+            return None
+        found = {}
+        for asset in assets:
+            name = asset.get('name') if isinstance(asset, dict) else None
+            if not isinstance(name, str) or not name:
+                log.warning("Release API for '%s' returned a malformed asset — treating its files as changed", tag)
+                return None
+            digest = asset.get('digest')
+            found[name] = digest if isinstance(digest, str) and digest else None
+        return found
+    except Exception as e:
+        message = f"{type(e).__name__}: {e}"
+        if token:
+            message = message.replace(token, '***')
+        log.warning("Release API for '%s' failed — treating its files as changed: %s", tag, message)
+        return None
+
+
+def asset_fingerprint(assets, name):
+    """Digest of the asset called exactly `name`; ABSENT when the release has no such
+    asset; None (unknown) when the API call failed or the asset carries no digest."""
+    if assets is None:
+        return None
+    if name not in assets:
+        return ABSENT
+    return assets[name] or None
+
+
+def hash_schedule_rows(rows) -> str:
+    """sha256 of schedule row tuples (as built by _schedule_rows), order-independent."""
+    canonical = sorted((list(r) for r in rows), key=repr)
+    return hashlib.sha256(json.dumps(canonical, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+
+
+def schedules_fingerprint(season):
+    """Hash of the season's schedule rows exactly as ingest_schedules would send them.
+
+    Not the games.csv asset digest: that file carries ~46 columns (betting lines
+    among them) and changes many times a day while the 11 kept columns do not.
+    None (unknown) if the download or the row building fails.
+    """
+    try:
+        schedules = download_schedules()
+        df = schedules[schedules['season'] == season][GAMES_COLS]
+        return hash_schedule_rows(_schedule_rows(df))
+    except Exception as e:
+        log.warning("Could not fingerprint the %d schedule (treated as changed): %s", season, e)
+        return None
+
+
+def collect_fingerprint(season, token=None, assets_cache=None):
+    """The five-part fingerprint of everything a refresh of `season` would read.
+    No database. `assets_cache` ({tag: assets}) saves API calls across seasons."""
+    cache = assets_cache if assets_cache is not None else {}
+    fingerprint = {'code': compute_code_hash()}
+    for part, tag, pattern in SOURCE_ASSETS:
+        if tag not in cache:
+            cache[tag] = fetch_release_assets(tag, token)
+        fingerprint[part] = asset_fingerprint(cache[tag], pattern.format(season=season))
+    fingerprint['schedules'] = schedules_fingerprint(season)
+    return fingerprint
+
+
+def decide_season(entry, fingerprint, now, force=False, state_note=None):
+    """(run, reason) for one season. Pure: no network, no clock, no files.
+
+    `entry` is the season's stored state (or None), `fingerprint` what the sources
+    look like now, `state_note` why the state file could not be used (if it could not).
+    """
+    if force:
+        return True, 'forced'
+    if state_note:
+        return True, state_note
+    if not isinstance(entry, dict):
+        return True, 'no stored fingerprint'
+    unknown = [p for p in FINGERPRINT_PARTS
+               if not (isinstance(fingerprint.get(p), str) and fingerprint.get(p))]
+    if unknown:
+        return True, 'could not read ' + ', '.join(unknown)
+    differing = [p for p in FINGERPRINT_PARTS if entry.get(p) != fingerprint[p]]
+    if differing:
+        return True, ', '.join(differing) + ' changed'
+    last_full_run = _parse_stamp(entry.get('last_full_run_at'))
+    if last_full_run is None:
+        return True, 'max skip age'
+    age = (now - last_full_run).total_seconds()
+    if age < 0 or age > MAX_SKIP_AGE_SECONDS:
+        return True, 'max skip age'
+    return False, 'sources unchanged'
+
+
+def _load_state(path):
+    """(state dict, None) or ({}, why it could not be used)."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}, 'state file not found'
+    except (OSError, ValueError):
+        return {}, 'state file unreadable'
+    if (not isinstance(data, dict) or data.get('version') != STATE_VERSION
+            or not isinstance(data.get('seasons'), dict)):
+        return {}, 'state file unreadable'
+    return data, None
+
+
+def _short(value):
+    """First 8 characters of a digest for log lines ('sha256:d1689918…' → 'd1689918')."""
+    return str(value).split(':', 1)[-1][:8]
+
+
+def _append_github_file(env_name, text):
+    """Append a line to $GITHUB_OUTPUT / $GITHUB_STEP_SUMMARY when running in Actions."""
+    path = os.environ.get(env_name)
+    if not path:
+        return
+    try:
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write(text + "\n")
+    except OSError as e:
+        log.warning("Could not write to %s: %s", env_name, e)
+
+
+class RefreshTracker:
+    """Remembers, in a small JSON file, what the last successful refresh of each
+    season read, so the next run can tell there is nothing new and not touch the
+    database. Also keeps the bookkeeping for the workflow's revalidate step.
+
+    The file is only ever written AFTER a commit, and a season's fingerprint is
+    recorded only when every file it names was really loaded.
+    """
+
+    def __init__(self, path, force=False):
+        self.path = path
+        self.force = force
+        self.state, self.load_note = _load_state(path)
+        self.state.setdefault('seasons', {})
+        self.plans = {}            # season -> {'run', 'reason', 'fingerprint', 'status'}
+        self.schedule_rows = {}    # season -> rows sent by the schedules ingest
+        self.season_rows = {}      # season -> rows sent by process_season
+        self.committed = False     # did this run commit anything?
+
+    # -- before connecting --
+    def plan_season(self, season, fingerprint) -> bool:
+        """Decide and log whether `season` needs a run. True = run it."""
+        fingerprint = fingerprint if isinstance(fingerprint, dict) else {}
+        run, reason = decide_season(self.state['seasons'].get(str(season)), fingerprint, _utcnow(),
+                                    force=self.force, state_note=self.load_note)
+        self.plans[season] = {'run': run, 'reason': reason, 'fingerprint': fingerprint, 'status': None}
+        if run:
+            log.info("Season %d: full run (%s)", season, reason)
+        else:
+            log.info("Season %d skipped: sources unchanged (pbp %s, roster %s, participation %s, schedules %s)",
+                     season, _short(fingerprint['pbp']), _short(fingerprint['roster']),
+                     _short(fingerprint['participation']), _short(fingerprint['schedules']))
+        return run
+
+    # -- after commits (called by run_seasons) --
+    def schedules_committed(self, season, rows):
+        self.schedule_rows[season] = rows
+        self._data_changed()
+        self.save()
+
+    def season_not_published(self, season):
+        if season in self.plans:
+            self.plans[season]['status'] = 'not yet published'
+
+    def season_committed(self, season, schedules_ok, result):
+        """process_season returned: its commit succeeded. Record the fingerprint, or
+        remove the stored one when this run cannot vouch for it."""
+        plan = self.plans.setdefault(season, {'run': True, 'reason': 'not planned', 'fingerprint': {}, 'status': None})
+        plan['status'] = 'done'
+        result = result if isinstance(result, dict) else {}
+        self.season_rows[season] = result.get('rows_sent') or 0
+        stamp = self._data_changed()
+        fingerprint = plan['fingerprint']
+
+        problems = ['could not read ' + p for p in FINGERPRINT_PARTS
+                    if not (isinstance(fingerprint.get(p), str) and fingerprint.get(p))]
+        if not schedules_ok:
+            problems.append('schedules ingest failed')
+        loaded = result.get('participation_loaded')
+        if loaded is None:
+            problems.append('participation load not reported')
+        elif not loaded and fingerprint.get('participation') not in (None, '', ABSENT):
+            # The API listed the file but the download fell back to None (e.g. the
+            # few-second 404 of an nflverse re-upload): routes/snaps were written NULL.
+            problems.append('participation file listed but not loaded')
+
+        if problems:
+            self.state['seasons'].pop(str(season), None)
+            log.warning("Season %d: fingerprint not recorded (%s) — the next run will be a full run",
+                        season, '; '.join(problems))
+        else:
+            entry = {p: fingerprint[p] for p in FINGERPRINT_PARTS}
+            entry['last_full_run_at'] = stamp
+            self.state['seasons'][str(season)] = entry
+        self.save()
+
+    def _data_changed(self) -> str:
+        self.committed = True
+        stamp = _stamp(_utcnow())
+        self.state['last_change_at'] = stamp
+        return stamp
+
+    def save(self):
+        """Atomic write (temp file, then rename). A failure never fails the run: the
+        state file is removed instead, so the next run is a full run."""
+        self.state['version'] = STATE_VERSION
+        tmp = f"{self.path}.tmp"
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(self.state, f, indent=2, sort_keys=True)
+                f.write("\n")
+            os.replace(tmp, self.path)
+        except OSError as e:
+            log.warning("Could not write the refresh state file (the next run will be a full run): %s", e)
+            for leftover in (tmp, self.path):
+                try:
+                    os.remove(leftover)
+                except OSError:
+                    pass
+
+    # -- end of run --
+    def changed(self) -> bool:
+        """Should the workflow POST /api/revalidate? True when this run committed data,
+        or when the last data change has no successful revalidate at or after it."""
+        if self.committed:
+            return True
+        last_change = _parse_stamp(self.state.get('last_change_at'))
+        if last_change is None:
+            return True
+        marker = os.path.join(os.path.dirname(os.path.abspath(self.path)), REVALIDATED_MARKER)
+        try:
+            with open(marker, 'r', encoding='utf-8') as f:
+                revalidated = _parse_stamp(f.read())
+        except (OSError, ValueError):
+            revalidated = None
+        return revalidated is None or revalidated < last_change
+
+    def summary_lines(self):
+        lines = []
+        for season, plan in self.plans.items():
+            rows = (self.schedule_rows.get(season) or 0) + (self.season_rows.get(season) or 0)
+            if not plan['run']:
+                lines.append(f"{season}: skipped: sources unchanged")
+            elif plan['status'] == 'done':
+                lines.append(f"{season}: full run ({plan['reason']}): {rows:,} rows sent")
+            elif plan['status'] == 'not yet published':
+                lines.append(f"{season}: full run ({plan['reason']}): not yet published, {rows:,} rows sent")
+            else:
+                lines.append(f"{season}: FAILED ({plan['reason']})")
+        return lines
+
+    def report(self):
+        """One line per season in the Actions step summary, and the `changed` output."""
+        for line in self.summary_lines():
+            _append_github_file('GITHUB_STEP_SUMMARY', line)
+        _append_github_file('GITHUB_OUTPUT', f"changed={'true' if self.changed() else 'false'}")
+
+
+def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
     """Connect (unless dry run), then schedules + process_season for each season.
 
     A transient DB error (TRANSIENT_DB_ERRORS) re-runs that season from the start on a
     fresh connection, at most len(SEASON_RETRY_WAITS) extra times and only while a full
     attempt still fits before `deadline`. The fresh connection replaces `conn` for every
     later season and is the one closed at the end. Dry run never connects.
+
+    `tracker` (a RefreshTracker, only with --state-file) is told about each commit.
     """
     conn = None
     if not dry_run:
@@ -4366,17 +4740,25 @@ def run_seasons(seasons, db_url, dry_run, deadline):
                 # Its own except — the one below catches only DataNotYetPublished, so an
                 # unwrapped schedules failure would kill the whole run. Re-run on a retried
                 # attempt (idempotent upsert) so a blip here doesn't leave scores stale.
+                schedules_ok, schedule_rows = True, None
                 try:
-                    ingest_schedules(conn, season)
+                    schedule_rows = ingest_schedules(conn, season)
                 except Exception as e:
+                    schedules_ok = False
                     log.warning("Schedules ingest for %d failed — continuing: %s", season, e)
+                if conn is not None and schedule_rows:
+                    _tell(tracker, 'schedules_committed', season, schedule_rows)
                 if conn is not None and conn.closed:
                     log.warning("Database connection closed during schedules — reconnecting before season %d", season)
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                season_committed = False
+                result = None
                 try:
-                    process_season(season, conn, dry_run=dry_run)
+                    result = process_season(season, conn, dry_run=dry_run)
+                    season_committed = conn is not None   # only here has the season's commit succeeded
                 except DataNotYetPublished as e:
                     log.info("Season %d skipped — %s Nothing ingested; will succeed once data exists.", season, e)
+                    _tell(tracker, 'season_not_published', season)
                 except TRANSIENT_DB_ERRORS as e:
                     if conn is None:
                         raise  # dry run: nothing to reconnect
@@ -4397,18 +4779,39 @@ def run_seasons(seasons, db_url, dry_run, deadline):
                     time.sleep(wait)
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
                     continue
+                if season_committed:
+                    _tell(tracker, 'season_committed', season, schedules_ok, result)
                 break
     finally:
         if conn is not None:
             _close_quietly(conn)
 
 
-def main():
+def _tell(tracker, event, *args):
+    """Pass a commit event to the RefreshTracker, if there is one. The data is already
+    committed, so a bookkeeping failure must not fail the run: drop the state file
+    instead (the next run is then a full run)."""
+    if tracker is None:
+        return
+    try:
+        getattr(tracker, event)(*args)
+    except Exception as e:
+        log.warning("Refresh state bookkeeping failed in %s (ignored; the next run will be a full run): %s", event, e)
+        try:
+            os.remove(tracker.path)
+        except OSError:
+            pass
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description="nflverse → Supabase ETL for Yards Per Pass")
     parser.add_argument('--season', type=int, help='Process a single season')
     parser.add_argument('--all', action='store_true', help=f'Process all seasons ({FIRST_SEASON}-{CURRENT_SEASON})')
     parser.add_argument('--dry-run', action='store_true', help='Preview without writing to database')
-    args = parser.parse_args()
+    parser.add_argument('--state-file', help='Remember what the last refresh read in this JSON file and skip the '
+                                             'run when nothing has changed (used by the scheduled workflow)')
+    parser.add_argument('--force', action='store_true', help='With --state-file: run even if nothing has changed')
+    args = parser.parse_args(argv)
 
     if not args.season and not args.all:
         parser.error("Specify --season YEAR or --all")
@@ -4423,7 +4826,26 @@ def main():
             log.error("DATABASE_URL not set. Add it to .env or environment.")
             sys.exit(1)
 
-    run_seasons(seasons, db_url, args.dry_run, deadline)
+    # Without --state-file (local runs, seed.yml, dry runs) nothing below changes:
+    # every season runs in full, exactly as before.
+    tracker = None
+    if args.state_file and not args.dry_run:
+        tracker = RefreshTracker(args.state_file, force=args.force)
+        token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+        assets_cache = {}
+        seasons = [s for s in seasons if tracker.plan_season(s, collect_fingerprint(s, token, assets_cache))]
+
+    try:
+        if seasons:
+            run_seasons(seasons, db_url, args.dry_run, deadline, tracker=tracker)
+        else:
+            log.info("Nothing to refresh — no database connection opened")
+    finally:
+        if tracker is not None:
+            try:
+                tracker.report()
+            except Exception as e:
+                log.warning("Could not write the run summary: %s", e)
 
     log.info("Done!")
 
