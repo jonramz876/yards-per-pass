@@ -56,7 +56,11 @@ class TestFixture:
 #   * epa_lost_turnovers / epa_lost_sacks / epa_lost_penalties, the explosive
 #     counts (explosive_plays / _pass / _rush / _rate) and team_targets — no
 #     public source publishes these, so they were recomputed independently from
-#     the same play-by-play during the spec review.
+#     the same play-by-play during the spec review;
+#   * designed_runs / stuffed_runs (added 2026-10-06, team radar spec §3.1) — no
+#     public source either: they follow that spec's rule and were re-derived by
+#     an independent hand count of this fixture during its spec review. Added
+#     entries only; no existing GOLD value changed.
 # ---------------------------------------------------------------------------
 
 def _eff(plays, epa, succ, fd):
@@ -72,6 +76,7 @@ GOLD = {
         'early_plays': 45, 'early_epa_per_play': approx(0.3013, abs=5e-5), 'early_success_rate': approx(0.4222, abs=5e-5),
         'late_plays': 10, 'late_epa_per_play': approx(0.2955, abs=5e-5), 'late_success_rate': approx(0.4000, abs=5e-5),
         'explosive_plays': 8, 'explosive_pass': 5, 'explosive_rush': 3, 'explosive_rate': approx(8 / 56, abs=1e-9),
+        'designed_runs': 19, 'stuffed_runs': 3,
         'epa_lost_turnovers': approx(0.00, abs=0.005), 'epa_lost_sacks': approx(-3.27, abs=0.005),
         'epa_lost_penalties': approx(-8.52, abs=0.005),
         'first_downs': 20, 'first_downs_pass': 13, 'first_downs_rush': 5, 'first_downs_penalty': 2,
@@ -91,6 +96,7 @@ GOLD = {
         'early_plays': 59, 'early_epa_per_play': approx(0.1003, abs=5e-5), 'early_success_rate': approx(0.4746, abs=5e-5),
         'late_plays': 20, 'late_epa_per_play': approx(-0.0144, abs=5e-5), 'late_success_rate': approx(0.5000, abs=5e-5),
         'explosive_plays': 8, 'explosive_pass': 4, 'explosive_rush': 4, 'explosive_rate': approx(8 / 79, abs=1e-9),
+        'designed_runs': 31, 'stuffed_runs': 8,
         'epa_lost_turnovers': approx(-7.00, abs=0.005), 'epa_lost_sacks': approx(-8.66, abs=0.005),
         'epa_lost_penalties': approx(-9.69, abs=0.005),
         'first_downs': 26, 'first_downs_pass': 11, 'first_downs_rush': 10, 'first_downs_penalty': 5,
@@ -355,6 +361,135 @@ class TestExplosives:
         assert row['rushing_attempts'] == 1   # a scramble is a carry in the official count
         assert row['attempts'] == 1           # ...and not a pass attempt
         assert row['team_targets'] == 1
+
+
+class TestStuffedRuns:
+    """designed_runs / stuffed_runs (team radar spec §3.1): efficiency-set rows with
+    rush == 1, play_type == 'run' and two_point_attempt != 1; a stuff is one of
+    those with yards_gained <= 0."""
+
+    # (game_id, team_id) -> (stuffed_runs, designed_runs), hand-counted in the fixture.
+    PINNED = {
+        (BUF_HOU, 'BUF'): (3, 19), (BUF_HOU, 'HOU'): (8, 31),
+        (NO_DET, 'DET'): (4, 32), (NO_DET, 'NO'): (4, 23),
+        (TB_CIN, 'CIN'): (4, 25), (TB_CIN, 'TB'): (3, 15),
+    }
+
+    def test_both_columns_are_stored_as_never_null_counts(self):
+        from ingest import TEAM_GAME_STATS_COLS, TEAM_GAME_STATS_INT_COLS
+        for col in ('designed_runs', 'stuffed_runs'):
+            assert col in TEAM_GAME_STATS_COLS, col
+            assert col in TEAM_GAME_STATS_INT_COLS, col
+
+    def test_pinned_values_for_all_six_fixture_teams(self, team_game_rows):
+        got = {(r['game_id'], r['team_id']): (r['stuffed_runs'], r['designed_runs'])
+               for _, r in team_game_rows.iterrows()}
+        assert got == self.PINNED
+
+    def test_penalty_wiped_runs_are_the_trap_in_the_real_fixture(self, pbp_fixture, team_game_rows):
+        """A penalty-wiped run stays in the efficiency set as rush == 1,
+        play_type == 'no_play', yards_gained == 0 — a stuff unless play_type is
+        checked. The fixture has 6 (4 DET, 2 TB): without the clause DET would be
+        8 stuffs of 36 and TB 5 of 17."""
+        eff = pbp_fixture[((pbp_fixture['pass'] == 1) | (pbp_fixture['rush'] == 1))
+                          & pbp_fixture['epa'].notna() & pbp_fixture['posteam'].notna()]
+        wiped = eff[(eff['rush'] == 1) & (eff['play_type'] == 'no_play')]
+        assert wiped.groupby('posteam').size().to_dict() == {'DET': 4, 'TB': 2}
+        assert (wiped['yards_gained'] == 0).all()
+
+        loose = eff[(eff['rush'] == 1) & (eff['yards_gained'] <= 0)].groupby('posteam').size()
+        assert (loose['DET'], loose['TB']) == (8, 5)   # the wrong answer
+
+        det = team_game_row(team_game_rows, NO_DET, 'DET')
+        tb = team_game_row(team_game_rows, TB_CIN, 'TB')
+        assert (det['stuffed_runs'], tb['stuffed_runs']) == (4, 3)
+        # rush_plays (run success / explosive run denominator) KEEPS the wiped
+        # runs; designed_runs does not. This is what radar footnote R5b says.
+        assert (det['rush_plays'], det['designed_runs']) == (36, 32)
+        assert (tb['rush_plays'], tb['designed_runs']) == (17, 15)
+
+    def test_kneel_downs_in_the_real_fixture_are_excluded(self, pbp_fixture, team_game_rows):
+        """The fixture's 3 kneels are rush_attempt == 1, rush == 0, -1 yard each:
+        carries (and stuffs) on the RB pages, in neither column here."""
+        kneels = pbp_fixture[pbp_fixture['play_type'] == 'qb_kneel']
+        assert len(kneels) == 3
+        assert (kneels['rush'] == 0).all() and (kneels['yards_gained'] < 0).all()
+        for _, row in team_game_rows.iterrows():
+            assert 0 <= row['stuffed_runs'] <= row['designed_runs'], row['team_id']
+            assert row['designed_runs'] <= row['rush_plays'], row['team_id']
+            assert row['designed_runs'] <= row['rushing_attempts'], row['team_id']
+        # BUF: 21 official carries = 19 designed runs + 1 kneel + 1 scramble.
+        buf = team_game_row(team_game_rows, BUF_HOU, 'BUF')
+        assert (buf['rushing_attempts'], buf['designed_runs']) == (21, 19)
+
+    def test_defense_is_the_opponents_row_and_is_not_a_second_count(self, team_game_rows):
+        """A defense's stuffs are read from the row where opponent_id is that
+        team — there is no defensive column, and each row counts only its own
+        team's runs."""
+        allowed_by_buf = team_game_rows[(team_game_rows['game_id'] == BUF_HOU)
+                                        & (team_game_rows['opponent_id'] == 'BUF')]
+        assert len(allowed_by_buf) == 1
+        assert allowed_by_buf.iloc[0]['team_id'] == 'HOU'
+        assert (allowed_by_buf.iloc[0]['stuffed_runs'], allowed_by_buf.iloc[0]['designed_runs']) == (8, 31)
+
+    def test_only_the_possessing_teams_runs_count(self, raw):
+        from ingest import aggregate_team_game_stats
+        buf_run = dict(posteam='BUF', defteam='KC')
+        out = aggregate_team_game_stats(raw.game(
+            raw.rush(0.0), raw.rush(5.0),
+            raw.rush(-1.0, **buf_run), raw.rush(-3.0, **buf_run), raw.rush(2.0, **buf_run)), 2026)
+        kc = team_game_row(out, '2026_01_KC_BUF', 'KC')
+        buf = team_game_row(out, '2026_01_KC_BUF', 'BUF')
+        assert (kc['stuffed_runs'], kc['designed_runs']) == (1, 2)
+        assert (buf['stuffed_runs'], buf['designed_runs']) == (2, 3)
+
+    def test_no_gain_and_a_loss_are_stuffs_and_one_yard_is_not(self, raw):
+        row = _one(raw, raw.rush(0.0), raw.rush(-2.0), raw.rush(1.0), raw.rush(12.0))
+        assert (row['stuffed_runs'], row['designed_runs']) == (2, 4)
+
+    def test_penalty_wiped_run_is_in_neither_column(self, raw):
+        """Flagged as nflverse flags it: rush = 1, play_type 'no_play', 0 yards, EPA present."""
+        wiped = raw.no_play(rush=1.0, rusher_player_id='RB1', epa=-0.9)
+        row = _one(raw, raw.rush(3.0), wiped)
+        assert row['rush_plays'] == 2            # still an efficiency rush play
+        assert (row['stuffed_runs'], row['designed_runs']) == (0, 1)
+
+    def test_kneel_down_is_in_neither_column(self, raw):
+        row = _one(raw, raw.rush(3.0), raw.kneel(), raw.kneel())
+        assert row['rushing_attempts'] == 3      # official carries
+        assert (row['stuffed_runs'], row['designed_runs']) == (0, 1)
+
+    def test_scramble_is_in_neither_column(self, raw):
+        row = _one(raw, raw.rush(3.0), raw.scramble(-1.0), raw.scramble(0.0))
+        assert (row['stuffed_runs'], row['designed_runs']) == (0, 1)
+
+    def test_two_point_run_is_in_neither_column(self, raw):
+        """A 2-point try has no line to gain; it stays an efficiency rush play."""
+        two_pt = raw.rush(0.0, two_point_attempt=1.0, down=float('nan'), yardline_100=2.0, epa=-0.9, success=0.0)
+        row = _one(raw, raw.rush(3.0), two_pt)
+        assert row['rush_plays'] == 2
+        assert (row['stuffed_runs'], row['designed_runs']) == (0, 1)
+
+    def test_run_with_no_epa_is_outside_the_efficiency_set(self, raw):
+        row = _one(raw, raw.rush(3.0), raw.rush(-1.0, epa=float('nan')))
+        assert (row['stuffed_runs'], row['designed_runs']) == (0, 1)
+
+    def test_run_with_unknown_yards_is_a_designed_run_but_not_a_stuff(self, raw):
+        row = _one(raw, raw.rush(3.0, yards_gained=float('nan')))
+        assert (row['stuffed_runs'], row['designed_runs']) == (0, 1)
+
+    def test_stuffed_run_that_is_also_a_lost_fumble_counts_once(self, raw):
+        lost = raw.rush(-1.0, fumble=1.0, fumble_lost=1.0, fumbled_1_team='KC', fumbled_1_player_id='RB1',
+                        epa=-3.0, success=0.0)
+        row = _one(raw, lost)
+        assert (row['stuffed_runs'], row['designed_runs'], row['turnovers']) == (1, 1, 1)
+
+    def test_team_with_no_runs_gets_zero_and_zero(self, raw):
+        from ingest import aggregate_team_game_stats
+        out = aggregate_team_game_stats(raw.game(raw.play(), raw.play()), 2026)
+        for team in ('KC', 'BUF'):               # BUF never had the ball
+            row = team_game_row(out, '2026_01_KC_BUF', team)
+            assert (row['stuffed_runs'], row['designed_runs']) == (0, 0), team
 
 
 class TestTurnovers:

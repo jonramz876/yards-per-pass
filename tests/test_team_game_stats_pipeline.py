@@ -97,6 +97,50 @@ class TestEnsureTable:
             assert sql_type(col) == 'TEXT', col
 
 
+    def test_create_table_body_declares_the_radar_columns_as_int(self):
+        """A fresh database must match the live one (team radar spec §3.2)."""
+        from ingest import ensure_team_game_stats_table
+        conn = _FakeConn()
+        ensure_team_game_stats_table(conn)
+        create_sql = next(sql for sql, _ in conn.calls
+                          if 'CREATE TABLE IF NOT EXISTS team_game_stats' in sql)
+        assert ' designed_runs INT,' in create_sql
+        assert ' stuffed_runs INT,' in create_sql
+
+
+class TestEnsureColumns:
+    """CREATE TABLE IF NOT EXISTS is a no-op against the live table, so the two
+    radar columns reach production only through ALTER TABLE (team radar spec §3.2)."""
+
+    def test_adds_both_columns_idempotently_in_one_commit(self):
+        from ingest import ensure_team_game_stats_columns
+        conn = _FakeConn()
+        ensure_team_game_stats_columns(conn)
+        assert [sql for sql, _ in conn.calls] == [
+            'ALTER TABLE team_game_stats ADD COLUMN IF NOT EXISTS designed_runs INT;',
+            'ALTER TABLE team_game_stats ADD COLUMN IF NOT EXISTS stuffed_runs INT;',
+        ]
+        assert conn.commits == 1
+        assert conn.rollbacks == 0
+
+    def test_is_not_wrapped_in_retry(self):
+        """DDL must not be retried inside an aborted transaction; a failure
+        surfaces on the first attempt, like every other ensure_* function."""
+        import pytest
+        from ingest import ensure_team_game_stats_columns
+
+        class _Boom(_FakeConn):
+            attempts = 0
+
+            def cursor(self):
+                type(self).attempts += 1
+                raise RuntimeError('db down')
+
+        with pytest.raises(RuntimeError):
+            ensure_team_game_stats_columns(_Boom())
+        assert _Boom.attempts == 1
+
+
 class TestUpsert:
     def test_sql_columns_and_conflict_target(self, monkeypatch, team_game_rows):
         import ingest
@@ -144,9 +188,13 @@ class TestUpsert:
         assert type(kc['week']) is int and type(kc['season']) is int
         # INT column, NULL-able, so not in TEAM_GAME_STATS_INT_COLS — still an int here.
         assert type(kc['time_of_possession_seconds']) is int
+        # The radar columns are counts: a real 0, never NULL, for a team with no runs.
+        assert type(kc['designed_runs']) is int and kc['designed_runs'] == 0
+        assert type(kc['stuffed_runs']) is int and kc['stuffed_runs'] == 0
         buf = dict(zip(TEAM_GAME_STATS_COLS, [r for r in rows if r[1] == 'BUF'][0]))
         assert buf['epa_per_play'] is None
         assert buf['plays'] == 0
+        assert (buf['designed_runs'], buf['stuffed_runs']) == (0, 0)
 
     def test_empty_frame_writes_nothing(self, monkeypatch):
         import ingest
@@ -282,6 +330,16 @@ class TestProcessSeasonWiring:
         # just upsert_team_game_stats.
         first_upsert = next(n for n in names if n.startswith('upsert_'))
         assert names.index('ensure_team_game_stats_table') < names.index(first_upsert)
+        # The ALTER that adds designed_runs / stuffed_runs: after the CREATE (so
+        # the table exists on a fresh database) and, because it commits too,
+        # before the first upsert of the season transaction (review I6). Exactly
+        # one call — "is called" alone would pass with it inside the try: block.
+        assert names.count('ensure_team_game_stats_columns') == 1
+        assert (names.index('ensure_team_game_stats_table')
+                < names.index('ensure_team_game_stats_columns')
+                < names.index(first_upsert))
+        upserted = up[0][1][0]
+        assert {'designed_runs', 'stuffed_runs'} <= set(upserted.columns)
         assert names.index('ensure_qb_weekly_stats_table') < names.index('ensure_qb_weekly_stats_columns') < names.index('upsert_qb_weekly_stats')
 
         cleanup = [c for c in calls if c[0] == 'cleanup_stale_rows'][0]
