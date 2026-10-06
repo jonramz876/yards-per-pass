@@ -22,6 +22,13 @@ function colorDistance(hex1: string, hex2: string): number {
   return Math.sqrt(2 * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + 3 * (b1 - b2) ** 2);
 }
 
+// Shown when one of this tool's own reads failed or timed out: restoring the
+// players named in the URL, or loading the season table for their position
+// (read resilience spec §1.5, S3). Without it the tool showed nothing at all.
+// A string constant, not JSX text: lint rejects a bare apostrophe in JSX, and
+// JSX text does not decode escape sequences.
+const COMPARISON_UNAVAILABLE = "Couldn't load stats for this comparison. Try again in a moment.";
+
 const CONTRAST_PALETTE = ["#dc2626", "#2563eb", "#16a34a", "#d97706", "#9333ea", "#0891b2"];
 const MIN_DISTANCE = 150;
 
@@ -126,6 +133,9 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   const [player1, setPlayer1] = useState<SelectedPlayer | null>(null);
   const [player2, setPlayer2] = useState<SelectedPlayer | null>(null);
   const initializedRef = useRef(false);
+  // True when one of the tool's own reads failed (URL restore or a season
+  // table). Cleared when Player 1 changes.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // Lazy-loaded data (fetched client-side when server didn't provide the needed position)
   const [lazyQBs, setLazyQBs] = useState<QBSeasonStat[]>([]);
@@ -145,13 +155,26 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
     const p2Slug = searchParams.get("p2");
     if (!p1Slug) return;
 
-    const supabase = getSupabaseClient();
+    // supabase-js reports a failed or timed-out request as `error`, not as a
+    // rejection. Unread, a failed restore looked like a link naming nobody.
+    // getSupabaseClient throws on missing env vars; that is a failed read too.
+    let supabase: ReturnType<typeof getSupabaseClient>;
+    try {
+      supabase = getSupabaseClient();
+    } catch {
+      setLoadFailed(true);
+      return;
+    }
     const slugs = [p1Slug, p2Slug].filter(Boolean) as string[];
     supabase
       .from("player_slugs")
       .select("player_id, slug, player_name, position, current_team_id")
       .in("slug", slugs)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          setLoadFailed(true);
+          return;
+        }
         if (!data) return;
         const p1Data = data.find((p) => p.slug === p1Slug);
         const p2Data = p2Slug ? data.find((p) => p.slug === p2Slug) : null;
@@ -164,17 +187,25 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   useEffect(() => {
     if (!player1) return;
     const pos = player1.position === "FB" ? "RB" : player1.position;
-    const supabase = getSupabaseClient();
+    let supabase: ReturnType<typeof getSupabaseClient>;
+    try {
+      supabase = getSupabaseClient();
+    } catch {
+      setLoadFailed(true);
+      return;
+    }
 
+    // A failed read leaves the lazy list empty and says so (S3); it is not
+    // retried until Player 1 changes.
     if (pos === "QB" && qbs.length === 0) {
       supabase.from("qb_season_stats").select("*").eq("season", season)
-        .then(({ data }) => { if (data) setLazyQBs(data as unknown as QBSeasonStat[]); });
+        .then(({ data, error }) => { if (error) setLoadFailed(true); else if (data) setLazyQBs(data as unknown as QBSeasonStat[]); });
     } else if ((pos === "WR" || pos === "TE") && receivers.length === 0) {
       supabase.from("receiver_season_stats").select("*").eq("season", season)
-        .then(({ data }) => { if (data) setLazyReceivers(data as unknown as ReceiverSeasonStat[]); });
+        .then(({ data, error }) => { if (error) setLoadFailed(true); else if (data) setLazyReceivers(data as unknown as ReceiverSeasonStat[]); });
     } else if (pos === "RB" && rbs.length === 0) {
       supabase.from("rb_season_stats").select("*").eq("season", season)
-        .then(({ data }) => { if (data) setLazyRBs(data as unknown as RBSeasonStat[]); });
+        .then(({ data, error }) => { if (error) setLoadFailed(true); else if (data) setLazyRBs(data as unknown as RBSeasonStat[]); });
     }
   }, [player1, qbs.length, receivers.length, rbs.length]);
 
@@ -248,6 +279,7 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   }, [searchParams, router, pathname]);
 
   const handleSelect1 = (p: SelectedPlayer | null) => {
+    setLoadFailed(false);
     setPlayer1(p);
     if (!p) setPlayer2(null); // Clear p2 if p1 cleared (position changes)
     updateURL(p, p ? player2 : null);
@@ -278,6 +310,10 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
           excludePlayerId={player1?.player_id}
         />
       </div>
+
+      {loadFailed && (
+        <p role="status" className="text-center text-amber-600 text-sm font-medium">{COMPARISON_UNAVAILABLE}</p>
+      )}
 
       {samePlayer && (
         <p className="text-center text-amber-600 text-sm font-medium">Select two different players to compare.</p>
