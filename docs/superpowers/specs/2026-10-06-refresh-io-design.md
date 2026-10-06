@@ -239,7 +239,7 @@ How to read them:
 
 All four go on top of `main` (`team-radar-pr1` has merged). **Dependencies: A and B are independent. C needs A** (it stores its schema hash in A's state file). **D needs B** (it reads B's written counts). A and C therefore ship together as one pull request with two commit series; B and D follow later. Each is safely revertable: with no state file (PR A reverted, or a local / seed run) PR C's code runs the schema statements every time, exactly as today.
 
-Tests: `tests/test_refresh_io.py` (PR A) and `tests/test_refresh_ddl.py` (PR C), using the `FakeConn` / `FakeCursor` / `monkeypatch` pattern of `tests/test_refresh_resilience.py`. No test touches the network: the GitHub API call and the downloads are faked.
+Tests: `tests/test_refresh_io.py` (PR A), `tests/test_refresh_workflow.py` (PR A, the workflow checklist) and `tests/test_refresh_ddl.py` (PR C), using the `FakeConn` / `FakeCursor` / `monkeypatch` pattern of `tests/test_refresh_resilience.py`. No test touches the network: the GitHub API call and the downloads are faked.
 
 | PR | Saves | Risk |
 |---|---|---|
