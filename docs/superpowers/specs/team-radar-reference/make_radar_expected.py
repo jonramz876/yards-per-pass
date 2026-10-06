@@ -63,6 +63,8 @@ def side(rows):
 
 rows = json.load(open(ROWS, encoding="utf-8"))
 ids = sorted({r["team_id"] for r in rows} | {r["opponent_id"] for r in rows})
+played = {r["team_id"] for r in rows}
+TIE = 1e-9
 sides = {t: {"off": side([r for r in rows if r["team_id"] == t]),
              "def": side([r for r in rows if r["opponent_id"] == t])} for t in ids}
 
@@ -74,14 +76,18 @@ for t in ids:
         rank, pool, tied = {}, {}, {}
         for key, off_high in AXES:
             higher = off_high if s == "off" else not off_high
-            vals = [sides[x][s][key] for x in ids if sides[x][s]["gp"] > 0 and sides[x][s][key] is not None]
+            # The pool is teams with a row of their own (chaos R1); two rates within
+            # TIE (float noise from re-multiplying stored game rates) are the same rate (chaos W1).
+            vals = [sides[x][s][key] for x in ids
+                    if x in played and sides[x][s]["gp"] > 0 and sides[x][s][key] is not None]
             mine = me[key]
             pool[key] = len(vals)
-            if mine is None or me["gp"] == 0:
+            if mine is None or me["gp"] == 0 or t not in played:
                 rank[key], tied[key] = None, False
             else:
-                rank[key] = 1 + sum(1 for v in vals if (v > mine if higher else v < mine))
-                tied[key] = sum(1 for v in vals if v == mine) > 1
+                same = [v for v in vals if abs(v - mine) < TIE]
+                rank[key] = 1 + sum(1 for v in vals if abs(v - mine) >= TIE and (v > mine if higher else v < mine))
+                tied[key] = len(same) > 1
         entry[s] = {**me, "rank": rank, "pool": pool, "tied": tied}
     teams[t] = entry
 

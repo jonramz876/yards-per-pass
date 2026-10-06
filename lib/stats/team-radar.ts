@@ -170,7 +170,10 @@ export interface TeamRadarModel {
   teamsPlayed: number;
   /** the largest week in the rows ("Through Week N", review M3) */
   throughWeek: number | null;
+  /** rows used: objects, of the season asked for, one per (game_id, team_id) */
   rowCount: number;
+  /** "BUF off stuff"-style names of rates that came out impossible (outside 0-1) and were dropped */
+  rejected: string[];
 }
 
 type Row = Readonly<Record<string, unknown>>;
@@ -178,22 +181,56 @@ type Row = Readonly<Record<string, unknown>>;
 interface RawValue {
   value: number | null;
   count: [number, number] | null;
+  /** the inputs gave an impossible rate: dropped, and reported */
+  rejected: boolean;
 }
 
+const MISSING: RawValue = { value: null, count: null, rejected: false };
+const REJECTED: RawValue = { value: null, count: null, rejected: true };
+const isRate = (v: number | null): v is number => v !== null && Number.isFinite(v) && v >= 0 && v <= 1;
+
+/**
+ * One spoke over one set of rows. A rate is a share of plays, so anything
+ * outside 0-1 (stuffed > designed, a negative count, a stored rate of 12, an
+ * overflowing sum) is a broken row, not a number to print or rank: the spoke
+ * is missing and the caller reports it (chaos R3).
+ */
 function axisValue(rows: readonly Row[], axis: RadarAxis): RawValue {
-  if (axis.weighted) return { value: wavg(rows, axis.num, axis.den[0]), count: null };
+  for (const r of rows) {
+    const n = num(r[axis.num]);
+    if (n !== null && (n < 0 || (axis.weighted && n > 1))) return REJECTED;
+    for (const d of axis.den) {
+      const v = num(r[d]);
+      if (v !== null && v < 0) return REJECTED;
+    }
+  }
+  if (axis.weighted) {
+    const value = wavg(rows, axis.num, axis.den[0]);
+    if (value === null) return MISSING;
+    return isRate(value) ? { value, count: null, rejected: false } : REJECTED;
+  }
   if (axis.nullable) {
     for (const r of rows) {
-      if (num(r[axis.num]) === null) return { value: null, count: null };
-      for (const d of axis.den) if (num(r[d]) === null) return { value: null, count: null };
+      if (num(r[axis.num]) === null) return MISSING;
+      for (const d of axis.den) if (num(r[d]) === null) return MISSING;
     }
   }
   const top = total(rows, axis.num);
   let bot = 0;
   for (const d of axis.den) bot += total(rows, d);
-  if (!bot) return { value: null, count: null };
-  return { value: top / bot, count: [top, bot] };
+  if (!bot) return MISSING;
+  const value = top / bot;
+  return isRate(value) ? { value, count: [top, bot], rejected: false } : REJECTED;
 }
+
+/**
+ * Two season rates closer than this are the same rate. The weighted spokes
+ * re-multiply each game's stored rate by its plays, so two teams with the same
+ * season totals can differ in the last bits (0.4558823529411765 against
+ * 0.45588235294117646); exact comparison ranked them 1st and 2nd with no "T-"
+ * (chaos W1). Real rates differ by at least 1 / (plays × plays), far above this.
+ */
+export const RADAR_TIE_EPSILON = 1e-9;
 
 const byId = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const isId = (v: unknown): v is string => typeof v === "string" && v !== "";
@@ -202,10 +239,27 @@ const isId = (v: unknown): v is string => typeof v === "string" && v !== "";
  * Season radars for every team from team_game_stats rows (one per team per
  * game). Never the mean of game rates. Rank and pool are per spoke, per side.
  */
-export function buildTeamRadar(rows: ReadonlyArray<Record<string, unknown>> | null | undefined): TeamRadarModel {
-  const all = (Array.isArray(rows) ? rows : []).filter(
-    (r): r is Record<string, unknown> => r !== null && typeof r === "object",
-  ) as readonly Row[];
+export function buildTeamRadar(
+  rows: ReadonlyArray<Record<string, unknown>> | null | undefined,
+  season?: number,
+): TeamRadarModel {
+  // Defence in depth (chaos R4, R5): the read filters by season and the table's
+  // key is (game_id, team_id), but the builder does not take either on trust.
+  // A row of another season is ignored; a repeated key counts once (first kept).
+  const seen = new Set<string>();
+  const all = (Array.isArray(rows) ? rows : []).filter((r): r is Record<string, unknown> => {
+    if (r === null || typeof r !== "object") return false;
+    if (season !== undefined) {
+      const s = num(r.season);
+      if (s !== null && s !== season) return false;
+    }
+    if (isId(r.game_id) && isId(r.team_id)) {
+      const key = `${r.game_id}|${r.team_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+    }
+    return true;
+  }) as readonly Row[];
 
   const ids = new Set<string>();
   const played = new Set<string>();
@@ -239,15 +293,17 @@ export function buildTeamRadar(rows: ReadonlyArray<Record<string, unknown>> | nu
       let pool = 0;
       let ahead = 0;
       let same = 0;
+      // The pool is teams that have played (a row of their own), so no pool
+      // is ever larger than the N the sentences print (chaos R1).
+      const has = mine.value !== null && t[side].gp > 0 && played.has(t.team);
       for (const o of raw) {
-        const v = o[side].gp > 0 ? o[side].values[i].value : null;
+        const v = o[side].gp > 0 && played.has(o.team) ? o[side].values[i].value : null;
         if (v === null) continue;
         pool += 1;
-        if (mine.value === null) continue;
-        if (hi ? v > mine.value : v < mine.value) ahead += 1;
-        if (v === mine.value) same += 1;
+        if (!has || mine.value === null) continue;
+        if (Math.abs(v - mine.value) < RADAR_TIE_EPSILON) same += 1;
+        else if (hi ? v > mine.value : v < mine.value) ahead += 1;
       }
-      const has = mine.value !== null && t[side].gp > 0;
       const rank = has ? ahead + 1 : null;
       return {
         key: axis.key,
@@ -262,9 +318,24 @@ export function buildTeamRadar(rows: ReadonlyArray<Record<string, unknown>> | nu
   });
 
   const league = {} as Record<RadarAxisKey, number | null>;
-  for (const a of RADAR_AXES) league[a.key] = axisValue(all, a).value;
+  const rejected: string[] = [];
+  RADAR_AXES.forEach((a, i) => {
+    const v = axisValue(all, a);
+    const before = rejected.length;
+    for (const t of raw) {
+      if (t.off.values[i].rejected) rejected.push(`${t.team} off ${a.key}`);
+      if (t.def.values[i].rejected) rejected.push(`${t.team} def ${a.key}`);
+    }
+    // A broken row is diluted, not removed, by the league sum (600 stuffs in
+    // one game still lands inside 0-1), so the NFL average is missing whenever
+    // any team's rate for the spoke was dropped.
+    const poisoned = v.rejected || rejected.length > before;
+    league[a.key] = poisoned ? null : v.value;
+    if (poisoned) rejected.push(`league ${a.key}`);
+  });
 
   return {
+    rejected,
     teams: raw.map((t) => ({ team: t.team, off: sideModel(t, "off"), def: sideModel(t, "def") })),
     league,
     teamsPlayed: played.size,
@@ -352,17 +423,26 @@ export interface TeamRadarSliceInput {
   rows: ReadonlyArray<Record<string, unknown>> | null;
   newestSeason: number | null;
   covered: readonly number[];
+  /** Called at most once, when a rate came out impossible and was dropped (the server page passes console.error). */
+  log?: (message: string) => void;
 }
 
 export function teamRadarSlice(i: TeamRadarSliceInput): TeamRadarSlice {
   const failed = i.rows === null;
-  const model = buildTeamRadar(i.rows ?? []);
+  const model = buildTeamRadar(i.rows ?? [], i.season);
+  if (model.rejected.length > 0 && i.log) {
+    const shown = model.rejected.slice(0, 12).join(", ");
+    const more = model.rejected.length > 12 ? ` and ${model.rejected.length - 12} more` : "";
+    i.log(`Team radar ${i.season}: ${model.rejected.length} rate(s) outside 0-1 dropped as missing (bad team_game_stats rows): ${shown}${more}`);
+  }
   const mine = model.teams.find((t) => t.team === i.teamId);
   const { state, firstSeason } = teamRadarState({
     failed,
     rowCount: model.rowCount,
     teamsPlayed: model.teamsPlayed,
-    teamHasRows: !!mine && (mine.off.gp > 0 || mine.def.gp > 0),
+    // "Played" is a row of the team's own (§7 row 3). An opponent's row alone
+    // (a half-written game) is not a radar "through 0 games" (chaos R1).
+    teamHasRows: !!mine && mine.off.gp > 0,
     season: i.season,
     newestSeason: i.newestSeason,
     covered: i.covered,
@@ -380,6 +460,38 @@ export function teamRadarSlice(i: TeamRadarSliceInput): TeamRadarSlice {
     def: mine.def,
     league: model.league,
   };
+}
+
+/* ─── Outline colour (chaos R2; the share card of PR 3 uses it too) ─── */
+
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+/** The outline when neither team colour can be read on white. */
+export const RADAR_NEUTRAL_STROKE = "#0f172a";
+/** WCAG's minimum contrast for graphical objects. */
+export const RADAR_MIN_STROKE_CONTRAST = 3;
+
+/** WCAG contrast ratio of a #rrggbb colour against white (1-21); 1 for anything that is not #rrggbb. */
+export function contrastOnWhite(hex: string): number {
+  if (typeof hex !== "string" || !HEX6.test(hex)) return 1;
+  const channel = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return 1.05 / (luminance + 0.05);
+}
+
+/**
+ * The colour of the radar's outline and dots. The team's primary colour when
+ * it shows on white (3:1 or better); otherwise the secondary if that does;
+ * otherwise a dark neutral. Pittsburgh's and New Orleans' golds are under 2:1
+ * and Pittsburgh's sat on top of the dashed middle ring. The light primary
+ * stays as the fill tint.
+ */
+export function radarStrokeColor(primaryColor: string, secondaryColor: string): string {
+  if (contrastOnWhite(primaryColor) >= RADAR_MIN_STROKE_CONTRAST) return primaryColor;
+  if (contrastOnWhite(secondaryColor) >= RADAR_MIN_STROKE_CONTRAST) return secondaryColor;
+  return RADAR_NEUTRAL_STROKE;
 }
 
 /* ─── Formatting ─── */

@@ -13,7 +13,7 @@ import {
   type RadarSideModel,
   type TeamRadarSlice,
 } from "@/lib/stats/team-radar";
-import { getTeam } from "@/lib/data/teams";
+import { NFL_TEAMS, getTeam } from "@/lib/data/teams";
 import TeamRadarChart from "@/components/team/TeamRadarChart";
 import TeamRadarSection from "@/components/team/TeamRadarSection";
 
@@ -159,6 +159,55 @@ describe("TeamRadarChart", () => {
     expect(sm.getAttribute("aria-label")).toBe("Buffalo Bills offense radar");
     expect(sm.getAttribute("viewBox")).toBe("0 0 420 340");
     expect(chart(bufSide("off"), "off", "lg").querySelector("svg")!.getAttribute("viewBox")).not.toBe("0 0 420 340");
+  });
+});
+
+// Chaos R2: Pittsburgh's and New Orleans' gold primaries are under 2:1 on white
+// (and Pittsburgh's sat on the dashed middle ring).
+describe("TeamRadarChart — outline colour is readable on white", () => {
+  const drawn = (id: string) => {
+    const t = getTeam(id)!;
+    const c = render(
+      <TeamRadarChart side={bufSide("off")} sideKey="off" color={t.primaryColor} secondaryColor={t.secondaryColor} label="x" />,
+    ).container;
+    const outline = c.querySelector("path[data-radar-outline]")!;
+    return {
+      t,
+      stroke: outline.getAttribute("stroke")!,
+      fill: outline.getAttribute("fill")!,
+      dots: Array.from(c.querySelectorAll("circle[data-radar-vertex]")).map((d) => d.getAttribute("fill")),
+    };
+  };
+
+  it("every team: the stroke and the dots are 3:1 or better on white, and are the same colour", () => {
+    for (const team of NFL_TEAMS) {
+      const { stroke, dots } = drawn(team.id);
+      expect(R.contrastOnWhite(stroke), `${team.id} ${stroke}`).toBeGreaterThanOrEqual(3);
+      expect(new Set(dots), team.id).toEqual(new Set([stroke]));
+    }
+  });
+
+  it("PIT and NO draw in their dark secondary and keep the gold as the fill tint; the outline is not the middle ring's amber", () => {
+    for (const id of ["PIT", "NO"]) {
+      const { t, stroke, fill } = drawn(id);
+      expect(stroke).toBe(t.secondaryColor);
+      expect(fill).toBe(`${t.primaryColor}22`);
+      expect(stroke.toLowerCase()).not.toBe("#f59e0b");
+    }
+  });
+
+  it("a readable primary is unchanged (BUF), and without a secondary a light primary falls back to a dark neutral", () => {
+    const buf = drawn("BUF");
+    expect(buf.stroke).toBe(buf.t.primaryColor);
+    expect(buf.fill).toBe(`${buf.t.primaryColor}22`);
+    const c = render(<TeamRadarChart side={bufSide("off")} sideKey="off" color="#FFB612" label="x" />).container;
+    expect(c.querySelector("path[data-radar-outline]")!.getAttribute("stroke")).toBe("#0f172a");
+  });
+
+  it("the section passes the team's secondary colour through (PIT's radars are dark, not gold)", () => {
+    const el = section(ready(sliceFor("PIT")), "PIT");
+    const strokes = Array.from(el.querySelectorAll("path[data-radar-outline]")).map((p) => p.getAttribute("stroke"));
+    expect(strokes).toEqual([getTeam("PIT")!.secondaryColor, getTeam("PIT")!.secondaryColor]);
   });
 });
 

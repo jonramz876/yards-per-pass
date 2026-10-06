@@ -27,6 +27,7 @@ import {
   type TeamRadarModel,
 } from "@/lib/stats/team-radar";
 import { buildTeamStats } from "@/lib/stats/team-stats";
+import { NFL_TEAMS } from "@/lib/data/teams";
 
 type Row = Record<string, unknown>;
 type ExpSide = Record<RadarAxisKey, number | null> & {
@@ -638,14 +639,11 @@ describe("teamRadarSlice — plain data for the 'use client' hub", () => {
     expect(teamRadarSlice({ ...args, teamId: "KC", rows: league(8) })).toEqual({ state: "no-games", season: 2026 });
   });
 
-  it("a team that appears only as an opponent (its own row missing) is still drawn from what exists, not told it has not played", () => {
+  // Chaos R1: this used to be `ready` with "through 0 games". A team is "played"
+  // only by a row of its own (spec §7 row 3: "this team has no row").
+  it("a team that appears only as an opponent (its own row missing) is no-games", () => {
     const rows = league(9).filter((r) => r.team_id !== "T03");
-    const s = teamRadarSlice({ ...args, teamId: "T03", rows });
-    if (s.state !== "ready") throw new Error(s.state);
-    expect(s.games).toBe(0);
-    expect(s.off.gp).toBe(0);
-    expect(R.realSpokeCount(s.off)).toBe(0);
-    expect(R.realSpokeCount(s.def)).toBe(7);
+    expect(teamRadarSlice({ ...args, teamId: "T03", rows })).toEqual({ state: "no-games", season: 2026 });
   });
 
   it("no rows: the newest season → unavailable; a later season → small-pool; an older one → uncovered with or without a first season", () => {
@@ -656,7 +654,7 @@ describe("teamRadarSlice — plain data for the 'use client' hub", () => {
   });
 
   it("a past season with rows is ready and not 'latest' (no early-season note there)", () => {
-    const s = teamRadarSlice({ ...args, season: 2025, covered: [2026, 2025] });
+    const s = teamRadarSlice({ ...args, season: 2025, rows: ROWS.map((r) => ({ ...r, season: 2025 })), covered: [2026, 2025] });
     if (s.state !== "ready") throw new Error(s.state);
     expect(s.isLatestSeason).toBe(false);
   });
@@ -846,5 +844,167 @@ describe("lib/stats/team-radar.ts imports nothing from lib/data", () => {
     expect(Array.from(seen).filter((f) => f.startsWith("lib/supabase"))).toEqual([]);
     // lib/data/teams (a static list, no client) is the only lib/data file the graph may touch.
     expect(Array.from(seen).filter((f) => f.startsWith("lib/data/") && f !== "lib/data/teams.ts")).toEqual([]);
+  });
+});
+
+/* ─── Chaos pass (2026-10-06): W1, R1-R5 ─── */
+
+describe("chaos W1 — float noise never splits a tie", () => {
+  // Both teams are 31 successes on 68 pass plays, but the stored per-game rates
+  // re-multiply to 0.4558823529411765 and 0.45588235294117646.
+  const noisy = [
+    ...league(8, (i) => ({ pass_plays: 40, pass_success_rate: 0.3 + i / 100 })),
+    row({ game_id: "a1", team_id: "AAA", opponent_id: "T00", pass_plays: 30, pass_success_rate: 10 / 30 }),
+    row({ game_id: "a2", team_id: "AAA", opponent_id: "T01", pass_plays: 38, pass_success_rate: 21 / 38 }),
+    row({ game_id: "b1", team_id: "BBB", opponent_id: "T02", pass_plays: 33, pass_success_rate: 12 / 33 }),
+    row({ game_id: "b2", team_id: "BBB", opponent_id: "T03", pass_plays: 35, pass_success_rate: 19 / 35 }),
+  ];
+
+  it("two teams with the same season totals share the better place and print T-", () => {
+    const m = buildTeamRadar(noisy);
+    const a = spoke(m, "AAA", "off", "pass_sr");
+    const b = spoke(m, "BBB", "off", "pass_sr");
+    expect(a.value).not.toBe(b.value); // the noise is real
+    expect(Math.abs(a.value! - b.value!)).toBeLessThan(R.RADAR_TIE_EPSILON);
+    expect([a.rank, b.rank]).toEqual([1, 1]);
+    expect([a.tied, b.tied]).toEqual([true, true]);
+    expect(a.score).toBe(b.score);
+    expect(R.spokeRankLabel(a)).toBe("T-1st");
+    // the next team is 3rd, not 2nd
+    expect(m.teams.map((t) => spoke(m, t.team, "off", "pass_sr").rank).sort((x, y) => x! - y!).slice(0, 3)).toEqual([1, 1, 3]);
+  });
+
+  it("a real difference, however small it prints, is still a different rank", () => {
+    const m = buildTeamRadar(league(8, (i) => ({ pass_plays: 1000, pass_success_rate: 0.5 + i * 1e-6 })));
+    expect(m.teams.map((t) => spoke(m, t.team, "off", "pass_sr").rank)).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
+    expect(m.teams.some((t) => spoke(m, t.team, "off", "pass_sr").tied)).toBe(false);
+  });
+});
+
+describe("chaos R1 — played means a row of the team’s own", () => {
+  const noBuf = ROWS.filter((r) => r.team_id !== "BUF");
+
+  it("a team with no row of its own (only its opponents’ rows) is no-games (R10), never through 0 games", () => {
+    expect(teamRadarSlice({ teamId: "BUF", season: 2026, rows: noBuf, newestSeason: 2026, covered: [2026] })).toEqual({
+      state: "no-games",
+      season: 2026,
+    });
+  });
+
+  it("N and every pool count the same teams: no rank can exceed the N the lead prints", () => {
+    const m = buildTeamRadar(noBuf);
+    expect(m.teamsPlayed).toBe(31);
+    for (const t of m.teams) {
+      for (const s of SIDES) {
+        for (const sp of t[s].spokes) {
+          expect(sp.pool, `${t.team}.${s}.${sp.key}`).toBeLessThanOrEqual(31);
+          if (sp.rank !== null) expect(sp.rank).toBeLessThanOrEqual(31);
+        }
+      }
+    }
+    // BUF is in no pool and has no rank, on either side
+    for (const s of SIDES) for (const sp of team(m, "BUF")[s].spokes) expect(sp.rank).toBeNull();
+    expect(spoke(m, "KC", "def", "sack").pool).toBe(31);
+  });
+});
+
+describe("chaos R3 — a rate outside 0-1 is a missing spoke, reported, never printed", () => {
+  it("stuffed > designed, a negative denominator, a success rate of 12, more turnovers than drives", () => {
+    const rows = league(9, (i) =>
+      i === 0 ? { stuffed_runs: 60, designed_runs: 20 }
+        : i === 1 ? { pass_plays: -40 }
+          : i === 2 ? { rush_success_rate: 12 }
+            : i === 3 ? { total_drives: 10, turnovers: 15 }
+              : {},
+    );
+    const m = buildTeamRadar(rows);
+    expect(spoke(m, "T00", "off", "stuff")).toMatchObject({ value: null, rank: null, count: null });
+    expect(spoke(m, "T01", "off", "expl_pass").value).toBeNull();
+    expect(spoke(m, "T01", "off", "pass_sr").value).toBeNull();
+    expect(spoke(m, "T02", "off", "rush_sr").value).toBeNull();
+    expect(spoke(m, "T03", "off", "to").value).toBeNull();
+    // the same row seen from the defense side
+    expect(spoke(m, "T01", "def", "stuff").value).toBeNull();
+    // untouched teams keep their values and rank in a smaller pool
+    expect(spoke(m, "T05", "off", "stuff").value).toBe(4 / 24);
+    expect(spoke(m, "T05", "off", "stuff").pool).toBe(8);
+    for (const t of m.teams) for (const s of SIDES) for (const sp of t[s].spokes) {
+      if (sp.value !== null) {
+        expect(sp.value).toBeGreaterThanOrEqual(0);
+        expect(sp.value).toBeLessThanOrEqual(1);
+      }
+    }
+    for (const v of Object.values(m.league)) if (v !== null) expect(v >= 0 && v <= 1).toBe(true);
+    expect(m.rejected.length).toBeGreaterThan(0);
+    expect(m.rejected.join(" ")).toContain("T00 off stuff");
+    expectSerialisable(m);
+  });
+
+  it("the real fixture rejects nothing", () => {
+    expect(MODEL.rejected).toEqual([]);
+  });
+
+  it("teamRadarSlice reports rejected rates once, through the logger it is given", () => {
+    const messages: string[] = [];
+    const rows = league(9, (i) => (i === 0 ? { stuffed_runs: 60, designed_runs: 20 } : i === 1 ? { pass_plays: -40 } : {}));
+    teamRadarSlice({ teamId: "T04", season: 2026, rows, newestSeason: 2026, covered: [2026], log: (m) => messages.push(m) });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatch(/outside 0-1/);
+    expect(messages[0]).toContain("T00 off stuff");
+    const quiet: string[] = [];
+    teamRadarSlice({ teamId: "BUF", season: 2026, rows: ROWS, newestSeason: 2026, covered: [2026], log: (m) => quiet.push(m) });
+    expect(quiet).toEqual([]);
+  });
+});
+
+describe("chaos R4 / R5 — defence in depth on the rows", () => {
+  it("R4: rows of another season are ignored when a season is asked for", () => {
+    const mixed = [...ROWS, ...ROWS.map((r) => ({ ...r, season: 2025 }))];
+    expect(buildTeamRadar(mixed, 2026)).toEqual(MODEL);
+    expect(buildTeamRadar(ROWS, 2025).rowCount).toBe(0);
+    expect(buildTeamRadar(ROWS.map((r) => ({ ...r, season: "2026" })), 2026).rowCount).toBe(94);
+    // 2025 rows handed to a 2026 page are not drawn as 2026
+    const s = teamRadarSlice({ teamId: "BUF", season: 2026, rows: ROWS.map((r) => ({ ...r, season: 2025 })), newestSeason: 2026, covered: [2026] });
+    expect(s.state).toBe("unavailable");
+    const ok = teamRadarSlice({ teamId: "BUF", season: 2026, rows: mixed, newestSeason: 2026, covered: [2026] });
+    if (ok.state !== "ready") throw new Error(ok.state);
+    expect(ok.games).toBe(3);
+  });
+
+  it("R5: a repeated (game_id, team_id) row counts once (the first is kept)", () => {
+    const buf = ROWS.filter((r) => r.team_id === "BUF");
+    expect(buildTeamRadar([...ROWS, ...buf])).toEqual(MODEL);
+    expect(buildTeamRadar([...ROWS, ...ROWS])).toEqual(MODEL);
+    const first = buildTeamRadar([row({ sacks: 2 }), row({ sacks: 30 })]);
+    expect(team(first, "AAA").off.gp).toBe(1);
+    expect(spoke(first, "AAA", "off", "sack").value).toBe(2 / 38);
+  });
+});
+
+describe("chaos R2 — the outline colour is always visible on white", () => {
+  it("every team: stroke contrast on white is at least 3:1; a readable primary is kept", () => {
+    expect(NFL_TEAMS).toHaveLength(32);
+    for (const t of NFL_TEAMS) {
+      const stroke = R.radarStrokeColor(t.primaryColor, t.secondaryColor);
+      expect(R.contrastOnWhite(stroke), `${t.id} ${stroke}`).toBeGreaterThanOrEqual(3);
+      if (R.contrastOnWhite(t.primaryColor) >= 3) expect(stroke, t.id).toBe(t.primaryColor);
+    }
+  });
+
+  it("PIT and NO (gold on white, under 2:1) switch to their dark secondary", () => {
+    for (const id of ["PIT", "NO"]) {
+      const t = NFL_TEAMS.find((x) => x.id === id)!;
+      expect(R.contrastOnWhite(t.primaryColor)).toBeLessThan(2);
+      expect(R.radarStrokeColor(t.primaryColor, t.secondaryColor)).toBe(t.secondaryColor);
+    }
+  });
+
+  it("two light colours, or junk, fall back to a dark neutral", () => {
+    expect(R.radarStrokeColor("#FFB612", "#FFFF00")).toBe("#0f172a");
+    expect(R.radarStrokeColor("", "nope")).toBe("#0f172a");
+    expect(R.radarStrokeColor(undefined as never, null as never)).toBe("#0f172a");
+    expect(R.contrastOnWhite("#000000")).toBeCloseTo(21, 5);
+    expect(R.contrastOnWhite("#ffffff")).toBeCloseTo(1, 5);
+    expect(R.contrastOnWhite("junk")).toBe(1);
   });
 });

@@ -13,6 +13,7 @@ import {
   canDrawRadar,
   fmtRadarPct,
   radarRadius,
+  radarStrokeColor,
   spokeRankLabel,
   type RadarSide,
   type RadarSideModel,
@@ -21,8 +22,10 @@ import {
 interface TeamRadarChartProps {
   side: RadarSideModel;
   sideKey: RadarSide;
-  /** Team primary colour (#rrggbb) for the outline and dots. */
+  /** Team primary colour (#rrggbb): the fill tint, and the outline when it shows on white. */
   color: string;
+  /** Team secondary colour: the outline and dots when the primary is too light on white. */
+  secondaryColor?: string;
   /** Accessible name, e.g. "Buffalo Bills offense radar". */
   label: string;
   /** "sm" on the team page (default); "lg" for a single large radar. */
@@ -45,7 +48,6 @@ const SIZES: Record<"sm" | "lg", Geometry> = {
 };
 
 const N = RADAR_AXES.length;
-const FALLBACK_COLOR = "#013369";
 const n1 = (v: number) => v.toFixed(1);
 
 function angle(i: number): number {
@@ -67,11 +69,14 @@ function plottable(score: number | null, value: number | null): number | null {
   return Math.min(1, Math.max(0, score));
 }
 
-export default function TeamRadarChart({ side, sideKey, color, label, size = "sm" }: TeamRadarChartProps) {
+export default function TeamRadarChart({ side, sideKey, color, secondaryColor = "", label, size = "sm" }: TeamRadarChartProps) {
   if (!canDrawRadar(side)) return null;
 
   const g = SIZES[size];
-  const stroke = /^#[0-9a-fA-F]{6}$/.test(color) ? color : FALLBACK_COLOR;
+  // Outline and dots: readable on white for every team (chaos R2). The fill
+  // keeps the team's primary as a 13% tint.
+  const stroke = radarStrokeColor(color, secondaryColor);
+  const tint = /^#[0-9a-fA-F]{6}$/.test(color) ? color : stroke;
   const at = (score: number) => g.r * radarRadius(score);
   const ring = (score: number) => path(Array.from({ length: N }, (_, i) => point(g, at(score), i)));
 
@@ -111,7 +116,7 @@ export default function TeamRadarChart({ side, sideKey, color, label, size = "sm
         <path
           data-radar-outline
           d={path(vertices.map((v) => v.xy))}
-          fill={`${stroke}22`}
+          fill={`${tint}22`}
           stroke={stroke}
           strokeWidth={g.sw * 2}
           strokeLinejoin="round"

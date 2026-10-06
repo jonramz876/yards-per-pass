@@ -172,7 +172,7 @@ export default function TeamRadarSection({ radar, team, defaultSeason }: TeamRad
                       {RADAR_SUBTITLE[sideKey]}
                     </p>
                     {canDrawRadar(side) ? (
-                      <TeamRadarChart side={side} sideKey={sideKey} color={team.primaryColor} label={`${team.name} ${slug} radar`} />
+                      <TeamRadarChart side={side} sideKey={sideKey} color={team.primaryColor} secondaryColor={team.secondaryColor} label={`${team.name} ${slug} radar`} />
                     ) : (
                       <p data-radar-table-only className="my-4 rounded-md bg-slate-50 px-3 py-2 text-[13px] text-slate-600">
                         {radarTableOnlyNote(sideKey)}

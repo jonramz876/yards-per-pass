@@ -103,6 +103,38 @@ describe("TeamPage — team radar read", () => {
     expect(values.expl_pass).not.toBeNull();
   });
 
+  it("a broken row (a rate outside 0-1) is a missing spoke, logged once on the server, never handed down", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const broken = RADAR_ROWS.map((r) =>
+      r.game_id === "2026_01_BUF_HOU" && r.team_id === "BUF" ? { ...r, stuffed_runs: 600, designed_runs: 20 } : r
+    );
+    vi.mocked(getTeamRadarRows).mockResolvedValue(broken as never);
+    const { radar } = await propsFor();
+    if (radar.state !== "ready") throw new Error(radar.state);
+    expect(radar.off.spokes.find((s) => s.key === "stuff")).toMatchObject({ value: null, rank: null });
+    for (const s of [...radar.off.spokes, ...radar.def.spokes]) {
+      if (s.value !== null) expect(s.value >= 0 && s.value <= 1).toBe(true);
+    }
+    expect(radar.league.stuff).toBeNull();
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toMatch(/BUF.*outside 0-1.*BUF off stuff/);
+    logged.mockRestore();
+  });
+
+  it("rows of another season or repeated rows cannot inflate the radar (defence in depth)", async () => {
+    const doubled = [...RADAR_ROWS, ...RADAR_ROWS, ...RADAR_ROWS.map((r) => ({ ...r, season: 2025 }))];
+    vi.mocked(getTeamRadarRows).mockResolvedValue(doubled as never);
+    const { radar } = await propsFor();
+    if (radar.state !== "ready") throw new Error(radar.state);
+    expect(radar.games).toBe(3);
+    expect(radar.off).toEqual(buildTeamRadar(RADAR_ROWS).teams.find((t) => t.team === "BUF")!.off);
+  });
+
+  it("a team whose own rows are missing (a half-written game) is told no-games, not 'through 0 games'", async () => {
+    vi.mocked(getTeamRadarRows).mockResolvedValue(RADAR_ROWS.filter((r) => r.team_id !== "BUF") as never);
+    expect((await propsFor()).radar).toEqual({ state: "no-games", season: 2026 });
+  });
+
   it("the radar read rejecting still renders the hub: state unavailable, logged once with the team", async () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(getTeamRadarRows).mockRejectedValue(new Error("Failed to fetch team radar rows for 2026: fetch failed"));

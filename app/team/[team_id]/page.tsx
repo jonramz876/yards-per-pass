@@ -127,6 +127,9 @@ export default async function TeamPage({
     rows: radarRows,
     newestSeason: seasons[0] ?? null,
     covered: boxScoreSeasons,
+    // A rate outside 0-1 (a broken row) is dropped as a missing spoke and
+    // reported here, once per render, never printed.
+    log: (message) => console.error(`Team page (${teamId}): ${message}`),
   });
   if (radarRows !== null && radar.state === "unavailable") {
     console.error(
