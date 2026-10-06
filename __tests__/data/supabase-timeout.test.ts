@@ -270,8 +270,10 @@ describe("withReadTimeout — a fetch that ignores its signal (Next's stale-entr
     deaf.reject(failure);
     expect(await settled).toBe(failure);
     expect(vi.getTimerCount()).toBe(0);
-    // And the timer that was cleared really is gone.
+    // And the timer that was cleared really is gone: nothing fires later.
     await vi.advanceTimersByTimeAsync(10_000);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await settled).toBe(failure);
   });
 
   it("through supabase-js: { data: null, error } at 5 s even though the fetch never heard the abort", async () => {
@@ -339,6 +341,15 @@ describe("withReadTimeout — a caller that brought its own deadline keeps it", 
     expect(await settled).toBe(reason);
   });
 
+  it("hands back the SAME Response object, unread, when the caller brought a signal", async () => {
+    const answer = new Response('[{"season":2026}]', { status: 200 });
+    const fast = (() => Promise.resolve(answer)) as unknown as typeof fetch;
+    const res = await withReadTimeout(fast)("https://x.supabase.co/rest/v1/t", { signal: new AbortController().signal });
+    expect(res).toBe(answer);
+    expect(res.bodyUsed).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("the caller's shorter deadline wins, with the caller's reason", async () => {
     const { fn } = hangingFetch();
     const caller = new AbortController();
@@ -393,7 +404,90 @@ describe("withReadTimeout — a healthy read is unaffected", () => {
     expect(seen[0]?.signal?.aborted).toBe(false);
   });
 
-  it.each([204, 304])("a %s answer (no body allowed) comes through", async (status) => {
+  // Code review I1(a). finish() used to clear the timer and THEN build the new
+  // Response; when that constructor threw (a status outside 200-599, such as
+  // the 0 of Response.error()), nothing was left to settle the caller: a hang
+  // with no limit, the one thing this wrapper exists to prevent.
+  it("an answer the Response constructor refuses (status 0) rejects the read; it does not hang", async () => {
+    const odd = (() => Promise.resolve(Response.error())) as unknown as typeof fetch;
+    const read = withReadTimeout(odd)("https://x.supabase.co/rest/v1/t");
+    const settled = read.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(await stateOf(read)).toBe("rejected");
+    const err = (await settled) as Error;
+    expect(err).toBeInstanceOf(Error);
+    expect(err.name).not.toBe("TimeoutError");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // Code review I1(b). With no body stream (an old browser, a polyfilled
+  // fetch) a 200 was handed on EMPTY, which supabase-js reads as
+  // { data: null, error: null }: a read that looks empty.
+  it("a 200 whose body is not a stream is still read whole, never handed on empty", async () => {
+    const bytes = new TextEncoder().encode('[{"season":2026}]');
+    const noStream = (() =>
+      Promise.resolve({
+        status: 200,
+        statusText: "OK",
+        headers: new Headers({ "content-type": "application/json" }),
+        body: null,
+        arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      })) as unknown as typeof fetch;
+    const res = await withReadTimeout(noStream)("https://x.supabase.co/rest/v1/t");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([{ season: 2026 }]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("a body-less 200 with no stream that then stalls still ends at 5 s", async () => {
+    const stalls = (() =>
+      Promise.resolve({
+        status: 200,
+        statusText: "OK",
+        headers: new Headers(),
+        body: null,
+        arrayBuffer: () => new Promise<ArrayBuffer>(() => {}),
+      })) as unknown as typeof fetch;
+    const settled = withReadTimeout(stalls)("https://x.supabase.co/rest/v1/t").catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(((await settled) as Error).message).toBe("read timed out after 5 s");
+  });
+
+  // Code review I1(c). Without AbortController (Chrome 64-65) the wrapper
+  // threw on every read. It now steps aside: no limit, but working reads.
+  it("with no AbortController in the environment, the read goes straight through", async () => {
+    vi.stubGlobal("AbortController", undefined);
+    const answer = new Response("[]", { status: 200 });
+    const seen: Init[] = [];
+    const plain = ((_input: unknown, init?: RequestInit) => {
+      seen.push(init);
+      return Promise.resolve(answer);
+    }) as unknown as typeof fetch;
+    const init = { method: "GET" };
+    expect(await withReadTimeout(plain)("https://x.supabase.co/rest/v1/t", init)).toBe(answer);
+    expect(seen[0]).toBe(init);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("a body stream that errors BEFORE the limit keeps its own error, and the timer is cleared", async () => {
+    const failure = new TypeError("terminated");
+    const breaks = (() =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode('[{"season":'));
+              controller.error(failure);
+            },
+          }),
+          { status: 200 },
+        ),
+      )) as unknown as typeof fetch;
+    await expect(withReadTimeout(breaks)("https://x.supabase.co/rest/v1/t")).rejects.toBe(failure);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each([204, 205, 304])("a %s answer (no body allowed) comes through", async (status) => {
     const fast = (() => Promise.resolve(new Response(null, { status }))) as unknown as typeof fetch;
     const res = await withReadTimeout(fast)("https://x.supabase.co/rest/v1/t", { method: "HEAD" });
     expect(res.status).toBe(status);

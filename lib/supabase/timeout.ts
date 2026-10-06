@@ -89,7 +89,9 @@ export function withReadTimeout(fetchImpl: typeof fetch, ms: number = SUPABASE_R
 
   const limited = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     // The caller's own deadline wins: pass the call through exactly as given.
-    if (init?.signal) return fetchImpl(input, init);
+    // Same with no AbortController at all (a very old browser): better a read
+    // with no limit than every read failing.
+    if (init?.signal || typeof AbortController === "undefined") return fetchImpl(input, init);
 
     return new Promise<Response>((resolve, reject) => {
       const controller = new AbortController();
@@ -137,16 +139,22 @@ export function withReadTimeout(fetchImpl: typeof fetch, ms: number = SUPABASE_R
           }
           if (over) return;
           body = concat(chunks);
+        } else if (!NULL_BODY_STATUS.has(response.status)) {
+          // No body stream to read (an old browser, a polyfilled fetch): read
+          // it the plain way, still inside the limit. Never hand on an empty
+          // 200; supabase-js would read that as "no rows".
+          body = new Uint8Array(await response.arrayBuffer());
+          if (over) return;
         }
-        finish(() =>
-          resolve(
-            new Response(body as BodyInit | null, {
-              status: response.status,
-              statusText: response.statusText,
-              headers: response.headers,
-            })
-          )
-        );
+        // Built BEFORE finish(): if the constructor throws (a status it will
+        // not accept), the throw must reach the catch below while the read can
+        // still be rejected. After finish() nothing could settle the caller.
+        const answer = new Response(body as BodyInit | null, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+        });
+        finish(() => resolve(answer));
       };
 
       // An error before the limit reaches the caller as itself. After the
