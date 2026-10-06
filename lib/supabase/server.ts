@@ -1,5 +1,6 @@
 // lib/supabase/server.ts
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { SUPABASE_READ_TIMEOUT_MS, withReadTimeout } from "@/lib/supabase/timeout";
 
 let client: SupabaseClient | null = null;
 
@@ -12,7 +13,12 @@ export function createServerClient(): SupabaseClient {
       "Missing Supabase env vars. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local"
     );
   }
-  client = createClient(url, key);
+  // Every read gets a 5 s limit unless the caller passed its own signal (read
+  // resilience spec §1.3; lib/supabase/timeout.ts). `fetch` is looked up at
+  // call time, not captured here: Next replaces the global with its own.
+  client = createClient(url, key, {
+    global: { fetch: withReadTimeout((input, init) => fetch(input, init), SUPABASE_READ_TIMEOUT_MS) },
+  });
   return client;
 }
 
