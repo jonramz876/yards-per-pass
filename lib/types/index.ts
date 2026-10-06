@@ -415,6 +415,15 @@ export interface TeamGameStat {
   explosive_rate: number | null;
   explosive_pass: number;
   explosive_rush: number;
+  /**
+   * Stuff rate = stuffed_runs / designed_runs (team radar spec §3.1): designed
+   * runs only — kneel-downs, scrambles, two-point tries and penalty-wiped runs
+   * are out, so designed_runs can be smaller than rush_plays.
+   * NULL only on rows written before the first refresh after the columns were
+   * added; 0 otherwise. A NULL means "unknown", never zero.
+   */
+  designed_runs: number | null;
+  stuffed_runs: number | null;
   // what it cost them (EPA sums)
   epa_lost_turnovers: number;
   epa_lost_sacks: number;
