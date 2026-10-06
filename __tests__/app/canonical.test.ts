@@ -121,6 +121,16 @@ describe("canonical tags on the season pages (D2)", () => {
     vi.mocked(getAvailableSeasons).mockResolvedValue([]);
     expect((await meta(gen, { season: "2025" })).alternates?.canonical).toBe(`${BASE}${path}`);
   });
+
+  // Read resilience spec §1.2: an EMPTY list (above) is an answer; a FAILED
+  // read is not. generateMetadata does not catch it: no fallback title, no
+  // guessed canonical, no noindex. Next resolves the throw into the route's
+  // error card (200 behind loading.tsx, with an empty head).
+  it.each(SEASON_PAGES)("%s: a failed seasons read rejects; no canonical is guessed", async (_path, gen) => {
+    vi.mocked(getAvailableSeasons).mockRejectedValue(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(meta(gen, { season: "2025" })).rejects.toThrow("Failed to fetch seasons");
+    await expect(meta(gen)).rejects.toThrow("Failed to fetch seasons");
+  });
 });
 
 describe("run-gaps canonical (D3)", () => {

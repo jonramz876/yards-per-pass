@@ -5,6 +5,7 @@ import { NFL_TEAMS, getTeam } from "@/lib/data/teams";
 import { getTeamHubData } from "@/lib/data/team-hub";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { hasNoDatabase } from "@/lib/supabase/server";
 import TeamHubContent from "@/components/team/TeamHubContent";
 
 export const revalidate = 3600;
@@ -52,11 +53,13 @@ export default async function TeamPage({
   const parsed = season ? parseInt(season) : NaN;
   const currentSeason = Number.isNaN(parsed) ? (seasons[0] || fallbackSeason()) : parsed;
 
-  if (seasons.length === 0) {
-    // getAvailableSeasons swallows its own query error and returns [], and the
-    // probe below then short-circuits without querying, throwing, or reaching
-    // its catch — so the links would vanish with nothing logged at all.
-    console.error("Team page: no seasons from data_freshness; schedule tiles will not link");
+  // getAvailableSeasons throws on a query error (the route's error card
+  // shows), so [] is a table with no rows. A real database always has
+  // data_freshness rows, so that is broken too: throw rather than render a
+  // team page on a guessed season (the homepage's rule). Only with no
+  // database at all (CI / local placeholder build) does the fallback stand.
+  if (seasons.length === 0 && !hasNoDatabase()) {
+    throw new Error("Team page: no seasons from data_freshness (table empty)");
   }
 
   // Only the latest season pre-surfaces next season's schedule. The box score
@@ -68,7 +71,9 @@ export default async function TeamPage({
   // generateStaticParams). The probe is therefore memoised for an hour rather
   // than costing one limit(1) query per covered season on every view. A failed
   // probe logs and renders no links this render — a rejection is never
-  // memoised, so the next render retries — never a crash.
+  // memoised, so the next render retries — never a crash. It is the one read
+  // here that may degrade; getTeamHubData rejects when a core read fails
+  // (read resilience spec §1.2) and that reaches error.tsx.
   //
   // try/catch, not .catch(): a .catch() hangs off the call's RETURN value, so a
   // throw that happens BEFORE the promise exists escapes it and 500s the whole

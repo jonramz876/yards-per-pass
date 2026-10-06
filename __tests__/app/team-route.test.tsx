@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
@@ -82,18 +82,55 @@ describe("TeamPage — box score link gate (spec §7)", () => {
     logged.mockRestore();
   });
 
-  it("logs the silent path: no seasons from data_freshness means no links", async () => {
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
-    await contentProps();
-    expect(logged).toHaveBeenCalledTimes(1);
-    expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
-    logged.mockRestore();
-  });
-
   it("unknown team still 404s", async () => {
     await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
+  });
+});
+
+// Read resilience spec §1.2. A failed read on this page used to render the
+// team name over empty sections; core reads now reject, which Next hands to
+// app/team/[team_id]/error.tsx ("Unable to load team data").
+describe("TeamPage — a failed read is an error, never a blank team page", () => {
+  const REAL_URL = "https://abcdefghijklmnop.supabase.co";
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", REAL_URL);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("seasons read fails → throws, before any other read", async () => {
+    vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(contentProps()).rejects.toThrow("Failed to fetch seasons");
+    expect(getTeamHubData).not.toHaveBeenCalled();
+  });
+
+  it("the hub data rejects (one of its ten core reads failed) → throws", async () => {
+    vi.mocked(getTeamHubData).mockRejectedValueOnce(new Error("Failed to fetch team stats: TypeError: fetch failed"));
+    await expect(contentProps()).rejects.toThrow("Failed to fetch team stats");
+    expect(TeamHubContent).not.toHaveBeenCalled();
+  });
+
+  it("an empty data_freshness table with a real database → throws (homepage rule)", async () => {
+    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
+    await expect(contentProps()).rejects.toThrow(/no seasons/);
+    expect(getTeamHubData).not.toHaveBeenCalled();
+  });
+
+  it("an empty seasons list with no database (placeholder build) → renders on the fallback season", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://placeholder.supabase.co");
+    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
+    const props = await contentProps();
+    expect(props.defaultSeason).toBe(2026);
+    expect(vi.mocked(getTeamHubData).mock.calls[0]).toEqual(["BUF", 2026, false]);
+  });
+
+  it("an unknown team is a 404 decided before any read, so it stays a 404 when the database is down", async () => {
+    await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(getAvailableSeasons).not.toHaveBeenCalled();
   });
 });
 

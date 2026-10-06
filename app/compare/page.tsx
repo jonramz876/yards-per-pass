@@ -6,7 +6,7 @@ import { getPlayerBySlug } from "@/lib/data/players";
 import { getQBStats, getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
-import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
+import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat, PlayerSlug } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Player Comparison",
@@ -30,7 +30,17 @@ export default async function ComparePage({
   let rbs: RBSeasonStat[] = [];
 
   if (p1) {
-    const player = await getPlayerBySlug(p1);
+    // The one read here that may degrade (read resilience spec §1.2): if the
+    // p1 lookup fails, render the tool with nothing preloaded. The browser
+    // restores both players from the URL itself and says so if it cannot.
+    // The seasons read above and the position table below are core: a failure
+    // throws to app/compare/error.tsx.
+    let player: PlayerSlug | null = null;
+    try {
+      player = await getPlayerBySlug(p1);
+    } catch (err: unknown) {
+      console.error(`Compare page: player lookup failed for ${p1}; rendering with nothing preloaded`, err);
+    }
     if (player) {
       const pos = player.position;
       if (pos === "QB") {
