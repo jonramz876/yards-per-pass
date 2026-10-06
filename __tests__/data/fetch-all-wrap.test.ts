@@ -115,14 +115,45 @@ describe("queryError keeps an upstream error body short", () => {
 // Chaos K2: loaders built their message from `error.message` directly, so an
 // error with no message logged "Failed to fetch seasons: undefined".
 describe("no loader builds its message from error.message directly", () => {
+  // A tripwire, not a proof: it catches a message assembled from any
+  // `<name>.message` by template or by "+", in any file under lib/data
+  // (subfolders included). lib/data/utils.ts is where queryError itself reads
+  // the message, so it is the one file left out.
+  const ASSEMBLED = /\$\{\s*\w+\??\.message\s*\}|\+\s*\w+\??\.message\b/;
+
+  function sourceFiles(dir: string): string[] {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) return sourceFiles(full);
+      return /\.tsx?$/.test(entry.name) ? [full] : [];
+    });
+  }
+
+  it("the pattern catches the shapes it is meant to", () => {
+    for (const bad of [
+      "throw new Error(`Failed to fetch x: ${error.message}`)",
+      "throw new Error(`x: ${ err.message }`)",
+      "throw new Error(`x: ${e?.message}`)",
+      'throw new Error("x: " + error.message)',
+    ]) {
+      expect(ASSEMBLED.test(bad), bad).toBe(true);
+    }
+    for (const fine of ['throw queryError("seasons", error)', "const m = summarizeUpstreamError(err)"]) {
+      expect(ASSEMBLED.test(fine), fine).toBe(false);
+    }
+  });
+
   it("every lib/data file reports a query error through queryError", () => {
     const dir = path.resolve(__dirname, "../../lib/data");
+    const files = sourceFiles(dir).filter((f) => path.resolve(f) !== path.join(dir, "utils.ts"));
+    expect(files.length).toBeGreaterThan(8);
     const offenders: string[] = [];
-    for (const file of fs.readdirSync(dir)) {
-      const text = fs.readFileSync(path.join(dir, file), "utf8");
-      text.split(/\r?\n/).forEach((line, i) => {
-        if (line.includes("${error.message}")) offenders.push(`${file}:${i + 1}`);
-      });
+    for (const file of files) {
+      fs.readFileSync(file, "utf8")
+        .split(/\r?\n/)
+        .forEach((line, i) => {
+          if (ASSEMBLED.test(line)) offenders.push(`${path.relative(dir, file)}:${i + 1}`);
+        });
     }
     expect(offenders).toEqual([]);
   });

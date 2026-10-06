@@ -37,7 +37,7 @@ export type TeamStatsSeason =
  *
  * `seasons` is getAvailableSeasons() (data_freshness, newest first). An empty
  * read throws when it can only mean a broken read (J4): no seasons at all
- * (getAvailableSeasons swallows its own error into []), the newest season
+ * (getAvailableSeasons throws on a query error, so [] is an empty table), the newest season
  * (its rows and its data_freshness row are written in one transaction), or a
  * season the box score probe says has rows. Every other empty season is a
  * message page.
@@ -63,7 +63,7 @@ export async function getTeamStatsSeason(season: number, seasons: number[]): Pro
   }
 
   if (seasons.length === 0) {
-    throw new Error("Team stats: no seasons from data_freshness (query failed or table empty)");
+    throw new Error("Team stats: no seasons from data_freshness (table empty)");
   }
   if (season === seasons[0]) {
     throw new Error(

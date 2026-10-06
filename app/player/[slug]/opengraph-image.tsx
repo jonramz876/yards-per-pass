@@ -35,9 +35,12 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   // for a player who has a card, or a card for a guessed season), so it is
   // sent `no-store`: nothing in between may keep it (read resilience spec
   // §1.2). An image built with no failed read gets the options it always had.
+  // The key must be lowercase: next/og spreads these over its own lowercase
+  // "cache-control" one-year default, and a "Cache-Control" key would not
+  // replace it (both would be sent, joined).
   let readFailed = false;
   const options = () =>
-    readFailed ? { ...size, fonts, headers: { "Cache-Control": "no-store" } } : { ...size, fonts };
+    readFailed ? { ...size, fonts, headers: { "cache-control": "no-store" } } : { ...size, fonts };
 
   // A DB hiccup must never break the embed — fall back to the current season.
   let season: number;

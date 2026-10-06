@@ -8,12 +8,26 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // read is returned exactly as before: no headers option at all.
 //
 // @vercel/og cannot render on Windows, so next/og is replaced by a class that
-// records what it was given.
-const images: { element: unknown; options: Record<string, unknown> }[] = [];
+// records what it was given AND builds its headers exactly the way the real
+// one does (node_modules/next/dist/server/og/image-response.js:38-42): an
+// object literal with a LOWERCASE one-year default, the caller's headers
+// spread on top, handed to a Response. Object keys are case-sensitive, so a
+// caller's "Cache-Control" does not replace "cache-control": both survive and
+// the Response joins them into "public, immutable, ..., no-store". Only a
+// lowercase key replaces the default. `headers` below is what goes out.
+const NEXT_OG_DEFAULT_CACHE = "public, immutable, no-transform, max-age=31536000";
+const images: { element: unknown; options: Record<string, unknown>; headers: Headers }[] = [];
 vi.mock("next/og", () => ({
   ImageResponse: class {
     constructor(element: unknown, options: Record<string, unknown> = {}) {
-      images.push({ element, options });
+      const headers = new Response(null, {
+        headers: {
+          "content-type": "image/png",
+          "cache-control": "public, immutable, no-transform, max-age=31536000",
+          ...(options.headers as Record<string, string> | undefined),
+        },
+      }).headers;
+      images.push({ element, options, headers });
     }
   },
 }));
@@ -63,7 +77,6 @@ async function draw(route: ImageRoute, slug = "josh-allen") {
   return images[0];
 }
 
-const NO_STORE = { "Cache-Control": "no-store" };
 
 beforeEach(() => {
   images.length = 0;
@@ -80,6 +93,7 @@ describe.each(ROUTES)("%s — no read failed: built exactly as before, cacheable
     const image = await draw(route);
     expect(image.element).toBe("CARD");
     expect("headers" in image.options).toBe(false);
+    expect(image.headers.get("cache-control")).toBe(NEXT_OG_DEFAULT_CACHE);
     expect(image.options).toMatchObject({ width: 1200, height: 630 });
     expect(vi.mocked(getCardDataForPlayer)).toHaveBeenCalledWith(ALLEN, 2026);
   });
@@ -89,6 +103,7 @@ describe.each(ROUTES)("%s — no read failed: built exactly as before, cacheable
     const image = await draw(route, "no-such-player");
     expect(image.element).toBe("BRAND PLATE");
     expect("headers" in image.options).toBe(false);
+    expect(image.headers.get("cache-control")).toBe(NEXT_OG_DEFAULT_CACHE);
   });
 
   it("real player with no card: the name plate, no headers option", async () => {
@@ -96,6 +111,7 @@ describe.each(ROUTES)("%s — no read failed: built exactly as before, cacheable
     const image = await draw(route);
     expect(image.element).toBe("NAME PLATE");
     expect("headers" in image.options).toBe(false);
+    expect(image.headers.get("cache-control")).toBe(NEXT_OG_DEFAULT_CACHE);
   });
 
   it("an empty seasons list (a read that succeeded) is not a failure", async () => {
@@ -103,6 +119,7 @@ describe.each(ROUTES)("%s — no read failed: built exactly as before, cacheable
     const image = await draw(route);
     expect(image.element).toBe("CARD");
     expect("headers" in image.options).toBe(false);
+    expect(image.headers.get("cache-control")).toBe(NEXT_OG_DEFAULT_CACHE);
   });
 });
 
@@ -111,14 +128,14 @@ describe.each(ROUTES)("%s — a read failed: the image is no-store", (_name, rou
     vi.mocked(getPlayerBySlug).mockRejectedValue(FAILED("player josh-allen"));
     const image = await draw(route);
     expect(image.element).toBe("BRAND PLATE");
-    expect(image.options.headers).toEqual(NO_STORE);
+    expect(image.headers.get("cache-control")).toBe("no-store");
   });
 
   it("card data read fails: the name plate, no-store", async () => {
     vi.mocked(getCardDataForPlayer).mockRejectedValue(FAILED("QB stats"));
     const image = await draw(route);
     expect(image.element).toBe("NAME PLATE");
-    expect(image.options.headers).toEqual(NO_STORE);
+    expect(image.headers.get("cache-control")).toBe("no-store");
   });
 
   it("seasons read fails, then the card draws for the fallback season: still no-store (it may be the wrong season)", async () => {
@@ -126,7 +143,7 @@ describe.each(ROUTES)("%s — a read failed: the image is no-store", (_name, rou
     const image = await draw(route);
     expect(image.element).toBe("CARD");
     expect(vi.mocked(getCardDataForPlayer)).toHaveBeenCalledWith(ALLEN, 2026);
-    expect(image.options.headers).toEqual(NO_STORE);
+    expect(image.headers.get("cache-control")).toBe("no-store");
   });
 
   it("seasons read fails and the slug is unknown: the brand plate, no-store", async () => {
@@ -134,7 +151,7 @@ describe.each(ROUTES)("%s — a read failed: the image is no-store", (_name, rou
     vi.mocked(getPlayerBySlug).mockResolvedValue(null);
     const image = await draw(route, "no-such-player");
     expect(image.element).toBe("BRAND PLATE");
-    expect(image.options.headers).toEqual(NO_STORE);
+    expect(image.headers.get("cache-control")).toBe("no-store");
   });
 
   it("seasons read fails and the player has no card: the name plate, no-store", async () => {
@@ -142,7 +159,7 @@ describe.each(ROUTES)("%s — a read failed: the image is no-store", (_name, rou
     vi.mocked(getCardDataForPlayer).mockResolvedValue(null);
     const image = await draw(route);
     expect(image.element).toBe("NAME PLATE");
-    expect(image.options.headers).toEqual(NO_STORE);
+    expect(image.headers.get("cache-control")).toBe("no-store");
   });
 
   it("never throws: a share embed always gets an image", async () => {

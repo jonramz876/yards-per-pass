@@ -388,7 +388,7 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     // no rows. A real database always has data_freshness rows, so that still
     // means something is broken (homepage rule): throw rather than guess.
     if (seasons.length === 0) {
-      throw new Error("Box score: no seasons from data_freshness (query failed or table empty)");
+      throw new Error("Box score: no seasons from data_freshness (table empty)");
     }
     const covered = await getBoxScoreSeasons(seasons, signal);
     // Same rule one table over: data_freshness lists seasons, yet not one of
