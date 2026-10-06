@@ -40,6 +40,9 @@ describe("sitemap", () => {
   it("regression: no /card/ URLs, one /player/ URL per slug", async () => {
     const entries = await sitemap();
     expect(entries.filter((e) => e.url.includes("/card/"))).toHaveLength(0);
+    // Team radar PR 3: the share pages (/card/team/BUF/offense) and their
+    // image route are not listed either (team radar spec §7).
+    expect(entries.filter((e) => /\/card\/team|\/api\/team-radar/.test(e.url))).toHaveLength(0);
     expect(entries.filter((e) => e.url.includes("/player/"))).toHaveLength(3);
     expect(entries).toHaveLength(11 + 32 + 3);
   });
