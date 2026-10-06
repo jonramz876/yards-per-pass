@@ -8,12 +8,15 @@ import rowsJson from "../stats/fixtures/team-radar-2026-w1-3.json";
 
 vi.mock("@/lib/data/team-radar", () => ({ getTeamRadarRows: vi.fn() }));
 vi.mock("@/lib/data/box-score", () => ({ getBoxScoreSeasonsCached: vi.fn() }));
+vi.mock("@/lib/data/queries", () => ({ getAvailableSeasons: vi.fn() }));
 
 import { getTeamRadarRows } from "@/lib/data/team-radar";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { getAvailableSeasons } from "@/lib/data/queries";
 import {
   TEAM_RADAR_MEMO_TTL_MS,
   clearTeamRadarCardMemo,
+  getAvailableSeasonsCached,
   getTeamRadarRowsCached,
   loadTeamRadarCard,
 } from "@/lib/data/team-radar-card";
@@ -27,6 +30,8 @@ beforeEach(() => {
   vi.useRealTimers();
   vi.mocked(getTeamRadarRows).mockReset();
   vi.mocked(getBoxScoreSeasonsCached).mockReset();
+  vi.mocked(getAvailableSeasons).mockReset();
+  vi.mocked(getAvailableSeasons).mockResolvedValue([2026, 2025, 2024]);
   vi.mocked(getTeamRadarRows).mockResolvedValue(ROWS);
   vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026]);
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -119,13 +124,24 @@ describe("loadTeamRadarCard", () => {
     expect(getTeamRadarRows).toHaveBeenCalledWith(2026);
   });
 
-  it("a failed coverage probe is logged and does not fail the card; a past season is then read (nothing was decided)", async () => {
+  // Chaos R3: with the probe down, "no rows for 2025" cannot be told apart from
+  // "2025 was never covered", and the vaguer sentence (R12b) used to go out as a
+  // cacheable success. Now it is a failed read. The state table keeps R12b for
+  // a probe that SUCCEEDED and found the season in a gap (the test above).
+  it("a failed coverage probe on a past season with no rows rejects: the answer depended on the probe", async () => {
     vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("Failed to fetch box score seasons: timeout"));
     vi.mocked(getTeamRadarRows).mockResolvedValue([]);
-    const slice = await loadTeamRadarCard("BUF", 2025, SEASONS);
-    expect(slice).toEqual({ state: "uncovered", season: 2025, firstSeason: null });
+    await expect(loadTeamRadarCard("BUF", 2025, SEASONS)).rejects.toThrow(/coverage probe failed/);
     expect(getTeamRadarRows).toHaveBeenCalledWith(2025);
     expect(console.error).toHaveBeenCalled();
+  });
+
+  it("a failed coverage probe does not fail a card whose rows are there (the rows are the proof): the newest season, and a past one", async () => {
+    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("Failed to fetch box score seasons: timeout"));
+    expect((await loadTeamRadarCard("BUF", 2026, SEASONS)).state).toBe("ready");
+    clearTeamRadarCardMemo();
+    vi.mocked(getTeamRadarRows).mockResolvedValue((ROWS as Record<string, unknown>[]).map((r) => ({ ...r, season: 2025 })) as never[]);
+    expect((await loadTeamRadarCard("BUF", 2025, SEASONS)).state).toBe("ready");
   });
 
   it("a failed row read rejects (the page shows its error card, the image route answers 503); never an empty card", async () => {
@@ -165,5 +181,43 @@ describe("loadTeamRadarCard", () => {
     expect(slice.league.stuff).toBeNull();
     expect(console.error).toHaveBeenCalledTimes(1);
     expect(String(vi.mocked(console.error).mock.calls[0][0])).toContain("outside 0-1");
+  });
+});
+
+describe("getAvailableSeasonsCached — the image route's seasons list, one read a minute (chaos R1)", () => {
+  it("concurrent and repeated callers share one read; each gets its own copy of the list", async () => {
+    const [a, b] = await Promise.all([getAvailableSeasonsCached(), getAvailableSeasonsCached()]);
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+    expect(a).toEqual([2026, 2025, 2024]);
+    expect(a).not.toBe(b);
+    a.push(1999);
+    expect(await getAvailableSeasonsCached()).toEqual([2026, 2025, 2024]);
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+  });
+
+  it("read again after a minute", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
+    await getAvailableSeasonsCached();
+    vi.setSystemTime(new Date("2026-10-06T12:00:59Z"));
+    await getAvailableSeasonsCached();
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(new Date("2026-10-06T12:01:01Z"));
+    await getAvailableSeasonsCached();
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(2);
+  });
+
+  it("a rejection is never kept", async () => {
+    vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(getAvailableSeasonsCached()).rejects.toThrow("Failed to fetch seasons");
+    await expect(getAvailableSeasonsCached()).resolves.toEqual([2026, 2025, 2024]);
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(2);
+  });
+
+  it("clearTeamRadarCardMemo forgets it too", async () => {
+    await getAvailableSeasonsCached();
+    clearTeamRadarCardMemo();
+    await getAvailableSeasonsCached();
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(2);
   });
 });

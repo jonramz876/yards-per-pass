@@ -646,6 +646,49 @@ export function parseRadarSide(raw: string | null | undefined): RadarSide | null
   return raw === "offense" ? "off" : raw === "defense" ? "def" : null;
 }
 
+/**
+ * The team segment of a share URL, upper-cased: two or three ASCII letters,
+ * checked BEFORE upper-casing. "ſf" (long s) and "pıt" (dotless i) upper-case
+ * to SF and PIT, so an upper-case-then-look-up let them through as aliases
+ * (chaos N3). Whether the id is a real team is the caller's look-up.
+ */
+export function parseRadarTeamId(raw: string | null | undefined): string | null {
+  return typeof raw === "string" && /^[A-Za-z]{2,3}$/.test(raw) ? raw.toUpperCase() : null;
+}
+
+/**
+ * The image route's query string, or null for anything but its one exact
+ * form (chaos R1). Every distinct URL is its own CDN entry and its own
+ * render, so the route draws only for: no query, or `season` (four digits,
+ * 1999-2100), `w` (one or two digits; ignored, it only makes each week a new
+ * URL) and `download=1`, each at most once and no other key. The share page
+ * keeps the site-wide rule (a junk ?season= is the newest season); the image
+ * never draws the newest season's card under a junk URL.
+ */
+export function parseRadarImageQuery(query: URLSearchParams): { season: number | null; download: boolean } | null {
+  const seen = new Set<string>();
+  let season: number | null = null;
+  let download = false;
+  // Array.from: a URLSearchParams lists a repeated key once per value.
+  for (const [key, value] of Array.from(query.entries())) {
+    if (seen.has(key)) return null;
+    seen.add(key);
+    if (key === "season") {
+      if (!/^\d{4}$/.test(value)) return null;
+      season = parseSeasonParam(value);
+      if (season === null) return null;
+    } else if (key === "w") {
+      if (!/^\d{1,2}$/.test(value)) return null;
+    } else if (key === "download") {
+      if (value !== "1") return null;
+      download = true;
+    } else {
+      return null;
+    }
+  }
+  return { season, download };
+}
+
 export function radarSideSlug(side: RadarSide): "offense" | "defense" {
   return side === "off" ? "offense" : "defense";
 }
@@ -756,6 +799,8 @@ export function radarTeamPageLinkText(teamName: string): string {
 export const RADAR_COPY_LINK_TEXT = "Copy Link";
 export const RADAR_COPIED_TEXT = "Copied!";
 export const RADAR_DOWNLOAD_TEXT = "Download Image";
+/** Shown on the Copy button when nothing reached the clipboard (never "Copied!" then). */
+export const RADAR_COPY_FAILED_TEXT = "Copy failed: use the address bar";
 
 /** What the image route answers (503) when a read failed. */
 export const RADAR_IMAGE_UNAVAILABLE = "Team radar image temporarily unavailable. Try again in a few minutes.";

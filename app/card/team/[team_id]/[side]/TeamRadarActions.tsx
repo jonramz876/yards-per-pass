@@ -4,7 +4,7 @@
 "use client";
 
 import { useState } from "react";
-import { RADAR_COPIED_TEXT, RADAR_COPY_LINK_TEXT, RADAR_DOWNLOAD_TEXT } from "@/lib/stats/team-radar";
+import { RADAR_COPIED_TEXT, RADAR_COPY_FAILED_TEXT, RADAR_COPY_LINK_TEXT, RADAR_DOWNLOAD_TEXT } from "@/lib/stats/team-radar";
 
 interface TeamRadarActionsProps {
   /** This page's path: bare for the default season, ?season= for a past one, so a link copied today keeps meaning "the newest season". */
@@ -14,23 +14,35 @@ interface TeamRadarActionsProps {
 }
 
 export default function TeamRadarActions({ pagePath, downloadHref }: TeamRadarActionsProps) {
-  const [copied, setCopied] = useState(false);
+  const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
+
+  /** The old copy command, for browsers without the clipboard API or without permission. True only when it says it copied. */
+  function copyWithCommand(url: string): boolean {
+    const input = document.createElement("input");
+    input.value = url;
+    document.body.appendChild(input);
+    try {
+      input.select();
+      return document.execCommand("copy") === true;
+    } catch {
+      return false; // the command threw, or does not exist
+    } finally {
+      document.body.removeChild(input);
+    }
+  }
 
   async function handleCopyLink() {
     const url = `${window.location.origin}${pagePath}`;
+    let ok: boolean;
     try {
       await navigator.clipboard.writeText(url);
+      ok = true;
     } catch {
-      // Older browsers, or a page without clipboard permission.
-      const input = document.createElement("input");
-      input.value = url;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
+      ok = copyWithCommand(url);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    // Never "Copied!" when nothing reached the clipboard (chaos N6).
+    setCopy(ok ? "copied" : "failed");
+    setTimeout(() => setCopy("idle"), ok ? 2000 : 4000);
   }
 
   function handleDownload() {
@@ -49,9 +61,9 @@ export default function TeamRadarActions({ pagePath, downloadHref }: TeamRadarAc
       <button
         type="button"
         onClick={handleCopyLink}
-        className={`cursor-pointer rounded-md px-6 py-2.5 text-sm font-semibold text-white transition-colors ${copied ? "bg-green-600" : "bg-slate-900"}`}
+        className={`cursor-pointer rounded-md px-6 py-2.5 text-sm font-semibold text-white transition-colors ${copy === "copied" ? "bg-green-600" : copy === "failed" ? "bg-red-700" : "bg-slate-900"}`}
       >
-        {copied ? RADAR_COPIED_TEXT : RADAR_COPY_LINK_TEXT}
+        {copy === "copied" ? RADAR_COPIED_TEXT : copy === "failed" ? RADAR_COPY_FAILED_TEXT : RADAR_COPY_LINK_TEXT}
       </button>
       <button
         type="button"

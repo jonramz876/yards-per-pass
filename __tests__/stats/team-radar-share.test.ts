@@ -259,3 +259,64 @@ describe("the sentence a share page or team page shows instead of a radar", () =
     expect(R.radarStateMessage({ state: "unavailable", season: 2026 }, "Buffalo Bills")).toBe(R.RADAR_UNAVAILABLE_NOTE);
   });
 });
+
+// Chaos pass on PR 3 (N3, R1).
+describe("the team segment of a share URL", () => {
+  it("two or three ASCII letters, upper-cased; anything else is no team", () => {
+    expect(R.parseRadarTeamId("BUF")).toBe("BUF");
+    expect(R.parseRadarTeamId("buf")).toBe("BUF");
+    expect(R.parseRadarTeamId("Sf")).toBe("SF");
+    expect(R.parseRadarTeamId("kc")).toBe("KC");
+  });
+
+  it("letters that only upper-case INTO ASCII (long s, dotless i) are not a team", () => {
+    for (const junk of ["\u017Ff", "\u017Fea", "p\u0131t", "m\u0131a", "ch\u0131", "\uFF22\uFF35\uFF26", "BU F", "B", "BUFF", "", "B1", "<b>", "..", undefined, null, 7, ["BUF"]]) {
+      expect(R.parseRadarTeamId(junk as string), String(junk)).toBeNull();
+    }
+    // The trap this closes: these DO upper-case to real ids.
+    expect("\u017Ff".toUpperCase()).toBe("SF");
+    expect("p\u0131t".toUpperCase()).toBe("PIT");
+  });
+});
+
+describe("the image route's query string (strict: a junk URL is never a picture)", () => {
+  const q = (s: string) => R.parseRadarImageQuery(new URLSearchParams(s));
+
+  it("nothing, or exactly season / w / download in their one form", () => {
+    expect(q("")).toEqual({ season: null, download: false });
+    expect(q("season=2026")).toEqual({ season: 2026, download: false });
+    expect(q("season=2025&w=3")).toEqual({ season: 2025, download: false });
+    expect(q("season=2026&w=18&download=1")).toEqual({ season: 2026, download: true });
+    expect(q("download=1")).toEqual({ season: null, download: true });
+    expect(q("w=22")).toEqual({ season: null, download: false });
+  });
+
+  it.each([
+    "x=1", "season=2026&x=1", "Season=2025", "season[]=2025", "utm_source=a",
+    "season=2025&season=2024", "w=1&w=2", "download=1&download=1",
+    "season=abc", "season=", "season=NaN", "season=null", "season=2025abc", "season=2025.9", "season=%202025", "season=+2025",
+    "season=02025", "season=2025,2024", "season=20 25", "season=-2025", "season=0x7EA", "season=2e3", "season=\uFF12\uFF10\uFF12\uFF15",
+    "season=99999999999999999999", "season=1998", "season=2101", "season=0000",
+    "w=", "w=-5", "w=zzz", "w=123", "w=1.5",
+    "download=0", "download=true", "download=", "download=11", "Download=1",
+  ])("?%s is rejected", (s) => {
+    expect(q(s)).toBeNull();
+  });
+
+  it("the page's own image URLs all pass", () => {
+    for (const href of [
+      R.radarImageHref("BUF", "off", 2026),
+      R.radarImageHref("BUF", "def", 2025, { week: 3 }),
+      R.radarImageHref("BUF", "off", 2026, { download: true }),
+      R.radarImageHref("BUF", "off", 2026, { week: 22, download: true }),
+    ]) {
+      expect(q(href.split("?")[1]), href).not.toBeNull();
+    }
+  });
+});
+
+describe("Copy Link's failure sentence", () => {
+  it("says the copy failed and what to do instead", () => {
+    expect(R.RADAR_COPY_FAILED_TEXT).toBe("Copy failed: use the address bar");
+  });
+});

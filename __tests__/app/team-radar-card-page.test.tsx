@@ -10,6 +10,34 @@ import { join } from "node:path";
 import rowsJson from "../stats/fixtures/team-radar-2026-w1-3.json";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+// React's cache() exists only in the react-server build, so under vitest
+// `import { cache } from "react"` is undefined and the page module could not
+// load. This stands in for it: one result per argument list per "request".
+// newRequest() starts a new request (React does that itself on the server).
+const requestCache = vi.hoisted(() => ({ stores: [] as Map<string, unknown>[] }));
+const newRequest = () => requestCache.stores.forEach((m) => m.clear());
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+  return {
+    ...actual,
+    cache: <A extends unknown[], T>(fn: (...args: A) => T) => {
+      const store = new Map<string, unknown>();
+      requestCache.stores.push(store);
+      return (...args: A): T => {
+        // Primitives only: React compares cache() arguments by identity.
+        for (const a of args) {
+          if (a !== null && !["string", "number", "boolean", "undefined"].includes(typeof a)) {
+            throw new Error("cache() was called with a non-primitive argument");
+          }
+        }
+        const key = JSON.stringify(args);
+        if (!store.has(key)) store.set(key, fn(...args));
+        return store.get(key) as T;
+      };
+    },
+  };
+});
+
 vi.mock("next/navigation", () => ({
   notFound: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -51,9 +79,26 @@ const args = (team_id: string, side: string, season?: string) => ({
   params: Promise.resolve({ team_id, side }),
   searchParams: Promise.resolve(season === undefined ? {} : { season }),
 });
-const page = async (team_id: string, side: string, season?: string) =>
+const renderPage = async (team_id: string, side: string, season?: string) =>
   render(<TooltipProvider>{await SharePage(args(team_id, side, season))}</TooltipProvider>).container;
-const md = (team_id: string, side: string, season?: string) => generateMetadata(args(team_id, side, season));
+/** The page body alone, as its own request. */
+const page = (team_id: string, side: string, season?: string) => {
+  newRequest();
+  return renderPage(team_id, side, season);
+};
+/** The metadata alone, as its own request. */
+const md = (team_id: string, side: string, season?: string) => {
+  newRequest();
+  return generateMetadata(args(team_id, side, season));
+};
+/** One real page view: Next runs generateMetadata, then the page, in the same request. `between` runs in the gap. */
+async function request(team_id: string, side: string, season: string | undefined, between: () => void = () => {}) {
+  newRequest();
+  const meta = await generateMetadata(args(team_id, side, season));
+  between();
+  const el = await renderPage(team_id, side, season);
+  return { meta, el };
+}
 const noRead = () => {
   expect(getAvailableSeasons).not.toHaveBeenCalled();
   expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
@@ -70,6 +115,7 @@ const bufSlice = () => {
 };
 
 beforeEach(() => {
+  newRequest();
   clearTeamRadarCardMemo();
   vi.mocked(notFound).mockClear();
   vi.mocked(getAvailableSeasons).mockReset();
@@ -95,8 +141,13 @@ describe("route validation: junk is a 404 before any database read", () => {
     ["buffalo", "defense"],
     ["BU F", "offense"],
     ["<script>", "offense"],
+    // Chaos N3: letters that only upper-case INTO ASCII (long s, dotless i) are not a team.
+    ["\u017Ff", "offense"],
+    ["p\u0131t", "defense"],
+    ["BUFF", "offense"],
   ])("/card/team/%s/%s", async (team, side) => {
     await expect(SharePage(args(team, side))).rejects.toThrow("NEXT_NOT_FOUND");
+    expect((await generateMetadata(args(team, side))).title).toEqual({ absolute: "Team Radar Not Found — Yards Per Pass" });
     noRead();
   });
 
@@ -282,7 +333,130 @@ describe("ready: the card", () => {
   });
 });
 
+// Chaos W1: generateMetadata and the page used to load separately, so a
+// refresh landing between the two could put 2026 in the title and 2027 in the
+// band. One load per request now (React cache(), keyed on the team id and the
+// season number asked for).
+describe("one load per request: the title and the body can never disagree", () => {
+  const band = (el: HTMLElement) => el.querySelector("[data-radar-card-band]")!.textContent!;
+
+  it("one seasons read, one probe and one row read for a whole page view", async () => {
+    await request("BUF", "offense", undefined);
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+    expect(getBoxScoreSeasonsCached).toHaveBeenCalledTimes(1);
+    expect(getTeamRadarRows).toHaveBeenCalledTimes(1);
+  });
+
+  it("the seasons list gains 2027 between the metadata and the body: both still say 2026", async () => {
+    const { meta, el } = await request("BUF", "offense", undefined, () => {
+      vi.mocked(getAvailableSeasons).mockResolvedValue([2027, 2026, 2025]);
+      vi.mocked(getTeamRadarRows).mockResolvedValue(ROWS.map((r) => ({ ...r, season: 2027 })) as never[]);
+      clearTeamRadarCardMemo();
+    });
+    expect(meta.title).toEqual({ absolute: "Buffalo Bills Offense Radar 2026 — Yards Per Pass" });
+    expect(ogImage(meta).url).toBe(`${BASE}/api/team-radar/BUF/offense?season=2026&w=3`);
+    expect(band(el)).toContain("Offense Radar · 2026 · Through Week 3");
+    expect(el.querySelector("[data-radar-actions]")!.getAttribute("data-download-href")).toBe(
+      "/api/team-radar/BUF/offense?season=2026&download=1",
+    );
+  });
+
+  it("the rows gain a week between the metadata and the body (the one-minute memo rolled over): both still say Week 3", async () => {
+    const { meta, el } = await request("BUF", "defense", undefined, () => {
+      vi.mocked(getTeamRadarRows).mockResolvedValue([...ROWS, ...ROWS.map((r) => ({ ...r, week: 4, game_id: `${r.game_id}_w4` }))] as never[]);
+      clearTeamRadarCardMemo();
+    });
+    expect(meta.description).toContain("through Week 3");
+    expect(ogImage(meta).url).toBe(`${BASE}/api/team-radar/BUF/defense?season=2026&w=3`);
+    expect(band(el)).toContain("Through Week 3");
+    expect(el.textContent).not.toContain("Week 4");
+  });
+
+  it("the database fails between the two: the body still renders what the title described", async () => {
+    const { el } = await request("BUF", "offense", undefined, () => {
+      vi.mocked(getAvailableSeasons).mockRejectedValue(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+      vi.mocked(getTeamRadarRows).mockRejectedValue(FAILED);
+      clearTeamRadarCardMemo();
+    });
+    expect(el.querySelector("[data-radar-card]")).not.toBeNull();
+  });
+
+  it("a failed load fails both halves of the request the same way, and the next request loads again", async () => {
+    vi.mocked(getTeamRadarRows).mockRejectedValueOnce(FAILED);
+    newRequest();
+    await expect(generateMetadata(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
+    await expect(SharePage(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
+    const el = await page("BUF", "offense");
+    expect(el.querySelector("[data-radar-card]")).not.toBeNull();
+  });
+
+  it("the next request sees the new data", async () => {
+    await request("BUF", "offense", undefined);
+    vi.mocked(getAvailableSeasons).mockResolvedValue([2027, 2026, 2025]);
+    vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2027, 2026]);
+    vi.mocked(getTeamRadarRows).mockResolvedValue(ROWS.map((r) => ({ ...r, season: 2027 })) as never[]);
+    clearTeamRadarCardMemo();
+    const { meta, el } = await request("BUF", "offense", undefined);
+    expect(meta.title).toEqual({ absolute: "Buffalo Bills Offense Radar 2027 — Yards Per Pass" });
+    expect(band(el)).toContain("2027");
+  });
+
+  it("?season=2025 and ?season=2025abc are the same load; both sides and a lower-case id share it too", async () => {
+    vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026, 2025]);
+    vi.mocked(getTeamRadarRows).mockResolvedValue(ROWS.map((r) => ({ ...r, season: 2025 })) as never[]);
+    newRequest();
+    await generateMetadata(args("BUF", "offense", "2025"));
+    await generateMetadata(args("BUF", "defense", "2025abc"));
+    await generateMetadata(args("buf", "offense", "2025"));
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("TeamRadarActions", () => {
+  // Chaos N6: "Copied!" used to show even when nothing reached the clipboard.
+  const noClipboard = () => Object.assign(navigator, { clipboard: { writeText: vi.fn(async () => Promise.reject(new Error("denied"))) } });
+  const clickCopy = async (container: HTMLElement) => {
+    const [copy] = Array.from(container.querySelectorAll("button"));
+    await act(async () => {
+      fireEvent.click(copy);
+    });
+    return copy;
+  };
+
+  it("the clipboard refuses and the old copy command works: Copied!", async () => {
+    noClipboard();
+    document.execCommand = vi.fn(() => true);
+    const { container } = render(<TeamRadarActions pagePath="/card/team/BUF/offense" downloadHref="/x" />);
+    const copy = await clickCopy(container);
+    expect(document.execCommand).toHaveBeenCalledWith("copy");
+    expect(copy.textContent).toBe("Copied!");
+    expect(document.querySelectorAll("body > input")).toHaveLength(0);
+  });
+
+  it("the old copy command returns false (nothing was copied): says so, never Copied!", async () => {
+    noClipboard();
+    document.execCommand = vi.fn(() => false);
+    const { container } = render(<TeamRadarActions pagePath="/card/team/BUF/offense" downloadHref="/x" />);
+    const copy = await clickCopy(container);
+    expect(copy.textContent).toBe("Copy failed: use the address bar");
+    expect(document.querySelectorAll("body > input")).toHaveLength(0);
+  });
+
+  it("the old copy command throws, or is missing: the same sentence, and no stray input is left in the page", async () => {
+    noClipboard();
+    document.execCommand = vi.fn(() => {
+      throw new Error("not supported");
+    });
+    const first = render(<TeamRadarActions pagePath="/card/team/BUF/offense" downloadHref="/x" />);
+    expect((await clickCopy(first.container)).textContent).toBe("Copy failed: use the address bar");
+    expect(document.querySelectorAll("body > input")).toHaveLength(0);
+
+    (document as unknown as { execCommand?: unknown }).execCommand = undefined;
+    const second = render(<TeamRadarActions pagePath="/card/team/BUF/offense" downloadHref="/x" />);
+    expect((await clickCopy(second.container)).textContent).toBe("Copy failed: use the address bar");
+    expect(document.querySelectorAll("body > input")).toHaveLength(0);
+  });
+
   it("Copy Link copies this origin + the page path (bare for the default season) and says Copied!", async () => {
     const writeText = vi.fn(async () => {});
     Object.assign(navigator, { clipboard: { writeText } });
@@ -343,11 +517,11 @@ describe("message states: HTTP 200, one sentence, no card, no image buttons", ()
     expect(el.querySelector("a[data-radar-team-page]")!.getAttribute("href")).toBe("/team/BUF?season=2025#team-radar");
   });
 
-  it("uncovered → R12b when the first covered season is unknown (the probe failed)", async () => {
-    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("probe failed"));
-    vi.mocked(getTeamRadarRows).mockResolvedValue([]);
+  it("uncovered → R12b for a gap season (the probe answered: covered seasons on both sides)", async () => {
+    vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026, 2024]);
     const el = await page("BUF", "offense", "2025");
     expect(message(el)).toBe("Team radars are not available for the 2025 season.");
+    expect(getTeamRadarRows).not.toHaveBeenCalled();
     bare(el);
   });
 
@@ -369,6 +543,21 @@ describe("a failed read throws to the error card: never a 404, never an empty ca
     await expect(SharePage(args("BUF", "offense"))).rejects.toThrow("Failed to fetch seasons");
     expect(notFound).not.toHaveBeenCalled();
     expect(getTeamRadarRows).not.toHaveBeenCalled();
+  });
+
+  // Chaos R3: with the probe down the page cannot say WHY 2025 has no radar.
+  it("the coverage probe fails on a past season with no rows: throws (page and metadata), never the vaguer sentence", async () => {
+    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("probe failed"));
+    vi.mocked(getTeamRadarRows).mockResolvedValue([]);
+    await expect(page("BUF", "offense", "2025")).rejects.toThrow(/coverage probe failed/);
+    await expect(md("BUF", "offense", "2025")).rejects.toThrow(/coverage probe failed/);
+    expect(notFound).not.toHaveBeenCalled();
+  });
+
+  it("the coverage probe fails on the newest season: the card still renders (its rows are the proof)", async () => {
+    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("probe failed"));
+    const el = await page("BUF", "offense");
+    expect(el.querySelector("[data-radar-card]")).not.toBeNull();
   });
 
   it("no rows for the newest season (a read failing silently) throws too, and is logged", async () => {

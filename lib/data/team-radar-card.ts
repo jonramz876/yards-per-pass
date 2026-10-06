@@ -4,64 +4,99 @@
 // loadTeamRadarCard, so the three can never disagree about a team's state.
 import { getTeamRadarRows, type TeamRadarGameRow } from "@/lib/data/team-radar";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
+import { getAvailableSeasons } from "@/lib/data/queries";
 import { teamRadarSlice, type TeamRadarSlice } from "@/lib/stats/team-radar";
 
 /**
- * How long one season's rows are reused inside a server instance. One minute:
- * long enough that a share page, its metadata and its preview image (three
- * requests within a second or two of a link being pasted) cost one read, short
- * enough that a refresh shows up at once for all practical purposes.
+ * How long a read is reused inside one server instance: one minute.
+ *
+ * This memo is what bounds the IMAGE ROUTE's reads. That route exports
+ * `revalidate = 0`, so none of its Supabase reads are in Next's data cache;
+ * without the memo every image request (64 cards, each also fetched once more
+ * by the Download button and by every link-preview crawler) would read the
+ * seasons list and the season's rows again. With it: one of each a minute per
+ * instance, and a refresh reaches new images within a minute.
+ *
+ * It is NOT what bounds the share PAGE. The page exports `revalidate = 3600`,
+ * so its reads are already in Next's data cache for up to an hour (cleared by
+ * /api/revalidate through `revalidatePath("/card", "layout")`). After a
+ * refresh the image can therefore be ahead of the page that links it until
+ * that revalidate call lands or the hour turns over.
  */
 export const TEAM_RADAR_MEMO_TTL_MS = 60_000;
 
-const rowsMemo = new Map<number, { at: number; promise: Promise<TeamRadarGameRow[]> }>();
-
-/** Tests only: forget every memoised read. */
-export function clearTeamRadarCardMemo(): void {
-  rowsMemo.clear();
-}
+type Entry<T> = { at: number; promise: Promise<T> };
 
 /**
- * getTeamRadarRows behind a short per-season memo (review I5). The PROMISE is
- * stored, so callers arriving while the read is in flight share it; a
- * rejection deletes the entry at once, so a failed read is never replayed and
- * the next caller reads again (the getBoxScoreSeasonsCached pattern). Module
- * scope: per server instance, empty on a cold start.
- *
- * The rows array is shared between callers: treat it as read-only
- * (buildTeamRadar does).
+ * A promise memo: callers arriving while the read is in flight share it (the
+ * PROMISE is stored), and a rejection deletes the entry at once, so a failed
+ * read is never replayed and the next caller reads again (the
+ * getBoxScoreSeasonsCached pattern). Module scope: per server instance, empty
+ * on a cold start.
  */
-export function getTeamRadarRowsCached(season: number): Promise<TeamRadarGameRow[]> {
+function memoised<K, T>(store: Map<K, Entry<T>>, key: K, read: () => Promise<T>): Promise<T> {
   const now = Date.now();
-  const hit = rowsMemo.get(season);
+  const hit = store.get(key);
   if (hit && now - hit.at < TEAM_RADAR_MEMO_TTL_MS) return hit.promise;
-  let promise: Promise<TeamRadarGameRow[]>;
+  let promise: Promise<T>;
   try {
-    promise = getTeamRadarRows(season);
+    promise = read();
   } catch (err) {
     // A throw before the promise exists must not escape as a sync throw.
     return Promise.reject(err);
   }
   const entry = { at: now, promise };
-  rowsMemo.set(season, entry);
+  store.set(key, entry);
   promise.catch(() => {
-    // Only this entry: a retry already stored under the same season stays.
-    if (rowsMemo.get(season) === entry) rowsMemo.delete(season);
+    // Only this entry: a retry already stored under the same key stays.
+    if (store.get(key) === entry) store.delete(key);
   });
   return promise;
+}
+
+const rowsMemo = new Map<number, Entry<TeamRadarGameRow[]>>();
+const seasonsMemo = new Map<"seasons", Entry<number[]>>();
+
+/** Tests only: forget every memoised read. */
+export function clearTeamRadarCardMemo(): void {
+  rowsMemo.clear();
+  seasonsMemo.clear();
+}
+
+/**
+ * getTeamRadarRows behind the memo, per season (review I5). The rows array is
+ * shared between callers: treat it as read-only (buildTeamRadar does).
+ */
+export function getTeamRadarRowsCached(season: number): Promise<TeamRadarGameRow[]> {
+  return memoised(rowsMemo, season, () => getTeamRadarRows(season));
+}
+
+/**
+ * getAvailableSeasons behind the same memo, for the image route (chaos R1: it
+ * read data_freshness on every request). Each caller gets its own copy of the
+ * list, so nothing a caller does to it reaches the next one.
+ */
+export async function getAvailableSeasonsCached(): Promise<number[]> {
+  return [...(await memoised(seasonsMemo, "seasons", () => getAvailableSeasons()))];
 }
 
 /**
  * One team's radar slice for a season the caller has already validated
  * (`seasons` is data_freshness's list, newest first).
  *
- * In order (spec §7): the coverage probe (memoised for an hour, may fail: it
- * is logged and read as "unknown"), then `uncovered` is decided BEFORE the
- * season-wide read, so a past season with no rows costs no row read; then the
- * rows, through the memo above. Rejects when the row read fails: a failed read
- * is never an empty card. A slice in the `unavailable` state means the read
- * succeeded with no rows for a season that has them; callers treat it as a
- * failed read too.
+ * In order (spec §7): the coverage probe (memoised for an hour), then
+ * `uncovered` is decided BEFORE the season-wide read, so a past season with no
+ * rows costs no row read; then the rows, through the memo above.
+ *
+ * Rejects when the row read fails: a failed read is never an empty card. It
+ * also rejects when the probe failed AND the answer would have depended on it
+ * (chaos R3): a past season whose rows came back empty is "not covered", but
+ * with the probe down nothing says which season is the first covered one, and
+ * the vaguer sentence must not go out as a success. A probe failure is
+ * harmless when the season's rows are there (they are the proof).
+ *
+ * A slice in the `unavailable` state means the read succeeded with no rows
+ * for a season that has them; callers treat it as a failed read too.
  */
 export async function loadTeamRadarCard(
   teamId: string,
@@ -72,15 +107,14 @@ export async function loadTeamRadarCard(
 
   let covered: number[] = [];
   let probed = false;
+  let probeError: unknown = null;
   if (seasons.length > 0) {
     try {
       covered = await getBoxScoreSeasonsCached([...seasons]);
       probed = true;
     } catch (err: unknown) {
-      console.error(
-        `Team radar card: coverage probe failed for ${teamId} (${season}); the first covered season is unknown`,
-        err,
-      );
+      probeError = err;
+      console.error(`Team radar card: coverage probe failed for ${teamId} (${season})`, err);
     }
   }
 
@@ -89,7 +123,7 @@ export async function loadTeamRadarCard(
   const skipRead = probed && newestSeason !== null && season !== newestSeason && !covered.includes(season);
   const rows = skipRead ? [] : await getTeamRadarRowsCached(season);
 
-  return teamRadarSlice({
+  const slice = teamRadarSlice({
     teamId,
     season,
     rows: rows as unknown as Record<string, unknown>[],
@@ -97,4 +131,10 @@ export async function loadTeamRadarCard(
     covered,
     log: (message) => console.error(`Team radar card (${teamId}): ${message}`),
   });
+
+  if (slice.state === "uncovered" && seasons.length > 0 && !probed) {
+    const why = probeError instanceof Error ? probeError.message : String(probeError);
+    throw new Error(`Team radar card: coverage probe failed, so ${season} cannot be called uncovered (${why})`);
+  }
+  return slice;
 }

@@ -65,6 +65,8 @@ const noRead = () => {
   expect(getTeamRadarRows).not.toHaveBeenCalled();
 };
 
+const JUNK_CACHE = "public, max-age=0, s-maxage=3600";
+
 async function expectNotFound(res: Response) {
   expect(res.status).toBe(404);
   expect(await res.text()).toBe("Not found");
@@ -115,8 +117,30 @@ describe("junk is a 404 before any database read and before any render", () => {
     ["XXX", "offense"],
     ["", "defense"],
     ["buffalo-bills", "offense"],
+    // Chaos N3: these upper-case to SF, PIT and MIA.
+    ["ſf", "offense"],
+    ["pıt", "offense"],
+    ["mıa", "defense"],
+    ["BUFF", "offense"],
+    ["B", "offense"],
   ])("/api/team-radar/%s/%s", async (team, side) => {
-    await expectNotFound(await get(team, side));
+    const res = await get(team, side);
+    expect(res.headers.get("cache-control")).toBe(JUNK_CACHE);
+    await expectNotFound(res);
+    noRead();
+  });
+
+  // Chaos R1: every distinct query string is its own CDN entry and its own
+  // render. Only the route's one exact form is drawn.
+  it.each([
+    "?x=1", "?season=2026&x=1", "?Season=2025", "?utm_source=share",
+    "?season=abc", "?season=", "?season=NaN", "?season=2025abc", "?season=2025.9", "?season=%202025", "?season=02025",
+    "?season=2025&season=2024", "?w=1&w=2", "?w=-5", "?w=zzz", "?w=123",
+    "?download=0", "?download=true", "?download=", "?Download=1", "?download=1&download=1",
+  ])("a query string that is not the route's exact form (%s): 404 with no read, kept by the CDN so it is not re-run", async (query) => {
+    const res = await get("BUF", "offense", query);
+    expect(res.headers.get("cache-control")).toBe(JUNK_CACHE);
+    await expectNotFound(res);
     noRead();
   });
 
@@ -139,9 +163,10 @@ describe("junk is a 404 before any database read and before any render", () => {
     },
   );
 
-  it("a 404 is never stored as this URL's image", async () => {
-    const res = await get("BUF", "sideways");
-    expect(res.headers.get("cache-control")).toBe("no-store");
+  it("a season the site does not have YET is a 404 that is not stored (it may exist tomorrow); junk that can never be a card is stored for an hour", async () => {
+    expect((await get("BUF", "offense", "?season=2027")).headers.get("cache-control")).toBe("no-store");
+    expect((await get("BUF", "sideways")).headers.get("cache-control")).toBe(JUNK_CACHE);
+    expect((await get("BUF", "offense", "?season=1998")).headers.get("cache-control")).toBe(JUNK_CACHE);
   });
 });
 
@@ -198,10 +223,13 @@ describe("ready: the card PNG", () => {
     expect(vi.mocked(teamRadarCardImage).mock.calls[0][0].team.id).toBe("BUF");
   });
 
-  it("two requests inside a minute (preview + download) share one row read", async () => {
+  it("requests inside a minute (preview, download, another team) share one row read AND one seasons read", async () => {
     await get("BUF", "offense");
     await get("BUF", "defense", "?download=1");
+    await get("KC", "offense", "?season=2026&w=3");
     expect(getTeamRadarRows).toHaveBeenCalledTimes(1);
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+    expect(images).toHaveLength(3);
   });
 });
 
@@ -218,10 +246,13 @@ describe("download=1", () => {
     expect(res.headers.get("content-disposition")).toBe('attachment; filename="BUF-defense-2026-radar.png"');
   });
 
-  it("only the exact value 1 is a download", async () => {
+  it("only the exact value 1 is a download; any other value is not a picture at all", async () => {
     for (const q of ["?download=0", "?download=true", "?download=", "?Download=1"]) {
-      expect((await get("BUF", "offense", q)).headers.get("content-disposition"), q).toBeNull();
+      const res = await get("BUF", "offense", q);
+      expect(res.status, q).toBe(404);
+      expect(res.headers.get("content-disposition"), q).toBeNull();
     }
+    expect(images).toHaveLength(0);
   });
 });
 
@@ -295,6 +326,15 @@ describe("a failed read is a 503 the browser can retry: never a 404, never a sto
     const res = await get("BUF", "offense");
     expect(res.status).toBe(200);
     expect(images[0].element).toBe("CARD");
+  });
+
+  // Chaos R3: the vaguer "not available for the 2025 season" plate used to go
+  // out as a 200 the CDN kept for an hour.
+  it("a failed coverage probe on a past season with no rows is a 503, not a cacheable plate", async () => {
+    vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("probe failed"));
+    vi.mocked(getTeamRadarRows).mockResolvedValue([]);
+    await expectUnavailable(await get("BUF", "offense", "?season=2025"));
+    expect(teamRadarPlateImage).not.toHaveBeenCalled();
   });
 
   it("a failed coverage probe alone does not fail the image (the newest season is still read)", async () => {

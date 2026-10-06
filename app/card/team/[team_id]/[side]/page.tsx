@@ -8,6 +8,7 @@
 //
 // No loading.tsx on purpose: an unknown team, side or season is a real 404 and
 // a failed read is a real 500 (app/error.tsx), as on /card/[slug].
+import { cache } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,7 +16,6 @@ import { getTeam } from "@/lib/data/teams";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { loadTeamRadarCard } from "@/lib/data/team-radar-card";
 import { hasNoDatabase } from "@/lib/supabase/server";
-import { canonicalSeason } from "@/lib/utils";
 import { textColorForBackground } from "@/lib/stats/formatters";
 import type { Team } from "@/lib/types";
 import TeamRadarChart from "@/components/team/TeamRadarChart";
@@ -27,6 +27,7 @@ import {
   RADAR_NOT_FOUND_TITLE,
   canDrawRadar,
   parseRadarSide,
+  parseRadarTeamId,
   radarCardBandAside,
   radarCardFooter,
   radarCardHref,
@@ -61,37 +62,65 @@ const NOT_FOUND: Metadata = { title: { absolute: RADAR_NOT_FOUND_TITLE }, robots
 /** The team and side a share URL names, or null. Reads nothing: both come from fixed lists. */
 function parseShareParams(p: RouteParams): { team: Team; side: RadarSide } | null {
   const side = parseRadarSide(p?.side);
-  // Upper-cased like the team hub, so /card/team/buf/offense is the Bills.
-  const team = typeof p?.team_id === "string" ? getTeam(p.team_id.toUpperCase()) : undefined;
+  // Two or three ASCII letters, then upper-cased like the team hub, so
+  // /card/team/buf/offense is the Bills (and a look-alike letter is no team).
+  const teamId = parseRadarTeamId(p?.team_id);
+  const team = teamId ? getTeam(teamId) : undefined;
   return side && team ? { team, side } : null;
 }
 
+interface Share {
+  slice: TeamRadarSlice;
+  seasons: number[];
+  season: number;
+  /** The season the canonical URL names; null = the bare URL (the newest season). */
+  canonicalParam: number | null;
+}
+
 /**
- * Everything the page and its metadata both need. `null` = a season the site
- * does not have (a 404, decided before any row is read). Throws when a read
- * fails, when data_freshness is empty on a real database (the team page's
- * rule), and when the newest season's rows come back empty: a failed read
- * never looks like an empty card, a guessed season or a 404.
+ * Everything the page and its metadata both need, loaded ONCE per request.
+ *
+ * React's cache() gives generateMetadata and the page body the same promise,
+ * so the title, the preview image URL and the body can never name different
+ * seasons or weeks when a refresh lands between the two (chaos W1). cache()
+ * compares arguments by identity, so both are plain values: the team id and
+ * the season number asked for (null = none). Never pass the team object or
+ * the raw searchParams value.
+ *
+ * `null` = a season the site does not have (a 404, decided before any row is
+ * read). Rejects when a read fails, when data_freshness is empty on a real
+ * database (the team page's rule), when the coverage probe failed and the
+ * answer depended on it, and when the newest season's rows come back empty: a
+ * failed read never looks like an empty card, a guessed season or a 404.
  */
-async function loadShare(
-  team: Team,
-  rawSeason: string | string[] | undefined,
-): Promise<{ slice: TeamRadarSlice; seasons: number[]; season: number; canonicalParam: number | null } | null> {
+const loadShare = cache(async (teamId: string, requested: number | null): Promise<Share | null> => {
   const seasons = await getAvailableSeasons();
   if (seasons.length === 0 && !hasNoDatabase()) {
     throw new Error("Team radar share page: no seasons from data_freshness (table empty)");
   }
-  const { season, invalid } = resolveRadarCardSeason(rawSeason, seasons, fallbackSeason());
-  if (invalid) return null;
+  if (requested !== null && seasons.length > 0 && !seasons.includes(requested)) return null;
+  const season = requested ?? seasons[0] ?? fallbackSeason();
 
-  const slice = await loadTeamRadarCard(team.id, season, seasons);
+  const slice = await loadTeamRadarCard(teamId, season, seasons);
   if (slice.state === "unavailable") {
-    const message = `Team radar share page: the read for ${team.id} returned no rows for ${season}, a season that has them`;
+    const message = `Team radar share page: the read for ${teamId} returned no rows for ${season}, a season that has them`;
     console.error(message);
     throw new Error(message);
   }
-  const first = Array.isArray(rawSeason) ? rawSeason[0] : rawSeason;
-  return { slice, seasons, season, canonicalParam: canonicalSeason(first, seasons) };
+  // The canonicalSeason rule: only a real season other than the newest gets a
+  // URL of its own; ?season=<newest> is the bare page.
+  const canonicalParam = requested !== null && seasons.includes(requested) && requested !== seasons[0] ? requested : null;
+  return { slice, seasons, season, canonicalParam };
+});
+
+/**
+ * The share for a URL's ?season=. The site-wide rule stays: absent or not a
+ * number is the newest season; a number outside 1999-2100 is a 404 with no
+ * read. (The IMAGE route is stricter: see parseRadarImageQuery.)
+ */
+function shareFor(team: Team, rawSeason: string | string[] | undefined): Promise<Share | null> {
+  const asked = resolveRadarCardSeason(rawSeason, [], 0);
+  return asked.invalid ? Promise.resolve(null) : loadShare(team.id, asked.requested);
 }
 
 // -------------------------------------------------------------------
@@ -104,13 +133,13 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   const { season: rawSeason } = await searchParams;
 
   // Not caught (read resilience 1A): a failed read rejects here too.
-  const share = await loadShare(team, rawSeason);
+  const share = await shareFor(team, rawSeason);
   if (!share) return NOT_FOUND;
   const { slice, season, canonicalParam } = share;
 
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
   const path = `/card/team/${team.id}/${radarSideSlug(side)}`;
-  // Bare for the newest season, ?season= for a real past one (canonicalSeason).
+  // Bare for the newest season, ?season= for a real past one (the canonicalSeason rule).
   const url = `${base}${path}${canonicalParam != null ? `?season=${canonicalParam}` : ""}`;
   const ready = slice.state === "ready";
   const title = radarShareTitle(team.name, side, season);
@@ -149,7 +178,8 @@ export default async function TeamRadarSharePage({ params, searchParams }: PageP
   const { team, side } = parsed;
   const { season: rawSeason } = await searchParams;
 
-  const share = await loadShare(team, rawSeason);
+  // The same promise generateMetadata awaited: one load per request.
+  const share = await shareFor(team, rawSeason);
   if (!share) notFound(); // a season the site does not have: no row read
   const { slice, seasons, season } = share;
   const defaultSeason = seasons[0] ?? fallbackSeason();
