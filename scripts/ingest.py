@@ -8,6 +8,7 @@ aggregates team and QB season stats, and upserts into Supabase PostgreSQL.
 import argparse
 import hashlib
 import importlib.metadata as importlib_metadata
+import io
 import json
 import logging
 import os
@@ -151,13 +152,34 @@ def make_slug(name: str) -> str:
     return slug.strip("-")
 
 
+# url -> 'sha256:<hex>' of the bytes last read from it by _read_parquet_url. The
+# skip-unchanged bookkeeping records a file's digest only when it is the digest of
+# the bytes that were actually ingested (RefreshTracker.season_committed).
+_DOWNLOAD_DIGESTS = {}
+
+
+def _read_parquet_url(url: str) -> pd.DataFrame:
+    """pd.read_parquet(url), remembering the sha256 of the bytes read.
+
+    Same mechanics as pandas itself for an http(s) URL (urlopen, read everything,
+    parse from memory), so errors are the same ones as before: HTTPError on a 404,
+    URLError on a network failure. A digest is kept only for bytes that parsed.
+    """
+    _DOWNLOAD_DIGESTS.pop(url, None)
+    with urlopen(url) as response:
+        data = response.read()
+    df = pd.read_parquet(io.BytesIO(data))
+    _DOWNLOAD_DIGESTS[url] = "sha256:" + hashlib.sha256(data).hexdigest()
+    return df
+
+
 @retry(max_retries=3, delay=5)
 def download_pbp(season: int) -> pd.DataFrame:
     """Download play-by-play Parquet from nflverse."""
     url = PBP_URL.format(season=season)
     log.info("Downloading PBP for %d...", season)
     try:
-        df = pd.read_parquet(url)
+        df = _read_parquet_url(url)
     except (HTTPError, FileNotFoundError) as e:
         # 404 on the current season = file not published yet (season hasn't started). Historical 404s are real failures.
         if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
@@ -181,7 +203,7 @@ def download_roster(season: int) -> pd.DataFrame:
     url = ROSTER_URL.format(season=season)
     log.info("Downloading roster for %d...", season)
     try:
-        df = pd.read_parquet(url)
+        df = _read_parquet_url(url)
     except (HTTPError, FileNotFoundError) as e:
         if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
             raise DataNotYetPublished(f"Roster file for {season} not on nflverse yet.") from e
@@ -201,7 +223,7 @@ def download_participation(season: int) -> pd.DataFrame | None:
     url = PARTICIPATION_URL.format(season=season)
     log.info("Downloading participation data for %d...", season)
     try:
-        df = pd.read_parquet(url)
+        df = _read_parquet_url(url)
         if len(df) < 1000:
             log.warning("Participation data for %d suspiciously small (%d rows)", season, len(df))
             return None
@@ -4247,6 +4269,15 @@ def process_season(season: int, conn, dry_run: bool = False, ensure_schema: bool
     pbp = download_pbp(season)
     roster = download_roster(season)
     participation = download_participation(season)
+    # sha256 of the bytes just read (None if a download did not go through
+    # _read_parquet_url, or participation was not loaded): what the skip-unchanged
+    # bookkeeping may record for this run.
+    source_digests = {
+        'pbp': _DOWNLOAD_DIGESTS.get(PBP_URL.format(season=season)),
+        'roster': _DOWNLOAD_DIGESTS.get(ROSTER_URL.format(season=season)),
+        'participation': (_DOWNLOAD_DIGESTS.get(PARTICIPATION_URL.format(season=season))
+                          if participation is not None else None),
+    }
     plays = filter_plays(pbp)
     spikes = filter_spikes(pbp)
 
@@ -4379,6 +4410,7 @@ def process_season(season: int, conn, dry_run: bool = False, ensure_schema: bool
                    rb_weekly, dd_stats, sit_stats, team_game_stats, player_slugs_df]
     return {
         'participation_loaded': participation is not None,
+        'source_digests': source_digests,
         'rows_sent': sum(len(f) for f in sent_frames if f is not None),
         'through_week': through_week,
     }
@@ -4643,12 +4675,21 @@ def _load_state(path):
             data = json.load(f)
     except FileNotFoundError:
         return {}, 'state file not found'
-    except (OSError, ValueError):
+    except Exception:
+        # Anything at all: bad JSON, bad bytes, a directory, and also RecursionError
+        # (deeply nested JSON) or MemoryError. A state file must never stop a refresh.
         return {}, 'state file unreadable'
     if (not isinstance(data, dict) or data.get('version') != STATE_VERSION
             or not isinstance(data.get('seasons'), dict)):
         return {}, 'state file unreadable'
     return data, None
+
+
+def _remove_quietly(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
 
 
 def _short(value):
@@ -4682,6 +4723,12 @@ class RefreshTracker:
         self.force = force
         self.state, self.load_note = _load_state(path)
         self.state.setdefault('seasons', {})
+        if self.load_note == 'state file unreadable':
+            # Remove it now. If this run commits nothing, no state file is left for the
+            # workflow's save step, which would otherwise re-save the bad file every run.
+            log.warning("Refresh state file is unreadable — removing it; this is a full run")
+            _remove_quietly(path)
+        # status: None (never attempted) → 'started' → 'done' | 'not yet published'
         self.plans = {}            # season -> {'run', 'reason', 'fingerprint', 'status'}
         self.schedule_rows = {}    # season -> rows sent by the schedules ingest
         self.season_rows = {}      # season -> rows sent by process_season
@@ -4712,9 +4759,21 @@ class RefreshTracker:
             return False
         return bool(self.schema_hash) and self.state.get('schema_hash') == self.schema_hash
 
-    # -- after commits (called by run_seasons) --
+    # -- during the run (called by run_seasons) --
+    def season_started(self, season):
+        """An attempt at `season` is about to write. From here on the stored entry no
+        longer describes the database (schedule rows may commit and the season then
+        fail, or the process may die between the season's commit and the state write),
+        so drop it on disk first. Only season_committed puts one back."""
+        plan = self.plans.setdefault(season, {'run': True, 'reason': 'not planned', 'fingerprint': {}, 'status': None})
+        if plan['status'] is None:
+            plan['status'] = 'started'
+        if self.state['seasons'].pop(str(season), None) is not None:
+            self.save()
+
     def schedules_committed(self, season, rows):
         self.schedule_rows[season] = rows
+        self.state['seasons'].pop(str(season), None)
         self._data_changed()
         self.save()
 
@@ -4739,24 +4798,52 @@ class RefreshTracker:
             self.state['schema_hash'] = self.schema_hash
             self.schema_recorded = True
 
-        problems = ['could not read ' + p for p in FINGERPRINT_PARTS
-                    if not (isinstance(fingerprint.get(p), str) and fingerprint.get(p))]
+        def known(value):
+            return isinstance(value, str) and bool(value)
+
+        # What may be recorded: for each nflverse file, the sha256 of the bytes this run
+        # really ingested — and only when that equals what the release API listed before
+        # the run. A re-upload in between (either order), a listing that lacks a file
+        # that loaded, or a file that fell back to "none" all mean: record nothing.
+        entry, problems = {}, []
+        for part in ('code', 'schedules'):
+            if known(fingerprint.get(part)):
+                entry[part] = fingerprint[part]
+            else:
+                problems.append('could not read ' + part)
         if not schedules_ok:
             problems.append('schedules ingest failed')
-        loaded = result.get('participation_loaded')
-        if loaded is None:
-            problems.append('participation load not reported')
-        elif not loaded and fingerprint.get('participation') not in (None, '', ABSENT):
-            # The API listed the file but the download fell back to None (e.g. the
-            # few-second 404 of an nflverse re-upload): routes/snaps were written NULL.
-            problems.append('participation file listed but not loaded')
+        downloaded = result.get('source_digests')
+        downloaded = downloaded if isinstance(downloaded, dict) else {}
+        participation_loaded = result.get('participation_loaded')
+        for part in ('pbp', 'roster', 'participation'):
+            listed, got = fingerprint.get(part), downloaded.get(part)
+            if part == 'participation' and participation_loaded is None:
+                problems.append('participation load not reported')
+            elif not known(listed):
+                problems.append('could not read ' + part)
+            elif part == 'participation' and not participation_loaded:
+                if listed == ABSENT:
+                    entry[part] = ABSENT
+                else:
+                    # The API listed the file but the download fell back to None (e.g. the
+                    # few-second 404 of an nflverse re-upload): routes/snaps were written NULL.
+                    problems.append('participation file listed but not loaded')
+            elif listed == ABSENT:
+                problems.append(f'{part} file was loaded but the release listing does not show it')
+            elif not known(got):
+                problems.append(f'{part}: digest of the downloaded file is unknown')
+            elif got != listed:
+                problems.append(f'{part}: the downloaded file is not the one the release listed '
+                                f'({_short(got)} vs {_short(listed)})')
+            else:
+                entry[part] = got
 
         if problems:
             self.state['seasons'].pop(str(season), None)
             log.warning("Season %d: fingerprint not recorded (%s) — the next run will be a full run",
                         season, '; '.join(problems))
         else:
-            entry = {p: fingerprint[p] for p in FINGERPRINT_PARTS}
             entry['last_full_run_at'] = stamp
             self.state['seasons'][str(season)] = entry
         self.save()
@@ -4778,13 +4865,10 @@ class RefreshTracker:
                 json.dump(self.state, f, indent=2, sort_keys=True)
                 f.write("\n")
             os.replace(tmp, self.path)
-        except OSError as e:
+        except Exception as e:
             log.warning("Could not write the refresh state file (the next run will be a full run): %s", e)
             for leftover in (tmp, self.path):
-                try:
-                    os.remove(leftover)
-                except OSError:
-                    pass
+                _remove_quietly(leftover)
 
     # -- end of run --
     def changed(self) -> bool:
@@ -4805,6 +4889,7 @@ class RefreshTracker:
 
     def summary_lines(self):
         lines = []
+        failure_shown = False      # the season the run stopped at has been printed
         for season, plan in self.plans.items():
             rows = (self.schedule_rows.get(season) or 0) + (self.season_rows.get(season) or 0)
             if not plan['run']:
@@ -4813,8 +4898,14 @@ class RefreshTracker:
                 lines.append(f"{season}: full run ({plan['reason']}): {rows:,} rows sent")
             elif plan['status'] == 'not yet published':
                 lines.append(f"{season}: full run ({plan['reason']}): not yet published, {rows:,} rows sent")
+            elif plan['status'] is None and failure_shown:
+                # the run stopped at an earlier season and never reached this one
+                lines.append(f"{season}: not attempted ({plan['reason']})")
             else:
+                # the season that failed — or, if none had started (the database
+                # connection could not be opened), the first one that was due
                 lines.append(f"{season}: FAILED ({plan['reason']})")
+                failure_shown = True
         return lines
 
     def report(self):
@@ -4856,6 +4947,8 @@ def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
                 # Its own except — the one below catches only DataNotYetPublished, so an
                 # unwrapped schedules failure would kill the whole run. Re-run on a retried
                 # attempt (idempotent upsert) so a blip here doesn't leave scores stale.
+                if conn is not None:
+                    _tell(tracker, 'season_started', season)
                 schedules_ok, schedule_rows = True, None
                 try:
                     schedule_rows = ingest_schedules(conn, season, **schema_args)
@@ -4941,6 +5034,36 @@ def _tell(tracker, event, *args):
             pass
 
 
+def _plan_with_state(state_file, force, seasons):
+    """(tracker, seasons that need a run). Nothing in here may stop a refresh: if the
+    bookkeeping itself breaks, the answer is (None, all seasons) — a plain full run,
+    exactly as without --state-file — and the state file is removed."""
+    try:
+        tracker = RefreshTracker(state_file, force=force)
+    except Exception as e:
+        log.warning("Refresh state could not be set up (%s: %s) — running in full without it", type(e).__name__, e)
+        _remove_quietly(state_file)
+        return None, seasons
+    token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+    assets_cache = {}
+    to_run = []
+    for season in seasons:
+        try:
+            fingerprint = collect_fingerprint(season, token, assets_cache)
+        except Exception as e:
+            log.warning("Could not fingerprint season %s (%s) — treating it as changed", season, type(e).__name__)
+            fingerprint = {}
+        try:
+            run = tracker.plan_season(season, fingerprint)
+        except Exception as e:
+            log.warning("Could not decide whether season %s changed (%s) — running it", season, type(e).__name__)
+            tracker.plans[season] = {'run': True, 'reason': 'state file unreadable', 'fingerprint': {}, 'status': None}
+            run = True
+        if run:
+            to_run.append(season)
+    return tracker, to_run
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description="nflverse → Supabase ETL for Yards Per Pass")
     parser.add_argument('--season', type=int, help='Process a single season')
@@ -4968,10 +5091,7 @@ def main(argv=None):
     # every season runs in full, exactly as before.
     tracker = None
     if args.state_file and not args.dry_run:
-        tracker = RefreshTracker(args.state_file, force=args.force)
-        token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
-        assets_cache = {}
-        seasons = [s for s in seasons if tracker.plan_season(s, collect_fingerprint(s, token, assets_cache))]
+        tracker, seasons = _plan_with_state(args.state_file, args.force, seasons)
 
     try:
         if seasons:

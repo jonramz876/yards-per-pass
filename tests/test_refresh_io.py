@@ -102,7 +102,9 @@ class Pipeline:
         self.schedule_calls = []
         self.season_errors = {}      # season -> list of exceptions (consumed per call)
         self.schedule_errors = {}
-        self.participation_loaded = True
+        self.participation_loaded = None   # None = loaded exactly when the release lists the file
+        self.downloaded = {}         # part -> digest of the bytes "downloaded" (default: what the API lists)
+        self.listed = lambda part, season: None   # set by the Harness: the digest the fake API lists
         self.on_process = None       # hook run inside process_season, before it "commits"
 
     def process_season(self, season, conn, dry_run=False, **kwargs):
@@ -112,7 +114,17 @@ class Pipeline:
         queue = self.season_errors.get(season, [])
         if queue:
             raise queue.pop(0)
-        return {'participation_loaded': self.participation_loaded, 'rows_sent': 9197, 'through_week': 4}
+        loaded = self.participation_loaded
+        if loaded is None:
+            loaded = bool(self.listed('participation', season))
+        digests = {}
+        for part in ('pbp', 'roster', 'participation'):
+            if part == 'participation' and not loaded:
+                digests[part] = None
+            else:
+                # a file that downloads although the API does not list it still has bytes
+                digests[part] = self.downloaded.get(part, self.listed(part, season) or f"sha256:unlisted-{part}")
+        return {'participation_loaded': loaded, 'rows_sent': 9197, 'through_week': 4, 'source_digests': digests}
 
     def ingest_schedules(self, conn, season, **kwargs):
         self.schedule_calls.append((season, conn, kwargs))
@@ -133,6 +145,7 @@ class Harness:
         self.now = T0
         self.github = FakeGitHub()
         self.pipeline = Pipeline()
+        self.pipeline.listed = self.listed
         self.code_hash = "code-1"
         self.schema_hash = "schema-1"
         self.connects = []           # one ScriptedConnect per run
@@ -152,6 +165,12 @@ class Harness:
         monkeypatch.setattr(ingest, "process_season", self.pipeline.process_season)
         monkeypatch.setattr(ingest, "ingest_schedules", self.pipeline.ingest_schedules)
         monkeypatch.setattr(ingest.time, "sleep", self.sleeps.append)
+
+    def listed(self, part, season):
+        """The digest the fake release API lists for a season's file (None if not listed)."""
+        tag, pattern = {p: (t, n) for p, t, n in ingest.SOURCE_ASSETS}[part]
+        assets = self.github.assets.get(tag)
+        return assets.get(pattern.format(season=season)) if isinstance(assets, dict) else None
 
     # -- actions --
     def run(self, *extra, season="2026", state=True):
@@ -578,17 +597,20 @@ class TestStateWrittenOnlyAfterCommit:
         h.hours_pass(4)
         assert h.run() == 1                           # so the next run is a full run
 
-    def test_failed_season_leaves_an_older_entry_alone(self, h):
+    def test_failed_season_removes_the_older_entry(self, h):
+        """Once an attempt starts writing, the stored entry no longer describes the
+        database (the schedule rows may already be committed): it is dropped, and only
+        a successful season puts one back (chaos WRONG-SKIP-1)."""
         h.run()
-        before = h.state()['seasons']['2026']
         h.hours_pass(4)
         h.github.assets['pbp'][PBP] = "sha256:pbp-2"
         h.pipeline.season_errors[2026] = [ingest.DataQualityError("truncated file")]
         with pytest.raises(ingest.DataQualityError):
             h.run()
-        assert h.state()['seasons']['2026'] == before   # still the old digest: next run runs again
+        assert '2026' not in h.state()['seasons']
         h.hours_pass(4)
         assert h.run() == 1
+        assert h.state()['seasons']['2026']['pbp'] == "sha256:pbp-2"
 
     def test_data_not_yet_published_records_nothing(self, h):
         h.pipeline.season_errors[2026] = [ingest.DataNotYetPublished("PBP file for 2026 not on nflverse yet.")]

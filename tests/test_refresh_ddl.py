@@ -399,8 +399,20 @@ class RealPipeline:
         self.fail_upsert = {}          # upsert name -> list of exceptions (consumed per call)
         self.freshness_errors = []     # get_existing_through_week errors (consumed per call)
         week4 = pd.DataFrame({'week': [4]})
-        monkeypatch.setattr(ingest, 'download_pbp', lambda season: week4)
-        monkeypatch.setattr(ingest, 'download_roster', lambda season: pd.DataFrame({'gsis_id': ['x'], 'position': ['QB']}))
+        digests = {}
+        monkeypatch.setattr(ingest, '_DOWNLOAD_DIGESTS', digests, raising=False)
+
+        def download_pbp(season):
+            # the real one records the sha256 of the bytes it read; here: what the fake API lists
+            digests[ingest.PBP_URL.format(season=season)] = h.listed('pbp', season)
+            return week4
+
+        def download_roster(season):
+            digests[ingest.ROSTER_URL.format(season=season)] = h.listed('roster', season)
+            return pd.DataFrame({'gsis_id': ['x'], 'position': ['QB']})
+
+        monkeypatch.setattr(ingest, 'download_pbp', download_pbp)
+        monkeypatch.setattr(ingest, 'download_roster', download_roster)
         monkeypatch.setattr(ingest, 'download_participation', lambda season: None)
         monkeypatch.setattr(ingest, 'filter_plays', lambda pbp: week4)
         monkeypatch.setattr(ingest, 'filter_spikes', lambda pbp: pd.DataFrame())
