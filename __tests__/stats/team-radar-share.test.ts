@@ -209,3 +209,53 @@ describe("chart geometry (shared by the SVG chart and the share image)", () => {
     expect(R.plottableScore({ score: 0.5, value: null })).toBeNull();
   });
 });
+
+describe("the share page's season (?season=)", () => {
+  const SEASONS = [2026, 2025, 2024];
+
+  it("absent or not a number: the newest season, nothing requested", () => {
+    for (const raw of [undefined, "", "abc", "season"]) {
+      expect(R.resolveRadarCardSeason(raw, SEASONS, 2026), String(raw)).toEqual({ season: 2026, requested: null, invalid: false });
+    }
+  });
+
+  it("a season the site has: that season", () => {
+    expect(R.resolveRadarCardSeason("2025", SEASONS, 2026)).toEqual({ season: 2025, requested: 2025, invalid: false });
+    expect(R.resolveRadarCardSeason("2026", SEASONS, 2026)).toEqual({ season: 2026, requested: 2026, invalid: false });
+  });
+
+  it("a season the site does not have is invalid (a 404), never the newest season under another URL", () => {
+    for (const raw of ["2099", "2019", "1998", "0", "-1"]) {
+      expect(R.resolveRadarCardSeason(raw, SEASONS, 2026).invalid, raw).toBe(true);
+    }
+  });
+
+  it("a number no season column can hold is invalid even when the seasons list is empty (it must never reach the database)", () => {
+    for (const raw of ["99999999999999999999", "1e20", "2101", "1998"]) {
+      expect(R.resolveRadarCardSeason(raw, [], 2026).invalid, raw).toBe(true);
+    }
+    expect(R.resolveRadarCardSeason("2025", [], 2026)).toEqual({ season: 2025, requested: 2025, invalid: false });
+    expect(R.resolveRadarCardSeason(undefined, [], 2026)).toEqual({ season: 2026, requested: null, invalid: false });
+  });
+
+  it("a repeated parameter uses its first value", () => {
+    expect(R.resolveRadarCardSeason(["2025", "2024"], SEASONS, 2026).season).toBe(2025);
+    expect(R.resolveRadarCardSeason([], SEASONS, 2026)).toEqual({ season: 2026, requested: null, invalid: false });
+  });
+});
+
+describe("the sentence a share page or team page shows instead of a radar", () => {
+  it("one per state, the same words as the team page", () => {
+    expect(R.radarStateMessage({ state: "no-games", season: 2026 }, "Kansas City Chiefs")).toBe(
+      "The Kansas City Chiefs have not played a 2026 game yet. Their radar appears after their first game.",
+    );
+    expect(R.radarStateMessage({ state: "small-pool", season: 2026 }, "Buffalo Bills")).toBe(R.RADAR_SMALL_POOL_NOTE);
+    expect(R.radarStateMessage({ state: "uncovered", season: 2025, firstSeason: 2026 }, "Buffalo Bills")).toBe(
+      "Team radars start with the 2026 season.",
+    );
+    expect(R.radarStateMessage({ state: "uncovered", season: 2025, firstSeason: null }, "Buffalo Bills")).toBe(
+      "Team radars are not available for the 2025 season.",
+    );
+    expect(R.radarStateMessage({ state: "unavailable", season: 2026 }, "Buffalo Bills")).toBe(R.RADAR_UNAVAILABLE_NOTE);
+  });
+});

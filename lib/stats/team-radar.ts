@@ -10,7 +10,7 @@
 // golden test holds the two together.
 import { EM_DASH } from "@/lib/stats/formatters";
 import { ordinal } from "@/lib/stats/percentiles";
-import { earlySeasonNote, num, total, wavg } from "@/lib/stats/team-stats";
+import { earlySeasonNote, num, parseSeasonParam, total, wavg } from "@/lib/stats/team-stats";
 
 /* ─── Axes and sides ─── */
 
@@ -666,9 +666,22 @@ export function radarCardFooter(teamsPlayed: number): string {
 /** The card's site line (page and image). */
 export const RADAR_CARD_SITE_LINE = "YARDSPERPASS.COM · DATA: NFLVERSE";
 
+/** The share page's heading: R14 without the site name. */
+export function radarShareHeading(teamName: string, side: RadarSide, season: number): string {
+  return `${teamName} ${SIDE_WORD[side]} Radar ${season}`;
+}
+
 /** R14 — the share page's title (complete: the page sets it as an absolute title). */
 export function radarShareTitle(teamName: string, side: RadarSide, season: number): string {
-  return `${teamName} ${SIDE_WORD[side]} Radar ${season} — Yards Per Pass`;
+  return `${radarShareHeading(teamName, side, season)} — Yards Per Pass`;
+}
+
+/** The title of a share URL that names no card (unknown team, side or season). */
+export const RADAR_NOT_FOUND_TITLE = "Team Radar Not Found — Yards Per Pass";
+
+/** The preview image's alt text. */
+export function radarImageAlt(teamName: string, side: RadarSide, season: number): string {
+  return `${teamName} ${radarSideSlug(side)} radar, ${season}`;
 }
 
 /** "a", "a and b", "a, b and c". */
@@ -777,6 +790,44 @@ export function radarImageHref(
 export function radarDownloadFilename(teamId: string, side: RadarSide, season: number): string {
   const safe = String(teamId ?? "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 8) || "team";
   return `${safe}-${radarSideSlug(side)}-${Math.trunc(Number(season)) || 0}-radar.png`;
+}
+
+/**
+ * A share page's season from `?season=` (spec §7). Absent or not a number: the
+ * newest season, nothing requested. A number outside 1999-2100, or one the
+ * site has no data for, is invalid: the page and the image route answer 404
+ * and read no rows (never the newest season's card under another URL, and
+ * never a value the INTEGER season column would reject). With an empty seasons
+ * list (no database) any plausible season is accepted, as on /card.
+ */
+export function resolveRadarCardSeason(
+  raw: string | string[] | null | undefined,
+  seasons: readonly number[],
+  fallback: number,
+): { season: number; requested: number | null; invalid: boolean } {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const defaultSeason = seasons[0] ?? fallback;
+  const parsed = typeof value === "string" && value ? parseInt(value, 10) : NaN;
+  if (Number.isNaN(parsed)) return { season: defaultSeason, requested: null, invalid: false };
+  const plausible = parseSeasonParam(typeof value === "string" ? value : undefined) !== null;
+  if (!plausible || (seasons.length > 0 && !seasons.includes(parsed))) {
+    return { season: defaultSeason, requested: null, invalid: true };
+  }
+  return { season: parsed, requested: parsed, invalid: false };
+}
+
+/** The sentence shown instead of a radar, per state (R10-R13): the team page's section and the share page use the same one. */
+export function radarStateMessage(radar: Exclude<TeamRadarSlice, { state: "ready" }>, teamName: string): string {
+  switch (radar.state) {
+    case "no-games":
+      return radarNoGamesNote(teamName, radar.season);
+    case "small-pool":
+      return RADAR_SMALL_POOL_NOTE;
+    case "uncovered":
+      return radarUncoveredNote(radar.season, radar.firstSeason);
+    default:
+      return RADAR_UNAVAILABLE_NOTE;
+  }
 }
 
 /* ─── Chart geometry: one source for the SVG chart and the 1200×630 image ─── */

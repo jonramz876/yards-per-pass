@@ -2,8 +2,9 @@
 // page (team radar spec 2026-10-06 §4, §7, §8): an offense and a defense
 // radar side by side, each over its stat table, or one sentence when there is
 // no radar to draw, and (PR 3) a Share button under each radar that opens that
-// side of the team on its own share page. Wraps itself in the section card, like every other
-// team-page section. Every sentence is a constant from lib/stats/team-radar.
+// side on its own share page. Wraps itself in the section card, like every
+// other team-page section. Every sentence is a constant from
+// lib/stats/team-radar.
 "use client";
 
 import Link from "next/link";
@@ -14,20 +15,16 @@ import TeamRadarTable from "@/components/team/TeamRadarTable";
 import {
   COMPARE_TEAMS_LINK_TEXT,
   RADAR_SIDES,
-  RADAR_SMALL_POOL_NOTE,
   RADAR_SUBTITLE,
-  RADAR_UNAVAILABLE_NOTE,
   canDrawRadar,
   radarBandAside,
   radarCardHref,
   radarLead,
-  radarNoGamesNote,
   radarShareButtonText,
+  radarStateMessage,
   radarTableOnlyNote,
-  radarUncoveredNote,
   teamRadarFootnotes,
   teamStatsHref,
-  type RadarSide,
   type TeamRadarSlice,
 } from "@/lib/stats/team-radar";
 
@@ -36,20 +33,6 @@ interface TeamRadarSectionProps {
   team: Team;
   /** The site's default (newest) season: the Team Stats link stays bare for it. */
   defaultSeason: number;
-}
-
-/** The sentence shown instead of the radars, per state. */
-function messageFor(radar: Exclude<TeamRadarSlice, { state: "ready" }>, teamName: string): string {
-  switch (radar.state) {
-    case "no-games":
-      return radarNoGamesNote(teamName, radar.season);
-    case "small-pool":
-      return RADAR_SMALL_POOL_NOTE;
-    case "uncovered":
-      return radarUncoveredNote(radar.season, radar.firstSeason);
-    default:
-      return RADAR_UNAVAILABLE_NOTE;
-  }
 }
 
 export default function TeamRadarSection({ radar, team, defaultSeason }: TeamRadarSectionProps) {
@@ -69,7 +52,7 @@ export default function TeamRadarSection({ radar, team, defaultSeason }: TeamRad
       >
         {radar.state !== "ready" ? (
           <p data-radar-message className="text-sm text-slate-600">
-            {messageFor(radar, team.name)}
+            {radarStateMessage(radar, team.name)}
           </p>
         ) : (
           <>
