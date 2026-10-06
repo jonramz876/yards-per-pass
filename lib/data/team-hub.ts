@@ -19,6 +19,7 @@ import type {
   TeamSituationalStat,
   TeamGame,
   DataFreshness,
+  PlayerSlug,
 } from "@/lib/types";
 
 const DD_NUMERIC = ["carries", "epa_per_carry", "success_rate", "yards_per_carry", "stuff_rate", "explosive_rate"] as const;
@@ -58,11 +59,12 @@ export interface TeamHubData {
 
 async function getDownDistanceStats(season: number, teamId: string): Promise<{ team: TeamDownDistanceStat[]; nfl: TeamDownDistanceStat[] }> {
   const supabase = createServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("team_down_distance_stats")
     .select("*")
     .eq("season", season)
     .in("team_id", [teamId, "NFL"]);
+  if (error) throw new Error(`Failed to fetch down and distance stats: ${error.message}`);
   if (!data) return { team: [], nfl: [] };
   const parsed = data.map((r: Record<string, unknown>) => parseNumericFields<TeamDownDistanceStat>(r as unknown as TeamDownDistanceStat, DD_NUMERIC as unknown as string[]));
   return {
@@ -73,10 +75,11 @@ async function getDownDistanceStats(season: number, teamId: string): Promise<{ t
 
 async function getSituationalStats(season: number): Promise<TeamSituationalStat[]> {
   const supabase = createServerClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("team_situational_stats")
     .select("*")
     .eq("season", season);
+  if (error) throw new Error(`Failed to fetch situational stats: ${error.message}`);
   if (!data) return [];
   return data.map((r: Record<string, unknown>) => parseNumericFields<TeamSituationalStat>(r as unknown as TeamSituationalStat, SIT_NUMERIC as unknown as string[]));
 }
@@ -92,6 +95,12 @@ async function getSituationalStats(season: number): Promise<TeamSituationalStat[
  * season's — games to come without hiding the results already played.
  * Historical `?season=` views never do this. Supplied by the caller because
  * team-hub's own getAvailableSeasons resolves too late to gate the fetch.
+ *
+ * Failed reads (read resilience spec §1.2): ten of the twelve reads are core.
+ * If one fails this rejects, and the route's error card shows, instead of a
+ * team page with the name and nothing else. Two may degrade, each logged: the
+ * player slug map (names render unlinked) and next season's schedule (no
+ * upcoming section). A read that succeeds with no rows is still just empty.
  */
 export async function getTeamHubData(
   teamId: string,
@@ -112,20 +121,26 @@ export async function getTeamHubData(
     freshness,
     seasons,
   ] = await Promise.all([
-    getTeamStats(season).catch(() => []),
-    getQBStats(season).catch(() => []),
-    getReceiverStats(season).catch(() => []),
-    getRBGapStats(season, teamId).catch(() => []),
-    getDefGapStats(season, teamId).catch(() => []),
-    getDownDistanceStats(season, teamId).catch(() => ({ team: [], nfl: [] })),
-    getSituationalStats(season).catch(() => []),
-    getTeamSchedule(teamId, season).catch(() => []),
+    getTeamStats(season),
+    getQBStats(season),
+    getReceiverStats(season),
+    getRBGapStats(season, teamId),
+    getDefGapStats(season, teamId),
+    getDownDistanceStats(season, teamId),
+    getSituationalStats(season),
+    getTeamSchedule(teamId, season),
     isLatestSeason
-      ? getTeamSchedule(teamId, season + 1).catch((): TeamGame[] => [])
+      ? getTeamSchedule(teamId, season + 1).catch((err: unknown): TeamGame[] => {
+          console.error(`Team hub: ${season + 1} schedule unavailable for ${teamId}; no upcoming section`, err);
+          return [];
+        })
       : Promise.resolve<TeamGame[]>([]),
-    getAllPlayerSlugs().catch(() => []),
-    getDataFreshness(season).catch(() => null),
-    getAvailableSeasons().catch(() => [season]),
+    getAllPlayerSlugs().catch((err: unknown): PlayerSlug[] => {
+      console.error(`Team hub: player slugs unavailable for ${teamId}; player links will not render`, err);
+      return [];
+    }),
+    getDataFreshness(season),
+    getAvailableSeasons(),
   ]);
 
   const teamStats = allTeamStats.find((t) => t.team_id === teamId) ?? null;

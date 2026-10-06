@@ -2,13 +2,34 @@
 import { createServerClient } from "@/lib/supabase/server";
 
 /**
+ * The one way a loader reports a failed read (read resilience spec §1.2): an
+ * Error that says what was being read. `err` is whatever the read gave back,
+ * usually the raw PostgREST object that fetchAllRows rejects with, sometimes
+ * an Error (a missing env var). Never throws itself, whatever `err` is.
+ */
+export function queryError(what: string, err: unknown): Error {
+  const message = (err as { message?: unknown } | null | undefined)?.message;
+  let detail: string;
+  if (typeof message === "string") {
+    detail = message;
+  } else {
+    try {
+      detail = String(JSON.stringify(err));
+    } catch {
+      detail = String(err);
+    }
+  }
+  return new Error(`Failed to fetch ${what}: ${detail}`, { cause: err });
+}
+
+/**
  * Fetch all rows from a table, paginating past Supabase's 1000-row server limit.
  *
  * `options` is optional and additive (team stats spec §2.1): `order` sorts by
  * each column ascending before paging (unordered pages can skip or repeat
  * rows), and `signal` puts a deadline on every page. With no options the query
  * is exactly what it always was. A query error still rejects with the raw
- * PostgREST object, not an Error.
+ * PostgREST object, not an Error: callers rethrow it through queryError.
  */
 export async function fetchAllRows(
   table: string,

@@ -318,9 +318,10 @@ export async function getPlayedRegularSeasonGameIds(season: number): Promise<str
  * Has the league published this season's schedule yet? One row settles it, so
  * this stays a `limit(1)` probe rather than pulling 272 games.
  *
- * Answers FALSE on any failure (query error, missing table, no rows). Its only
- * caller uses it to decide whether the landing page shows next season's 0-0
- * board, and falling back to the completed season is the safe direction.
+ * FALSE only when the read succeeded and found no game. A query error (or a
+ * missing table) throws: its only caller decides whether the landing page
+ * shows next season's 0-0 board, and a "false" from a failed read was cached
+ * there for an hour on the wrong season (read resilience spec §1.2).
  */
 export async function hasScheduleForSeason(season: number): Promise<boolean> {
   const supabase = createServerClient();
@@ -330,6 +331,6 @@ export async function hasScheduleForSeason(season: number): Promise<boolean> {
     .eq("season", season)
     .limit(1);
 
-  if (error) return false;
+  if (error) throw new Error(`Failed to fetch schedule probe for ${season}: ${error.message}`);
   return (data?.length ?? 0) > 0;
 }

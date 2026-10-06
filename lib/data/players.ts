@@ -1,7 +1,7 @@
 // lib/data/players.ts
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
-import { fetchAllRows } from "@/lib/data/utils";
+import { fetchAllRows, queryError } from "@/lib/data/utils";
 import type {
   PlayerSlug,
   QBWeeklyStat,
@@ -40,22 +40,38 @@ export const RB_WEEKLY_NUMERIC = [
   "explosive_rate",
 ];
 
+// Every loader in this file follows the read resilience rule (spec §1.2): a
+// query error throws an Error, and empty ([] / null) comes back only when the
+// read succeeded with no rows. Callers decide what a throw means.
+
+/**
+ * The player row for a slug, or null when no player has it. Throws on a query
+ * error: a failed read must never look like an unknown player (a 404).
+ */
 export async function getPlayerBySlug(
   slug: string
 ): Promise<PlayerSlug | null> {
   const supabase = createServerClient();
+  // maybeSingle, not single: no row is `data: null, error: null`, so an
+  // `error` here always means the read failed.
   const { data, error } = await supabase
     .from("player_slugs")
     .select("*")
     .eq("slug", slug)
-    .single();
-  if (error || !data) return null;
+    .maybeSingle();
+  if (error) throw new Error(`Failed to fetch player ${slug}: ${error.message}`);
+  if (!data) return null;
   return data as PlayerSlug;
 }
 
 export async function getAllPlayerSlugs(): Promise<PlayerSlug[]> {
   // Must paginate — table has 1200+ rows, Supabase silently caps at 1000
-  const rows = await fetchAllRows("player_slugs", "*", {});
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows("player_slugs", "*", {});
+  } catch (err) {
+    throw queryError("player slugs", err);
+  }
   return rows as unknown as PlayerSlug[];
 }
 
@@ -66,7 +82,8 @@ export async function getPlayerSlugsByIds(playerIds: string[]): Promise<PlayerSl
     .from("player_slugs")
     .select("*")
     .in("player_id", playerIds);
-  if (error || !data) return [];
+  if (error) throw new Error(`Failed to fetch player slugs: ${error.message}`);
+  if (!data) return [];
   return data as PlayerSlug[];
 }
 
@@ -81,7 +98,8 @@ export async function getQBWeeklyStats(
     .eq("player_id", playerId)
     .eq("season", season)
     .order("week");
-  if (error || !data) return [];
+  if (error) throw new Error(`Failed to fetch QB weekly stats: ${error.message}`);
+  if (!data) return [];
   return data.map((row) =>
     parseNumericFields<QBWeeklyStat>(
       row as unknown as QBWeeklyStat,
@@ -101,7 +119,8 @@ export async function getReceiverWeeklyStats(
     .eq("player_id", playerId)
     .eq("season", season)
     .order("week");
-  if (error || !data) return [];
+  if (error) throw new Error(`Failed to fetch receiver weekly stats: ${error.message}`);
+  if (!data) return [];
   return data.map((row) =>
     parseNumericFields<ReceiverWeeklyStat>(
       row as unknown as ReceiverWeeklyStat,
@@ -121,7 +140,8 @@ export async function getRBWeeklyStats(
     .eq("player_id", playerId)
     .eq("season", season)
     .order("week");
-  if (error || !data) return [];
+  if (error) throw new Error(`Failed to fetch RB weekly stats: ${error.message}`);
+  if (!data) return [];
   return data.map((row) =>
     parseNumericFields<RBWeeklyStat>(
       row as unknown as RBWeeklyStat,
@@ -144,7 +164,8 @@ export async function getTeamTopReceivers(
     .eq("season", season)
     .order("targets", { ascending: false })
     .limit(limit);
-  if (error || !data) return [];
+  if (error) throw new Error(`Failed to fetch team top receivers: ${error.message}`);
+  if (!data) return [];
 
   // Fetch slugs for linking
   const playerIds = data.map((r) => r.player_id);
@@ -175,7 +196,8 @@ export async function getTeamStartingQB(
     .eq("season", season)
     .order("dropbacks", { ascending: false })
     .limit(1);
-  if (error || !data || data.length === 0) return null;
+  if (error) throw new Error(`Failed to fetch team starting QB: ${error.message}`);
+  if (!data || data.length === 0) return null;
 
   const row = data[0];
   const slugs = await getPlayerSlugsByIds([row.player_id]);
@@ -212,7 +234,8 @@ export async function getQBPassLocationStats(
     .select("*")
     .eq("player_id", playerId)
     .eq("season", season);
-  if (error || !data) return [];
+  if (error) throw new Error(`Failed to fetch QB pass location stats: ${error.message}`);
+  if (!data) return [];
   return data.map((row) =>
     parseNumericFields<QBPassLocationStat>(
       row as unknown as QBPassLocationStat,

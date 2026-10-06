@@ -75,16 +75,15 @@ export async function getDataFreshness(season?: number): Promise<DataFreshness |
   } else {
     query = query.order("season", { ascending: false }).limit(1);
   }
-  const { data, error } = await query.single();
+  // maybeSingle, not single: a season with no row is `data: null, error: null`
+  // (a real answer: null), so an `error` here always means the read failed.
+  const { data, error } = await query.maybeSingle();
 
-  if (error) {
-    console.warn(`getDataFreshness failed (season=${season}):`, error.message);
-    return null;
-  }
-  return data as DataFreshness;
+  if (error) throw new Error(`Failed to fetch data freshness: ${error.message}`);
+  return (data as DataFreshness | null) ?? null;
 }
 
-/** Date-based fallback when the DB has no seasons: NFL season year rolls over in September (getMonth() is 0-indexed). */
+/** Date-based fallback when the DB has no seasons (a read that succeeded with no rows, never a failed one): NFL season year rolls over in September (getMonth() is 0-indexed). */
 export function fallbackSeason(): number {
   const now = new Date();
   return now.getMonth() >= 8 ? now.getFullYear() : now.getFullYear() - 1;
@@ -97,7 +96,9 @@ export async function getAvailableSeasons(): Promise<number[]> {
     .select("season")
     .order("season", { ascending: false });
 
-  if (error) return [];
+  // A failed read throws; [] means the table really has no rows (read
+  // resilience spec §1.2). Callers used to guess "empty means it failed".
+  if (error) throw new Error(`Failed to fetch seasons: ${error.message}`);
   // Coerced, not trusted: this is the single place a season leaves the
   // database, and every downstream gate asks Number.isInteger of it. If
   // data_freshness.season ever arrived as text (a column type change, a view

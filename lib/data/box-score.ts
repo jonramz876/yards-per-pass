@@ -383,8 +383,9 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     if (ownSeason.length > 0) return { state: "pending", game: played, records };
 
     const seasons = await getAvailableSeasons();
-    // getAvailableSeasons returns [] on a query error; a real database always
-    // has data_freshness rows, so empty means the read failed (homepage rule).
+    // getAvailableSeasons throws on a query error, so [] here is a table with
+    // no rows. A real database always has data_freshness rows, so that still
+    // means something is broken (homepage rule): throw rather than guess.
     if (seasons.length === 0) {
       throw new Error("Box score: no seasons from data_freshness (query failed or table empty)");
     }
