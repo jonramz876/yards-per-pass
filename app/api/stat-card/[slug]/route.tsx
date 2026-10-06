@@ -6,6 +6,8 @@ import { getPlayerBySlug } from "@/lib/data/players";
 import { getTeam } from "@/lib/data/teams";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getCardDataForPlayer } from "@/lib/data/card";
+import type { PlayerSlug } from "@/lib/types";
+import type { TecmoCardData } from "@/lib/stats/tecmo-card";
 import {
   loadHeadshotDataUri,
   pixelFontOptions,
@@ -15,6 +17,9 @@ import {
 export const runtime = "nodejs";
 
 const SIZE = { width: 1200, height: 630 };
+
+/** What the visitor's browser shows when a read failed (spec sentence S4). */
+const STAT_CARD_UNAVAILABLE = "Stat card temporarily unavailable. Try again in a few minutes.";
 
 /** Strip anything that isn't safe in a filename / header value. */
 function safeName(slug: string): string {
@@ -33,21 +38,30 @@ export async function GET(
   // out-of-range integer and surfaces as an unhandled 500.
   const valid = !Number.isNaN(parsed) && parsed >= 1999 && parsed <= 2100;
 
+  // The three database reads. If any of them throws, the answer is a 503 the
+  // browser can retry, never a 404 (which says this card does not exist) and
+  // never a card for a guessed season: a failed seasons read used to be caught
+  // and the card drawn for fallbackSeason() (read resilience spec §1.2, M10).
+  // 404 stays for the two real "no such card" answers below.
   let season: number;
-  if (valid) {
-    season = parsed;
-  } else {
-    try {
-      season = (await getAvailableSeasons())[0] ?? fallbackSeason();
-    } catch {
-      season = fallbackSeason();
-    }
+  let player: PlayerSlug | null;
+  let card: TecmoCardData | null = null;
+  try {
+    season = valid ? parsed : ((await getAvailableSeasons())[0] ?? fallbackSeason());
+    player = await getPlayerBySlug(slug);
+    if (player) card = await getCardDataForPlayer(player, season);
+  } catch (err) {
+    console.error(`Stat card: data unavailable for ${safeName(slug)}`, err);
+    return new Response(STAT_CARD_UNAVAILABLE, {
+      status: 503,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Retry-After": "60",
+      },
+    });
   }
-
-  const player = await getPlayerBySlug(slug);
   if (!player) return new Response("Not found", { status: 404 });
-
-  const card = await getCardDataForPlayer(player, season);
   if (!card) return new Response("Not found", { status: 404 });
 
   const team = getTeam(player.current_team_id);

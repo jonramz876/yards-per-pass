@@ -22,20 +22,32 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const { slug } = await params;
   const fonts = await pixelFontOptions();
 
+  // A failed read must never break the embed, so each one below falls back to
+  // something drawable. But an image built after a failed read is not this
+  // player's real share image (a brand plate for a real player, a name plate
+  // for a player who has a card, or a card for a guessed season), so it is
+  // sent `no-store`: nothing in between may keep it (read resilience spec
+  // §1.2). An image built with no failed read gets the options it always had.
+  let readFailed = false;
+  const options = () =>
+    readFailed ? { ...size, fonts, headers: { "Cache-Control": "no-store" } } : { ...size, fonts };
+
   // A DB hiccup must never break the embed — fall back to the current season.
   let season: number;
   try {
     season = (await getAvailableSeasons())[0] ?? fallbackSeason();
   } catch {
+    readFailed = true;
     season = fallbackSeason();
   }
 
-  const fallback = () => new ImageResponse(brandedFallbackImage(), { ...size, fonts });
+  const fallback = () => new ImageResponse(brandedFallbackImage(), options());
 
   let player = null;
   try {
     player = await getPlayerBySlug(slug);
   } catch {
+    readFailed = true;
     return fallback();
   }
   if (!player) return fallback(); // unknown slug: brand plate, unchanged
@@ -45,12 +57,13 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   // is already in hand, so the anonymous brand plate would waste it.
   const found = player; // const copy keeps TS narrowing inside the closure
   const team = getTeam(found.current_team_id);
-  const plate = () => new ImageResponse(namePlateImage(found, team), { ...size, fonts });
+  const plate = () => new ImageResponse(namePlateImage(found, team), options());
 
   let card = null;
   try {
     card = await getCardDataForPlayer(found, season);
   } catch {
+    readFailed = true;
     return plate();
   }
   if (!card) return plate();
@@ -68,6 +81,6 @@ export default async function Image({ params }: { params: Promise<{ slug: string
       headshot,
       player.jersey_number ?? null,
     ),
-    { ...size, fonts },
+    options(),
   );
 }

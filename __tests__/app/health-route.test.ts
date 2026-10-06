@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 const order = vi.fn();
+const createServerClient = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
-  createServerClient: () => ({
-    from: () => ({ select: () => ({ order }) }),
-  }),
+  createServerClient: () => createServerClient(),
 }));
 
 import { GET, revalidate } from "@/app/api/health/route";
@@ -16,6 +15,8 @@ const ROWS = [
 
 beforeEach(() => {
   order.mockReset();
+  createServerClient.mockReset();
+  createServerClient.mockReturnValue({ from: () => ({ select: () => ({ order }) }) });
 });
 
 describe("/api/health", () => {
@@ -33,10 +34,35 @@ describe("/api/health", () => {
     expect(typeof body.timestamp).toBe("string");
   });
 
-  it("returns 500 on a query error", async () => {
-    order.mockResolvedValue({ data: null, error: { message: "boom" } });
+  // Read resilience spec §1.2: 503 (the database is unavailable, try later),
+  // never stored by a cache. The refresh workflow's health gate (spec §2.2(e))
+  // will read this status to decide whether to purge.
+  it("returns 503, no-store, on a query error", async () => {
+    order.mockResolvedValue({ data: null, error: { message: "TimeoutError: The operation was aborted due to timeout" } });
     const res = await GET();
-    expect(res.status).toBe(500);
-    expect((await res.json()).status).toBe("error");
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      status: "error",
+      message: "TimeoutError: The operation was aborted due to timeout",
+    });
+  });
+
+  it("returns 503, no-store, when the client itself throws (missing env vars)", async () => {
+    createServerClient.mockImplementation(() => {
+      throw new Error("Missing Supabase env vars.");
+    });
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(await res.json()).toEqual({ status: "error", message: "Missing Supabase env vars." });
+  });
+
+  it("returns 503 when the read rejects with something that is not an Error", async () => {
+    order.mockRejectedValue("socket hang up");
+    const res = await GET();
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(await res.json()).toEqual({ status: "error", message: "socket hang up" });
   });
 });

@@ -6,18 +6,29 @@ import { createServerClient } from "@/lib/supabase/server";
 // `dynamic = "force-dynamic"` alone is not enough in Next 14: the read would still come from the fetch cache.
 export const revalidate = 0;
 
-export async function GET() {
-  const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from("data_freshness")
-    .select("*")
-    .order("season", { ascending: false });
+// A failed read is 503 (the database is unavailable; ask again later), never
+// stored by anything in between (read resilience spec §1.2). The data refresh
+// workflow will use this status to decide whether to clear the site's cache.
+function unavailable(message: string) {
+  return NextResponse.json(
+    { status: "error", message },
+    { status: 503, headers: { "Cache-Control": "no-store" } }
+  );
+}
 
-  if (error) {
-    return NextResponse.json(
-      { status: "error", message: error.message },
-      { status: 500 }
-    );
+export async function GET() {
+  let data: unknown;
+  try {
+    const supabase = createServerClient();
+    const result = await supabase
+      .from("data_freshness")
+      .select("*")
+      .order("season", { ascending: false });
+    if (result.error) return unavailable(result.error.message);
+    data = result.data;
+  } catch (err) {
+    // createServerClient throws on missing env vars; a rejected read lands here too.
+    return unavailable(err instanceof Error ? err.message : String(err));
   }
 
   return NextResponse.json({
