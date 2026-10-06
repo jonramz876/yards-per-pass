@@ -1,0 +1,2449 @@
+{
+ "source": "make_radar_expected.py over team-radar-2026-w1-3.json: the frozen Team Stats fixture's 94 rows (2026 weeks 1-3, read 2026-09-28) with attempts, sacks, total_drives, designed_runs and stuffed_runs computed on 2026-10-06 from the public nflverse play-by-play by ingest's own aggregate_team_game_stats over the same 47 game ids (no database); the 10 shared columns recomputed identical to the frozen ones (0 differences)",
+ "teamsPlayed": 32,
+ "throughWeek": 3,
+ "teams": {
+  "ARI": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.015151515151515152,
+    "pass_sr": 0.4772727272727273,
+    "sack": 0.040983606557377046,
+    "to": 0.03225806451612903,
+    "stuff": 0.1780821917808219,
+    "rush_sr": 0.44,
+    "expl_rush": 0.05333333333333334,
+    "rank": {
+     "expl_pass": 32,
+     "pass_sr": 13,
+     "sack": 6,
+     "to": 4,
+     "stuff": 16,
+     "rush_sr": 9,
+     "expl_rush": 32
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.09090909090909091,
+    "pass_sr": 0.5151515151515151,
+    "sack": 0.047619047619047616,
+    "to": 0.1,
+    "stuff": 0.19480519480519481,
+    "rush_sr": 0.4430379746835443,
+    "expl_rush": 0.13924050632911392,
+    "rank": {
+     "expl_pass": 23,
+     "pass_sr": 28,
+     "sack": 25,
+     "to": 15,
+     "stuff": 11,
+     "rush_sr": 26,
+     "expl_rush": 24
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": true,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": true
+    }
+   }
+  },
+  "ATL": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.061224489795918366,
+    "pass_sr": 0.41836734693877553,
+    "sack": 0.08139534883720931,
+    "to": 0.2222222222222222,
+    "stuff": 0.15306122448979592,
+    "rush_sr": 0.49,
+    "expl_rush": 0.11,
+    "rank": {
+     "expl_pass": 25,
+     "pass_sr": 26,
+     "sack": 23,
+     "to": 31,
+     "stuff": 10,
+     "rush_sr": 4,
+     "expl_rush": 13
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08391608391608392,
+    "pass_sr": 0.40559440559440557,
+    "sack": 0.037037037037037035,
+    "to": 0.058823529411764705,
+    "stuff": 0.23404255319148937,
+    "rush_sr": 0.3018867924528302,
+    "expl_rush": 0.03773584905660377,
+    "rank": {
+     "expl_pass": 18,
+     "pass_sr": 4,
+     "sack": 28,
+     "to": 28,
+     "stuff": 7,
+     "rush_sr": 3,
+     "expl_rush": 2
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "BAL": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.10101010101010101,
+    "pass_sr": 0.5454545454545454,
+    "sack": 0.06172839506172839,
+    "to": 0.06060606060606061,
+    "stuff": 0.16470588235294117,
+    "rush_sr": 0.5,
+    "expl_rush": 0.1744186046511628,
+    "rank": {
+     "expl_pass": 4,
+     "pass_sr": 3,
+     "sack": 16,
+     "to": 8,
+     "stuff": 11,
+     "rush_sr": 2,
+     "expl_rush": 2
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": true,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.064,
+    "pass_sr": 0.464,
+    "sack": 0.05405405405405406,
+    "to": 0.09375,
+    "stuff": 0.21739130434782608,
+    "rush_sr": 0.42857142857142855,
+    "expl_rush": 0.14285714285714285,
+    "rank": {
+     "expl_pass": 12,
+     "pass_sr": 18,
+     "sack": 23,
+     "to": 17,
+     "stuff": 9,
+     "rush_sr": 22,
+     "expl_rush": 26
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": true,
+     "expl_rush": true
+    }
+   }
+  },
+  "BUF": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.10714285714285714,
+    "pass_sr": 0.48214285714285715,
+    "sack": 0.0851063829787234,
+    "to": 0.15625,
+    "stuff": 0.07692307692307693,
+    "rush_sr": 0.525,
+    "expl_rush": 0.2,
+    "rank": {
+     "expl_pass": 2,
+     "pass_sr": 11,
+     "sack": 25,
+     "to": 25,
+     "stuff": 1,
+     "rush_sr": 1,
+     "expl_rush": 1
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.10294117647058823,
+    "pass_sr": 0.5,
+    "sack": 0.07563025210084033,
+    "to": 0.0967741935483871,
+    "stuff": 0.24,
+    "rush_sr": 0.45454545454545453,
+    "expl_rush": 0.11688311688311688,
+    "rank": {
+     "expl_pass": 28,
+     "pass_sr": 24,
+     "sack": 10,
+     "to": 16,
+     "stuff": 5,
+     "rush_sr": 27,
+     "expl_rush": 19
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "CAR": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.09420289855072464,
+    "pass_sr": 0.4420289855072464,
+    "sack": 0.05426356589147287,
+    "to": 0.08333333333333333,
+    "stuff": 0.12903225806451613,
+    "rush_sr": 0.352112676056338,
+    "expl_rush": 0.11267605633802817,
+    "rank": {
+     "expl_pass": 6,
+     "pass_sr": 22,
+     "sack": 12,
+     "to": 14,
+     "stuff": 6,
+     "rush_sr": 22,
+     "expl_rush": 12
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.04,
+    "pass_sr": 0.472,
+    "sack": 0.0707070707070707,
+    "to": 0.1794871794871795,
+    "stuff": 0.10843373493975904,
+    "rush_sr": 0.3563218390804598,
+    "expl_rush": 0.14942528735632185,
+    "rank": {
+     "expl_pass": 4,
+     "pass_sr": 21,
+     "sack": 12,
+     "to": 3,
+     "stuff": 29,
+     "rush_sr": 9,
+     "expl_rush": 28
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": true,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "CHI": {
+   "off": {
+    "gp": 2,
+    "expl_pass": 0.07142857142857142,
+    "pass_sr": 0.47619047619047616,
+    "sack": 0.08571428571428572,
+    "to": 0.125,
+    "stuff": 0.16666666666666666,
+    "rush_sr": 0.359375,
+    "expl_rush": 0.171875,
+    "rank": {
+     "expl_pass": 20,
+     "pass_sr": 14,
+     "sack": 26,
+     "to": 22,
+     "stuff": 12,
+     "rush_sr": 20,
+     "expl_rush": 3
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 2,
+    "expl_pass": 0.09859154929577464,
+    "pass_sr": 0.4507042253521127,
+    "sack": 0.07936507936507936,
+    "to": 0.09090909090909091,
+    "stuff": 0.15217391304347827,
+    "rush_sr": 0.3673469387755102,
+    "expl_rush": 0.10204081632653061,
+    "rank": {
+     "expl_pass": 26,
+     "pass_sr": 13,
+     "sack": 7,
+     "to": 19,
+     "stuff": 20,
+     "rush_sr": 11,
+     "expl_rush": 13
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "CIN": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.09565217391304348,
+    "pass_sr": 0.4608695652173913,
+    "sack": 0.06363636363636363,
+    "to": 0.06666666666666667,
+    "stuff": 0.1746031746031746,
+    "rush_sr": 0.40625,
+    "expl_rush": 0.125,
+    "rank": {
+     "expl_pass": 5,
+     "pass_sr": 18,
+     "sack": 17,
+     "to": 10,
+     "stuff": 14,
+     "rush_sr": 14,
+     "expl_rush": 9
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08450704225352113,
+    "pass_sr": 0.47183098591549294,
+    "sack": 0.078125,
+    "to": 0.15625,
+    "stuff": 0.26,
+    "rush_sr": 0.34615384615384615,
+    "expl_rush": 0.15384615384615385,
+    "rank": {
+     "expl_pass": 20,
+     "pass_sr": 20,
+     "sack": 9,
+     "to": 8,
+     "stuff": 2,
+     "rush_sr": 7,
+     "expl_rush": 29
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "CLE": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.05357142857142857,
+    "pass_sr": 0.4732142857142857,
+    "sack": 0.09782608695652174,
+    "to": 0.08823529411764706,
+    "stuff": 0.2,
+    "rush_sr": 0.31746031746031744,
+    "expl_rush": 0.09523809523809523,
+    "rank": {
+     "expl_pass": 27,
+     "pass_sr": 15,
+     "sack": 30,
+     "to": 15,
+     "stuff": 22,
+     "rush_sr": 25,
+     "expl_rush": 21
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08333333333333333,
+    "pass_sr": 0.43333333333333335,
+    "sack": 0.0625,
+    "to": 0.0625,
+    "stuff": 0.1780821917808219,
+    "rush_sr": 0.4266666666666667,
+    "expl_rush": 0.17333333333333334,
+    "rank": {
+     "expl_pass": 16,
+     "pass_sr": 8,
+     "sack": 20,
+     "to": 27,
+     "stuff": 16,
+     "rush_sr": 21,
+     "expl_rush": 31
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": true,
+     "pass_sr": true,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "DAL": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.03968253968253968,
+    "pass_sr": 0.5476190476190477,
+    "sack": 0.027777777777777776,
+    "to": 0.07692307692307693,
+    "stuff": 0.21666666666666667,
+    "rush_sr": 0.4098360655737705,
+    "expl_rush": 0.09836065573770492,
+    "rank": {
+     "expl_pass": 30,
+     "pass_sr": 2,
+     "sack": 2,
+     "to": 13,
+     "stuff": 27,
+     "rush_sr": 13,
+     "expl_rush": 20
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.06542056074766354,
+    "pass_sr": 0.5887850467289719,
+    "sack": 0.023255813953488372,
+    "to": 0.07142857142857142,
+    "stuff": 0.15053763440860216,
+    "rush_sr": 0.4574468085106383,
+    "expl_rush": 0.1595744680851064,
+    "rank": {
+     "expl_pass": 13,
+     "pass_sr": 32,
+     "sack": 30,
+     "to": 23,
+     "stuff": 21,
+     "rush_sr": 30,
+     "expl_rush": 30
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "DEN": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.07339449541284404,
+    "pass_sr": 0.44954128440366975,
+    "sack": 0.05102040816326531,
+    "to": 0.12903225806451613,
+    "stuff": 0.14285714285714285,
+    "rush_sr": 0.3582089552238806,
+    "expl_rush": 0.08955223880597014,
+    "rank": {
+     "expl_pass": 17,
+     "pass_sr": 20,
+     "sack": 9,
+     "to": 23,
+     "stuff": 8,
+     "rush_sr": 21,
+     "expl_rush": 24
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08396946564885496,
+    "pass_sr": 0.42748091603053434,
+    "sack": 0.06722689075630252,
+    "to": 0.12121212121212122,
+    "stuff": 0.12987012987012986,
+    "rush_sr": 0.4050632911392405,
+    "expl_rush": 0.11392405063291139,
+    "rank": {
+     "expl_pass": 19,
+     "pass_sr": 6,
+     "sack": 17,
+     "to": 12,
+     "stuff": 26,
+     "rush_sr": 18,
+     "expl_rush": 17
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "DET": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.07258064516129033,
+    "pass_sr": 0.532258064516129,
+    "sack": 0.0603448275862069,
+    "to": 0.03125,
+    "stuff": 0.21052631578947367,
+    "rush_sr": 0.48148148148148145,
+    "expl_rush": 0.13580246913580246,
+    "rank": {
+     "expl_pass": 18,
+     "pass_sr": 5,
+     "sack": 14,
+     "to": 2,
+     "stuff": 25,
+     "rush_sr": 5,
+     "expl_rush": 6
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.10191082802547771,
+    "pass_sr": 0.5286624203821656,
+    "sack": 0.08823529411764706,
+    "to": 0.125,
+    "stuff": 0.16176470588235295,
+    "rush_sr": 0.4057971014492754,
+    "expl_rush": 0.17391304347826086,
+    "rank": {
+     "expl_pass": 27,
+     "pass_sr": 29,
+     "sack": 5,
+     "to": 10,
+     "stuff": 19,
+     "rush_sr": 19,
+     "expl_rush": 32
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "GB": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.08571428571428572,
+    "pass_sr": 0.39285714285714285,
+    "sack": 0.06060606060606061,
+    "to": 0.11764705882352941,
+    "stuff": 0.20833333333333334,
+    "rush_sr": 0.3018867924528302,
+    "expl_rush": 0.07547169811320754,
+    "rank": {
+     "expl_pass": 11,
+     "pass_sr": 29,
+     "sack": 15,
+     "to": 20,
+     "stuff": 23,
+     "rush_sr": 29,
+     "expl_rush": 28
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": true,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.044642857142857144,
+    "pass_sr": 0.5089285714285714,
+    "sack": 0.07216494845360824,
+    "to": 0.05555555555555555,
+    "stuff": 0.2222222222222222,
+    "rush_sr": 0.42391304347826086,
+    "expl_rush": 0.08695652173913043,
+    "rank": {
+     "expl_pass": 7,
+     "pass_sr": 27,
+     "sack": 11,
+     "to": 30,
+     "stuff": 8,
+     "rush_sr": 20,
+     "expl_rush": 8
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "HOU": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.07586206896551724,
+    "pass_sr": 0.46206896551724136,
+    "sack": 0.07633587786259542,
+    "to": 0.058823529411764705,
+    "stuff": 0.2727272727272727,
+    "rush_sr": 0.31343283582089554,
+    "expl_rush": 0.1044776119402985,
+    "rank": {
+     "expl_pass": 16,
+     "pass_sr": 17,
+     "sack": 20,
+     "to": 7,
+     "stuff": 32,
+     "rush_sr": 26,
+     "expl_rush": 17
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.11403508771929824,
+    "pass_sr": 0.39473684210526316,
+    "sack": 0.102803738317757,
+    "to": 0.08571428571428572,
+    "stuff": 0.14084507042253522,
+    "rush_sr": 0.3472222222222222,
+    "expl_rush": 0.08333333333333333,
+    "rank": {
+     "expl_pass": 31,
+     "pass_sr": 3,
+     "sack": 2,
+     "to": 22,
+     "stuff": 24,
+     "rush_sr": 8,
+     "expl_rush": 7
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "IND": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.07207207207207207,
+    "pass_sr": 0.45045045045045046,
+    "sack": 0.057692307692307696,
+    "to": 0.1875,
+    "stuff": 0.21518987341772153,
+    "rush_sr": 0.43037974683544306,
+    "expl_rush": 0.12658227848101267,
+    "rank": {
+     "expl_pass": 19,
+     "pass_sr": 19,
+     "sack": 13,
+     "to": 28,
+     "stuff": 26,
+     "rush_sr": 10,
+     "expl_rush": 8
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08547008547008547,
+    "pass_sr": 0.5042735042735043,
+    "sack": 0.0660377358490566,
+    "to": 0.029411764705882353,
+    "stuff": 0.11538461538461539,
+    "rush_sr": 0.4567901234567901,
+    "expl_rush": 0.12345679012345678,
+    "rank": {
+     "expl_pass": 21,
+     "pass_sr": 26,
+     "sack": 18,
+     "to": 31,
+     "stuff": 27,
+     "rush_sr": 29,
+     "expl_rush": 21
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "JAX": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.08602150537634409,
+    "pass_sr": 0.5161290322580645,
+    "sack": 0.047058823529411764,
+    "to": 0.07142857142857142,
+    "stuff": 0.125,
+    "rush_sr": 0.5,
+    "expl_rush": 0.10975609756097561,
+    "rank": {
+     "expl_pass": 10,
+     "pass_sr": 6,
+     "sack": 8,
+     "to": 11,
+     "stuff": 5,
+     "rush_sr": 2,
+     "expl_rush": 14
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": true,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.12380952380952381,
+    "pass_sr": 0.45714285714285713,
+    "sack": 0.08695652173913043,
+    "to": 0.21428571428571427,
+    "stuff": 0.14925373134328357,
+    "rush_sr": 0.36764705882352944,
+    "expl_rush": 0.07352941176470588,
+    "rank": {
+     "expl_pass": 32,
+     "pass_sr": 16,
+     "sack": 6,
+     "to": 2,
+     "stuff": 22,
+     "rush_sr": 12,
+     "expl_rush": 5
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "KC": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.08771929824561403,
+    "pass_sr": 0.5087719298245614,
+    "sack": 0.0392156862745098,
+    "to": 0.0625,
+    "stuff": 0.18292682926829268,
+    "rush_sr": 0.47619047619047616,
+    "expl_rush": 0.14285714285714285,
+    "rank": {
+     "expl_pass": 8,
+     "pass_sr": 7,
+     "sack": 5,
+     "to": 9,
+     "stuff": 18,
+     "rush_sr": 6,
+     "expl_rush": 5
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": true,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.042735042735042736,
+    "pass_sr": 0.42735042735042733,
+    "sack": 0.04040404040404041,
+    "to": 0.16129032258064516,
+    "stuff": 0.17647058823529413,
+    "rush_sr": 0.323943661971831,
+    "expl_rush": 0.1267605633802817,
+    "rank": {
+     "expl_pass": 5,
+     "pass_sr": 5,
+     "sack": 27,
+     "to": 7,
+     "stuff": 17,
+     "rush_sr": 5,
+     "expl_rush": 23
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "LA": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.10236220472440945,
+    "pass_sr": 0.44881889763779526,
+    "sack": 0.04201680672268908,
+    "to": 0.18181818181818182,
+    "stuff": 0.1095890410958904,
+    "rush_sr": 0.4533333333333333,
+    "expl_rush": 0.13333333333333333,
+    "rank": {
+     "expl_pass": 3,
+     "pass_sr": 21,
+     "sack": 7,
+     "to": 27,
+     "stuff": 4,
+     "rush_sr": 7,
+     "expl_rush": 7
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.04424778761061947,
+    "pass_sr": 0.45132743362831856,
+    "sack": 0.02912621359223301,
+    "to": 0.10344827586206896,
+    "stuff": 0.10810810810810811,
+    "rush_sr": 0.38961038961038963,
+    "expl_rush": 0.07792207792207792,
+    "rank": {
+     "expl_pass": 6,
+     "pass_sr": 14,
+     "sack": 29,
+     "to": 14,
+     "stuff": 30,
+     "rush_sr": 14,
+     "expl_rush": 6
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "LAC": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.06956521739130435,
+    "pass_sr": 0.4,
+    "sack": 0.08333333333333333,
+    "to": 0.17647058823529413,
+    "stuff": 0.1506849315068493,
+    "rush_sr": 0.42105263157894735,
+    "expl_rush": 0.10526315789473684,
+    "rank": {
+     "expl_pass": 21,
+     "pass_sr": 28,
+     "sack": 24,
+     "to": 26,
+     "stuff": 9,
+     "rush_sr": 11,
+     "expl_rush": 16
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08333333333333333,
+    "pass_sr": 0.4722222222222222,
+    "sack": 0.0707070707070707,
+    "to": 0.17142857142857143,
+    "stuff": 0.13953488372093023,
+    "rush_sr": 0.4044943820224719,
+    "expl_rush": 0.0898876404494382,
+    "rank": {
+     "expl_pass": 16,
+     "pass_sr": 22,
+     "sack": 12,
+     "to": 5,
+     "stuff": 25,
+     "rush_sr": 17,
+     "expl_rush": 10
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": true,
+     "pass_sr": false,
+     "sack": true,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "LV": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.06481481481481481,
+    "pass_sr": 0.5,
+    "sack": 0.05154639175257732,
+    "to": 0.1111111111111111,
+    "stuff": 0.23170731707317074,
+    "rush_sr": 0.3058823529411765,
+    "expl_rush": 0.07058823529411765,
+    "rank": {
+     "expl_pass": 23,
+     "pass_sr": 9,
+     "sack": 10,
+     "to": 18,
+     "stuff": 30,
+     "rush_sr": 28,
+     "expl_rush": 29
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": true,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.05785123966942149,
+    "pass_sr": 0.45454545454545453,
+    "sack": 0.09433962264150944,
+    "to": 0.2571428571428571,
+    "stuff": 0.18309859154929578,
+    "rush_sr": 0.36,
+    "expl_rush": 0.10666666666666667,
+    "rank": {
+     "expl_pass": 11,
+     "pass_sr": 15,
+     "sack": 3,
+     "to": 1,
+     "stuff": 13,
+     "rush_sr": 10,
+     "expl_rush": 15
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "MIA": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.0847457627118644,
+    "pass_sr": 0.3813559322033898,
+    "sack": 0.09473684210526316,
+    "to": 0.14285714285714285,
+    "stuff": 0.19696969696969696,
+    "rush_sr": 0.3,
+    "expl_rush": 0.1,
+    "rank": {
+     "expl_pass": 12,
+     "pass_sr": 30,
+     "sack": 28,
+     "to": 24,
+     "stuff": 21,
+     "rush_sr": 30,
+     "expl_rush": 19
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": true,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.10344827586206896,
+    "pass_sr": 0.5862068965517241,
+    "sack": 0.0,
+    "to": 0.10714285714285714,
+    "stuff": 0.25316455696202533,
+    "rush_sr": 0.4,
+    "expl_rush": 0.1125,
+    "rank": {
+     "expl_pass": 29,
+     "pass_sr": 31,
+     "sack": 32,
+     "to": 13,
+     "stuff": 3,
+     "rush_sr": 15,
+     "expl_rush": 16
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": true,
+     "expl_rush": false
+    }
+   }
+  },
+  "MIN": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.0625,
+    "pass_sr": 0.34375,
+    "sack": 0.10975609756097561,
+    "to": 0.05714285714285714,
+    "stuff": 0.18421052631578946,
+    "rush_sr": 0.2987012987012987,
+    "expl_rush": 0.06493506493506493,
+    "rank": {
+     "expl_pass": 24,
+     "pass_sr": 32,
+     "sack": 31,
+     "to": 6,
+     "stuff": 20,
+     "rush_sr": 31,
+     "expl_rush": 30
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.08571428571428572,
+    "pass_sr": 0.3357142857142857,
+    "sack": 0.109375,
+    "to": 0.16216216216216217,
+    "stuff": 0.208955223880597,
+    "rush_sr": 0.2714285714285714,
+    "expl_rush": 0.11428571428571428,
+    "rank": {
+     "expl_pass": 22,
+     "pass_sr": 1,
+     "sack": 1,
+     "to": 6,
+     "stuff": 10,
+     "rush_sr": 2,
+     "expl_rush": 18
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "NE": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.07964601769911504,
+    "pass_sr": 0.4778761061946903,
+    "sack": 0.09473684210526316,
+    "to": 0.26666666666666666,
+    "stuff": 0.20833333333333334,
+    "rush_sr": 0.28378378378378377,
+    "expl_rush": 0.0945945945945946,
+    "rank": {
+     "expl_pass": 14,
+     "pass_sr": 12,
+     "sack": 28,
+     "to": 32,
+     "stuff": 23,
+     "rush_sr": 32,
+     "expl_rush": 22
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": true,
+     "to": false,
+     "stuff": true,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.045871559633027525,
+    "pass_sr": 0.44954128440366975,
+    "sack": 0.07,
+    "to": 0.09375,
+    "stuff": 0.07246376811594203,
+    "rush_sr": 0.38028169014084506,
+    "expl_rush": 0.09859154929577464,
+    "rank": {
+     "expl_pass": 8,
+     "pass_sr": 12,
+     "sack": 15,
+     "to": 17,
+     "stuff": 32,
+     "rush_sr": 13,
+     "expl_rush": 12
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "NO": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.07741935483870968,
+    "pass_sr": 0.5032258064516129,
+    "sack": 0.07042253521126761,
+    "to": 0.20588235294117646,
+    "stuff": 0.17567567567567569,
+    "rush_sr": 0.41333333333333333,
+    "expl_rush": 0.08,
+    "rank": {
+     "expl_pass": 15,
+     "pass_sr": 8,
+     "sack": 19,
+     "to": 30,
+     "stuff": 15,
+     "rush_sr": 12,
+     "expl_rush": 27
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.04878048780487805,
+    "pass_sr": 0.5040650406504065,
+    "sack": 0.06363636363636363,
+    "to": 0.08823529411764706,
+    "stuff": 0.14864864864864866,
+    "rush_sr": 0.4936708860759494,
+    "expl_rush": 0.13924050632911392,
+    "rank": {
+     "expl_pass": 9,
+     "pass_sr": 25,
+     "sack": 19,
+     "to": 21,
+     "stuff": 23,
+     "rush_sr": 31,
+     "expl_rush": 24
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": true
+    }
+   }
+  },
+  "NYG": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.021052631578947368,
+    "pass_sr": 0.4631578947368421,
+    "sack": 0.07777777777777778,
+    "to": 0.07142857142857142,
+    "stuff": 0.10714285714285714,
+    "rush_sr": 0.391304347826087,
+    "expl_rush": 0.08695652173913043,
+    "rank": {
+     "expl_pass": 31,
+     "pass_sr": 16,
+     "sack": 21,
+     "to": 11,
+     "stuff": 3,
+     "rush_sr": 15,
+     "expl_rush": 25
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.05309734513274336,
+    "pass_sr": 0.49557522123893805,
+    "sack": 0.00980392156862745,
+    "to": 0.17857142857142858,
+    "stuff": 0.09836065573770492,
+    "rush_sr": 0.42857142857142855,
+    "expl_rush": 0.14285714285714285,
+    "rank": {
+     "expl_pass": 10,
+     "pass_sr": 23,
+     "sack": 31,
+     "to": 4,
+     "stuff": 31,
+     "rush_sr": 22,
+     "expl_rush": 26
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": true,
+     "expl_rush": true
+    }
+   }
+  },
+  "NYJ": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.0873015873015873,
+    "pass_sr": 0.5,
+    "sack": 0.08108108108108109,
+    "to": 0.03125,
+    "stuff": 0.24324324324324326,
+    "rush_sr": 0.33766233766233766,
+    "expl_rush": 0.09090909090909091,
+    "rank": {
+     "expl_pass": 9,
+     "pass_sr": 9,
+     "sack": 22,
+     "to": 2,
+     "stuff": 31,
+     "rush_sr": 24,
+     "expl_rush": 23
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": true,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.034782608695652174,
+    "pass_sr": 0.46956521739130436,
+    "sack": 0.07920792079207921,
+    "to": 0.06451612903225806,
+    "stuff": 0.1111111111111111,
+    "rush_sr": 0.43859649122807015,
+    "expl_rush": 0.10526315789473684,
+    "rank": {
+     "expl_pass": 3,
+     "pass_sr": 19,
+     "sack": 8,
+     "to": 26,
+     "stuff": 28,
+     "rush_sr": 25,
+     "expl_rush": 14
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "PHI": {
+   "off": {
+    "gp": 2,
+    "expl_pass": 0.09090909090909091,
+    "pass_sr": 0.4155844155844156,
+    "sack": 0.08823529411764706,
+    "to": 0.1,
+    "stuff": 0.22916666666666666,
+    "rush_sr": 0.3076923076923077,
+    "expl_rush": 0.057692307692307696,
+    "rank": {
+     "expl_pass": 7,
+     "pass_sr": 27,
+     "sack": 27,
+     "to": 16,
+     "stuff": 29,
+     "rush_sr": 27,
+     "expl_rush": 31
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 2,
+    "expl_pass": 0.07575757575757576,
+    "pass_sr": 0.3939393939393939,
+    "sack": 0.05263157894736842,
+    "to": 0.0,
+    "stuff": 0.17857142857142858,
+    "rush_sr": 0.45614035087719296,
+    "expl_rush": 0.12280701754385964,
+    "rank": {
+     "expl_pass": 15,
+     "pass_sr": 2,
+     "sack": 24,
+     "to": 32,
+     "stuff": 15,
+     "rush_sr": 28,
+     "expl_rush": 20
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "PIT": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.06666666666666667,
+    "pass_sr": 0.42962962962962964,
+    "sack": 0.06504065040650407,
+    "to": 0.11428571428571428,
+    "stuff": 0.1694915254237288,
+    "rush_sr": 0.3389830508474576,
+    "expl_rush": 0.11864406779661017,
+    "rank": {
+     "expl_pass": 22,
+     "pass_sr": 25,
+     "sack": 18,
+     "to": 19,
+     "stuff": 13,
+     "rush_sr": 23,
+     "expl_rush": 10
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": true
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.11224489795918367,
+    "pass_sr": 0.45918367346938777,
+    "sack": 0.0898876404494382,
+    "to": 0.15625,
+    "stuff": 0.23943661971830985,
+    "rush_sr": 0.4305555555555556,
+    "expl_rush": 0.125,
+    "rank": {
+     "expl_pass": 30,
+     "pass_sr": 17,
+     "sack": 4,
+     "to": 8,
+     "stuff": 6,
+     "rush_sr": 24,
+     "expl_rush": 22
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "SEA": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.08411214953271028,
+    "pass_sr": 0.5327102803738317,
+    "sack": 0.030303030303030304,
+    "to": 0.12121212121212122,
+    "stuff": 0.22077922077922077,
+    "rush_sr": 0.379746835443038,
+    "expl_rush": 0.10126582278481013,
+    "rank": {
+     "expl_pass": 13,
+     "pass_sr": 4,
+     "sack": 4,
+     "to": 21,
+     "stuff": 28,
+     "rush_sr": 18,
+     "expl_rush": 18
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.017241379310344827,
+    "pass_sr": 0.4396551724137931,
+    "sack": 0.0707070707070707,
+    "to": 0.125,
+    "stuff": 0.2463768115942029,
+    "rush_sr": 0.2361111111111111,
+    "expl_rush": 0.06944444444444445,
+    "rank": {
+     "expl_pass": 1,
+     "pass_sr": 11,
+     "sack": 12,
+     "to": 10,
+     "stuff": 4,
+     "rush_sr": 1,
+     "expl_rush": 4
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": true,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "SF": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.11578947368421053,
+    "pass_sr": 0.6421052631578947,
+    "sack": 0.0,
+    "to": 0.037037037037037035,
+    "stuff": 0.09859154929577464,
+    "rush_sr": 0.4520547945205479,
+    "expl_rush": 0.1643835616438356,
+    "rank": {
+     "expl_pass": 1,
+     "pass_sr": 1,
+     "sack": 1,
+     "to": 5,
+     "stuff": 2,
+     "rush_sr": 8,
+     "expl_rush": 4
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.03333333333333333,
+    "pass_sr": 0.43333333333333335,
+    "sack": 0.05504587155963303,
+    "to": 0.07142857142857142,
+    "stuff": 0.18292682926829268,
+    "rush_sr": 0.49411764705882355,
+    "expl_rush": 0.03529411764705882,
+    "rank": {
+     "expl_pass": 2,
+     "pass_sr": 8,
+     "sack": 22,
+     "to": 23,
+     "stuff": 14,
+     "rush_sr": 32,
+     "expl_rush": 1
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": true,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "TB": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.06060606060606061,
+    "pass_sr": 0.3712121212121212,
+    "sack": 0.11607142857142858,
+    "to": 0.2,
+    "stuff": 0.18181818181818182,
+    "rush_sr": 0.3620689655172414,
+    "expl_rush": 0.08620689655172414,
+    "rank": {
+     "expl_pass": 26,
+     "pass_sr": 31,
+     "sack": 32,
+     "to": 29,
+     "stuff": 17,
+     "rush_sr": 19,
+     "expl_rush": 26
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.07207207207207207,
+    "pass_sr": 0.43243243243243246,
+    "sack": 0.06,
+    "to": 0.058823529411764705,
+    "stuff": 0.1875,
+    "rush_sr": 0.31343283582089554,
+    "expl_rush": 0.08955223880597014,
+    "rank": {
+     "expl_pass": 14,
+     "pass_sr": 7,
+     "sack": 21,
+     "to": 28,
+     "stuff": 12,
+     "rush_sr": 4,
+     "expl_rush": 9
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  },
+  "TEN": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.04807692307692308,
+    "pass_sr": 0.4326923076923077,
+    "sack": 0.053763440860215055,
+    "to": 0.10344827586206896,
+    "stuff": 0.13793103448275862,
+    "rush_sr": 0.3898305084745763,
+    "expl_rush": 0.11864406779661017,
+    "rank": {
+     "expl_pass": 28,
+     "pass_sr": 24,
+     "sack": 11,
+     "to": 17,
+     "stuff": 7,
+     "rush_sr": 16,
+     "expl_rush": 10
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": true
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.09183673469387756,
+    "pass_sr": 0.4387755102040816,
+    "sack": 0.06741573033707865,
+    "to": 0.06666666666666667,
+    "stuff": 0.16842105263157894,
+    "rush_sr": 0.4,
+    "expl_rush": 0.06666666666666667,
+    "rank": {
+     "expl_pass": 25,
+     "pass_sr": 10,
+     "sack": 16,
+     "to": 25,
+     "stuff": 18,
+     "rush_sr": 15,
+     "expl_rush": 3
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": false,
+     "rush_sr": true,
+     "expl_rush": false
+    }
+   }
+  },
+  "WAS": {
+   "off": {
+    "gp": 3,
+    "expl_pass": 0.048,
+    "pass_sr": 0.44,
+    "sack": 0.02912621359223301,
+    "to": 0.029411764705882353,
+    "stuff": 0.18292682926829268,
+    "rush_sr": 0.3855421686746988,
+    "expl_rush": 0.10843373493975904,
+    "rank": {
+     "expl_pass": 29,
+     "pass_sr": 23,
+     "sack": 3,
+     "to": 1,
+     "stuff": 18,
+     "rush_sr": 17,
+     "expl_rush": 15
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": false,
+     "pass_sr": false,
+     "sack": false,
+     "to": false,
+     "stuff": true,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   },
+   "def": {
+    "gp": 3,
+    "expl_pass": 0.09090909090909091,
+    "pass_sr": 0.5371900826446281,
+    "sack": 0.04672897196261682,
+    "to": 0.09090909090909091,
+    "stuff": 0.3018867924528302,
+    "rush_sr": 0.3333333333333333,
+    "expl_rush": 0.09259259259259259,
+    "rank": {
+     "expl_pass": 23,
+     "pass_sr": 30,
+     "sack": 26,
+     "to": 19,
+     "stuff": 1,
+     "rush_sr": 6,
+     "expl_rush": 11
+    },
+    "pool": {
+     "expl_pass": 32,
+     "pass_sr": 32,
+     "sack": 32,
+     "to": 32,
+     "stuff": 32,
+     "rush_sr": 32,
+     "expl_rush": 32
+    },
+    "tied": {
+     "expl_pass": true,
+     "pass_sr": false,
+     "sack": false,
+     "to": true,
+     "stuff": false,
+     "rush_sr": false,
+     "expl_rush": false
+    }
+   }
+  }
+ },
+ "league": {
+  "gp": 94,
+  "expl_pass": 0.07336956521739131,
+  "pass_sr": 0.4652173913043478,
+  "sack": 0.06425948592411261,
+  "to": 0.1111111111111111,
+  "stuff": 0.1750110766504209,
+  "rush_sr": 0.39555745407945325,
+  "expl_rush": 0.11063648013669372
+ }
+}

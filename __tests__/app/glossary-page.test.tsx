@@ -6,6 +6,11 @@ import path from "path";
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import GlossaryPage from "@/app/glossary/page";
+import {
+  TEAM_SACK_RATE_DEFINITION,
+  TEAM_STUFF_RATE_DEFINITION,
+  TEAM_TURNOVER_RATE_DEFINITION,
+} from "@/lib/stats/team-radar";
 
 function page(): HTMLElement {
   return render(<GlossaryPage />).container;
@@ -101,6 +106,29 @@ describe("glossary definitions (spec A §4.9)", () => {
     for (const old of OLD_FALSE) expect(text, old).not.toContain(old);
     // The Total EPA example that only held for dropback EPA is gone.
     expect(text).not.toContain("A QB with 50 Total EPA");
+  });
+
+  // Team radar spec 2026-10-06, copy rows R17-R19: the glossary shows the same
+  // three sentences as the tooltips, from the radar module's constants.
+  it.each([
+    ["team-sack-rate", "Team Sack Rate", TEAM_SACK_RATE_DEFINITION],
+    ["team-turnover-rate", "Team Turnover Rate", TEAM_TURNOVER_RATE_DEFINITION],
+    ["team-stuff-rate", "Team Stuff Rate", TEAM_STUFF_RATE_DEFINITION],
+  ])("#%s (%s) carries the radar module's sentence", (id, term, sentence) => {
+    const container = page();
+    expect(dd(container, { id })).toBe(sentence);
+    expect(container.querySelector(`[id="${id}"] dt`)!.textContent).toBe(term);
+  });
+
+  it("the team stuff rate entry names kneel-downs and penalty-wiped runs and says it will not match the backs' rates; the player Stuff Rate entry is untouched", () => {
+    const text = dd(page(), { id: "team-stuff-rate" });
+    expect(text).toContain("Kneel-downs");
+    expect(text).toContain("runs wiped out by a penalty");
+    expect(text).toContain("including those by quarterbacks and receivers");
+    expect(text).toContain("will not match the running backs’ stuff rates");
+    expect(dd(page(), { term: "Stuff Rate" })).toBe(
+      "Percentage of rushing attempts stopped at or behind the line of scrimmage (0 or negative yards). Higher stuff rate = worse for the offense. A key indicator of how well a defense plugs run gaps.",
+    );
   });
 
   it("renders no literal \\u escape anywhere (T7d)", () => {

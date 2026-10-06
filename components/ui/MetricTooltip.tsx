@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TEAM_RADAR_DEFINITIONS } from "@/lib/stats/team-radar";
 
 // Spec A section 4.6: the entries marked "Describes:" below are pinned to the code
 // they describe by the paired pytests in tests/ (spec A T13), which run the
@@ -136,6 +137,12 @@ export const METRIC_DEFINITIONS: Record<string, string> = {
     "Runs of 10+ yards and completions of 20+ yards. QB scrambles of 10+ yards count as explosive runs.",
   "Toxic differential":
     "Turnover margin plus explosive-play margin, using the explosive plays counted above.",
+  // Team radar (spec 2026-10-06, copy rows R17-R19): "Team sack rate", "Team
+  // turnover rate" and "Team stuff rate". New keys — the player entries above
+  // ("Stuff%", "SK%", "Explosive%") describe different carry and dropback sets
+  // and are not edited. The sentences live in lib/stats/team-radar.ts, beside
+  // the columns they describe, and the glossary shows the same ones.
+  ...TEAM_RADAR_DEFINITIONS,
 };
 
 interface MetricTooltipProps {

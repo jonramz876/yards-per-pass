@@ -4,6 +4,12 @@ import MetricTooltip, { METRIC_DEFINITIONS as DEFINITION_TEXT } from "@/componen
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { buildComparison } from "@/lib/stats/box-score";
 import { BUF_STATS, HOU_STATS } from "../fixtures/box-score-buf-hou";
+import {
+  RADAR_AXES,
+  TEAM_SACK_RATE_DEFINITION,
+  TEAM_STUFF_RATE_DEFINITION,
+  TEAM_TURNOVER_RATE_DEFINITION,
+} from "@/lib/stats/team-radar";
 
 describe("MetricTooltip — box score definitions (spec §4)", () => {
   it.each([
@@ -102,6 +108,8 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
       "EPA/Car", "Stuff%", "Explosive%", "Recv SR%", "TCH", "TCH/G",
       // Added by this PR for the box score comparison sections (spec §4)
       "EPA / play", "Success rate", "1st down rate", "Explosive plays", "Toxic differential",
+      // Team radar (spec 2026-10-06 R17-R19): new keys; the player entries above are untouched
+      "Team sack rate", "Team turnover rate", "Team stuff rate",
     ];
     expect(Object.keys(DEFINITION_TEXT).sort()).toEqual([...EXPECTED].sort());
     // …and no key is held open by an empty string.
@@ -151,6 +159,47 @@ describe("MetricTooltip — box score definitions (spec §4)", () => {
     const text = DEFINITION_TEXT["Recv SR%"];
     expect(text).toContain("EPA above zero");
     expect(text).not.toMatch(/move the chains/);
+  });
+
+  // Team radar spec 2026-10-06, copy rows R17-R19: three NEW keys whose text is
+  // the constant the radar module exports (so the tooltip, the glossary and the
+  // tests of the columns behind them cannot drift apart).
+  it.each([
+    ["Team sack rate", TEAM_SACK_RATE_DEFINITION, "Sacks divided by pass attempts plus sacks"],
+    ["Team turnover rate", TEAM_TURNOVER_RATE_DEFINITION, "On defense it is the takeaway rate"],
+    ["Team stuff rate", TEAM_STUFF_RATE_DEFINITION, "it will not match the running backs’ stuff rates"],
+  ])("defines %s with the radar module's sentence, and the popup shows it", async (metric, sentence, fragment) => {
+    expect(DEFINITION_TEXT[metric]).toBe(sentence);
+    expect(sentence).toContain(fragment);
+    render(
+      <TooltipProvider delay={0}>
+        <MetricTooltip metric={metric} />
+      </TooltipProvider>
+    );
+    const trigger = screen.getByLabelText(`What is ${metric}?`);
+    fireEvent.pointerEnter(trigger);
+    fireEvent.focus(trigger);
+    await waitFor(() => {
+      const popup = document.querySelector('[data-slot="tooltip-content"]');
+      expect(popup).not.toBeNull();
+      expect(popup!.textContent).toContain(sentence);
+      expect(popup!.textContent).not.toMatch(/\\u[0-9a-fA-F]{4}/);
+    });
+  });
+
+  it("every tooltip key the radar axes ask for is defined, and the player entries were not edited (review I7)", () => {
+    const keys = RADAR_AXES.map((a) => a.tooltip).filter((k): k is string => Boolean(k));
+    expect(keys).toEqual(["Team sack rate", "Team turnover rate", "Team stuff rate"]);
+    for (const key of keys) expect(DEFINITION_TEXT[key], key).toBeTruthy();
+    expect(DEFINITION_TEXT["Stuff%"]).toBe(
+      "Percentage of carries stopped at or behind the line of scrimmage (≤0 yards). Lower is better.",
+    );
+    expect(DEFINITION_TEXT["SK%"]).toBe(
+      "Sack percentage — sacks ÷ (attempts + sacks) × 100. Measures how often a QB is sacked. Lower is better.",
+    );
+    expect(DEFINITION_TEXT["Explosive%"]).toBe(
+      "Percentage of carries that gain 10+ yards. Higher is better — measures big-play ability on the ground.",
+    );
   });
 
   it("renders nothing for an unknown metric", () => {

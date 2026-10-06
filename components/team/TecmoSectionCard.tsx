@@ -16,6 +16,8 @@ interface TecmoSectionCardProps {
   secondaryColor: string;
   /** Body wrapper classes. Override to add interior spacing utilities. */
   bodyClassName?: string;
+  /** Optional right-hand band text (e.g. "2026 · Through Week 3"). Without it the band is unchanged. */
+  aside?: string;
   children: React.ReactNode;
 }
 
@@ -24,6 +26,7 @@ export default function TecmoSectionCard({
   primaryColor,
   secondaryColor,
   bodyClassName = "p-6",
+  aside,
   children,
 }: TecmoSectionCardProps) {
   const bandText = textColorForBackground(primaryColor);
@@ -31,14 +34,21 @@ export default function TecmoSectionCard({
   return (
     <div className="bg-white rounded-xl shadow overflow-hidden">
       <h3
-        className={`${PIXEL} px-3 py-2.5 lg:px-5 lg:py-3 text-[7px] sm:text-[9px] lg:text-[11px] uppercase tracking-wide`}
+        className={`${PIXEL} ${aside ? "flex items-center justify-between gap-2 " : ""}px-3 py-2.5 lg:px-5 lg:py-3 text-[7px] sm:text-[9px] lg:text-[11px] uppercase tracking-wide`}
         style={{
           background: primaryColor,
           color: bandText,
           borderBottom: `2px solid ${secondaryColor}`,
         }}
       >
-        {title}
+        {aside ? (
+          <>
+            <span>{title}</span>
+            <span className="text-right">{aside}</span>
+          </>
+        ) : (
+          title
+        )}
       </h3>
       <div className={bodyClassName}>{children}</div>
     </div>
