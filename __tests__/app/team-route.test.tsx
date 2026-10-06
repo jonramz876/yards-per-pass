@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
@@ -82,18 +82,84 @@ describe("TeamPage — box score link gate (spec §7)", () => {
     logged.mockRestore();
   });
 
-  it("logs the silent path: no seasons from data_freshness means no links", async () => {
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
-    await contentProps();
-    expect(logged).toHaveBeenCalledTimes(1);
-    expect(String(logged.mock.calls[0][0])).toContain("no seasons from data_freshness");
-    logged.mockRestore();
-  });
-
   it("unknown team still 404s", async () => {
     await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(getBoxScoreSeasonsCached).not.toHaveBeenCalled();
+  });
+});
+
+// Read resilience spec §1.2. A failed read on this page used to render the
+// team name over empty sections; core reads now reject, which Next hands to
+// app/team/[team_id]/error.tsx ("Unable to load team data").
+describe("TeamPage — a failed read is an error, never a blank team page", () => {
+  const REAL_URL = "https://abcdefghijklmnop.supabase.co";
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", REAL_URL);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("seasons read fails → throws, before any other read", async () => {
+    vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("Failed to fetch seasons: TypeError: fetch failed"));
+    await expect(contentProps()).rejects.toThrow("Failed to fetch seasons");
+    expect(getTeamHubData).not.toHaveBeenCalled();
+  });
+
+  it("the hub data rejects (one of its ten core reads failed) → throws", async () => {
+    vi.mocked(getTeamHubData).mockRejectedValueOnce(new Error("Failed to fetch team stats: TypeError: fetch failed"));
+    await expect(contentProps()).rejects.toThrow("Failed to fetch team stats");
+    expect(TeamHubContent).not.toHaveBeenCalled();
+  });
+
+  it("an empty data_freshness table with a real database → throws (homepage rule)", async () => {
+    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
+    await expect(contentProps()).rejects.toThrow(/no seasons/);
+    expect(getTeamHubData).not.toHaveBeenCalled();
+  });
+
+  it("an empty seasons list with no database (placeholder build) → renders on the fallback season", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://placeholder.supabase.co");
+    vi.mocked(getAvailableSeasons).mockResolvedValueOnce([]);
+    const props = await contentProps();
+    expect(props.defaultSeason).toBe(2026);
+    expect(vi.mocked(getTeamHubData).mock.calls[0]).toEqual(["BUF", 2026, false]);
+  });
+
+  // Chaos regression (PR 1A): a ?season= Postgres cannot store (the column is
+  // INTEGER) made the hub's reads fail, and since they are now core the page
+  // showed the error card with a "Try again" that could never work. An
+  // implausible season is treated as absent (parseSeasonParam, 1999-2100).
+  it.each([
+    ["past the INTEGER range", "99999999999"],
+    ["absurdly long", "99999999999999999999"],
+    ["negative", "-5"],
+    ["zero", "0"],
+    ["not a number", "abc"],
+    ["scientific notation", "1e9"],
+    ["before any NFL data", "1850"],
+    ["empty", ""],
+  ])("a junk ?season= (%s) renders the default season and never reaches the hub's reads", async (_name, season) => {
+    render(await TeamPage({ params: Promise.resolve({ team_id: "buf" }), searchParams: Promise.resolve({ season }) }));
+    expect(vi.mocked(getTeamHubData).mock.calls).toEqual([["BUF", 2026, true]]);
+    expect(TeamHubContent).toHaveBeenCalled();
+  });
+
+  it("a decimal ?season= keeps its whole year, as before", async () => {
+    render(await TeamPage({ params: Promise.resolve({ team_id: "buf" }), searchParams: Promise.resolve({ season: "2025.5" }) }));
+    expect(vi.mocked(getTeamHubData).mock.calls).toEqual([["BUF", 2025, false]]);
+  });
+
+  it.each(["2025", "1999", "2027", "2100"])("a plausible ?season=%s is still honoured", async (season) => {
+    render(await TeamPage({ params: Promise.resolve({ team_id: "buf" }), searchParams: Promise.resolve({ season }) }));
+    expect(vi.mocked(getTeamHubData).mock.calls[0][1]).toBe(Number(season));
+  });
+
+  it("an unknown team is a 404 decided before any read, so it stays a 404 when the database is down", async () => {
+    await expect(contentProps("xyz")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(getAvailableSeasons).not.toHaveBeenCalled();
   });
 });
 

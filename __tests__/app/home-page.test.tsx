@@ -253,12 +253,9 @@ describe("HomePage", () => {
     expect(container.querySelectorAll("[data-team-id]")).toHaveLength(32);
   });
 
-  it("next-season board still renders when next-season team stats fail (unchanged)", async () => {
+  it("next-season board renders when next season has a schedule and no team rows yet", async () => {
     vi.mocked(hasScheduleForSeason).mockResolvedValue(true);
-    vi.mocked(getTeamStats).mockImplementation(async (s) => {
-      if (s === 2027) throw new Error("boom");
-      return TEAMS;
-    });
+    vi.mocked(getTeamStats).mockImplementation(async (s) => (s === 2027 ? [] : TEAMS));
     const { container } = render(await HomePage());
     expect(container.textContent).toMatch(/2027 Standings/i);
     expect(container.querySelector('[data-team-id="SEA"]')?.textContent).toContain("0-0");
@@ -266,7 +263,77 @@ describe("HomePage", () => {
     expect(container.querySelector('a[href="/team/SEA"]')).not.toBeNull();
   });
 
-  it("missing slugs leave leader cards unlinked (unchanged)", async () => {
+  // Read resilience spec §1.2: the three reads below used to swallow a failure
+  // and the degraded page was cached for an hour by ISR (the MEMORY
+  // "Homepage resilience" follow-up). They now follow the homepage's rule.
+  describe("the three reads added to the throw rule (read resilience §1.2)", () => {
+    const sixQBs = () =>
+      ["q1", "q2", "q3", "q4", "q5", "q6"].map(
+        (id, i) =>
+          ({ player_id: id, player_name: `Passer ${id}`, team_id: "KC", attempts: 150, dropbacks: 150, epa_per_play: 0.3 - i * 0.01, cpoe: i }) as unknown as QBSeasonStat,
+      );
+
+    it("next-season team stats fail → throws; the 2027 board is never drawn from the wrong rows", async () => {
+      vi.mocked(hasScheduleForSeason).mockResolvedValue(true);
+      vi.mocked(getTeamStats).mockImplementation(async (s) => {
+        if (s === 2027) throw new Error("Failed to fetch team stats: TypeError: fetch failed");
+        return TEAMS;
+      });
+      await expect(HomePage()).rejects.toThrow("Failed to fetch team stats");
+    });
+
+    it("the schedule probe fails → throws; the board is never cached on the wrong season", async () => {
+      vi.mocked(hasScheduleForSeason).mockRejectedValue(
+        new Error("Failed to fetch schedule probe for 2027: TypeError: fetch failed"),
+      );
+      await expect(HomePage()).rejects.toThrow("Failed to fetch schedule probe for 2027");
+    });
+
+    it("the leader slug read fails → throws; leader cards are never cached unlinked", async () => {
+      vi.mocked(getQBStats).mockResolvedValue(sixQBs());
+      vi.mocked(getPlayerSlugsByIds).mockRejectedValue(
+        new Error("Failed to fetch player slugs: TypeError: fetch failed"),
+      );
+      await expect(HomePage()).rejects.toThrow("Failed to fetch player slugs");
+    });
+
+    it("a non-Error rejection from any of the three becomes an Error", async () => {
+      vi.mocked(hasScheduleForSeason).mockRejectedValue({ message: "TypeError: fetch failed", code: "" });
+      const err = await HomePage().catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toContain("Homepage data unavailable");
+      expect((err as Error).message).toContain("fetch failed");
+    });
+
+    it("placeholder build: all three may fail and the page still renders (CI and local builds)", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://placeholder.supabase.co");
+      vi.mocked(getQBStats).mockResolvedValue(sixQBs());
+      vi.mocked(hasScheduleForSeason).mockRejectedValue(
+        new Error("Failed to fetch schedule probe for 2027: TypeError: fetch failed"),
+      );
+      vi.mocked(getPlayerSlugsByIds).mockRejectedValue(
+        new Error("Failed to fetch player slugs: TypeError: fetch failed"),
+      );
+      const { container } = render(await HomePage());
+      expect(container.textContent).toMatch(/2026 Standings/i);
+      expect(container.querySelectorAll("[data-team-id]")).toHaveLength(32);
+      expect(container.textContent).toContain("Passer q1");
+      expect(container.querySelectorAll('a[href^="/player/"]')).toHaveLength(0);
+    });
+
+    it("placeholder build: next-season team stats may fail and the page still renders", async () => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://placeholder.supabase.co");
+      vi.mocked(hasScheduleForSeason).mockResolvedValue(true);
+      vi.mocked(getTeamStats).mockImplementation(async (s) => {
+        if (s === 2027) throw new Error("Failed to fetch team stats: TypeError: fetch failed");
+        return TEAMS;
+      });
+      const { container } = render(await HomePage());
+      expect(container.querySelectorAll("[data-team-id]")).toHaveLength(32);
+    });
+  });
+
+  it("slugs that do not exist leave leader cards unlinked (a successful empty read)", async () => {
     // EPA order q1..q6; CPOE order puts q6 first, so the two top-5 lists
     // together cover all six players.
     const qbs = [

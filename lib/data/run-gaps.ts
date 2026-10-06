@@ -1,8 +1,14 @@
 // lib/data/run-gaps.ts
 import { createServerClient } from "@/lib/supabase/server";
 import { parseNumericFields } from "@/lib/utils";
-import { fetchAllRows } from "@/lib/data/utils";
+import { fetchAllRows, queryError } from "@/lib/data/utils";
 import type { RBGapStat, RBGapStatWeekly, DefGapStat } from "@/lib/types";
+
+// Read resilience spec §1.2: a failed read throws an Error (fetchAllRows'
+// raw PostgREST rejection goes through queryError); "no gap data" comes back
+// only from a read that succeeded with no rows. The three rb_gap_stats
+// loaders below used to catch a failure and return empty, which /run-gaps
+// rendered as an empty heatmap.
 
 const RB_GAP_NUMERIC_FIELDS = [
   "epa_per_carry",
@@ -24,7 +30,7 @@ export async function getRBGapStats(
       .select("*")
       .eq("season", season)
       .eq("team_id", teamId);
-    if (error) throw new Error(`Failed to fetch RB gap stats: ${error.message}`);
+    if (error) throw queryError("RB gap stats", error);
     if (!data) return [];
     return data.map((row) =>
       parseNumericFields<RBGapStat>(row as unknown as RBGapStat, RB_GAP_NUMERIC_FIELDS)
@@ -32,7 +38,12 @@ export async function getRBGapStats(
   }
 
   // All teams: paginate past 1000-row server limit
-  const rows = await fetchAllRows("rb_gap_stats", "*", { season });
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows("rb_gap_stats", "*", { season });
+  } catch (err) {
+    throw queryError("RB gap stats", err);
+  }
   return rows.map((row) =>
     parseNumericFields<RBGapStat>(row as unknown as RBGapStat, RB_GAP_NUMERIC_FIELDS)
   );
@@ -65,8 +76,8 @@ export async function getLeagueGapAverages(
       "team_id, gap, carries, epa_per_carry, yards_per_carry, success_rate, stuff_rate, explosive_rate",
       { season }
     );
-  } catch {
-    return { averages: [], teamGapEpas: [] };
+  } catch (err) {
+    throw queryError("league gap averages", err);
   }
   if (!data || data.length === 0) return { averages: [], teamGapEpas: [] };
 
@@ -139,7 +150,7 @@ export async function getRBGapStatsWeekly(
     .eq("situation", situation)
     .eq("field_zone", fieldZone);
 
-  if (error) throw new Error(`Failed to fetch weekly gap stats: ${error.message}`);
+  if (error) throw queryError("weekly gap stats", error);
   if (!data) return [];
 
   return data.map((row) =>
@@ -162,7 +173,12 @@ export async function getDefGapStats(
   const filters: Record<string, unknown> = { season };
   if (teamId) filters.team_id = teamId;
 
-  const rows = await fetchAllRows("def_gap_stats", "*", filters);
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows("def_gap_stats", "*", filters);
+  } catch (err) {
+    throw queryError("defensive gap stats", err);
+  }
 
   return rows.map((row) =>
     parseNumericFields<DefGapStat>(row as unknown as DefGapStat, DEF_GAP_NUMERIC_FIELDS)
@@ -175,8 +191,8 @@ export async function getTeamsWithGapData(
   let data: Record<string, unknown>[];
   try {
     data = await fetchAllRows("rb_gap_stats", "team_id", { season });
-  } catch {
-    return [];
+  } catch (err) {
+    throw queryError("teams with gap data", err);
   }
   const unique = Array.from(new Set(data.map((r) => r.team_id as string)));
   return unique.sort();
@@ -194,8 +210,8 @@ export async function getAllGapData(season: number): Promise<{
   let rawRows: Record<string, unknown>[];
   try {
     rawRows = await fetchAllRows("rb_gap_stats", "*", { season });
-  } catch {
-    return { allGapStats: [], teams: [], leagueAvgs: { averages: [], teamGapEpas: [] } };
+  } catch (err) {
+    throw queryError("run gap stats", err);
   }
   if (!rawRows || rawRows.length === 0) {
     return { allGapStats: [], teams: [], leagueAvgs: { averages: [], teamGapEpas: [] } };

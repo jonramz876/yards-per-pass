@@ -1,4 +1,4 @@
-import { fetchAllRows } from "@/lib/data/utils";
+import { fetchAllRows, queryError } from "@/lib/data/utils";
 import { parseNumericFields } from "@/lib/utils";
 import type { RBSeasonStat } from "@/lib/types";
 
@@ -15,7 +15,13 @@ const RB_NUMERIC_FIELDS = [
 export async function getRBSeasonStats(
   season: number
 ): Promise<RBSeasonStat[]> {
-  const rows = await fetchAllRows("rb_season_stats", "*", { season });
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows("rb_season_stats", "*", { season });
+  } catch (err) {
+    // fetchAllRows rejects with the raw PostgREST object; loaders throw Errors.
+    throw queryError("RB season stats", err);
+  }
   return rows.map((row) =>
     parseNumericFields<RBSeasonStat>(
       row as unknown as RBSeasonStat,

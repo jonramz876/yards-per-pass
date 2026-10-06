@@ -9,6 +9,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { getQBStats } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
+import { summarizeUpstreamError } from "@/lib/data/utils";
 import {
   buildQBCardData,
   buildWRCardData,
@@ -77,10 +78,23 @@ export async function getLatestCardSeason(player: PlayerSlug): Promise<number | 
       .eq("player_id", player.player_id)
       .order("season", { ascending: false })
       .limit(1);
-    if (error || !data || data.length === 0) return null;
+    if (error) {
+      // May degrade (the "no card" message just loses its link to an older
+      // card), but never silently: a read that degrades logs.
+      console.error(
+        `Card: latest card season unavailable for ${player.slug}; no link to an older card`,
+        summarizeUpstreamError(error)
+      );
+      return null;
+    }
+    if (!data || data.length === 0) return null;
     const season = Number((data[0] as { season: unknown }).season);
     return Number.isInteger(season) && season > 0 ? season : null;
-  } catch {
+  } catch (err) {
+    console.error(
+      `Card: latest card season unavailable for ${player.slug}; no link to an older card`,
+      summarizeUpstreamError(err)
+    );
     return null;
   }
 }

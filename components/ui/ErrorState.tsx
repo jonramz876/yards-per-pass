@@ -1,12 +1,14 @@
 // components/ui/ErrorState.tsx
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, startTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface ErrorStateProps {
   title?: string;
   message?: string;
+  /** The boundary's own reset, passed straight through. "Try again" adds the router.refresh() itself. */
   reset: () => void;
   /**
    * Somewhere else worth going while this page is broken. Optional and empty
@@ -21,13 +23,32 @@ export default function ErrorState({
   reset,
   links,
 }: ErrorStateProps) {
+  const router = useRouter();
+
+  // "Try again" has to re-run the Server Component, and reset() alone does
+  // not: it re-renders the client error boundary against the RSC payload it
+  // already holds, so the same error shows again even once the database is
+  // back. router.refresh() fetches a fresh payload.
+  //
+  // Both go in ONE transition (read resilience spec §1.2, review I3). reset is
+  // an urgent setState and refresh is a transition that lands later; called
+  // bare, the boundary re-throws the old error before the new payload arrives
+  // and nothing clears it afterwards, so the first click does nothing visible
+  // and only the second works. Inside a transition they commit together.
+  const tryAgain = () => {
+    startTransition(() => {
+      router.refresh();
+      reset();
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-6 md:px-12 py-16 text-center">
       <h2 className="text-xl font-bold text-navy mb-2">{title}</h2>
       <p className="text-gray-500 mb-6 max-w-md mx-auto">{message}</p>
       <div className="flex gap-4 justify-center">
         <button
-          onClick={reset}
+          onClick={tryAgain}
           className="px-4 py-2 bg-navy text-white rounded-md hover:bg-navy/90 transition-colors"
         >
           Try again

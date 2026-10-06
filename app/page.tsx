@@ -61,6 +61,25 @@ function buildSlugMap(slugs: PlayerSlug[]): Map<string, string> {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Data errors — rethrow unless there is no database                  */
+/* ------------------------------------------------------------------ */
+// The homepage's one rule for a failed read, shared by every read on the page
+// (read resilience spec §1.2). Real database error: never render (and cache)
+// a degraded homepage. Throwing keeps ISR serving the last good copy and
+// retrying in ~30s; during `next build` it fails the deploy, so the previous
+// one stays live. No database (CI / local placeholder build): return, and the
+// caller renders with whatever it has.
+// Do not add an in-render retry: Next 14 replays identical fetches from a
+// per-render memo, failures included (next/dist/server/lib/dedupe-fetch.js).
+function rethrowUnlessNoDatabase(err: unknown): void {
+  if (hasNoDatabase()) return;
+  if (err instanceof Error) throw err;
+  // A loader should throw an Error; wrap anything else for the logs.
+  const m = (err as { message?: unknown } | null)?.message;
+  throw new Error(`Homepage data unavailable: ${typeof m === "string" ? m : JSON.stringify(err)}`);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Page component                                                     */
 /* ------------------------------------------------------------------ */
 export default async function HomePage() {
@@ -74,11 +93,13 @@ export default async function HomePage() {
 
   try {
     const seasons = await getAvailableSeasons();
-    // getAvailableSeasons and getDataFreshness return []/null on a query error
-    // instead of throwing. A real database always has data_freshness rows (one
-    // per season, upserted, never deleted), so empty here means the read failed.
+    // getAvailableSeasons and getDataFreshness throw on a query error, so []
+    // and null below are reads that succeeded with no rows. A real database
+    // always has data_freshness rows (one per season, upserted, never
+    // deleted), so that is still broken (an RLS change hiding the rows, a
+    // renamed table): throw rather than render an empty homepage.
     if (seasons.length === 0) {
-      throw new Error("Homepage: no seasons from data_freshness (query failed or table empty)");
+      throw new Error("Homepage: no seasons from data_freshness (table empty)");
     }
     currentSeason = seasons[0] || fallbackSeason();
 
@@ -90,20 +111,10 @@ export default async function HomePage() {
       getRBSeasonStats(currentSeason),
     ]);
     if (!freshness) {
-      throw new Error(`Homepage: no data_freshness row for ${currentSeason} (query failed)`);
+      throw new Error(`Homepage: no data_freshness row for ${currentSeason}`);
     }
   } catch (err) {
-    if (!hasNoDatabase()) {
-      // Real database error: never render (and cache) an empty homepage.
-      // Throwing keeps ISR serving the last good copy and retrying in ~30s;
-      // during `next build` it fails the deploy, so the previous one stays live.
-      // Do not add an in-render retry: Next 14 replays identical fetches from a
-      // per-render memo, failures included (next/dist/server/lib/dedupe-fetch.js).
-      if (err instanceof Error) throw err;
-      // fetchAllRows throws the raw PostgREST error object — wrap it for the logs.
-      const m = (err as { message?: unknown } | null)?.message;
-      throw new Error(`Homepage data unavailable: ${typeof m === "string" ? m : JSON.stringify(err)}`);
-    }
+    rethrowUnlessNoDatabase(err);
     // No database (CI / local placeholder build) — render with empty data
   }
 
@@ -115,14 +126,19 @@ export default async function HomePage() {
   // and must keep pointing at `currentSeason`.
   let standingsSeason = currentSeason;
   let standingsStats: TeamSeasonStat[] = teamStats;
+  // Both reads are core: a failed probe used to answer "no schedule" and a
+  // failed stats read "no rows", and ISR cached the board on the wrong season
+  // (or 32 teams at 0-0) for an hour. The season flips only once both are in.
   try {
     if (await hasScheduleForSeason(currentSeason + 1)) {
+      const nextSeasonStats = await getTeamStats(currentSeason + 1);
       standingsSeason = currentSeason + 1;
-      standingsStats = await getTeamStats(standingsSeason).catch(() => []);
+      standingsStats = nextSeasonStats;
     }
-  } catch {
-    // Probe failed (placeholder credentials, table missing) — the latest stats
-    // season stands in.
+  } catch (err) {
+    rethrowUnlessNoDatabase(err);
+    // No database: the probe always fails (placeholder credentials) — the
+    // latest stats season stands in.
   }
 
   // Player strips qualify like the leaderboard pages: round(rate × team games),
@@ -187,10 +203,14 @@ export default async function HomePage() {
     ...rushEpaLeaders.map((rb) => rb.player_id),
   ]));
 
+  // Core too: a failed slug read used to leave every leader card unlinked, and
+  // ISR cached that for an hour. (A slug that simply does not exist is a
+  // successful read, and that one card stays unlinked.)
   try {
     playerSlugs = await getPlayerSlugsByIds(leaderPlayerIds);
-  } catch {
-    // slug fetch failed — links will fall back to player_id
+  } catch (err) {
+    rethrowUnlessNoDatabase(err);
+    // No database — cards render unlinked
   }
 
   const slugMap = buildSlugMap(playerSlugs);
