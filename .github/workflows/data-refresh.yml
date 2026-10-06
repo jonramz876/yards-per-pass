@@ -18,6 +18,11 @@ on:
         description: 'Season to refresh (default: current)'
         required: false
         default: ''
+      force:
+        description: 'Run even if nflverse has nothing new (also re-runs the schema steps)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -26,6 +31,8 @@ permissions:
 # Only one refresh at a time (scheduled or manual). A run that arrives while another is going waits for it
 # to finish; it is never cancelled mid-run. If several pile up, only the newest waiting run is kept,
 # which is fine because every run downloads the latest nflverse file.
+# The skip-unchanged state (restore -> ingest -> save, below) depends on this group: it is what makes a
+# queued run restore the state the previous run saved. Do not remove it.
 concurrency:
   group: data-refresh
   cancel-in-progress: false
@@ -84,14 +91,36 @@ jobs:
             fi
           fi
 
+      # What the last successful refresh read (nflverse file digests, schedule rows, code hash), so a run
+      # with nothing new never touches the database. The key is new on every run and never matches;
+      # restore-keys picks the newest saved state. A miss (first run, or GitHub evicted it after 7 unused
+      # days) just means a normal full run.
+      - name: Restore refresh state
+        if: steps.offseason.outputs.skip != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .ingest-state
+          key: ingest-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            ingest-state-
+
       - name: Run ingest
+        id: ingest
         if: steps.offseason.outputs.skip != 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python scripts/ingest.py --season "${{ steps.vars.outputs.season }}"
+          GH_TOKEN: ${{ github.token }}  # reads nflverse release digests without the anonymous rate limit
+        run: |
+          FORCE=""
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            FORCE="--force"
+          fi
+          python scripts/ingest.py --season "${{ steps.vars.outputs.season }}" --state-file .ingest-state/state.json $FORCE
 
+      # Skipped when ingest says nothing changed (changed=false). Ingest keeps changed=true until a POST
+      # has succeeded after the last data change, which is why a 200 is recorded in revalidated_at.
       - name: Trigger ISR revalidation
-        if: success() && steps.offseason.outputs.skip != 'true'
+        if: success() && steps.offseason.outputs.skip != 'true' && steps.ingest.outputs.changed != 'false'
         run: |
           if [ -z "${{ secrets.SITE_URL }}" ]; then
             echo "::notice::SITE_URL not configured — skipping revalidation (site may not be deployed yet)"
@@ -101,9 +130,21 @@ jobs:
             -H "x-revalidate-secret: ${{ secrets.REVALIDATE_SECRET }}" \
             -H "Content-Type: application/json")
           echo "Revalidation response: HTTP $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "::warning::ISR revalidation failed with HTTP $STATUS — site may serve stale data"
+          if [ "$STATUS" = "200" ]; then
+            mkdir -p .ingest-state
+            date -u +%Y-%m-%dT%H:%M:%SZ > .ingest-state/revalidated_at
+          else
+            echo "::warning::ISR revalidation failed with HTTP $STATUS — site may serve stale data (the next run will try again)"
           fi
+
+      # After the revalidate step, so its marker is saved too. always(): a failed ingest may still have
+      # committed schedule rows, and the next run must know a revalidate is owed.
+      - name: Save refresh state
+        if: always() && steps.offseason.outputs.skip != 'true' && hashFiles('.ingest-state/state.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .ingest-state
+          key: ingest-state-${{ github.run_id }}-${{ github.run_attempt }}
 
       # GitHub disables cron schedules after 60 days without repo activity (this bit us June 2026).
       # Re-enabling the workflow via the API on every run resets that timer. Must run year-round.
