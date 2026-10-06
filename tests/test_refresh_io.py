@@ -134,7 +134,11 @@ class Harness:
         self.github = FakeGitHub()
         self.pipeline = Pipeline()
         self.code_hash = "code-1"
+        self.schema_hash = "schema-1"
         self.connects = []           # one ScriptedConnect per run
+        self.conn_factory = FakeConn
+        self.conns = []              # the connections handed to the latest run
+        self.sleeps = []
 
         monkeypatch.setenv("DATABASE_URL", FAKE_URL)   # fake URL; psycopg2.connect is always faked
         monkeypatch.setenv("GH_TOKEN", TOKEN)
@@ -144,9 +148,10 @@ class Harness:
         monkeypatch.setattr(ingest, "_SCHEDULES_CACHE", schedules_frame())
         monkeypatch.setattr(ingest, "_utcnow", lambda: self.now)
         monkeypatch.setattr(ingest, "compute_code_hash", lambda *a, **k: self.code_hash)
+        monkeypatch.setattr(ingest, "compute_schema_hash", lambda *a, **k: self.schema_hash, raising=False)
         monkeypatch.setattr(ingest, "process_season", self.pipeline.process_season)
         monkeypatch.setattr(ingest, "ingest_schedules", self.pipeline.ingest_schedules)
-        monkeypatch.setattr(ingest.time, "sleep", lambda s: None)
+        monkeypatch.setattr(ingest.time, "sleep", self.sleeps.append)
 
     # -- actions --
     def run(self, *extra, season="2026", state=True):
@@ -156,7 +161,9 @@ class Harness:
                 p.unlink()
         self.pipeline.season_calls.clear()
         self.pipeline.schedule_calls.clear()
-        connect = ScriptedConnect([FakeConn(f"run{len(self.connects)}-{i}") for i in range(4)])
+        self.conns = [self.conn_factory(f"run{len(self.connects)}-{i}") for i in range(4)]
+        self.sleeps.clear()
+        connect = ScriptedConnect(list(self.conns))
         self.connects.append(connect)
         self.monkeypatch.setattr(ingest.psycopg2, "connect", connect)
         argv = ["--all"] if season == "all" else ["--season", season]

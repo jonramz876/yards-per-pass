@@ -1591,6 +1591,9 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
 def ensure_team_season_stats_columns(conn):
     """Add new columns to team_season_stats (idempotent). NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [('takeaways', 'INT'), ('giveaways', 'INT'), ('turnover_diff', 'INT')]:
             cur.execute(f"ALTER TABLE team_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
     conn.commit()
@@ -1601,6 +1604,9 @@ def ensure_qb_season_stats_columns(conn):
     """Add new columns to qb_season_stats (idempotent). NOT inside @retry.
     QB table created via schema.sql — this adds columns from leaderboard overhaul."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [
             ('td_pct', 'NUMERIC'),
             ('int_pct', 'NUMERIC'),
@@ -1616,6 +1622,9 @@ def ensure_qb_season_stats_columns(conn):
 def ensure_rb_gap_tables(conn):
     """Create rb_gap_stats table if it doesn't exist. Called once, NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_gap_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1680,6 +1689,9 @@ def upsert_rb_gap_stats(conn, df: pd.DataFrame):
 def ensure_def_gap_tables(conn):
     """Create def_gap_stats table if it doesn't exist. NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS def_gap_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1704,6 +1716,9 @@ def ensure_def_gap_tables(conn):
 def ensure_receiver_stats_table(conn):
     """Create receiver_season_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS receiver_season_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1792,6 +1807,9 @@ def upsert_receiver_stats(conn, df: pd.DataFrame):
 def ensure_rb_season_stats_table(conn):
     """Create rb_season_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_season_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1897,6 +1915,9 @@ def upsert_def_gap_stats(conn, df: pd.DataFrame):
 def ensure_rb_gap_weekly_tables(conn):
     """Create rb_gap_stats_weekly table if it doesn't exist. NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_gap_stats_weekly (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2473,6 +2494,9 @@ def aggregate_rb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
 def ensure_qb_weekly_stats_table(conn):
     """Create qb_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS qb_weekly_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2527,6 +2551,9 @@ def ensure_qb_weekly_stats_columns(conn):
     ensure_qb_weekly_stats_table is CREATE TABLE IF NOT EXISTS only, so it cannot
     add columns to the table that already exists in production (box score spec §10.1)."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [
             ('rush_epa_per_carry', 'NUMERIC'),
             ('rush_success_rate', 'NUMERIC'),
@@ -2539,6 +2566,9 @@ def ensure_qb_weekly_stats_columns(conn):
 def ensure_receiver_weekly_stats_table(conn):
     """Create receiver_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS receiver_weekly_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2586,6 +2616,9 @@ def ensure_receiver_weekly_stats_table(conn):
 def ensure_rb_weekly_stats_table(conn):
     """Create rb_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_weekly_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2738,6 +2771,9 @@ def upsert_rb_weekly_stats(conn, df: pd.DataFrame):
 def ensure_qb_pass_location_tables(conn):
     """Create qb_pass_location_stats table if it doesn't exist."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS qb_pass_location_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2819,6 +2855,9 @@ def upsert_qb_pass_location_stats(conn, df: pd.DataFrame):
 def ensure_team_down_distance_table(conn):
     """Create team_down_distance_stats table. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_down_distance_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2875,6 +2914,9 @@ def upsert_team_down_distance_stats(conn, df: pd.DataFrame):
 def ensure_team_situational_table(conn):
     """Create team_situational_stats table. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_situational_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2932,6 +2974,9 @@ def upsert_team_situational_stats(conn, df: pd.DataFrame):
 def ensure_player_slugs_table(conn):
     """Create player_slugs table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS player_slugs (
                 player_id TEXT PRIMARY KEY,
@@ -3258,6 +3303,9 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
 def ensure_games_table(conn):
     """Create games table (nflverse schedules) if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS games (
                 game_id TEXT PRIMARY KEY,
@@ -3323,7 +3371,7 @@ def _schedule_rows(df: pd.DataFrame) -> list:
     return rows
 
 
-def ingest_schedules(conn, season: int):
+def ingest_schedules(conn, season: int, ensure_schema: bool = True):
     """Upsert one season's schedule + results into games.
 
     Future games carry null scores and fill in as they're played, so this runs
@@ -3332,6 +3380,10 @@ def ingest_schedules(conn, season: int):
 
     conn is None (dry run) → log the would-upsert count and write nothing.
     Returns the number of rows sent (None when nothing was written).
+
+    ensure_schema=False skips ensure_games_table (only run_seasons passes it, when
+    the stored schema hash matches). If the table or a column then turns out to be
+    missing, the table is ensured and the upsert retried once.
     """
     schedules = download_schedules()
     df = schedules[schedules['season'] == season]
@@ -3354,7 +3406,8 @@ def ingest_schedules(conn, season: int):
     update_set += ", updated_at = now()"
 
     try:
-        ensure_games_table(conn)
+        if ensure_schema:
+            ensure_games_table(conn)
         with conn.cursor() as cur:
             execute_values(
                 cur,
@@ -3364,6 +3417,16 @@ def ingest_schedules(conn, season: int):
                 rows,
             )
         conn.commit()
+    except (psycopg2.errors.UndefinedTable, psycopg2.errors.UndefinedColumn) as e:
+        conn.rollback()
+        if ensure_schema:
+            log.error("Schedules ingest for %d FAILED — rolled back", season)
+            raise
+        # Self-heal, once. It has to happen here: run_seasons turns any schedules
+        # failure into a warning, so its own schema self-heal never sees this one.
+        log.warning("games table or one of its columns is missing while the schema step was skipped — "
+                    "creating it and retrying once: %s", e)
+        return ingest_schedules(conn, season, ensure_schema=True)
     except Exception:
         # Leave the connection usable — process_season runs next on this same conn
         conn.rollback()
@@ -3787,6 +3850,9 @@ def ensure_team_game_stats_table(conn):
     # test and silently do nothing live — add an ALTER TABLE ... ADD COLUMN IF NOT
     # EXISTS function instead, the way ensure_qb_season_stats_columns does.
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_game_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -4168,8 +4234,12 @@ def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame, receiver_sta
     log.info("Data validation passed")
 
 
-def process_season(season: int, conn, dry_run: bool = False):
-    """Full pipeline for one season."""
+def process_season(season: int, conn, dry_run: bool = False, ensure_schema: bool = True):
+    """Full pipeline for one season.
+
+    ensure_schema=False skips the 17 ensure_* schema steps (only run_seasons passes
+    it, when the stored schema hash matches); the default runs them as always.
+    """
     log.info("=" * 50)
     log.info("Processing season %d", season)
     log.info("=" * 50)
@@ -4234,23 +4304,29 @@ def process_season(season: int, conn, dry_run: bool = False):
             f"PBP for {season} only goes through week {through_week} but DB already has week {prior_week} — "
             f"refusing to ingest a truncated file.")
 
-    ensure_team_season_stats_columns(conn)
-    ensure_qb_season_stats_columns(conn)
-    ensure_rb_gap_tables(conn)
-    ensure_rb_gap_weekly_tables(conn)
-    ensure_def_gap_tables(conn)
-    ensure_receiver_stats_table(conn)
-    ensure_rb_season_stats_table(conn)
-    ensure_qb_weekly_stats_table(conn)
-    ensure_qb_weekly_stats_columns(conn)
-    ensure_receiver_weekly_stats_table(conn)
-    ensure_rb_weekly_stats_table(conn)
-    ensure_qb_pass_location_tables(conn)
-    ensure_team_down_distance_table(conn)
-    ensure_team_situational_table(conn)
-    ensure_player_slugs_table(conn)
-    ensure_team_game_stats_table(conn)
-    ensure_team_game_stats_columns(conn)
+    if ensure_schema:
+        ensure_team_season_stats_columns(conn)
+        ensure_qb_season_stats_columns(conn)
+        ensure_rb_gap_tables(conn)
+        ensure_rb_gap_weekly_tables(conn)
+        ensure_def_gap_tables(conn)
+        ensure_receiver_stats_table(conn)
+        ensure_rb_season_stats_table(conn)
+        ensure_qb_weekly_stats_table(conn)
+        ensure_qb_weekly_stats_columns(conn)
+        ensure_receiver_weekly_stats_table(conn)
+        ensure_rb_weekly_stats_table(conn)
+        ensure_qb_pass_location_tables(conn)
+        ensure_team_down_distance_table(conn)
+        ensure_team_situational_table(conn)
+        ensure_player_slugs_table(conn)
+        ensure_team_game_stats_table(conn)
+        ensure_team_game_stats_columns(conn)
+    else:
+        # ingest.py has not changed since these last ran successfully (run_seasons
+        # decides). If a table or column is missing after all, the upsert raises
+        # UndefinedTable/UndefinedColumn and run_seasons retries once with them on.
+        log.info("schema unchanged: skipped 17 ensure steps")
 
     try:
         upsert_teams(conn, team_stats)
@@ -4428,6 +4504,23 @@ def compute_code_hash(script_dir=None):
         return None
 
 
+def compute_schema_hash(script_dir=None):
+    """sha256 of ingest.py itself: changes whenever any DDL in this file could have.
+
+    The ensure_* schema statements run only when this differs from the hash stored
+    after the last successful run (refresh-io spec, PR C). Whole file rather than a
+    hand-kept list of functions, so a new ensure_* or a DDL constant cannot be missed.
+    None (= unknown, so the schema statements run) if the file cannot be read.
+    """
+    try:
+        here = script_dir or os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, 'ingest.py'), 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except Exception as e:
+        log.warning("Could not compute the schema hash (schema steps will run): %s", e)
+        return None
+
+
 def fetch_release_assets(tag, token=None):
     """{asset name: digest or None} for one nflverse-data release, or None on any doubt.
 
@@ -4593,6 +4686,8 @@ class RefreshTracker:
         self.schedule_rows = {}    # season -> rows sent by the schedules ingest
         self.season_rows = {}      # season -> rows sent by process_season
         self.committed = False     # did this run commit anything?
+        self.schema_hash = compute_schema_hash()
+        self.schema_recorded = False   # did this run finish a schema pass?
 
     # -- before connecting --
     def plan_season(self, season, fingerprint) -> bool:
@@ -4609,6 +4704,14 @@ class RefreshTracker:
                      _short(fingerprint['participation']), _short(fingerprint['schedules']))
         return run
 
+    # -- schema statements (PR C) --
+    def schema_current(self) -> bool:
+        """True when the ensure_* schema steps can be skipped: ingest.py is byte-for-byte
+        the file whose schema pass last succeeded. --force re-runs them once per run."""
+        if self.force and not self.schema_recorded:
+            return False
+        return bool(self.schema_hash) and self.state.get('schema_hash') == self.schema_hash
+
     # -- after commits (called by run_seasons) --
     def schedules_committed(self, season, rows):
         self.schedule_rows[season] = rows
@@ -4619,15 +4722,22 @@ class RefreshTracker:
         if season in self.plans:
             self.plans[season]['status'] = 'not yet published'
 
-    def season_committed(self, season, schedules_ok, result):
+    def season_committed(self, season, schedules_ok, result, schema_ensured=False):
         """process_season returned: its commit succeeded. Record the fingerprint, or
-        remove the stored one when this run cannot vouch for it."""
+        remove the stored one when this run cannot vouch for it.
+
+        `schema_ensured`: the ensure_* steps ran in this attempt. With the schedules
+        ingest (which holds ensure_games_table) also fine, the schema pass is complete
+        and its hash is recorded — never before the season's commit."""
         plan = self.plans.setdefault(season, {'run': True, 'reason': 'not planned', 'fingerprint': {}, 'status': None})
         plan['status'] = 'done'
         result = result if isinstance(result, dict) else {}
         self.season_rows[season] = result.get('rows_sent') or 0
         stamp = self._data_changed()
         fingerprint = plan['fingerprint']
+        if schema_ensured and schedules_ok and self.schema_hash:
+            self.state['schema_hash'] = self.schema_hash
+            self.schema_recorded = True
 
         problems = ['could not read ' + p for p in FINGERPRINT_PARTS
                     if not (isinstance(fingerprint.get(p), str) and fingerprint.get(p))]
@@ -4731,10 +4841,16 @@ def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
     try:
         for season in seasons:
             retries = 0
+            schema_healed = False      # the once-per-season schema self-heal has been used
             while True:
                 if conn is not None and conn.closed:
                     log.warning("Database connection is closed — reconnecting before season %d", season)
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                # The ensure_* schema steps run unless the tracker can show ingest.py is
+                # unchanged since they last succeeded. No tracker (no --state-file, dry
+                # run): always, exactly as before — and the calls carry no extra argument.
+                ensure_schema = tracker is None or schema_healed or not tracker.schema_current()
+                schema_args = {} if ensure_schema else {'ensure_schema': False}
                 # Schedules ingest BEFORE process_season and outside its DataNotYetPublished
                 # skip: the schedule must land even when no PBP exists yet (pre-season).
                 # Its own except — the one below catches only DataNotYetPublished, so an
@@ -4742,7 +4858,7 @@ def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
                 # attempt (idempotent upsert) so a blip here doesn't leave scores stale.
                 schedules_ok, schedule_rows = True, None
                 try:
-                    schedule_rows = ingest_schedules(conn, season)
+                    schedule_rows = ingest_schedules(conn, season, **schema_args)
                 except Exception as e:
                     schedules_ok = False
                     log.warning("Schedules ingest for %d failed — continuing: %s", season, e)
@@ -4754,11 +4870,33 @@ def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
                 season_committed = False
                 result = None
                 try:
-                    result = process_season(season, conn, dry_run=dry_run)
+                    result = process_season(season, conn, dry_run=dry_run, **schema_args)
                     season_committed = conn is not None   # only here has the season's commit succeeded
                 except DataNotYetPublished as e:
                     log.info("Season %d skipped — %s Nothing ingested; will succeed once data exists.", season, e)
                     _tell(tracker, 'season_not_published', season)
+                except (psycopg2.errors.UndefinedTable, psycopg2.errors.UndefinedColumn) as e:
+                    # Schema self-heal: the ensure_* steps were skipped but a table or column
+                    # is missing. Run them and retry the season, once. Separate from the
+                    # transient retries below (own flag, same deadline). Each ensure_* commits
+                    # by itself, so the repair survives a later transient retry.
+                    if conn is None or ensure_schema or schema_healed:
+                        raise
+                    remaining = deadline - time.monotonic()
+                    if remaining < MIN_ATTEMPT_SECONDS:
+                        log.error("Season %d is missing a table or column — giving up: deadline "
+                                  "(%.0f s left, a retry needs %d s): %s", season, remaining, MIN_ATTEMPT_SECONDS, e)
+                        raise
+                    schema_healed = True
+                    log.warning("Season %d: a table or column is missing while the schema steps were skipped — "
+                                "running the schema steps and retrying once: %s", season, e)
+                    try:
+                        # process_season rolls back its own transaction, but the error can also
+                        # come from before it (get_existing_through_week): clear the aborted state.
+                        conn.rollback()
+                    except psycopg2.Error as rollback_error:
+                        log.warning("Rollback before the schema retry failed (reconnecting if needed): %s", rollback_error)
+                    continue
                 except TRANSIENT_DB_ERRORS as e:
                     if conn is None:
                         raise  # dry run: nothing to reconnect
@@ -4780,7 +4918,7 @@ def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
                     continue
                 if season_committed:
-                    _tell(tracker, 'season_committed', season, schedules_ok, result)
+                    _tell(tracker, 'season_committed', season, schedules_ok, result, ensure_schema)
                 break
     finally:
         if conn is not None:
