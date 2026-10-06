@@ -240,9 +240,15 @@ with React's `startTransition` and `useRouter` from `next/navigation`. Why the t
 | an `init.signal` (box score assembly, `/team-stats`, `getBoxScoreSeasons`) | passes the call through **unchanged**. The explicit deadline is the only deadline. Never shortened, never combined |
 | a `Request` object as `input` with no `init` | adds the signal through `init` (postgrest-js never does this; covered for completeness) |
 
-The signal covers the whole request including reading the body. A timeout rejects with a `TimeoutError`; postgrest-js returns it as `error.message = "TimeoutError: ..."`.
+The limit covers the whole request including reading the body. A timeout rejects with an `Error` named `TimeoutError` whose message is `read timed out after 5 s` (or `15 s`); postgrest-js returns it as `error.message = "TimeoutError: read timed out after 5 s"`, which is what the logs and `/api/health` show.
 
-If `AbortSignal.timeout` is missing (very old browser), use `AbortController` + `setTimeout`.
+**As built (PR 1B, 2026-10-06), three deliberate differences from the sketch above:**
+
+- **`AbortController` + `setTimeout`, not `AbortSignal.timeout`.** Same effect, and it works everywhere, follows fake timers in tests, lets the reason carry our own short message, and lets the timer be cleared.
+- **The wrapper reads the body itself and hands on a new `Response`** (same status, status text and headers). That is how the limit covers a gateway that sends headers and then stalls, and it is what lets the timer be cleared the moment the read ends, so no timer is ever left running. supabase-js reads the whole body next anyway, so nothing extra is buffered. Consequence: the caller does not get the *same* `Response` object (test 4 in 1.6 is replaced by "status, headers and body come through whole, and no timer is left").
+- **A nonsense limit (0, negative, not finite) falls back to 5 s** instead of failing every read at once.
+
+The factories pass `(input, init) => fetch(input, init)`, not `fetch` itself, so the global is looked up at call time (Next replaces it).
 
 One read escapes the box score's single 5 s budget: `getBoxScore` calls `getAvailableSeasons()` with no signal on its no-rows path (`lib/data/box-score.ts` line 385). After Part B that read gets its own 5 s, so a `pending` / `uncovered` game can take up to 10 s to fail. Fix in this PR: give `getAvailableSeasons` an optional `signal` argument and pass the assembly's signal there.
 
@@ -395,6 +401,22 @@ Forced failure, no real outage needed, on Jon's machine. Never the real database
 6. OG images: `@vercel/og` does not render on Windows, so the `no-store` header on a failed-read image cannot be checked locally. Check it on the Vercel preview: `curl -sI <preview>/player/josh-allen/opengraph-image` during a stall, or leave it to the unit test until the next stall.
 
 Result of the 1A run on 2026-10-06 (branch `read-resilience-1a`, `next dev`, stub on 127.0.0.1:54399): every row passed. The seven season pages, `/team/BUF` and `/player/josh-allen` returned 200 and showed their own card; `/player`, `/qb-leaderboard` and the other season pages had no `<title>` (metadata read failed first), `/team/BUF` kept its title (its metadata reads nothing). `/`, `/card/josh-allen` and `/game/2026_01_BUF_HOU` returned 500 with the card; `/card` was not Not Found. `/compare` 200 with the card, `/compare?season=2026` 200 with the tool. `/api/health` 503 `no-store`; `/api/stat-card/josh-allen` 503 `no-store`, `Retry-After: 60`, S4. `/sitemap.xml` 200 with 43 URLs. S1 (under "Buffalo Bills"), S2 and S3 all appeared. One click on "Try again" after the stub recovered turned the `/game` card into the Not Found page. In the browser the stub is another origin with no CORS headers, so the browser-side reads failed as blocked requests rather than as 503s: the same code path (`error` set). The OG image route returned 500 locally with `failed to pipe response` / `Invalid URL`, the known `@vercel/og` failure on Windows (not this change), so step 6 is still open: check the header on a Vercel preview.
+
+Result of the 1B run on 2026-10-06 (branch `read-resilience-1b`, `next dev`, a socket on 127.0.0.1:54399 that accepts and never answers; second pass, routes already compiled; time to the end of the response):
+
+| Route class | Status | Time |
+|---|---|---|
+| `/teams`, `/team-stats`, `/qb-leaderboard`, `/receivers`, `/rushing`, `/trends`, `/run-gaps`, `/compare` | 200, then the card | 5.5 to 5.8 s |
+| `/team/BUF`, `/player/josh-allen` | 200, then the card (read in a browser for `/player`) | 6.0 to 6.3 s |
+| `/` | 500 | 5.7 s |
+| `/api/health` | 503 `no-store`, `TimeoutError: read timed out after 5 s` | 5.8 s |
+| `/api/stat-card/josh-allen` | 503 `no-store`, `Retry-After: 60` | 5.5 s |
+| **`/card/josh-allen`, `/game/2026_01_BUF_HOU`** | 500 | **10.8 to 11.0 s** |
+| `/sitemap.xml` | 200, 43 URLs | 15.7 s (three reads, each caught in turn; PR 3) |
+| Site search (browser) | team match at once, then S1 | 15.3 s |
+| `/compare?season=2026`, `/glossary`, `/privacy`, `/team/XYZ` | unchanged | under 1.2 s |
+
+Nothing hung. **`/card` and `/game` take two limits, not one.** They are the two routes with no `loading.tsx` whose `generateMetadata` reads the database; the timing is consistent with that read running a second time when Next builds the 500 page, but the cause was not traced in source. For `/game` both passes are its own 5 s assembly deadline, so this is probably how `/game` already behaved. Not fixed in 1B: answering `getPlayerBySlug` from the cache (PR 2) removes it for `/card`. One more thing seen, older than this work: the search palette shows "No results" for the 200 ms before a search starts.
 
 **1B run: a socket that never answers.** Same steps with `node -e "require('net').createServer(()=>{}).listen(54399)"` as the stand-in. Now every row must finish in 5 to 7 s with the same statuses as the 1A run, and S1 appears after about 15 s (browser limit).
 
