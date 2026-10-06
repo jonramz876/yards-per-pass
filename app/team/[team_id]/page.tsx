@@ -6,7 +6,9 @@ import { getTeamHubData } from "@/lib/data/team-hub";
 import { getAvailableSeasons, fallbackSeason } from "@/lib/data/queries";
 import { getBoxScoreSeasonsCached } from "@/lib/data/box-score";
 import { hasNoDatabase } from "@/lib/supabase/server";
+import { getTeamRadarRows } from "@/lib/data/team-radar";
 import { parseSeasonParam } from "@/lib/stats/team-stats";
+import { teamRadarSlice } from "@/lib/stats/team-radar";
 import TeamHubContent from "@/components/team/TeamHubContent";
 
 export const revalidate = 3600;
@@ -75,16 +77,24 @@ export default async function TeamPage({
   // generateStaticParams). The probe is therefore memoised for an hour rather
   // than costing one limit(1) query per covered season on every view. A failed
   // probe logs and renders no links this render — a rejection is never
-  // memoised, so the next render retries — never a crash. It is the one read
-  // here that may degrade; getTeamHubData rejects when a core read fails
-  // (read resilience spec §1.2) and that reaches error.tsx.
+  // memoised, so the next render retries — never a crash. It is one of the two
+  // reads here that may degrade (the team radar's is the other, below);
+  // getTeamHubData rejects when a core read fails (read resilience spec §1.2)
+  // and that reaches error.tsx.
   //
   // try/catch, not .catch(): a .catch() hangs off the call's RETURN value, so a
   // throw that happens BEFORE the promise exists escapes it and 500s the whole
   // team hub with nothing logged. That was safe only by the probe's `async`
   // keyword — one refactor away from an outage. The Game Log hit this exact
   // bug in an earlier PR and was fixed the same way.
-  const [data, boxScoreSeasons] = await Promise.all([
+  //
+  // The team radar's rows (team radar spec 2026-10-06 §6-§7) are the second
+  // read here that may degrade: one more request per view — every team's
+  // team_game_stats rows for the season, because ranks need all of them. A
+  // rejection logs and becomes the section's own "unavailable" sentence; the
+  // rest of the hub is honest without it. null = the read failed, [] = it
+  // succeeded with no rows (teamRadarState decides what that means).
+  const [data, boxScoreSeasons, radarRows] = await Promise.all([
     getTeamHubData(teamId, currentSeason, currentSeason === seasons[0]),
     (async (): Promise<number[]> => {
       try {
@@ -94,7 +104,35 @@ export default async function TeamPage({
         return [];
       }
     })(),
+    (async (): Promise<Record<string, unknown>[] | null> => {
+      try {
+        return (await getTeamRadarRows(currentSeason)) as unknown as Record<string, unknown>[];
+      } catch (err: unknown) {
+        console.error(
+          `Team page: team radar rows unavailable for ${teamId} (${currentSeason}); the radar section will say so`,
+          err
+        );
+        return null;
+      }
+    })(),
   ]);
+
+  // Built on the server and passed down as plain data (null for every missing
+  // value — NaN does not survive the server→client boundary). The coverage
+  // probe above is reused: a failed probe is [], which reads as "first covered
+  // season unknown".
+  const radar = teamRadarSlice({
+    teamId,
+    season: currentSeason,
+    rows: radarRows,
+    newestSeason: seasons[0] ?? null,
+    covered: boxScoreSeasons,
+  });
+  if (radarRows !== null && radar.state === "unavailable") {
+    console.error(
+      `Team page: team radar read for ${teamId} returned no rows for ${currentSeason}, a season that has them; the read is failing silently`
+    );
+  }
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -118,6 +156,7 @@ export default async function TeamPage({
         team={team}
         data={data}
         boxScoreSeasons={boxScoreSeasons}
+        radar={radar}
         defaultSeason={seasons[0] || fallbackSeason()}
       />
     </>

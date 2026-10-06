@@ -715,7 +715,7 @@ describe("copy", () => {
     const families = new Set(RADAR_AXES.map((a) => family(a.label)));
     expect(families.has(undefined)).toBe(false);
     expect(families.size).toBe(5);
-    for (const f of families) expect(R.TEAM_STATS_RADAR_NOTE).toContain(f as string);
+    for (const f of Array.from(families)) expect(R.TEAM_STATS_RADAR_NOTE).toContain(f as string);
   });
 
   it("R10 no-games", () => {
@@ -829,7 +829,7 @@ describe("lib/stats/team-radar.ts imports nothing from lib/data", () => {
       if (seen.has(rel)) return;
       seen.add(rel);
       const src = read(rel);
-      for (const m of src.matchAll(/from\s+["']@\/(lib\/[^"']+)["']/g)) {
+      for (const m of Array.from(src.matchAll(/from\s+["']@\/(lib\/[^"']+)["']/g))) {
         const base = m[1];
         const file = [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`].find((f) => {
           try {

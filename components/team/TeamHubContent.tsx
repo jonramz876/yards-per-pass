@@ -7,6 +7,8 @@ import DashboardShell from "@/components/layout/DashboardShell";
 import Breadcrumbs from "@/components/ui/Breadcrumbs";
 import TeamIdentityCard from "@/components/team/TeamIdentityCard";
 import ScheduleSection from "@/components/team/ScheduleSection";
+import TeamRadarSection from "@/components/team/TeamRadarSection";
+import type { TeamRadarSlice } from "@/lib/stats/team-radar";
 import PassingSection from "@/components/team/PassingSection";
 import GroundGameSection from "@/components/team/GroundGameSection";
 import DefenseSection from "@/components/team/DefenseSection";
@@ -19,12 +21,15 @@ interface TeamHubContentProps {
   data: TeamHubData;
   /** Seasons with box scores — played tiles in them link to /game/<id> (spec §7). */
   boxScoreSeasons: number[];
+  /** The team radar, built on the server: plain data, null for anything missing
+   *  (team radar spec §6). Its own states cover "no radar to draw". */
+  radar: TeamRadarSlice;
   /** The site's default (newest) season, from the page's own season list —
    *  not data.seasons, which can lead with next season. */
   defaultSeason: number;
 }
 
-export default function TeamHubContent({ team, data, boxScoreSeasons, defaultSeason }: TeamHubContentProps) {
+export default function TeamHubContent({ team, data, boxScoreSeasons, radar, defaultSeason }: TeamHubContentProps) {
   const breadcrumbs = [
     { label: "Team Tiers", href: "/teams" },
     { label: team.name },
@@ -68,6 +73,9 @@ export default function TeamHubContent({ team, data, boxScoreSeasons, defaultSea
           teamStats={data.teamStats}
           boxScoreSeasons={boxScoreSeasons}
         />
+
+        {/* Offense and defense radars: under the schedule, above Passing Attack (J8). */}
+        <TeamRadarSection radar={radar} team={team} defaultSeason={defaultSeason} />
 
         <PassingSection
           teamQBs={data.teamQBs}
