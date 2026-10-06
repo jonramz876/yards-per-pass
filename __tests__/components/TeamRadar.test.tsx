@@ -158,7 +158,20 @@ describe("TeamRadarChart", () => {
     expect(sm.getAttribute("role")).toBe("img");
     expect(sm.getAttribute("aria-label")).toBe("Buffalo Bills offense radar");
     expect(sm.getAttribute("viewBox")).toBe("0 0 420 340");
-    expect(chart(bufSide("off"), "off", "lg").querySelector("svg")!.getAttribute("viewBox")).not.toBe("0 0 420 340");
+    // PR 3: `lg` is 680 wide (it was 640, and the longest label overflowed by about 4 units).
+    expect(chart(bufSide("off"), "off", "lg").querySelector("svg")!.getAttribute("viewBox")).toBe("0 0 680 520");
+  });
+
+  it("lg: every label's anchor point leaves room for the longest label inside the viewBox", () => {
+    const c = chart(bufSide("off"), "off", "lg");
+    const worst = "100.0% · T-32nd".length * 17 * R.RADAR_LABEL_CHAR_WIDTH;
+    c.querySelectorAll("text[data-axis-value]").forEach((t) => {
+      const x = Number(t.getAttribute("x"));
+      const anchor = t.getAttribute("text-anchor");
+      const left = anchor === "start" ? x : anchor === "end" ? x - worst : x - worst / 2;
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(left + worst).toBeLessThanOrEqual(680);
+    });
   });
 });
 
@@ -309,11 +322,36 @@ describe("TeamRadarSection — ready", () => {
     expect(notes[4]).toBe("With only 3 weeks played, one game moves a team a long way.");
   });
 
-  it("PR 2 has no Share buttons and no link to a share page", () => {
+  // PR 3 (spec §8 R16, decision J6): one Share button under each radar, each
+  // to that side's own share page.
+  it("a Share button under each radar links to that side's share page (bare URL for the default season)", () => {
     const el = c();
-    expect(el.textContent).not.toMatch(/Share/);
-    expect(el.querySelector('a[href*="/card/"]')).toBeNull();
-    expect(el.querySelectorAll("button[data-share], a[data-share]")).toHaveLength(0);
+    const off = el.querySelector<HTMLAnchorElement>('[data-radar-side="off"] a[data-radar-share]')!;
+    const def = el.querySelector<HTMLAnchorElement>('[data-radar-side="def"] a[data-radar-share]')!;
+    expect(off.textContent).toBe("Share offense radar");
+    expect(def.textContent).toBe("Share defense radar");
+    expect(off.getAttribute("href")).toBe("/card/team/BUF/offense");
+    expect(def.getAttribute("href")).toBe("/card/team/BUF/defense");
+    expect(el.querySelectorAll("a[data-radar-share]")).toHaveLength(2);
+  });
+
+  it("the Share buttons carry a past season", () => {
+    const past = section({ ...ready(sliceFor("BUF")), season: 2025, isLatestSeason: false }, "BUF", 2026);
+    const hrefs = Array.from(past.querySelectorAll("a[data-radar-share]")).map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(["/card/team/BUF/offense?season=2025", "/card/team/BUF/defense?season=2025"]);
+  });
+
+  it("the Share button sits between the radar and its table", () => {
+    const side = c().querySelector('[data-radar-side="off"]')!;
+    const order = Array.from(side.querySelectorAll("svg[role='img'], a[data-radar-share], table")).map((n) => n.tagName.toLowerCase());
+    expect(order).toEqual(["svg", "a", "table"]);
+  });
+
+  it("a side with no radar to draw (R20) has no Share button; the other side keeps its own", () => {
+    const s = ready(sliceFor("BUF"));
+    const el = section({ ...s, off: without(s.off, ["stuff", "sack", "to", "rush_sr"]) });
+    expect(el.querySelector('[data-radar-side="off"] a[data-radar-share]')).toBeNull();
+    expect(el.querySelector('[data-radar-side="def"] a[data-radar-share]')!.getAttribute("href")).toBe("/card/team/BUF/defense");
   });
 
   it("renders no literal escape and no NaN / undefined / null text anywhere", () => {
@@ -396,7 +434,9 @@ describe("TeamRadarSection — message states (each renders its exact sentence, 
     expect(el.querySelector("svg")).toBeNull();
     expect(el.querySelector("table")).toBeNull();
     expect(el.querySelector('[id="team-radar"]')).not.toBeNull();
+    // No Share buttons without a radar (spec §7's state table).
     expect(el.textContent).not.toMatch(/Share/);
+    expect(el.querySelector('a[href*="/card/"]')).toBeNull();
   };
 
   it("unavailable → R13 (the hub keeps rendering)", () => {

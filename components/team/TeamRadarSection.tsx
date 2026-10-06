@@ -1,39 +1,30 @@
 // components/team/TeamRadarSection.tsx — the Team Radar section of the team
 // page (team radar spec 2026-10-06 §4, §7, §8): an offense and a defense
 // radar side by side, each over its stat table, or one sentence when there is
-// no radar to draw. Wraps itself in the section card, like every other
-// team-page section. Every sentence is a constant from lib/stats/team-radar.
+// no radar to draw, and (PR 3) a Share button under each radar that opens that
+// side on its own share page. Wraps itself in the section card, like every
+// other team-page section. Every sentence is a constant from
+// lib/stats/team-radar.
 "use client";
 
 import Link from "next/link";
 import type { Team } from "@/lib/types";
 import TecmoSectionCard from "@/components/team/TecmoSectionCard";
 import TeamRadarChart from "@/components/team/TeamRadarChart";
-import MetricTooltip from "@/components/ui/MetricTooltip";
+import TeamRadarTable from "@/components/team/TeamRadarTable";
 import {
   COMPARE_TEAMS_LINK_TEXT,
-  RADAR_AXES,
   RADAR_SIDES,
-  RADAR_SMALL_POOL_NOTE,
   RADAR_SUBTITLE,
-  RADAR_UNAVAILABLE_NOTE,
-  axisLabel,
-  axisSubline,
   canDrawRadar,
-  fmtRadarPct,
   radarBandAside,
+  radarCardHref,
   radarLead,
-  radarNoGamesNote,
+  radarShareButtonText,
+  radarStateMessage,
   radarTableOnlyNote,
-  radarUncoveredNote,
-  rankCellLabel,
-  rankTone,
   teamRadarFootnotes,
   teamStatsHref,
-  type RadarAxisKey,
-  type RadarSide,
-  type RadarSideModel,
-  type RankTone,
   type TeamRadarSlice,
 } from "@/lib/stats/team-radar";
 
@@ -42,90 +33,6 @@ interface TeamRadarSectionProps {
   team: Team;
   /** The site's default (newest) season: the Team Stats link stays bare for it. */
   defaultSeason: number;
-}
-
-const TONE_CLASS: Record<RankTone, string> = {
-  good: "bg-emerald-50 text-emerald-700",
-  bad: "bg-red-50 text-red-700",
-  mid: "bg-slate-100 text-slate-600",
-  none: "text-slate-300",
-};
-
-const TH = "border-b border-slate-200 py-[7px] text-[10.5px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap";
-const TD = "border-b border-slate-100 py-[7px] align-top";
-const NUM = "px-1.5 text-right";
-const FIRST = "pl-0 pr-1.5 text-left";
-
-/** The sentence shown instead of the radars, per state. */
-function messageFor(radar: Exclude<TeamRadarSlice, { state: "ready" }>, teamName: string): string {
-  switch (radar.state) {
-    case "no-games":
-      return radarNoGamesNote(teamName, radar.season);
-    case "small-pool":
-      return RADAR_SMALL_POOL_NOTE;
-    case "uncovered":
-      return radarUncoveredNote(radar.season, radar.firstSeason);
-    default:
-      return RADAR_UNAVAILABLE_NOTE;
-  }
-}
-
-function SideTable({
-  side,
-  sideKey,
-  teamId,
-  teamsPlayed,
-  league,
-}: {
-  side: RadarSideModel;
-  sideKey: RadarSide;
-  teamId: string;
-  teamsPlayed: number;
-  league: Record<RadarAxisKey, number | null>;
-}) {
-  return (
-    <table className="mt-1 w-full border-collapse text-[13px] tabular-nums">
-      <thead>
-        <tr>
-          <th className={`${TH} ${FIRST}`}>Stat</th>
-          <th className={`${TH} ${NUM}`}>{teamId}</th>
-          <th className={`${TH} ${NUM}`}>Rank</th>
-          <th className={`${TH} ${NUM}`}>NFL avg</th>
-        </tr>
-      </thead>
-      <tbody>
-        {RADAR_AXES.map((axis, i) => {
-          const spoke = side.spokes[i];
-          const missing = spoke.value === null;
-          const tone = rankTone(spoke.rank, spoke.pool);
-          return (
-            <tr key={axis.key} data-axis={axis.key} data-missing={missing ? "true" : undefined}>
-              <td className={`${TD} ${FIRST} ${missing ? "text-slate-400" : "text-slate-900"}`}>
-                {axisLabel(axis, sideKey)}
-                {axis.tooltip && <MetricTooltip metric={axis.tooltip} />}
-                <span className="mt-px block text-[11.5px] font-normal text-slate-400">
-                  {axisSubline(axis, sideKey)}
-                  {spoke.count ? ` (${spoke.count[0]} of ${spoke.count[1]})` : ""}
-                </span>
-              </td>
-              <td className={`${TD} ${NUM} whitespace-nowrap ${missing ? "text-slate-400" : "font-bold text-slate-900"}`}>
-                {fmtRadarPct(spoke.value)}
-              </td>
-              <td className={`${TD} ${NUM} whitespace-nowrap`}>
-                <span
-                  data-rank-tone={tone}
-                  className={`inline-block min-w-[38px] rounded px-1.5 py-0.5 text-center text-[11px] font-bold ${TONE_CLASS[tone]}`}
-                >
-                  {rankCellLabel(spoke, teamsPlayed)}
-                </span>
-              </td>
-              <td className={`${TD} ${NUM} whitespace-nowrap text-slate-500`}>{fmtRadarPct(league[axis.key])}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
 }
 
 export default function TeamRadarSection({ radar, team, defaultSeason }: TeamRadarSectionProps) {
@@ -145,7 +52,7 @@ export default function TeamRadarSection({ radar, team, defaultSeason }: TeamRad
       >
         {radar.state !== "ready" ? (
           <p data-radar-message className="text-sm text-slate-600">
-            {messageFor(radar, team.name)}
+            {radarStateMessage(radar, team.name)}
           </p>
         ) : (
           <>
@@ -172,13 +79,24 @@ export default function TeamRadarSection({ radar, team, defaultSeason }: TeamRad
                       {RADAR_SUBTITLE[sideKey]}
                     </p>
                     {canDrawRadar(side) ? (
-                      <TeamRadarChart side={side} sideKey={sideKey} color={team.primaryColor} secondaryColor={team.secondaryColor} label={`${team.name} ${slug} radar`} />
+                      <>
+                        <TeamRadarChart side={side} sideKey={sideKey} color={team.primaryColor} secondaryColor={team.secondaryColor} label={`${team.name} ${slug} radar`} />
+                        <div className="mb-3 mt-0.5 text-center">
+                          <Link
+                            data-radar-share={sideKey}
+                            href={radarCardHref(team.id, sideKey, radar.season, defaultSeason)}
+                            className="inline-block rounded-md border border-slate-900 bg-slate-900 px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-slate-800"
+                          >
+                            {radarShareButtonText(sideKey)}
+                          </Link>
+                        </div>
+                      </>
                     ) : (
                       <p data-radar-table-only className="my-4 rounded-md bg-slate-50 px-3 py-2 text-[13px] text-slate-600">
                         {radarTableOnlyNote(sideKey)}
                       </p>
                     )}
-                    <SideTable side={side} sideKey={sideKey} teamId={team.id} teamsPlayed={radar.teamsPlayed} league={radar.league} />
+                    <TeamRadarTable side={side} sideKey={sideKey} teamId={team.id} teamsPlayed={radar.teamsPlayed} league={radar.league} />
                   </div>
                 );
               })}

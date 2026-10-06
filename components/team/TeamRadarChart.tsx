@@ -2,19 +2,27 @@
 // radar spec 2026-10-06 §4). The geometry and the missing-spoke behaviour are
 // components/qb/RadarChart.tsx's (which every player page uses and whose
 // "50th percentile" legend would be false here), with two-line labels, a rank
-// scale that keeps last place on an inner ring, and a size prop for the share
-// page of PR 3.
+// scale that keeps last place on an inner ring, and a size prop: "sm" on the
+// team page, "lg" for the share page's single large radar. The numbers behind
+// the drawing (sizes, angles, label positions) live in lib/stats/team-radar so
+// the 1200×630 share image draws the same shape.
 "use client";
 
 import {
   RADAR_AXES,
   RADAR_MID_SCORE,
+  RADAR_SIZES,
   axisLabel,
   canDrawRadar,
   fmtRadarPct,
+  plottableScore,
+  radarLabelPosition,
+  radarPathD,
+  radarPoint,
   radarRadius,
   radarStrokeColor,
   spokeRankLabel,
+  type RadarGeometry,
   type RadarSide,
   type RadarSideModel,
 } from "@/lib/stats/team-radar";
@@ -32,58 +40,29 @@ interface TeamRadarChartProps {
   size?: "sm" | "lg";
 }
 
-interface Geometry {
-  w: number; h: number; cx: number; cy: number;
-  /** outer radius */ r: number;
-  /** label distance past the outer ring */ gap: number;
-  /** label line height */ lh: number;
-  /** font size */ f: number;
-  /** base stroke width */ sw: number;
-  /** vertex dot radius */ dot: number;
-}
-
-const SIZES: Record<"sm" | "lg", Geometry> = {
-  sm: { w: 420, h: 340, cx: 210, cy: 168, r: 104, gap: 12, lh: 13, f: 11, sw: 1, dot: 3 },
-  lg: { w: 640, h: 520, cx: 320, cy: 262, r: 172, gap: 15, lh: 21, f: 17, sw: 1.5, dot: 5 },
-};
-
 const N = RADAR_AXES.length;
 const n1 = (v: number) => v.toFixed(1);
 
-function angle(i: number): number {
-  return -Math.PI / 2 + (i * 2 * Math.PI) / N;
-}
-
-function point(g: Geometry, radius: number, i: number): [string, string] {
-  const a = angle(i);
-  return [n1(g.cx + radius * Math.cos(a)), n1(g.cy + radius * Math.sin(a))];
-}
-
-function path(points: [string, string][]): string {
-  return points.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ") + "Z";
-}
-
-/** A score the chart can plot: finite and inside 0-1; anything else is a missing spoke. */
-function plottable(score: number | null, value: number | null): number | null {
-  if (value === null || score === null || !Number.isFinite(score)) return null;
-  return Math.min(1, Math.max(0, score));
+function point(g: RadarGeometry, radius: number, i: number): [string, string] {
+  const [x, y] = radarPoint(g, radius, i);
+  return [n1(x), n1(y)];
 }
 
 export default function TeamRadarChart({ side, sideKey, color, secondaryColor = "", label, size = "sm" }: TeamRadarChartProps) {
   if (!canDrawRadar(side)) return null;
 
-  const g = SIZES[size];
+  const g = RADAR_SIZES[size];
   // Outline and dots: readable on white for every team (chaos R2). The fill
   // keeps the team's primary as a 13% tint.
   const stroke = radarStrokeColor(color, secondaryColor);
   const tint = /^#[0-9a-fA-F]{6}$/.test(color) ? color : stroke;
   const at = (score: number) => g.r * radarRadius(score);
-  const ring = (score: number) => path(Array.from({ length: N }, (_, i) => point(g, at(score), i)));
+  const ring = (score: number) => radarPathD(Array.from({ length: N }, (_, i) => radarPoint(g, at(score), i)));
 
-  const scores = side.spokes.map((s) => plottable(s.score, s.value));
+  const scores = side.spokes.map((s) => plottableScore(s));
   const vertices = scores
-    .map((score, i) => (score === null ? null : { i, xy: point(g, at(score), i) }))
-    .filter((v): v is { i: number; xy: [string, string] } => v !== null);
+    .map((score, i) => (score === null ? null : { i, raw: radarPoint(g, at(score), i), xy: point(g, at(score), i) }))
+    .filter((v): v is { i: number; raw: [number, number]; xy: [string, string] } => v !== null);
 
   return (
     <svg
@@ -91,7 +70,7 @@ export default function TeamRadarChart({ side, sideKey, color, secondaryColor = 
       role="img"
       aria-label={label}
       className="mx-auto mt-0.5 block h-auto w-full"
-      style={{ maxWidth: size === "sm" ? 440 : 640 }}
+      style={{ maxWidth: size === "sm" ? 440 : g.w }}
     >
       <path data-ring="outer" d={ring(1)} fill="none" stroke="#e2e8f0" strokeWidth={g.sw} />
       <path
@@ -115,7 +94,7 @@ export default function TeamRadarChart({ side, sideKey, color, secondaryColor = 
       {vertices.length >= 3 && (
         <path
           data-radar-outline
-          d={path(vertices.map((v) => v.xy))}
+          d={radarPathD(vertices.map((v) => v.raw))}
           fill={`${tint}22`}
           stroke={stroke}
           strokeWidth={g.sw * 2}
@@ -127,13 +106,8 @@ export default function TeamRadarChart({ side, sideKey, color, secondaryColor = 
       ))}
 
       {RADAR_AXES.map((axis, i) => {
-        const a = angle(i);
-        const cos = Math.cos(a);
-        const sin = Math.sin(a);
-        const x = n1(g.cx + (g.r + g.gap) * cos);
-        const y = g.cy + (g.r + g.gap) * sin;
-        const anchor = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
-        const y1 = sin < -0.5 ? y - g.lh * 1.05 : sin > 0.5 ? y + g.lh * 0.8 : y - g.lh * 0.15;
+        const p = radarLabelPosition(g, i);
+        const x = n1(p.x);
         const spoke = side.spokes[i];
         const missing = scores[i] === null;
         return (
@@ -142,8 +116,8 @@ export default function TeamRadarChart({ side, sideKey, color, secondaryColor = 
               data-axis={axis.key}
               data-missing-axis={missing ? "true" : undefined}
               x={x}
-              y={n1(y1)}
-              textAnchor={anchor}
+              y={n1(p.y1)}
+              textAnchor={p.anchor}
               fontSize={g.f}
               fontWeight={600}
               fill={missing ? "#cbd5e1" : "#475569"}
@@ -151,11 +125,11 @@ export default function TeamRadarChart({ side, sideKey, color, secondaryColor = 
               {axisLabel(axis, sideKey)}
             </text>
             {missing ? (
-              <text data-axis-value={axis.key} x={x} y={n1(y1 + g.lh)} textAnchor={anchor} fontSize={g.f} fill="#cbd5e1">
+              <text data-axis-value={axis.key} x={x} y={n1(p.y2)} textAnchor={p.anchor} fontSize={g.f} fill="#cbd5e1">
                 {"—"}
               </text>
             ) : (
-              <text data-axis-value={axis.key} x={x} y={n1(y1 + g.lh)} textAnchor={anchor} fontSize={g.f} fill="#0f172a">
+              <text data-axis-value={axis.key} x={x} y={n1(p.y2)} textAnchor={p.anchor} fontSize={g.f} fill="#0f172a">
                 <tspan fontWeight={700}>{fmtRadarPct(spoke.value)}</tspan>
                 <tspan fill="#64748b">{` · ${spokeRankLabel(spoke)}`}</tspan>
               </text>
