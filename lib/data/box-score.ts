@@ -66,19 +66,23 @@ export { GAME_ID_PATTERN, normalizeGameId } from "@/lib/stats/box-score";
  * Nothing on this route had a deadline. A `ready` view is 8 PostgREST requests
  * in 4 serial waves, and there is deliberately no loading.tsx, so TTFB is the
  * whole chain: a merely SLOW Supabase (not a failed one -- pooler saturation,
- * a busy plan) ran past Vercel's function limit and the invocation was killed.
+ * a busy plan) ran until Vercel's function limit and the invocation was killed.
  * app/game/[game_id]/error.tsx only catches throws from inside the invocation,
  * so the one failure mode this route built an error boundary for was the one
- * it could not see; the visitor got Vercel's untemplated 504 after burning ten
- * seconds first.
+ * it could not see; the visitor waited, then got Vercel's untemplated 504.
  *
  * 5s is ONE budget for the whole assembly rather than one per request: the
- * waves are serial, so a per-request deadline would multiply by four and
- * overrun the same limit. Vercel's Node default is 10s (Hobby) / 15s (Pro), so
- * this leaves at least 5s for cold start, render and response, and no
- * maxDuration override is needed. It is far above any healthy read -- the
- * whole chain normally settles well under a second. The repo already had the
- * pattern: lib/og/tecmo-card-image.tsx uses AbortSignal.timeout(4000).
+ * waves are serial, so a per-request deadline would multiply by four. Vercel's
+ * function limit on Hobby is 300s, default and maximum (an earlier version of
+ * this comment said 10s; that was out of date), so the budget is not about
+ * fitting under the platform's limit: it is about what a visitor will wait.
+ * It is far above any healthy read -- the whole chain normally settles well
+ * under a second. The repo already had the pattern:
+ * lib/og/tecmo-card-image.tsx uses AbortSignal.timeout(4000).
+ *
+ * Every read of the assembly carries this signal, so the Supabase client's
+ * own per-read limit (lib/supabase/timeout.ts, which applies only to reads
+ * with no signal) never adds a second budget on top.
  *
  * supabase-js turns an aborted fetch into a PostgREST-shaped error rather than
  * a rejection, so every `if (error) throw` below is already the handler.
@@ -383,7 +387,9 @@ export async function getBoxScore(gameId: string): Promise<BoxScoreData> {
     const ownSeason = await getBoxScoreSeasons([game.season], signal);
     if (ownSeason.length > 0) return { state: "pending", game: played, records };
 
-    const seasons = await getAvailableSeasons();
+    // The assembly's own signal: without it this read would get a second 5 s
+    // from the client's default limit, on top of the assembly's budget.
+    const seasons = await getAvailableSeasons(signal);
     // getAvailableSeasons throws on a query error, so [] here is a table with
     // no rows. A real database always has data_freshness rows, so that still
     // means something is broken (homepage rule): throw rather than guess.

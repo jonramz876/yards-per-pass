@@ -6,6 +6,10 @@ aggregates team and QB season stats, and upserts into Supabase PostgreSQL.
 """
 
 import argparse
+import hashlib
+import importlib.metadata as importlib_metadata
+import io
+import json
 import logging
 import os
 import sys
@@ -13,6 +17,7 @@ import time
 from datetime import datetime, timezone
 from functools import wraps
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 import pandas as pd
 import psycopg2
@@ -147,13 +152,38 @@ def make_slug(name: str) -> str:
     return slug.strip("-")
 
 
+# url -> 'sha256:<hex>' of the bytes last read from it by _read_parquet_url. The
+# skip-unchanged bookkeeping records a file's digest only when it is the digest of
+# the bytes that were actually ingested (RefreshTracker.season_committed).
+_DOWNLOAD_DIGESTS = {}
+DOWNLOAD_TIMEOUT_SECONDS = 120   # healthy downloads take 1-2 s; pandas' own URL read had no timeout at all
+
+
+def _read_parquet_url(url: str) -> pd.DataFrame:
+    """pd.read_parquet(url), remembering the sha256 of the bytes read.
+
+    Same mechanics as pandas itself for an http(s) URL (urlopen, read everything,
+    parse from memory), so errors are the same ones as before: HTTPError on a 404,
+    URLError on a network failure. A digest is kept only for bytes that parsed.
+    """
+    _DOWNLOAD_DIGESTS.pop(url, None)
+    # The timeout is per socket operation (connect, each read), not for the whole
+    # file: it only ends a stalled connection. A timeout is an ordinary exception, so
+    # @retry on download_pbp/download_roster retries it and participation falls back.
+    with urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS) as response:
+        data = response.read()
+    df = pd.read_parquet(io.BytesIO(data))
+    _DOWNLOAD_DIGESTS[url] = "sha256:" + hashlib.sha256(data).hexdigest()
+    return df
+
+
 @retry(max_retries=3, delay=5)
 def download_pbp(season: int) -> pd.DataFrame:
     """Download play-by-play Parquet from nflverse."""
     url = PBP_URL.format(season=season)
     log.info("Downloading PBP for %d...", season)
     try:
-        df = pd.read_parquet(url)
+        df = _read_parquet_url(url)
     except (HTTPError, FileNotFoundError) as e:
         # 404 on the current season = file not published yet (season hasn't started). Historical 404s are real failures.
         if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
@@ -177,7 +207,7 @@ def download_roster(season: int) -> pd.DataFrame:
     url = ROSTER_URL.format(season=season)
     log.info("Downloading roster for %d...", season)
     try:
-        df = pd.read_parquet(url)
+        df = _read_parquet_url(url)
     except (HTTPError, FileNotFoundError) as e:
         if season >= CURRENT_SEASON and (isinstance(e, FileNotFoundError) or e.code == 404):
             raise DataNotYetPublished(f"Roster file for {season} not on nflverse yet.") from e
@@ -197,7 +227,7 @@ def download_participation(season: int) -> pd.DataFrame | None:
     url = PARTICIPATION_URL.format(season=season)
     log.info("Downloading participation data for %d...", season)
     try:
-        df = pd.read_parquet(url)
+        df = _read_parquet_url(url)
         if len(df) < 1000:
             log.warning("Participation data for %d suspiciously small (%d rows)", season, len(df))
             return None
@@ -1526,6 +1556,7 @@ def upsert_teams(conn, teams_df: pd.DataFrame):
                 rows,
             )
         log.info("Upserted %d teams", len(rows))
+    return len(rows)   # the fixed team list, not len(teams_df): process_season's rows-sent count
 
 
 @retry(max_retries=2, delay=3)
@@ -1587,6 +1618,9 @@ def upsert_qb_stats(conn, df: pd.DataFrame):
 def ensure_team_season_stats_columns(conn):
     """Add new columns to team_season_stats (idempotent). NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [('takeaways', 'INT'), ('giveaways', 'INT'), ('turnover_diff', 'INT')]:
             cur.execute(f"ALTER TABLE team_season_stats ADD COLUMN IF NOT EXISTS {col} {typ};")
     conn.commit()
@@ -1597,6 +1631,9 @@ def ensure_qb_season_stats_columns(conn):
     """Add new columns to qb_season_stats (idempotent). NOT inside @retry.
     QB table created via schema.sql — this adds columns from leaderboard overhaul."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [
             ('td_pct', 'NUMERIC'),
             ('int_pct', 'NUMERIC'),
@@ -1612,6 +1649,9 @@ def ensure_qb_season_stats_columns(conn):
 def ensure_rb_gap_tables(conn):
     """Create rb_gap_stats table if it doesn't exist. Called once, NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_gap_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1676,6 +1716,9 @@ def upsert_rb_gap_stats(conn, df: pd.DataFrame):
 def ensure_def_gap_tables(conn):
     """Create def_gap_stats table if it doesn't exist. NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS def_gap_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1700,6 +1743,9 @@ def ensure_def_gap_tables(conn):
 def ensure_receiver_stats_table(conn):
     """Create receiver_season_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS receiver_season_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1788,6 +1834,9 @@ def upsert_receiver_stats(conn, df: pd.DataFrame):
 def ensure_rb_season_stats_table(conn):
     """Create rb_season_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_season_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1893,6 +1942,9 @@ def upsert_def_gap_stats(conn, df: pd.DataFrame):
 def ensure_rb_gap_weekly_tables(conn):
     """Create rb_gap_stats_weekly table if it doesn't exist. NOT inside @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_gap_stats_weekly (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2469,6 +2521,9 @@ def aggregate_rb_weekly_stats(plays: pd.DataFrame, roster: pd.DataFrame, season:
 def ensure_qb_weekly_stats_table(conn):
     """Create qb_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS qb_weekly_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2523,6 +2578,9 @@ def ensure_qb_weekly_stats_columns(conn):
     ensure_qb_weekly_stats_table is CREATE TABLE IF NOT EXISTS only, so it cannot
     add columns to the table that already exists in production (box score spec §10.1)."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [
             ('rush_epa_per_carry', 'NUMERIC'),
             ('rush_success_rate', 'NUMERIC'),
@@ -2535,6 +2593,9 @@ def ensure_qb_weekly_stats_columns(conn):
 def ensure_receiver_weekly_stats_table(conn):
     """Create receiver_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS receiver_weekly_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2582,6 +2643,9 @@ def ensure_receiver_weekly_stats_table(conn):
 def ensure_rb_weekly_stats_table(conn):
     """Create rb_weekly_stats table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS rb_weekly_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2734,6 +2798,9 @@ def upsert_rb_weekly_stats(conn, df: pd.DataFrame):
 def ensure_qb_pass_location_tables(conn):
     """Create qb_pass_location_stats table if it doesn't exist."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS qb_pass_location_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2815,6 +2882,9 @@ def upsert_qb_pass_location_stats(conn, df: pd.DataFrame):
 def ensure_team_down_distance_table(conn):
     """Create team_down_distance_stats table. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_down_distance_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2871,6 +2941,9 @@ def upsert_team_down_distance_stats(conn, df: pd.DataFrame):
 def ensure_team_situational_table(conn):
     """Create team_situational_stats table. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_situational_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -2928,6 +3001,9 @@ def upsert_team_situational_stats(conn, df: pd.DataFrame):
 def ensure_player_slugs_table(conn):
     """Create player_slugs table if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS player_slugs (
                 player_id TEXT PRIMARY KEY,
@@ -3254,6 +3330,9 @@ def upsert_player_slugs(conn, df: pd.DataFrame):
 def ensure_games_table(conn):
     """Create games table (nflverse schedules) if it doesn't exist. NOT @retry."""
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS games (
                 game_id TEXT PRIMARY KEY,
@@ -3290,26 +3369,12 @@ def ensure_games_table(conn):
     log.info("Ensured games table exists with RLS")
 
 
-def ingest_schedules(conn, season: int):
-    """Upsert one season's schedule + results into games.
+def _schedule_rows(df: pd.DataFrame) -> list:
+    """One season's schedule frame (GAMES_COLS only) as the tuples sent to Postgres.
 
-    Future games carry null scores and fill in as they're played, so this runs
-    every refresh: ON CONFLICT updates scores plus gameday/gametime/weekday
-    (reschedules move the date AND the day name).
-
-    conn is None (dry run) → log the would-upsert count and write nothing.
+    Shared by ingest_schedules and schedules_fingerprint, so the fingerprint that
+    decides whether a refresh can be skipped is taken over exactly what is written.
     """
-    schedules = download_schedules()
-    df = schedules[schedules['season'] == season]
-    if df.empty:
-        log.warning("No schedule rows for season %d — nothing to ingest", season)
-        return
-    df = df[GAMES_COLS]
-
-    if conn is None:
-        log.info("[DRY RUN] Would upsert %d schedule rows for %d", len(df), season)
-        return
-
     # Missing scores/gametime MUST reach psycopg2 as None. home_score is float64
     # and gametime the pandas 3 string dtype, neither of which can hold None —
     # and `.where(cond, None)` does not help (pandas reads that None as "fill
@@ -3330,6 +3395,35 @@ def ingest_schedules(conn, season: int):
             else:
                 values.append(str(v))
         rows.append(tuple(values))
+    return rows
+
+
+def ingest_schedules(conn, season: int, ensure_schema: bool = True):
+    """Upsert one season's schedule + results into games.
+
+    Future games carry null scores and fill in as they're played, so this runs
+    every refresh: ON CONFLICT updates scores plus gameday/gametime/weekday
+    (reschedules move the date AND the day name).
+
+    conn is None (dry run) → log the would-upsert count and write nothing.
+    Returns the number of rows sent (None when nothing was written).
+
+    ensure_schema=False skips ensure_games_table (only run_seasons passes it, when
+    the stored schema hash matches). If the table or a column then turns out to be
+    missing, the table is ensured and the upsert retried once.
+    """
+    schedules = download_schedules()
+    df = schedules[schedules['season'] == season]
+    if df.empty:
+        log.warning("No schedule rows for season %d — nothing to ingest", season)
+        return
+    df = df[GAMES_COLS]
+
+    if conn is None:
+        log.info("[DRY RUN] Would upsert %d schedule rows for %d", len(df), season)
+        return
+
+    rows = _schedule_rows(df)
 
     col_names = ', '.join(GAMES_COLS)
     update_set = ', '.join(
@@ -3339,7 +3433,8 @@ def ingest_schedules(conn, season: int):
     update_set += ", updated_at = now()"
 
     try:
-        ensure_games_table(conn)
+        if ensure_schema:
+            ensure_games_table(conn)
         with conn.cursor() as cur:
             execute_values(
                 cur,
@@ -3349,12 +3444,23 @@ def ingest_schedules(conn, season: int):
                 rows,
             )
         conn.commit()
+    except (psycopg2.errors.UndefinedTable, psycopg2.errors.UndefinedColumn) as e:
+        conn.rollback()
+        if ensure_schema:
+            log.error("Schedules ingest for %d FAILED — rolled back", season)
+            raise
+        # Self-heal, once. It has to happen here: run_seasons turns any schedules
+        # failure into a warning, so its own schema self-heal never sees this one.
+        log.warning("games table or one of its columns is missing while the schema step was skipped — "
+                    "creating it and retrying once: %s", e)
+        return ingest_schedules(conn, season, ensure_schema=True)
     except Exception:
         # Leave the connection usable — process_season runs next on this same conn
         conn.rollback()
         log.error("Schedules ingest for %d FAILED — rolled back", season)
         raise
     log.info("Upserted %d schedule rows for %d", len(rows), season)
+    return len(rows)
 
 
 # --- team_game_stats: one row per team per game (box score spec §4/§5) ---
@@ -3771,6 +3877,9 @@ def ensure_team_game_stats_table(conn):
     # test and silently do nothing live — add an ALTER TABLE ... ADD COLUMN IF NOT
     # EXISTS function instead, the way ensure_qb_season_stats_columns does.
     with conn.cursor() as cur:
+        # Never wait more than 10 s for a table lock: site reads queue behind a waiting
+        # ALTER/CREATE (see ensure_team_game_stats_columns). This transaction only.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS team_game_stats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -3865,11 +3974,12 @@ def ensure_team_game_stats_columns(conn):
     add columns to the table that already exists in production (team radar spec §3.2).
 
     Like the other ensure_* functions this takes a brief exclusive lock on the
-    table on every run and commits on its own, so it must stay BEFORE the season
+    table whenever it runs (since refresh PR C: only when ingest.py changed, there is
+    no state file, or --force) and commits on its own, so it must stay BEFORE the season
     transaction — inside it, this commit would commit a half-written season.
     Rows written before the first refresh after the columns exist hold NULL."""
     with conn.cursor() as cur:
-        # ADD COLUMN asks for an ACCESS EXCLUSIVE lock on every run, even once the
+        # ADD COLUMN asks for an ACCESS EXCLUSIVE lock whenever it runs, even once the
         # columns exist. If anything holds a read lock, the ALTER waits — and every
         # new site read of team_game_stats queues behind it for as long as it does
         # (up to the 180 s statement timeout). Give up after 10 s instead: that
@@ -4152,8 +4262,12 @@ def validate_data(team_stats: pd.DataFrame, qb_stats: pd.DataFrame, receiver_sta
     log.info("Data validation passed")
 
 
-def process_season(season: int, conn, dry_run: bool = False):
-    """Full pipeline for one season."""
+def process_season(season: int, conn, dry_run: bool = False, ensure_schema: bool = True):
+    """Full pipeline for one season.
+
+    ensure_schema=False skips the 17 ensure_* schema steps (only run_seasons passes
+    it, when the stored schema hash matches); the default runs them as always.
+    """
     log.info("=" * 50)
     log.info("Processing season %d", season)
     log.info("=" * 50)
@@ -4161,6 +4275,15 @@ def process_season(season: int, conn, dry_run: bool = False):
     pbp = download_pbp(season)
     roster = download_roster(season)
     participation = download_participation(season)
+    # sha256 of the bytes just read (None if a download did not go through
+    # _read_parquet_url, or participation was not loaded): what the skip-unchanged
+    # bookkeeping may record for this run.
+    source_digests = {
+        'pbp': _DOWNLOAD_DIGESTS.get(PBP_URL.format(season=season)),
+        'roster': _DOWNLOAD_DIGESTS.get(ROSTER_URL.format(season=season)),
+        'participation': (_DOWNLOAD_DIGESTS.get(PARTICIPATION_URL.format(season=season))
+                          if participation is not None else None),
+    }
     plays = filter_plays(pbp)
     spikes = filter_spikes(pbp)
 
@@ -4218,26 +4341,32 @@ def process_season(season: int, conn, dry_run: bool = False):
             f"PBP for {season} only goes through week {through_week} but DB already has week {prior_week} — "
             f"refusing to ingest a truncated file.")
 
-    ensure_team_season_stats_columns(conn)
-    ensure_qb_season_stats_columns(conn)
-    ensure_rb_gap_tables(conn)
-    ensure_rb_gap_weekly_tables(conn)
-    ensure_def_gap_tables(conn)
-    ensure_receiver_stats_table(conn)
-    ensure_rb_season_stats_table(conn)
-    ensure_qb_weekly_stats_table(conn)
-    ensure_qb_weekly_stats_columns(conn)
-    ensure_receiver_weekly_stats_table(conn)
-    ensure_rb_weekly_stats_table(conn)
-    ensure_qb_pass_location_tables(conn)
-    ensure_team_down_distance_table(conn)
-    ensure_team_situational_table(conn)
-    ensure_player_slugs_table(conn)
-    ensure_team_game_stats_table(conn)
-    ensure_team_game_stats_columns(conn)
+    if ensure_schema:
+        ensure_team_season_stats_columns(conn)
+        ensure_qb_season_stats_columns(conn)
+        ensure_rb_gap_tables(conn)
+        ensure_rb_gap_weekly_tables(conn)
+        ensure_def_gap_tables(conn)
+        ensure_receiver_stats_table(conn)
+        ensure_rb_season_stats_table(conn)
+        ensure_qb_weekly_stats_table(conn)
+        ensure_qb_weekly_stats_columns(conn)
+        ensure_receiver_weekly_stats_table(conn)
+        ensure_rb_weekly_stats_table(conn)
+        ensure_qb_pass_location_tables(conn)
+        ensure_team_down_distance_table(conn)
+        ensure_team_situational_table(conn)
+        ensure_player_slugs_table(conn)
+        ensure_team_game_stats_table(conn)
+        ensure_team_game_stats_columns(conn)
+    else:
+        # ingest.py has not changed since these last ran successfully (run_seasons
+        # decides). If a table or column is missing after all, the upsert raises
+        # UndefinedTable/UndefinedColumn and run_seasons retries once with them on.
+        log.info("schema unchanged: skipped 17 ensure steps")
 
     try:
-        upsert_teams(conn, team_stats)
+        teams_sent = upsert_teams(conn, team_stats)
         upsert_team_stats(conn, team_stats)
         upsert_qb_stats(conn, qb_stats)
         upsert_qb_pass_location_stats(conn, qb_pass_loc)
@@ -4278,6 +4407,22 @@ def process_season(season: int, conn, dry_run: bool = False):
         conn.rollback()
         log.error("Season %d FAILED — rolled back all changes", season)
         raise
+
+    # What the skip-unchanged bookkeeping (RefreshTracker) needs to know about this
+    # run. `participation_loaded` matters: download_participation falls back to None
+    # on any error, and a season written without routes must not be recorded as done.
+    sent_frames = [team_stats, qb_stats, qb_pass_loc, rb_gap_stats, rb_gap_stats_weekly,
+                   def_gap_stats, receiver_stats, rb_season_stats, qb_weekly, receiver_weekly,
+                   rb_weekly, dd_stats, sit_stats, team_game_stats, player_slugs_df]
+    # upsert_teams sends its own fixed list (36 teams), and update_freshness one row.
+    rows_sent = (teams_sent if isinstance(teams_sent, int) else 0) + 1
+    rows_sent += sum(len(f) for f in sent_frames if f is not None)
+    return {
+        'participation_loaded': participation is not None,
+        'source_digests': source_digests,
+        'rows_sent': rows_sent,
+        'through_week': through_week,
+    }
 
 
 # --- Riding out database blips (Supabase pooler timeouts / latency spikes) ---
@@ -4342,13 +4487,469 @@ def connect_with_retry(db_url, deadline):
             time.sleep(wait)
 
 
-def run_seasons(seasons, db_url, dry_run, deadline):
+# --- Skip the refresh when nothing ingest uses has changed ---------------------------
+# docs/superpowers/specs/2026-10-06-refresh-io-design.md (revision 2), PR A.
+# Only active with --state-file (the scheduled workflow). A skip needs positive proof:
+# every doubt (API error, missing digest, unreadable state, old state) means "run".
+MAX_SKIP_AGE_SECONDS = 20 * 60 * 60        # one run a day is always a full run
+STATE_VERSION = 1
+# An empty state: loads fine, claims nothing, so every season is a full run. The workflow
+# writes exactly this text before its save step when a run left no state file, so a
+# removed state can never be shadowed by an older cached copy (data-refresh.yml).
+STATE_TOMBSTONE = '{"version": 1, "seasons": {}}'
+ABSENT = 'absent'                         # the release lists no asset with that exact name
+RELEASE_API_URL = "https://api.github.com/repos/nflverse/nflverse-data/releases/tags/{tag}"
+RELEASE_API_TIMEOUT_SECONDS = 20
+# fingerprint part, release tag, exact asset name
+SOURCE_ASSETS = (
+    ('pbp', 'pbp', 'play_by_play_{season}.parquet'),
+    ('roster', 'weekly_rosters', 'roster_weekly_{season}.parquet'),
+    ('participation', 'pbp_participation', 'pbp_participation_{season}.parquet'),
+)
+FINGERPRINT_PARTS = ('code', 'pbp', 'roster', 'participation', 'schedules')
+REVALIDATED_MARKER = 'revalidated_at'      # written beside the state file by the workflow on HTTP 200
+_STAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"       # same as the workflow's `date -u +%Y-%m-%dT%H:%M:%SZ`
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _stamp(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).strftime(_STAMP_FORMAT)
+
+
+def _parse_stamp(value):
+    """A UTC stamp written by _stamp (or the workflow) → aware datetime; anything else → None."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.strptime(value.strip(), _STAMP_FORMAT).replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def compute_code_hash(script_dir=None):
+    """sha256 over ingest.py, requirements.txt and the running pandas/numpy/pyarrow versions.
+
+    Any change to the code or to the libraries that do the arithmetic forces one full
+    run. None (= unknown, so the run goes ahead) if anything cannot be read.
+    """
+    try:
+        here = script_dir or os.path.dirname(os.path.abspath(__file__))
+        digest = hashlib.sha256()
+        for name in ('ingest.py', 'requirements.txt'):
+            with open(os.path.join(here, name), 'rb') as f:
+                digest.update(f"{name}:{hashlib.sha256(f.read()).hexdigest()}\n".encode('utf-8'))
+        for package in ('pandas', 'numpy', 'pyarrow'):
+            digest.update(f"{package}=={importlib_metadata.version(package)}\n".encode('utf-8'))
+        return digest.hexdigest()
+    except Exception as e:
+        log.warning("Could not compute the code hash (treated as changed): %s", e)
+        return None
+
+
+def compute_schema_hash(script_dir=None):
+    """sha256 of ingest.py itself: changes whenever any DDL in this file could have.
+
+    The ensure_* schema statements run only when this differs from the hash stored
+    after the last successful run (refresh-io spec, PR C). Whole file rather than a
+    hand-kept list of functions, so a new ensure_* or a DDL constant cannot be missed.
+    None (= unknown, so the schema statements run) if the file cannot be read.
+    """
+    try:
+        here = script_dir or os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(here, 'ingest.py'), 'rb') as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except Exception as e:
+        log.warning("Could not compute the schema hash (schema steps will run): %s", e)
+        return None
+
+
+def fetch_release_assets(tag, token=None):
+    """{asset name: digest or None} for one nflverse-data release, or None on any doubt.
+
+    One attempt, no retries: a failure only costs a normal full run. The token is
+    sent as a header and never logged.
+    """
+    headers = {
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'yards-per-pass-ingest',
+    }
+    if token:
+        headers['Authorization'] = f"Bearer {token}"
+    try:
+        request = Request(RELEASE_API_URL.format(tag=tag), headers=headers)
+        with urlopen(request, timeout=RELEASE_API_TIMEOUT_SECONDS) as response:
+            status = getattr(response, 'status', None)
+            if status != 200:
+                log.warning("Release API for '%s' answered HTTP %s — treating its files as changed", tag, status)
+                return None
+            body = json.loads(response.read().decode('utf-8'))
+        assets = body.get('assets') if isinstance(body, dict) else None
+        if not isinstance(assets, list):
+            log.warning("Release API for '%s' returned no asset list — treating its files as changed", tag)
+            return None
+        found = {}
+        for asset in assets:
+            name = asset.get('name') if isinstance(asset, dict) else None
+            if not isinstance(name, str) or not name:
+                log.warning("Release API for '%s' returned a malformed asset — treating its files as changed", tag)
+                return None
+            digest = asset.get('digest')
+            found[name] = digest if isinstance(digest, str) and digest else None
+        return found
+    except Exception as e:
+        message = f"{type(e).__name__}: {e}"
+        if token:
+            message = message.replace(token, '***')
+        log.warning("Release API for '%s' failed — treating its files as changed: %s", tag, message)
+        return None
+
+
+def asset_fingerprint(assets, name):
+    """Digest of the asset called exactly `name`; ABSENT when the release has no such
+    asset; None (unknown) when the API call failed or the asset carries no digest."""
+    if assets is None:
+        return None
+    if name not in assets:
+        return ABSENT
+    return assets[name] or None
+
+
+def hash_schedule_rows(rows) -> str:
+    """sha256 of schedule row tuples (as built by _schedule_rows), order-independent."""
+    canonical = sorted((list(r) for r in rows), key=repr)
+    return hashlib.sha256(json.dumps(canonical, separators=(',', ':'), allow_nan=False).encode('utf-8')).hexdigest()
+
+
+def schedules_fingerprint(season):
+    """Hash of the season's schedule rows exactly as ingest_schedules would send them.
+
+    Not the games.csv asset digest: that file carries ~46 columns (betting lines
+    among them) and changes many times a day while the 11 kept columns do not.
+    None (unknown) if the download or the row building fails.
+    """
+    try:
+        schedules = download_schedules()
+        df = schedules[schedules['season'] == season][GAMES_COLS]
+        return hash_schedule_rows(_schedule_rows(df))
+    except Exception as e:
+        log.warning("Could not fingerprint the %d schedule (treated as changed): %s", season, e)
+        return None
+
+
+def collect_fingerprint(season, token=None, assets_cache=None):
+    """The five-part fingerprint of everything a refresh of `season` would read.
+    No database. `assets_cache` ({tag: assets}) saves API calls across seasons."""
+    cache = assets_cache if assets_cache is not None else {}
+    fingerprint = {'code': compute_code_hash()}
+    for part, tag, pattern in SOURCE_ASSETS:
+        if tag not in cache:
+            cache[tag] = fetch_release_assets(tag, token)
+        fingerprint[part] = asset_fingerprint(cache[tag], pattern.format(season=season))
+    fingerprint['schedules'] = schedules_fingerprint(season)
+    return fingerprint
+
+
+def decide_season(entry, fingerprint, now, force=False, state_note=None):
+    """(run, reason) for one season. Pure: no network, no clock, no files.
+
+    `entry` is the season's stored state (or None), `fingerprint` what the sources
+    look like now, `state_note` why the state file could not be used (if it could not).
+    """
+    if force:
+        return True, 'forced'
+    if state_note:
+        return True, state_note
+    if not isinstance(entry, dict):
+        return True, 'no stored fingerprint'
+    unknown = [p for p in FINGERPRINT_PARTS
+               if not (isinstance(fingerprint.get(p), str) and fingerprint.get(p))]
+    if unknown:
+        return True, 'could not read ' + ', '.join(unknown)
+    differing = [p for p in FINGERPRINT_PARTS if entry.get(p) != fingerprint[p]]
+    if differing:
+        return True, ', '.join(differing) + ' changed'
+    last_full_run = _parse_stamp(entry.get('last_full_run_at'))
+    if last_full_run is None:
+        return True, 'max skip age'
+    age = (now - last_full_run).total_seconds()
+    if age < 0 or age > MAX_SKIP_AGE_SECONDS:
+        return True, 'max skip age'
+    return False, 'sources unchanged'
+
+
+def _load_state(path):
+    """(state dict, None) or ({}, why it could not be used)."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}, 'state file not found'
+    except Exception:
+        # Anything at all: bad JSON, bad bytes, a directory, and also RecursionError
+        # (deeply nested JSON) or MemoryError. A state file must never stop a refresh.
+        return {}, 'state file unreadable'
+    if (not isinstance(data, dict) or data.get('version') != STATE_VERSION
+            or not isinstance(data.get('seasons'), dict)):
+        return {}, 'state file unreadable'
+    return data, None
+
+
+def _remove_quietly(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _short(value):
+    """First 8 characters of a digest for log lines ('sha256:d1689918…' → 'd1689918')."""
+    return str(value).split(':', 1)[-1][:8]
+
+
+def _append_github_file(env_name, text):
+    """Append a line to $GITHUB_OUTPUT / $GITHUB_STEP_SUMMARY when running in Actions."""
+    path = os.environ.get(env_name)
+    if not path:
+        return
+    try:
+        with open(path, 'a', encoding='utf-8') as f:
+            f.write(text + "\n")
+    except OSError as e:
+        log.warning("Could not write to %s: %s", env_name, e)
+
+
+class RefreshTracker:
+    """Remembers, in a small JSON file, what the last successful refresh of each
+    season read, so the next run can tell there is nothing new and not touch the
+    database. Also keeps the bookkeeping for the workflow's revalidate step.
+
+    The file is only ever written AFTER a commit, and a season's fingerprint is
+    recorded only when every file it names was really loaded.
+    """
+
+    def __init__(self, path, force=False):
+        self.path = path
+        self.force = force
+        self.state, self.load_note = _load_state(path)
+        self.state.setdefault('seasons', {})
+        if self.load_note == 'state file unreadable':
+            # Remove it now. If this run commits nothing, no state file is left for the
+            # workflow's save step, which would otherwise re-save the bad file every run.
+            log.warning("Refresh state file is unreadable — removing it; this is a full run")
+            _remove_quietly(path)
+        # status: None (never attempted) → 'started' → 'done' | 'not yet published'
+        self.plans = {}            # season -> {'run', 'reason', 'fingerprint', 'status'}
+        self.schedule_rows = {}    # season -> rows sent by the schedules ingest
+        self.season_rows = {}      # season -> rows sent by process_season
+        self.committed = False     # did this run commit anything?
+        self.schema_hash = compute_schema_hash()
+        self.schema_recorded = False   # did this run finish a schema pass?
+
+    # -- before connecting --
+    def plan_season(self, season, fingerprint) -> bool:
+        """Decide and log whether `season` needs a run. True = run it."""
+        fingerprint = fingerprint if isinstance(fingerprint, dict) else {}
+        run, reason = decide_season(self.state['seasons'].get(str(season)), fingerprint, _utcnow(),
+                                    force=self.force, state_note=self.load_note)
+        self.plans[season] = {'run': run, 'reason': reason, 'fingerprint': fingerprint, 'status': None}
+        if run:
+            log.info("Season %d: full run (%s)", season, reason)
+        else:
+            log.info("Season %d skipped: sources unchanged (pbp %s, roster %s, participation %s, schedules %s)",
+                     season, _short(fingerprint['pbp']), _short(fingerprint['roster']),
+                     _short(fingerprint['participation']), _short(fingerprint['schedules']))
+        return run
+
+    # -- schema statements (PR C) --
+    def schema_current(self) -> bool:
+        """True when the ensure_* schema steps can be skipped: ingest.py is byte-for-byte
+        the file whose schema pass last succeeded. --force re-runs them once per run."""
+        if self.force and not self.schema_recorded:
+            return False
+        return bool(self.schema_hash) and self.state.get('schema_hash') == self.schema_hash
+
+    # -- during the run (called by run_seasons) --
+    def season_started(self, season):
+        """An attempt at `season` is about to write. From here on the stored entry no
+        longer describes the database (schedule rows may commit and the season then
+        fail, or the process may die between the season's commit and the state write),
+        so drop it on disk first. Only season_committed puts one back."""
+        plan = self.plans.setdefault(season, {'run': True, 'reason': 'not planned', 'fingerprint': {}, 'status': None})
+        if plan['status'] is None:
+            plan['status'] = 'started'
+        if self.state['seasons'].pop(str(season), None) is not None:
+            self.save()
+
+    def schedules_committed(self, season, rows):
+        self.schedule_rows[season] = rows
+        self.state['seasons'].pop(str(season), None)
+        self._data_changed()
+        self.save()
+
+    def season_not_published(self, season):
+        if season in self.plans:
+            self.plans[season]['status'] = 'not yet published'
+
+    def season_committed(self, season, schedules_ok, result, schema_ensured=False):
+        """process_season returned: its commit succeeded. Record the fingerprint, or
+        remove the stored one when this run cannot vouch for it.
+
+        `schema_ensured`: the ensure_* steps ran in this attempt. With the schedules
+        ingest (which holds ensure_games_table) also fine, the schema pass is complete
+        and its hash is recorded — never before the season's commit."""
+        plan = self.plans.setdefault(season, {'run': True, 'reason': 'not planned', 'fingerprint': {}, 'status': None})
+        plan['status'] = 'done'
+        result = result if isinstance(result, dict) else {}
+        self.season_rows[season] = result.get('rows_sent') or 0
+        stamp = self._data_changed()
+        fingerprint = plan['fingerprint']
+        if schema_ensured and schedules_ok and self.schema_hash:
+            self.state['schema_hash'] = self.schema_hash
+            self.schema_recorded = True
+
+        def known(value):
+            return isinstance(value, str) and bool(value)
+
+        # What may be recorded: for each nflverse file, the sha256 of the bytes this run
+        # really ingested — and only when that equals what the release API listed before
+        # the run. A re-upload in between (either order), a listing that lacks a file
+        # that loaded, or a file that fell back to "none" all mean: record nothing.
+        entry, problems = {}, []
+        for part in ('code', 'schedules'):
+            if known(fingerprint.get(part)):
+                entry[part] = fingerprint[part]
+            else:
+                problems.append('could not read ' + part)
+        if not schedules_ok:
+            problems.append('schedules ingest failed')
+        downloaded = result.get('source_digests')
+        downloaded = downloaded if isinstance(downloaded, dict) else {}
+        participation_loaded = result.get('participation_loaded')
+        for part in ('pbp', 'roster', 'participation'):
+            listed, got = fingerprint.get(part), downloaded.get(part)
+            if part == 'participation' and participation_loaded is None:
+                problems.append('participation load not reported')
+            elif not known(listed):
+                problems.append('could not read ' + part)
+            elif part == 'participation' and not participation_loaded:
+                if listed == ABSENT:
+                    entry[part] = ABSENT
+                else:
+                    # The API listed the file but the download fell back to None (e.g. the
+                    # few-second 404 of an nflverse re-upload): routes/snaps were written NULL.
+                    problems.append('participation file listed but not loaded')
+            elif listed == ABSENT:
+                problems.append(f'{part} file was loaded but the release listing does not show it')
+            elif not known(got):
+                problems.append(f'{part}: digest of the downloaded file is unknown')
+            elif got != listed:
+                problems.append(f'{part}: the downloaded file is not the one the release listed '
+                                f'({_short(got)} vs {_short(listed)})')
+            else:
+                entry[part] = got
+
+        plan['not_recorded'] = '; '.join(problems)   # shown in the step summary
+        if problems:
+            self.state['seasons'].pop(str(season), None)
+            log.warning("Season %d: fingerprint not recorded (%s) — the next run will be a full run",
+                        season, '; '.join(problems))
+        else:
+            entry['last_full_run_at'] = stamp
+            self.state['seasons'][str(season)] = entry
+        self.save()
+
+    def _data_changed(self) -> str:
+        self.committed = True
+        stamp = _stamp(_utcnow())
+        self.state['last_change_at'] = stamp
+        return stamp
+
+    def save(self):
+        """Atomic write (temp file, then rename). A failure never fails the run: the
+        state file is removed instead, so the next run is a full run."""
+        self.state['version'] = STATE_VERSION
+        tmp = f"{self.path}.tmp"
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(self.path)), exist_ok=True)
+            with open(tmp, 'w', encoding='utf-8') as f:
+                json.dump(self.state, f, indent=2, sort_keys=True)
+                f.write("\n")
+            os.replace(tmp, self.path)
+        except Exception as e:
+            log.warning("Could not write the refresh state file (the next run will be a full run): %s", e)
+            for leftover in (tmp, self.path):
+                _remove_quietly(leftover)
+
+    # -- end of run --
+    def changed(self) -> bool:
+        """Should the workflow POST /api/revalidate? True when this run committed data,
+        or when the last data change has no successful revalidate at or after it."""
+        if self.committed:
+            return True
+        last_change = _parse_stamp(self.state.get('last_change_at'))
+        if last_change is None:
+            return True
+        marker = os.path.join(os.path.dirname(os.path.abspath(self.path)), REVALIDATED_MARKER)
+        try:
+            with open(marker, 'r', encoding='utf-8') as f:
+                revalidated = _parse_stamp(f.read())
+        except (OSError, ValueError):
+            revalidated = None
+        return revalidated is None or revalidated < last_change
+
+    def summary_lines(self):
+        lines = []
+        failure_shown = False      # the season the run stopped at has been printed
+        for season, plan in self.plans.items():
+            rows = (self.schedule_rows.get(season) or 0) + (self.season_rows.get(season) or 0)
+            if not plan['run']:
+                lines.append(f"{season}: skipped: sources unchanged")
+            elif plan['status'] == 'done':
+                line = f"{season}: full run ({plan['reason']}): {rows:,} rows sent"
+                if plan.get('not_recorded'):
+                    # committed, but nothing skippable was recorded: say so, or a cause
+                    # that persists makes every run a full run with no visible reason
+                    line += f"; next run will also be full ({plan['not_recorded']})"
+                lines.append(line)
+            elif plan['status'] == 'not yet published':
+                lines.append(f"{season}: full run ({plan['reason']}): not yet published, {rows:,} rows sent")
+            elif plan['status'] is None and failure_shown:
+                # the run stopped at an earlier season and never reached this one
+                lines.append(f"{season}: not attempted (was due: {plan['reason']})")
+            else:
+                # the season that failed — or, if none had started (the database
+                # connection could not be opened), the first one that was due. The
+                # bracket is why the run was a full run, NOT why it failed (see the log).
+                lines.append(f"{season}: FAILED during a full run (reason for full run: {plan['reason']})")
+                failure_shown = True
+        return lines
+
+    def report(self):
+        """One line per season in the Actions step summary, and the `changed` output."""
+        for line in self.summary_lines():
+            _append_github_file('GITHUB_STEP_SUMMARY', line)
+        changed = self.changed()
+        if changed and not self.committed and self.plans and not any(p['run'] for p in self.plans.values()):
+            # every season was skipped, yet the workflow will POST /api/revalidate
+            log.info("Nothing new, but a revalidate still owed for the data change at %s "
+                     "(the last one failed or never ran) — changed=true",
+                     self.state.get('last_change_at') or 'an unknown time')
+        _append_github_file('GITHUB_OUTPUT', f"changed={'true' if changed else 'false'}")
+
+
+def run_seasons(seasons, db_url, dry_run, deadline, tracker=None):
     """Connect (unless dry run), then schedules + process_season for each season.
 
     A transient DB error (TRANSIENT_DB_ERRORS) re-runs that season from the start on a
     fresh connection, at most len(SEASON_RETRY_WAITS) extra times and only while a full
     attempt still fits before `deadline`. The fresh connection replaces `conn` for every
     later season and is the one closed at the end. Dry run never connects.
+
+    `tracker` (a RefreshTracker, only with --state-file) is told about each commit.
     """
     conn = None
     if not dry_run:
@@ -4357,26 +4958,64 @@ def run_seasons(seasons, db_url, dry_run, deadline):
     try:
         for season in seasons:
             retries = 0
+            schema_healed = False      # the once-per-season schema self-heal has been used
             while True:
                 if conn is not None and conn.closed:
                     log.warning("Database connection is closed — reconnecting before season %d", season)
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                # The ensure_* schema steps run unless the tracker can show ingest.py is
+                # unchanged since they last succeeded. No tracker (no --state-file, dry
+                # run): always, exactly as before — and the calls carry no extra argument.
+                ensure_schema = tracker is None or schema_healed or not tracker.schema_current()
+                schema_args = {} if ensure_schema else {'ensure_schema': False}
                 # Schedules ingest BEFORE process_season and outside its DataNotYetPublished
                 # skip: the schedule must land even when no PBP exists yet (pre-season).
                 # Its own except — the one below catches only DataNotYetPublished, so an
                 # unwrapped schedules failure would kill the whole run. Re-run on a retried
                 # attempt (idempotent upsert) so a blip here doesn't leave scores stale.
+                if conn is not None:
+                    _tell(tracker, 'season_started', season)
+                schedules_ok, schedule_rows = True, None
                 try:
-                    ingest_schedules(conn, season)
+                    schedule_rows = ingest_schedules(conn, season, **schema_args)
                 except Exception as e:
+                    schedules_ok = False
                     log.warning("Schedules ingest for %d failed — continuing: %s", season, e)
+                if conn is not None and schedule_rows:
+                    _tell(tracker, 'schedules_committed', season, schedule_rows)
                 if conn is not None and conn.closed:
                     log.warning("Database connection closed during schedules — reconnecting before season %d", season)
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
+                season_committed = False
+                result = None
                 try:
-                    process_season(season, conn, dry_run=dry_run)
+                    result = process_season(season, conn, dry_run=dry_run, **schema_args)
+                    season_committed = conn is not None   # only here has the season's commit succeeded
                 except DataNotYetPublished as e:
                     log.info("Season %d skipped — %s Nothing ingested; will succeed once data exists.", season, e)
+                    _tell(tracker, 'season_not_published', season)
+                except (psycopg2.errors.UndefinedTable, psycopg2.errors.UndefinedColumn) as e:
+                    # Schema self-heal: the ensure_* steps were skipped but a table or column
+                    # is missing. Run them and retry the season, once. Separate from the
+                    # transient retries below (own flag, same deadline). Each ensure_* commits
+                    # by itself, so the repair survives a later transient retry.
+                    if conn is None or ensure_schema or schema_healed:
+                        raise
+                    remaining = deadline - time.monotonic()
+                    if remaining < MIN_ATTEMPT_SECONDS:
+                        log.error("Season %d is missing a table or column — giving up: deadline "
+                                  "(%.0f s left, a retry needs %d s): %s", season, remaining, MIN_ATTEMPT_SECONDS, e)
+                        raise
+                    schema_healed = True
+                    log.warning("Season %d: a table or column is missing while the schema steps were skipped — "
+                                "running the schema steps and retrying once: %s", season, e)
+                    try:
+                        # process_season rolls back its own transaction, but the error can also
+                        # come from before it (get_existing_through_week): clear the aborted state.
+                        conn.rollback()
+                    except psycopg2.Error as rollback_error:
+                        log.warning("Rollback before the schema retry failed (reconnecting if needed): %s", rollback_error)
+                    continue
                 except TRANSIENT_DB_ERRORS as e:
                     if conn is None:
                         raise  # dry run: nothing to reconnect
@@ -4397,18 +5036,69 @@ def run_seasons(seasons, db_url, dry_run, deadline):
                     time.sleep(wait)
                     conn = connect_with_retry(db_url, deadline - MIN_ATTEMPT_SECONDS)
                     continue
+                if season_committed:
+                    _tell(tracker, 'season_committed', season, schedules_ok, result, ensure_schema)
                 break
     finally:
         if conn is not None:
             _close_quietly(conn)
 
 
-def main():
+def _tell(tracker, event, *args):
+    """Pass a commit event to the RefreshTracker, if there is one. The data is already
+    committed, so a bookkeeping failure must not fail the run: drop the state file
+    instead (the next run is then a full run)."""
+    if tracker is None:
+        return
+    try:
+        getattr(tracker, event)(*args)
+    except Exception as e:
+        log.warning("Refresh state bookkeeping failed in %s (ignored; the next run will be a full run): %s", event, e)
+        try:
+            os.remove(tracker.path)
+        except OSError:
+            pass
+
+
+def _plan_with_state(state_file, force, seasons):
+    """(tracker, seasons that need a run). Nothing in here may stop a refresh: if the
+    bookkeeping itself breaks, the answer is (None, all seasons) — a plain full run,
+    exactly as without --state-file — and the state file is removed."""
+    try:
+        tracker = RefreshTracker(state_file, force=force)
+    except Exception as e:
+        log.warning("Refresh state could not be set up (%s: %s) — running in full without it", type(e).__name__, e)
+        _remove_quietly(state_file)
+        return None, seasons
+    token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+    assets_cache = {}
+    to_run = []
+    for season in seasons:
+        try:
+            fingerprint = collect_fingerprint(season, token, assets_cache)
+        except Exception as e:
+            log.warning("Could not fingerprint season %s (%s) — treating it as changed", season, type(e).__name__)
+            fingerprint = {}
+        try:
+            run = tracker.plan_season(season, fingerprint)
+        except Exception as e:
+            log.warning("Could not decide whether season %s changed (%s) — running it", season, type(e).__name__)
+            tracker.plans[season] = {'run': True, 'reason': 'state file unreadable', 'fingerprint': {}, 'status': None}
+            run = True
+        if run:
+            to_run.append(season)
+    return tracker, to_run
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description="nflverse → Supabase ETL for Yards Per Pass")
     parser.add_argument('--season', type=int, help='Process a single season')
     parser.add_argument('--all', action='store_true', help=f'Process all seasons ({FIRST_SEASON}-{CURRENT_SEASON})')
     parser.add_argument('--dry-run', action='store_true', help='Preview without writing to database')
-    args = parser.parse_args()
+    parser.add_argument('--state-file', help='Remember what the last refresh read in this JSON file and skip the '
+                                             'run when nothing has changed (used by the scheduled workflow)')
+    parser.add_argument('--force', action='store_true', help='With --state-file: run even if nothing has changed')
+    args = parser.parse_args(argv)
 
     if not args.season and not args.all:
         parser.error("Specify --season YEAR or --all")
@@ -4423,7 +5113,23 @@ def main():
             log.error("DATABASE_URL not set. Add it to .env or environment.")
             sys.exit(1)
 
-    run_seasons(seasons, db_url, args.dry_run, deadline)
+    # Without --state-file (local runs, seed.yml, dry runs) nothing below changes:
+    # every season runs in full, exactly as before.
+    tracker = None
+    if args.state_file and not args.dry_run:
+        tracker, seasons = _plan_with_state(args.state_file, args.force, seasons)
+
+    try:
+        if seasons:
+            run_seasons(seasons, db_url, args.dry_run, deadline, tracker=tracker)
+        else:
+            log.info("Nothing to refresh — no database connection opened")
+    finally:
+        if tracker is not None:
+            try:
+                tracker.report()
+            except Exception as e:
+                log.warning("Could not write the run summary: %s", e)
 
     log.info("Done!")
 

@@ -672,9 +672,31 @@ describe("read deadlines -- a slow database must reach error.tsx, not a Vercel 5
     await expect(getBoxScore("2026_01_BUF_HOU")).rejects.toThrow("The operation was aborted");
   });
 
-  it("budgets the assembly comfortably inside Vercel's default function limit", () => {
-    // Vercel's Node default is 10s (Hobby) / 15s (Pro). The budget has to leave
-    // room for cold start, render and response on top of it.
+  // Read resilience PR 1B. This read used to go out with no signal. Once the
+  // client gives every signal-less read its own 5 s, it would have had a
+  // SECOND budget: a pending / uncovered game could take 10 s to fail.
+  it("the seasons read on the no-rows path shares the assembly's one deadline", async () => {
+    vi.mocked(getGame).mockResolvedValue(BUF_HOU_GAME);
+    results.team_game_stats = (calls) =>
+      calls.some((c) => c[0] === "eq" && c[1] === "game_id")
+        ? { data: [], error: null } // this game: no stat rows
+        : calls.some((c) => c[0] === "eq" && c[1] === "season" && c[2] === 2025)
+          ? { data: [{ game_id: "x" }], error: null } // 2025 is covered
+          : { data: [], error: null }; // 2026 is not (yet)
+    vi.mocked(getAvailableSeasons).mockClear();
+    expect((await getBoxScore("2026_01_BUF_HOU")).state).toBe("pending");
+
+    const signals = signalsUsed();
+    expect(new Set(signals).size).toBe(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+    expect(getAvailableSeasons).toHaveBeenCalledWith(signals[0]);
+  });
+
+  it("budgets the assembly comfortably inside Vercel's function limit", () => {
+    // Vercel's function limit on Hobby is 300 s (default and maximum), which is
+    // why an unlimited read hung for minutes. The budget is about what a
+    // visitor will wait, with room for cold start, render and response.
     expect(BOX_SCORE_READ_DEADLINE_MS).toBeGreaterThanOrEqual(3000);
     expect(BOX_SCORE_READ_DEADLINE_MS).toBeLessThanOrEqual(6000);
   });
