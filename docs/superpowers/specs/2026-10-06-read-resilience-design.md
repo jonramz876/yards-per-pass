@@ -246,7 +246,9 @@ The limit covers the whole request including reading the body. A timeout rejects
 
 - **`AbortController` + `setTimeout`, not `AbortSignal.timeout`.** Same effect, and it works everywhere, follows fake timers in tests, lets the reason carry our own short message, and lets the timer be cleared.
 - **The wrapper reads the body itself and hands on a new `Response`** (same status, status text and headers). That is how the limit covers a gateway that sends headers and then stalls, and it is what lets the timer be cleared the moment the read ends, so no timer is ever left running. supabase-js reads the whole body next anyway, so nothing extra is buffered. Consequence: the caller does not get the *same* `Response` object (test 4 in 1.6 is replaced by "status, headers and body come through whole, and no timer is left").
-- **A nonsense limit (0, negative, not finite) falls back to 5 s** instead of failing every read at once.
+- **A nonsense limit (0, negative, not finite) falls back to 5 s** instead of failing every read at once. A limit above 60 s is capped at 60 s (`SUPABASE_READ_TIMEOUT_MAX_MS`): `setTimeout` cannot hold 2^31 ms and Node turns such a delay into 1 ms.
+- **The limit is a race, not only an abort (added after the chaos pass, R1).** 1.3 above chose "(a) pass an AbortSignal" over "(b) race against a timer". It needs both. Next removes the signal from a fetch it makes to refresh a **stale** data-cache entry (`next/dist/server/lib/patch-fetch.js` 415 to 418 and 431 to 435: `signal: isStale ? undefined : signal`), which is every read of an ISR regeneration of `/`. With abort alone that read stayed open until undici's own 300 s limit, and the wrapper then reported the minutes-long wait as "5 s". Now the timer itself rejects the read at the limit; the request is still aborted (frees the socket where the fetch listens); the abandoned request's late rejection is handled and a late answer's body is cancelled. Only the timer produces the `TimeoutError`; a read that fails on its own keeps its own error.
+- **The limit is a total deadline for one read, body included (chaos R2, by design).** A body that drips for 20 s used to succeed after 20 s and now fails at 5 s. Each `fetchAllRows` page has its own 5 s, so only a single page slower than 5 s is affected.
 
 The factories pass `(input, init) => fetch(input, init)`, not `fetch` itself, so the global is looked up at call time (Next replaces it).
 
@@ -418,6 +420,15 @@ Result of the 1B run on 2026-10-06 (branch `read-resilience-1b`, `next dev`, a s
 
 Nothing hung. **`/card` and `/game` take two limits, not one.** They are the two routes with no `loading.tsx` whose `generateMetadata` reads the database; the timing is consistent with that read running a second time when Next builds the 500 page, but the cause was not traced in source. For `/game` both passes are its own 5 s assembly deadline, so this is probably how `/game` already behaved. Not fixed in 1B: answering `getPlayerBySlug` from the cache (PR 2) removes it for `/card`. One more thing seen, older than this work: the search palette shows "No results" for the 200 ms before a search starts.
 
+Stale-cache run, after the chaos pass (2026-10-06; `next build` + `next start` on a scratch copy against a local stub, the prerendered homepage and every `.next/cache/fetch-cache` entry aged two hours, stub then silent):
+
+| Request | Before the race (and on main) | Now |
+|---|---|---|
+| `/` (ISR, stale page) | 200 `STALE` at once; the regeneration's read stayed open for minutes; later visits pinned `STALE` with no new request, even after the gateway recovered | 200 `STALE` in 0.2 s; **the regeneration's read ends 5.2 s after the request** (`Failed to fetch seasons: TimeoutError: read timed out after 5 s`), the old page is kept; once the stub answered again a retry regenerated the page and visits were `HIT` |
+| `/player/josh-allen`, `/team/BUF?season=2026` (dynamic, their cached reads stale) | no response within 20 s | **unchanged: no response within 40 s, and no timeout is logged** |
+
+Why the dynamic pages are unchanged, and why the wrapper cannot change it: for a stale entry outside a regeneration, Next hands the **stale rows** to the caller at once (so the wrapper sees a fast, successful read and the page has its data) and starts its own background refresh by calling the original fetch directly, without the signal (`patch-fetch.js` 517 to 534). That refresh is below the wrapper. Under `next start` the response is held open until it settles (undici's 300 s); on Vercel pending refreshes are handed to `waitUntil`, so the visitor probably gets the page at once and the function lingers. Not tested on Vercel. Same as main. Two things follow for PR 2's review: (1) under `next start` the pages' direct Supabase reads are being answered from Next's fetch data cache today (a second load of a page made no gateway request); whether Vercel does the same was not verified, and it bears on PR 2's request counts; (2) if this lingering refresh matters, the fix is to take Supabase reads out of Next's fetch cache (`cache: "no-store"` in the wrapper) once PR 2's own cache exists, not before.
+
 **1B run: a socket that never answers.** Same steps with `node -e "require('net').createServer(()=>{}).listen(54399)"` as the stand-in. Now every row must finish in 5 to 7 s with the same statuses as the 1A run, and S1 appears after about 15 s (browser limit).
 
 Why not a Vercel preview pointed at a dead host: `next build` prerenders `/`, which throws when the database is unreachable, so that deployment never finishes building.
@@ -487,7 +498,7 @@ Gate **G2**: on the preview, read the logged byte counts for every cached key be
 |---|---|
 | fresh entry | cached rows, no database read. With the 6 h window and a purge after each refresh, **this is the normal state during a stall**, and the main stall survival |
 | stale entry, database healthy | stale rows now; background refresh; next request gets new rows |
-| stale entry, database stalled | stale rows now; background refresh fails after 5 s, is logged, entry stays. Repeats on each request. **This is the stall survival.** |
+| stale entry, database stalled | stale rows now; background refresh fails after 5 s, is logged, entry stays. Repeats on each request. **This is the stall survival.** Re-checked after PR 1B's chaos pass and it holds, for two reasons: `unstable_cache` runs its callback with `fetchCache: "force-no-store"` (`unstable-cache.js` 139, 156, 209), so the reads inside it never take the stale-entry path that drops the signal; and the read limit is now a race, so it ends at 5 s even if a fetch underneath does not listen. (The reads pages make **directly** today are different: see the stale-cache run in 1.7.) |
 | no entry, database healthy | reads the database, stores, returns |
 | no entry, database stalled | throws after 5 s; nothing stored; error card (PR 1) |
 | over 2 MB | never stored; every request reads the database; warning logged by our wrapper |
