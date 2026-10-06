@@ -116,12 +116,46 @@ class TestEnsureColumns:
         from ingest import ensure_team_game_stats_columns
         conn = _FakeConn()
         ensure_team_game_stats_columns(conn)
+        # lock_timeout FIRST and SET LOCAL (this transaction only): the ALTER asks
+        # for an exclusive lock on every run, and while it waits every site read
+        # of the table queues behind it (code review M1).
         assert [sql for sql, _ in conn.calls] == [
+            "SET LOCAL lock_timeout = '10s'",
             'ALTER TABLE team_game_stats ADD COLUMN IF NOT EXISTS designed_runs INT;',
             'ALTER TABLE team_game_stats ADD COLUMN IF NOT EXISTS stuffed_runs INT;',
         ]
         assert conn.commits == 1
         assert conn.rollbacks == 0
+
+    def test_lock_timeout_propagates_as_a_transient_error(self):
+        """A lock that cannot be had in 10 s raises LockNotAvailable from the
+        ALTER. It must reach run_seasons untouched (not swallowed, not retried
+        here, nothing committed) and be one of the errors run_seasons retries
+        the season for."""
+        import psycopg2
+        import pytest
+        import ingest
+
+        assert issubclass(psycopg2.errors.LockNotAvailable, ingest.TRANSIENT_DB_ERRORS)
+
+        class _LockedCursor(_FakeCursor):
+            def execute(self, sql, params=None):
+                super().execute(sql, params)
+                if sql.startswith('ALTER TABLE'):
+                    raise psycopg2.errors.LockNotAvailable('canceling statement due to lock timeout')
+
+        class _LockedConn(_FakeConn):
+            def cursor(self):
+                return _LockedCursor(self.calls)
+
+        conn = _LockedConn()
+        with pytest.raises(psycopg2.errors.LockNotAvailable):
+            ingest.ensure_team_game_stats_columns(conn)
+        assert [sql for sql, _ in conn.calls] == [
+            "SET LOCAL lock_timeout = '10s'",
+            'ALTER TABLE team_game_stats ADD COLUMN IF NOT EXISTS designed_runs INT;',
+        ]
+        assert conn.commits == 0
 
     def test_is_not_wrapped_in_retry(self):
         """DDL must not be retried inside an aborted transaction; a failure

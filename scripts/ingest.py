@@ -3476,8 +3476,9 @@ def _team_game_efficiency(reg: pd.DataFrame) -> pd.DataFrame:
     # penalty-wiped run stays in this set as rush == 1, play_type 'no_play',
     # yards_gained 0 — a stuff by yards alone (it doubled DET's week-1 count, 8
     # for 4). rush == 1 already leaves out kneels and scrambles; a 2-point try
-    # has no line to gain. So designed_runs is smaller than rush_plays, which
-    # keeps the wiped runs and the 2-point runs.
+    # has no line to gain. So designed_runs is never larger than rush_plays,
+    # which keeps the wiped runs and the 2-point runs (equal when a team has
+    # neither).
     designed = (eff['rush'] == 1) & (eff['play_type'] == 'run') & (eff['two_point_attempt'] != 1)
     eff['designed_run'] = designed.astype(int)
     eff['stuffed_run'] = (designed & (eff['yards_gained'] <= 0)).astype(int)
@@ -3868,6 +3869,13 @@ def ensure_team_game_stats_columns(conn):
     transaction — inside it, this commit would commit a half-written season.
     Rows written before the first refresh after the columns exist hold NULL."""
     with conn.cursor() as cur:
+        # ADD COLUMN asks for an ACCESS EXCLUSIVE lock on every run, even once the
+        # columns exist. If anything holds a read lock, the ALTER waits — and every
+        # new site read of team_game_stats queues behind it for as long as it does
+        # (up to the 180 s statement timeout). Give up after 10 s instead: that
+        # raises LockNotAvailable, an OperationalError, so run_seasons retries the
+        # season. SET LOCAL lasts only for this function's own transaction.
+        cur.execute("SET LOCAL lock_timeout = '10s'")
         for col, typ in [
             ('designed_runs', 'INT'),
             ('stuffed_runs', 'INT'),
