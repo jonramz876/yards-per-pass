@@ -5,22 +5,13 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
-import { getTeamColor } from "@/lib/data/teams";
-import { computePercentile, percentileOrMissing } from "@/lib/stats/percentiles";
-import {
-  getQBRadarVal, getWRRadarVal, getRBRadarVal,
-  QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
-} from "@/lib/stats/radar";
-import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
+import { buildComparison, type CompareGroup, type ComparisonPlayer } from "@/lib/stats/compare";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";
 
-// Perceptual color distance (weighted Euclidean, green-sensitive)
-function colorDistance(hex1: string, hex2: string): number {
-  const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
-  const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
-  return Math.sqrt(2 * (r1 - r2) ** 2 + 4 * (g1 - g2) ** 2 + 3 * (b1 - b2) ** 2);
-}
+// The comparison's maths (radar percentiles, colours, the stat table and its
+// highlights) lives in lib/stats/compare.ts; this file only picks the players,
+// reads their season table and draws the result.
 
 // Shown when one of this tool's own reads failed or timed out: restoring the
 // players named in the URL, or loading the season table for their position
@@ -29,100 +20,17 @@ function colorDistance(hex1: string, hex2: string): number {
 // JSX text does not decode escape sequences.
 const COMPARISON_UNAVAILABLE = "Couldn't load stats for this comparison. Try again in a moment.";
 
-const CONTRAST_PALETTE = ["#dc2626", "#2563eb", "#16a34a", "#d97706", "#9333ea", "#0891b2"];
-const MIN_DISTANCE = 150;
-
-function ensureContrast(c1: string, c2: string): string {
-  if (colorDistance(c1, c2) >= MIN_DISTANCE) return c2;
-  for (const alt of CONTRAST_PALETTE) {
-    if (colorDistance(c1, alt) >= MIN_DISTANCE) return alt;
-  }
-  return CONTRAST_PALETTE[1]; // terminal fallback: blue
-}
+// The chart has no "missing" props yet, so an axis with no data is handed to
+// it as NaN, as it always was (the chart leaves a NaN axis out of the
+// outline). The compare card's PR 1b gives the chart mask props and removes
+// this conversion.
+const chartValues = (p: ComparisonPlayer): number[] => p.values.map((v, i) => (p.missing[i] ? NaN : v));
 
 interface ComparisonToolProps {
   qbs: QBSeasonStat[];
   receivers: ReceiverSeasonStat[];
   rbs: RBSeasonStat[];
   season: number;
-}
-
-const QB_AXES = QB_RADAR_AXES;
-const QB_KEYS = [...QB_RADAR_KEYS];
-const WR_AXES = WR_RADAR_AXES;
-const WR_KEYS = [...WR_RADAR_KEYS];
-const RB_AXES = RB_RADAR_AXES;
-const RB_KEYS = [...RB_RADAR_KEYS];
-
-type AnyPlayer = QBSeasonStat | ReceiverSeasonStat | RBSeasonStat;
-type CompStat = { label: string; key: string; format: (v: number) => string; higherBetter: boolean; getValue?: (p: AnyPlayer) => number };
-
-const QB_COMP_STATS: CompStat[] = [
-  // Radar axes
-  { label: "EPA/DB", key: "epa_per_db", format: (v) => v.toFixed(2), higherBetter: true },
-  { label: "CPOE", key: "cpoe", format: (v) => (v >= 0 ? "+" : "") + v.toFixed(1), higherBetter: true },
-  { label: "aDOT", key: "adot", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "Success%", key: "success_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  // Volume + efficiency
-  { label: "Pass Yds", key: "passing_yards", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Pass TD", key: "touchdowns", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "INT", key: "interceptions", format: (v) => v.toFixed(0), higherBetter: false },
-  { label: "ANY/A", key: "any_a", format: (v) => v.toFixed(2), higherBetter: true },
-  { label: "Rating", key: "passer_rating", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "TD%", key: "td_pct", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "INT%", key: "int_pct", format: (v) => v.toFixed(1), higherBetter: false },
-  { label: "SK%", key: "sack_pct", format: (v) => v.toFixed(1), higherBetter: false },
-  { label: "Total EPA", key: "total_epa", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "Rush Yds", key: "rush_yards", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Rush TD", key: "rush_tds", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "SCR%", key: "scramble_pct", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "FPts", key: "fantasy_pts", format: (v) => v.toFixed(1), higherBetter: true,
-    getValue: (p) => qbFantasyPoints(p as QBSeasonStat) },
-  { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
-];
-
-const WR_COMP_STATS: CompStat[] = [
-  // Radar axes
-  { label: "EPA/Tgt", key: "epa_per_target", format: (v) => v.toFixed(2), higherBetter: true },
-  { label: "CROE", key: "croe", format: (v) => (v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%", higherBetter: true },
-  { label: "aDOT", key: "air_yards_per_target", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "YAC/Rec", key: "yac_per_reception", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "YPRR", key: "yards_per_route_run", format: (v) => v.toFixed(2), higherBetter: true },
-  // Volume + rates
-  { label: "Targets", key: "targets", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Receptions", key: "receptions", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Yards", key: "receiving_yards", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "TDs", key: "receiving_tds", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Catch%", key: "catch_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  { label: "Tgt Share", key: "target_share", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  { label: "AY%", key: "air_yards_share", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  { label: "FPts (PPR)", key: "fantasy_pts", format: (v) => v.toFixed(1), higherBetter: true,
-    getValue: (p) => wrFantasyPoints(p as ReceiverSeasonStat, "ppr") },
-  { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
-];
-
-const RB_COMP_STATS: CompStat[] = [
-  // Radar axes
-  { label: "EPA/Car", key: "epa_per_carry", format: (v) => v.toFixed(2), higherBetter: true },
-  { label: "Success%", key: "success_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  { label: "Stuff%", key: "stuff_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: false },
-  { label: "Explosive%", key: "explosive_rate", format: (v) => (v * 100).toFixed(1) + "%", higherBetter: true },
-  // Volume + efficiency
-  { label: "Carries", key: "carries", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Rush Yds", key: "rushing_yards", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Rush TD", key: "rushing_tds", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "YPC", key: "yards_per_carry", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "TCH", key: "total_touches", format: (v) => v.toFixed(0), higherBetter: true },
-  { label: "Total EPA", key: "total_rushing_epa", format: (v) => v.toFixed(1), higherBetter: true },
-  { label: "FPts (PPR)", key: "fantasy_pts", format: (v) => v.toFixed(1), higherBetter: true,
-    getValue: (p) => rbFantasyPoints(p as RBSeasonStat, "ppr") },
-  { label: "Games", key: "games", format: (v) => v.toFixed(0), higherBetter: true },
-];
-
-
-function getStatVal(player: QBSeasonStat | ReceiverSeasonStat | RBSeasonStat, key: string): number {
-  const v = (player as unknown as Record<string, unknown>)[key];
-  return typeof v === "number" ? v : NaN;
 }
 
 export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceivers, rbs: serverRBs, season }: ComparisonToolProps) {
@@ -215,25 +123,9 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   const isQB = position === "QB";
   const isRB = position === "RB";
 
-  // Get the right data pool and config
-  type StatPool = { pool: (QBSeasonStat | ReceiverSeasonStat | RBSeasonStat)[]; radarKeys: string[]; radarAxes: { label: string }[]; compStats: CompStat[]; getRadarVal: (p: QBSeasonStat | ReceiverSeasonStat | RBSeasonStat, k: string) => number };
-  const { pool, radarKeys, radarAxes, compStats, getRadarVal } = useMemo((): StatPool => {
-    if (isQB) return {
-      pool: qbs,
-      radarKeys: QB_KEYS, radarAxes: QB_AXES, compStats: QB_COMP_STATS,
-      getRadarVal: (p, k) => getQBRadarVal(p as QBSeasonStat, k),
-    };
-    if (isRB) return {
-      pool: rbs,
-      radarKeys: RB_KEYS, radarAxes: RB_AXES, compStats: RB_COMP_STATS,
-      getRadarVal: (p, k) => getRBRadarVal(p as RBSeasonStat, k),
-    };
-    return {
-      pool: receivers,
-      radarKeys: WR_KEYS, radarAxes: WR_AXES, compStats: WR_COMP_STATS,
-      getRadarVal: (p, k) => getWRRadarVal(p as ReceiverSeasonStat, k),
-    };
-  }, [isQB, isRB, qbs, receivers, rbs]);
+  // The season table the two players are looked up in and ranked against
+  const group: CompareGroup = isQB ? "QB" : isRB ? "RB" : "WR";
+  const pool: (QBSeasonStat | ReceiverSeasonStat | RBSeasonStat)[] = isQB ? qbs : isRB ? rbs : receivers;
 
   // Find full stat objects for selected players
   const stats1 = useMemo(() => {
@@ -246,26 +138,17 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
     return pool.find((p) => p.player_id === player2.player_id) || null;
   }, [player2, pool]);
 
-  // Compute percentiles for radar
-  const { values1, values2 } = useMemo(() => {
-    if (!stats1 || !stats2) return { values1: [], values2: [] };
-    const sortedPools = radarKeys.map((key) =>
-      pool.map((p) => getRadarVal(p, key)).filter((v) => !isNaN(v)).sort((a, b) => a - b)
-    );
-    // WR/TE: an axis with no data (e.g. 2026 YPRR, no participation file) is
-    // NaN, which OverlayRadarChart leaves out instead of plotting at the center.
-    // QB/RB keep the old 0 until their own missing-axis pass (follow-up).
-    const pct = isQB || isRB ? computePercentile : percentileOrMissing;
-    return {
-      values1: radarKeys.map((key, i) => pct(sortedPools[i], getRadarVal(stats1, key))),
-      values2: radarKeys.map((key, i) => pct(sortedPools[i], getRadarVal(stats2, key))),
-    };
-  }, [stats1, stats2, pool, radarKeys, getRadarVal, isQB, isRB]);
-
-  // Colors — ensure sufficient perceptual contrast between the two players
-  const color1 = player1 ? getTeamColor(player1.current_team_id) : "#1e3a5f";
-  const rawColor2 = player2 ? getTeamColor(player2.current_team_id) : "#dc2626";
-  const finalColor2 = ensureContrast(color1, rawColor2);
+  // Radar percentiles, colours and the stat table (lib/stats/compare.ts).
+  // WR/TE: an axis with no data (e.g. 2026 YPRR, no participation file) is
+  // marked missing, and OverlayRadarChart leaves it out instead of plotting it
+  // at the center. QB/RB keep the old 0 until their own missing-axis pass.
+  const comparison = useMemo(() => {
+    if (!player1 || !player2 || !stats1 || !stats2) return null;
+    return buildComparison({
+      group, rowA: stats1, rowB: stats2, all: pool,
+      teamA: player1.current_team_id, teamB: player2.current_team_id,
+    });
+  }, [player1, player2, stats1, stats2, group, pool]);
 
   // Update URL
   const updateURL = useCallback((p1: SelectedPlayer | null, p2: SelectedPlayer | null) => {
@@ -335,18 +218,18 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
       )}
 
       {/* Comparison view */}
-      {stats1 && stats2 && !samePlayer && (
+      {comparison && !samePlayer && (
         <div className="space-y-6">
           {/* Overlay Radar */}
           <div className="max-w-md mx-auto">
             <OverlayRadarChart
-              values1={values1}
-              values2={values2}
-              color1={color1}
-              color2={finalColor2}
+              values1={chartValues(comparison.a)}
+              values2={chartValues(comparison.b)}
+              color1={comparison.a.color}
+              color2={comparison.b.color}
               name1={player1!.player_name}
               name2={player2!.player_name}
-              axes={radarAxes}
+              axes={comparison.axes}
             />
           </div>
 
@@ -355,35 +238,23 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-4 py-2 text-left font-semibold text-gray-600" style={{ color: color1 }}>{player1!.player_name}</th>
+                  <th className="px-4 py-2 text-left font-semibold text-gray-600" style={{ color: comparison.a.color }}>{player1!.player_name}</th>
                   <th className="px-4 py-2 text-center font-semibold text-gray-500">Stat</th>
-                  <th className="px-4 py-2 text-right font-semibold text-gray-600" style={{ color: finalColor2 }}>{player2!.player_name}</th>
+                  <th className="px-4 py-2 text-right font-semibold text-gray-600" style={{ color: comparison.b.color }}>{player2!.player_name}</th>
                 </tr>
               </thead>
               <tbody>
-                {compStats.map((stat) => {
-                  const v1 = stat.getValue ? stat.getValue(stats1) : getStatVal(stats1, stat.key);
-                  const v2 = stat.getValue ? stat.getValue(stats2) : getStatVal(stats2, stat.key);
-                  const valid1 = !isNaN(v1);
-                  const valid2 = !isNaN(v2);
-                  let winner: 0 | 1 | 2 = 0;
-                  if (valid1 && valid2) {
-                    if (stat.higherBetter) winner = v1 > v2 ? 1 : v2 > v1 ? 2 : 0;
-                    else winner = v1 < v2 ? 1 : v2 < v1 ? 2 : 0;
-                  }
-
-                  return (
-                    <tr key={stat.key} className="border-t border-gray-100">
-                      <td className={`px-4 py-2 text-left tabular-nums ${winner === 1 ? "font-bold bg-green-50" : ""}`}>
-                        {valid1 ? stat.format(v1) : "\u2014"}
-                      </td>
-                      <td className="px-4 py-2 text-center text-xs text-gray-500 font-medium">{stat.label}</td>
-                      <td className={`px-4 py-2 text-right tabular-nums ${winner === 2 ? "font-bold bg-green-50" : ""}`}>
-                        {valid2 ? stat.format(v2) : "\u2014"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {comparison.rows.map((row) => (
+                  <tr key={row.key} className="border-t border-gray-100">
+                    <td className={`px-4 py-2 text-left tabular-nums ${row.winner === 1 ? "font-bold bg-green-50" : ""}`}>
+                      {row.a}
+                    </td>
+                    <td className="px-4 py-2 text-center text-xs text-gray-500 font-medium">{row.label}</td>
+                    <td className={`px-4 py-2 text-right tabular-nums ${row.winner === 2 ? "font-bold bg-green-50" : ""}`}>
+                      {row.b}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
