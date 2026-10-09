@@ -14,7 +14,7 @@
 // and its card builders call. So a player has one radar shape on the site.
 // The stat table has no percentiles: the pool never touches it.
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
-import { getTeamColor } from "@/lib/data/teams";
+import { getTeam } from "@/lib/data/teams";
 import {
   getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues, radarHasTooFewAxes,
   QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
@@ -24,6 +24,7 @@ import {
   qbCardPool, rbCardPool, wrCardPool, qbEligible, rbEligible, wrEligible,
   QB_MIN_ATT_PER_GAME, WR_MIN_TGT_PER_GAME, RB_MIN_CAR_PER_GAME,
 } from "@/lib/stats/tecmo-card";
+import { radarStrokeColor } from "@/lib/stats/team-radar";
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
 /** The dark neutral a colour that cannot be read falls back to (the team radar's neutral outline). */
@@ -57,6 +58,23 @@ export function ensureContrast(c1: string, c2: string): string {
     if (colorDistance(base, alt) >= MIN_DISTANCE) return alt;
   }
   return CONTRAST_PALETTE[1]; // terminal fallback: blue
+}
+
+/**
+ * The two colours of a comparison, on /compare and on the share card alike:
+ * each team's outline colour by the team radar's rule (the primary when it
+ * shows on white, else the secondary, else a dark neutral: Pittsburgh's and
+ * New Orleans' golds do not), then player B's moved away from player A's when
+ * the two are too close. An unknown team is the dark neutral. Always two
+ * #RRGGBB values, whatever comes in.
+ */
+export function comparePlotColors(teamIdA: unknown, teamIdB: unknown): { a: string; b: string } {
+  const stroke = (id: unknown): string => {
+    const team = typeof id === "string" ? getTeam(id) : undefined;
+    return radarStrokeColor(team?.primaryColor ?? "", team?.secondaryColor ?? "");
+  };
+  const a = stroke(teamIdA);
+  return { a, b: ensureContrast(a, stroke(teamIdB)) };
 }
 
 /** The three stat tables a comparison can come from. TE rows live in the WR table; FB counts as RB. */
@@ -302,6 +320,8 @@ function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRo
  * `all` is the whole season table of the group; each player's pool is taken
  * from it here (the stat card's pool for his position, so two players of
  * different positions in the receiver table are each ranked in their own).
+ * Colours: comparePlotColors of the two season rows' teams; `teamA` / `teamB`
+ * are used only for a row with no team_id.
  * `radar` is "too-few" when either pool has fewer than 2 players: the caller
  * shows compareTooFewSentence in place of the radar. A player whose `outline`
  * is false is not drawn (compareNotDrawnSentences says so); with both false
@@ -332,8 +352,14 @@ export function buildComparison(input: {
   if (rowA == null || rowB == null) throw new Error("buildComparison: both players need a season row");
   if (!Array.isArray(all)) throw new Error("buildComparison: the season table must be an array");
 
-  const colorA = getTeamColor(teamA);
-  const colorB = ensureContrast(colorA, getTeamColor(teamB));
+  // Each player wears the team of his SEASON ROW (the team he played for that
+  // season), as on the share card; the team the caller names (player_slugs'
+  // current team) is only the fallback for a row that carries none.
+  const rowTeam = (row: ComparePlayerRow, fallback: string): string => {
+    const id = (row as unknown as Record<string, unknown>).team_id;
+    return typeof id === "string" && id.trim() !== "" ? id : fallback;
+  };
+  const { a: colorA, b: colorB } = comparePlotColors(rowTeam(rowA, teamA), rowTeam(rowB, teamB));
 
   const rows = cfg.compStats.map((stat): ComparisonTableRow => {
     const v1 = stat.getValue ? stat.getValue(rowA) : getStatVal(rowA, stat.key);

@@ -15,11 +15,11 @@ import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types
 import { getTeam } from "@/lib/data/teams";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  compareNotDrawnSentences, compareRadarIsDrawn, ensureContrast, COMPARE_RADAR_LEGEND,
+  compareNotDrawnSentences, compareRadarIsDrawn, comparePlotColors, COMPARE_RADAR_LEGEND,
   type CompareGroup, type ComparePlayerRow, type Comparison, type ComparisonTableRow,
 } from "@/lib/stats/compare";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
-import { radarStrokeColor, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
+import { RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
 import { parseSeasonParam } from "@/lib/stats/team-stats";
 import { textColorForBackground } from "@/lib/stats/formatters";
 
@@ -175,21 +175,9 @@ export const CARD_STAT_KEYS: Record<CompareGroup, readonly string[]> = {
 
 /* ─── Colours ─── */
 
-/**
- * The two colours of the card: each team's outline colour by the team radar's
- * rule (the primary when it shows on white, else the secondary, else a dark
- * neutral: Pittsburgh's and New Orleans' golds do not), then player B's moved
- * away from player A's when the two are too close. An unknown team is the dark
- * neutral. Always two #RRGGBB values, whatever comes in.
- */
-export function comparePlotColors(teamIdA: unknown, teamIdB: unknown): { a: string; b: string } {
-  const stroke = (id: unknown): string => {
-    const team = typeof id === "string" ? getTeam(id) : undefined;
-    return radarStrokeColor(team?.primaryColor ?? "", team?.secondaryColor ?? "");
-  };
-  const a = stroke(teamIdA);
-  return { a, b: ensureContrast(a, stroke(teamIdB)) };
-}
+// The card's two colours are buildComparison's own (comparePlotColors in
+// lib/stats/compare.ts): /compare and the card draw a player in one colour.
+export { comparePlotColors };
 
 /* ─── Sentences (the spec's copy table; each has a test) ─── */
 
@@ -303,7 +291,7 @@ export interface CompareCardModel {
   throughWeek: number | null;
   a: CompareCardPlayer;
   b: CompareCardPlayer;
-  /** buildComparison's output for the pair: what /compare shows. Its own colours are the Compare page's and are not used on the card. */
+  /** buildComparison's output for the pair: what /compare shows, colours included. */
   comparison: Comparison;
   /** Is any outline drawn? No when a pool is too small or both players have too few radar stats. */
   radarDrawn: boolean;
@@ -374,7 +362,7 @@ export function buildCompareCard(input: {
   const teamIdB = str(rec(input.b).team_id);
 
   const comparison = buildComparison({ group, rowA: input.a.row, rowB: input.b.row, all, teamA: teamIdA, teamB: teamIdB });
-  const colors = comparePlotColors(teamIdA, teamIdB);
+  const colors = { a: comparison.a.color, b: comparison.b.color };
 
   const fullName = (p: CompareCardPlayerInput, short: string, fallback: string) =>
     str(p.fullName) || short || titleFromSlug(str(p.slug)) || fallback;

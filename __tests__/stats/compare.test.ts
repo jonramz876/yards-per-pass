@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import {
   buildComparison, ensureContrast, colorDistance, getStatVal,
-  comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, compareNotDrawnSentences, COMPARE_RADAR_LEGEND,
+  comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, compareNotDrawnSentences, comparePlotColors, COMPARE_RADAR_LEGEND,
   CONTRAST_PALETTE, MIN_DISTANCE, QB_COMP_STATS, WR_COMP_STATS, RB_COMP_STATS,
   type CompareGroup, type ComparePlayerRow,
 } from "@/lib/stats/compare";
@@ -723,13 +723,57 @@ describe("ensureContrast: only player 2's colour is ever moved", () => {
     }
   });
 
-  it("an unknown team id uses the site's neutral grey, as the page always did", () => {
-    const got = buildComparison({
-      group: "QB", rowA: asRow(TABLES.QB[0]), rowB: asRow(TABLES.QB[1]),
-      all: asRows(TABLES.QB), teamA: "???", teamB: "BUF",
+  // Compare card PR 3: /compare draws each player in the colour the share card
+  // draws him in, so one player is never two colours on the site. The card's
+  // rule: the outline colour of the team he played for THAT season (his season
+  // row's team), by the team radar's rule (the primary when it shows on white,
+  // else the secondary, else a dark neutral), then player B moved away from A.
+  describe("the colours are the share card's (PR 3)", () => {
+    const withTeams = (teamA: string, teamB: string) => {
+      const rows = TABLES.QB.map((r) =>
+        (r.player_name === "J.Allen" ? { ...r, team_id: teamA } : r.player_name === "M.Stafford" ? { ...r, team_id: teamB } : r));
+      const find = (n: string) => asRow(rows.find((r) => r.player_name === n)!);
+      // What player_slugs says today is passed too, as /compare passes it: it must not decide the colour.
+      return buildComparison({ group: "QB", rowA: find("J.Allen"), rowB: find("M.Stafford"), all: asRows(rows), teamA: "BUF", teamB: "LA" });
+    };
+
+    it("a Steeler is not drawn in Pittsburgh's gold (it does not show on white) but in its black; a Saint likewise", () => {
+      const pit = withTeams("PIT", "KC");
+      expect(pit.a.color).toBe("#101820");
+      expect(pit.a.color).not.toBe(getTeamColor("PIT"));
+      const no = withTeams("KC", "NO");
+      expect(no.b.color).not.toBe(getTeamColor("NO"));
+      expect(colorDistance(no.a.color, no.b.color)).toBeGreaterThanOrEqual(MIN_DISTANCE);
+      // PIT against NO: both would be the same near-black, so player B is moved to red.
+      expect(withTeams("PIT", "NO")).toMatchObject({ a: { color: "#101820" }, b: { color: "#dc2626" } });
     });
-    expect(got.a.color).toBe("#6B7280");
-    expect(colorDistance(got.a.color, got.b.color)).toBeGreaterThanOrEqual(MIN_DISTANCE);
+
+    it("a traded player wears the team of his season row, not the team player_slugs has for him today", () => {
+      const traded = withTeams("KC", "DET");
+      expect([traded.a.color, traded.b.color]).toEqual([getTeamColor("KC"), getTeamColor("DET")]);
+    });
+
+    it("it is exactly the card's pair of colours, for every pair of teams", () => {
+      for (const t1 of ["BUF", "PIT", "NO", "KC", "NYJ", "LA", "DAL", "SEA"]) for (const t2 of ["BUF", "PIT", "NO", "KC", "NYJ", "LA", "DET"]) {
+        const got = withTeams(t1, t2);
+        expect({ a: got.a.color, b: got.b.color }, `${t1}/${t2}`).toEqual(comparePlotColors(t1, t2));
+      }
+    });
+
+    it("the teams whose colours were fine before are unchanged: BUF/LA still blue and red, ATL/DET as they were", () => {
+      expect(withTeams("BUF", "LA")).toMatchObject({ a: { color: "#00338D" }, b: { color: "#dc2626" } });
+      expect(withTeams("ATL", "DET")).toMatchObject({ a: { color: "#A71930" }, b: { color: "#0076B6" } });
+    });
+
+    it("a row with no team falls back to the team the caller names; an unknown team is the dark neutral (it was a mid grey)", () => {
+      const a = { player_id: "a", player_name: "A", games: 4, attempts: 100, epa_per_db: 0.2 };
+      const b = { player_id: "b", player_name: "B", games: 4, attempts: 100, epa_per_db: 0.1 };
+      const named = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b]), teamA: "KC", teamB: "DET" });
+      expect([named.a.color, named.b.color]).toEqual([getTeamColor("KC"), getTeamColor("DET")]);
+      const unknown = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b]), teamA: "???", teamB: "BUF" });
+      expect(unknown.a.color).toBe("#0f172a");
+      expect(colorDistance(unknown.a.color, unknown.b.color)).toBeGreaterThanOrEqual(MIN_DISTANCE);
+    });
   });
 });
 
