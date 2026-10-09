@@ -20,7 +20,9 @@ import {
 } from "@/lib/stats/radar";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
 
-// Perceptual color distance (weighted Euclidean, green-sensitive)
+// Perceptual color distance (weighted Euclidean, green-sensitive).
+// Inputs must be 7-character #RRGGBB (what getTeamColor returns); anything
+// else gives NaN distances or throws.
 export function colorDistance(hex1: string, hex2: string): number {
   const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
   const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
@@ -195,6 +197,11 @@ function radarFor(cfg: GroupConfig, row: ComparePlayerRow, pool: ComparePlayerRo
  * null, undefined and the raw string "NaN" all count as "no value", with one
  * known exception kept as it is (spec F12): a running back's stuff_rate of
  * null plots as a 0% stuff rate, while "NaN" plots at the centre.
+ *
+ * Preconditions (not checked here): `group` is already one of the three
+ * tables, so the caller maps player_slugs.position first (TE goes to WR, FB to
+ * RB) and turns any other position away; and `rowA` / `rowB` are real rows. An
+ * unknown group or a missing row throws a TypeError.
  */
 export function buildComparison(input: {
   group: CompareGroup;

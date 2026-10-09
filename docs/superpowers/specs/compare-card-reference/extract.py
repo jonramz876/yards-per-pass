@@ -1,3 +1,5 @@
+# NOTE: does not run from the repo. Needs the saved live leaderboard pages beside it (live-qb.html,
+# live-rec.html, live-rb.html): session scratch, not committed. Its output is the repo fixture compare-2026-w4-rows.json.
 """Pull the season rows out of the saved leaderboard pages' RSC payload.
 Writes live-<kind>.json (list of row dicts) and prints a summary."""
 import json, re, sys, os

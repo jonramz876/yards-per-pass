@@ -1,8 +1,10 @@
+# NOTE: needs no scratch inputs, but needs the fontTools package and the repo's node_modules
+# (it measures text in the Noto Sans file that ships inside next/og). Kept as a record of the widths in the spec.
 """Revision 2: widths of the reworded sentences in the image's fonts."""
 import os, sys
 from fontTools.ttLib import TTFont
 sys.stdout.reconfigure(encoding="ascii", errors="replace")
-REPO = r"C:/Users/jonra/OneDrive/Desktop/claude sandbox/football website/yards-per-pass"
+REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
 f = TTFont(os.path.join(REPO, "node_modules", "next", "dist", "compiled", "@vercel", "og", "noto-sans-v27-latin-regular.ttf"))
 cmap, hm, upm = f.getBestCmap(), f["hmtx"].metrics, f["head"].unitsPerEm
 w = lambda s, px: sum(hm[cmap.get(ord(c), ".notdef")][0] for c in s) * px / upm

@@ -2,7 +2,7 @@
 
 Date: 2026-10-09 · Status: revision 3, **approved with changes R1–R4 by the re-review, all four applied here** · PR 1 built on branch `compare-card-pr1` (§14) · Repo state read: `origin/main`
 Mockup: `compare-card-mockup.html` (session scratchpad, not in the repo; Jon approved it 2026-10-09: "looks great, keep going").
-Reference numbers: `docs/superpowers/specs/compare-card-reference/` (`extract.py`, `build_data.py`, `crosscheck.py`, `te_check.py`, `rev2_measure.py`). They read `live-*.json` / `live-*.html` files that sat beside them in the scratchpad; the three season tables they used are in the repo as `__tests__/stats/fixtures/compare-2026-w4-rows.json`.
+Reference numbers: `docs/superpowers/specs/compare-card-reference/` (`extract.py`, `build_data.py`, `crosscheck.py`, `te_check.py`, `rev2_measure.py`). `build_data.py` runs from the repo: it reads the three season tables from `__tests__/stats/fixtures/compare-2026-w4-rows.json` and writes the expected file to the path it is given (it reproduces `compare-pool-all.expected.json` byte for byte, checked 2026-10-09). The others are a record of checks against saved live pages that are not committed; each says at its top what it needs.
 
 ### Review changes applied (revision 2 → 3)
 

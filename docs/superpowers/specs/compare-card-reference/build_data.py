@@ -1,13 +1,35 @@
-"""Build the mockup's numbers from the live season rows, with the exact rules
-of components/compare/ComparisonTool.tsx + lib/stats/radar.ts + percentiles.ts
-+ fantasy.ts (origin/main, 2026-10-07). Writes mock-data.json."""
+"""The Python reference for the Compare page's numbers: a re-statement of the
+rules of components/compare/ComparisonTool.tsx + lib/stats/radar.ts +
+percentiles.ts + fantasy.ts as they were on origin/main on 2026-10-07 (no
+JavaScript involved; a failing golden means the two disagree).
+
+Reads the three season tables from the repo's own fixture,
+__tests__/stats/fixtures/compare-2026-w4-rows.json (keys qb / receivers / rb),
+and writes the expected file for the pool /compare used before PR 1b (every
+row of the position table):
+
+  py -3 build_data.py <out json> [mockup mock-data json]
+
+  py -3 build_data.py ../../../../__tests__/stats/fixtures/compare-pool-all.expected.json
+
+reproduces the committed expected file byte for byte (checked 2026-10-09).
+Never run it over the committed file to make a test pass. The optional second
+argument writes the larger file the clickable mockup was built from (it also
+holds the stat card's pools as altA / altB, which PR 1b's expected file uses).
+"""
 import json, os, math, sys
 from decimal import Decimal, ROUND_HALF_UP
 
 sys.stdout.reconfigure(encoding="ascii", errors="replace")
 HERE = os.path.dirname(os.path.abspath(__file__))
-L = lambda k: json.load(open(os.path.join(HERE, f"live-{k}.json"), encoding="utf-8"))
-QB, REC, RB = L("qb"), L("rec"), L("rb")
+REPO = os.path.normpath(os.path.join(HERE, "..", "..", "..", ".."))
+ROWS_FILE = os.path.join(REPO, "__tests__", "stats", "fixtures", "compare-2026-w4-rows.json")
+if len(sys.argv) < 2:
+    sys.exit("usage: py -3 build_data.py <out json> [mockup mock-data json]")
+OUT = sys.argv[1]
+MOCK = sys.argv[2] if len(sys.argv) > 2 else None
+_rows = json.load(open(ROWS_FILE, encoding="utf-8"))
+QB, REC, RB = _rows["qb"], _rows["receivers"], _rows["rb"]
 NAN = float("nan")
 
 
@@ -231,5 +253,20 @@ for pkey, group, a, b in [(g, g, a, b) for g, a, b in PAIRS] + EXTRA:
 if RB:
     print("RB null stuff_rate rows:", sum(1 for r in RB if r["stuff_rate"] is None))
 print("REC by position:", {p: sum(1 for r in REC if r["position"] == p) for p in ("WR", "TE", "RB")})
-json.dump(out, open(os.path.join(HERE, "mock-data.json"), "w", encoding="utf-8"), ensure_ascii=True, separators=(",", ":"))
-print("bytes", os.path.getsize(os.path.join(HERE, "mock-data.json")))
+if MOCK:
+    json.dump(out, open(MOCK, "w", encoding="utf-8"), ensure_ascii=True, separators=(",", ":"))
+    print("mockup data bytes", os.path.getsize(MOCK))
+
+# The expected file for __tests__ (old pool = every row of the table).
+gold = {"_provenance": "Expected Compare-page output with the pool /compare used before PR 1b (every row of the position table), computed by docs/superpowers/specs/compare-card-reference/build_data.py (a Python re-statement of the rules, no JavaScript involved) from compare-2026-w4-rows.json on 2026-10-09. Radar percentiles are rounded to 2 decimals; null = no data for that axis. PR 1b deletes this file with the old pool; it is never edited and never re-captured.", "pairs": {}}
+both = dict(out["pairs"])
+both.update(out["fixtureOnly"])
+for k, p in both.items():
+    side = lambda pl: {"slug": pl["slug"], "name": pl["name"], "team": pl["team"], "color": pl["color"]}
+    gold["pairs"][k] = {
+        "group": p["group"], "a": side(p["players"][0]), "b": side(p["players"][1]),
+        "axes": p["axes"], "valuesA": p["a"], "valuesB": p["b"], "poolSize": p["poolSize"],
+        "rows": [{"key": x["key"], "label": x["label"], "a": x["a"], "b": x["b"], "winner": x["w"]} for x in p["stats"]],
+    }
+json.dump(gold, open(OUT, "w", encoding="utf-8", newline="\n"), ensure_ascii=False, indent=1)
+print("expected file bytes", os.path.getsize(OUT))

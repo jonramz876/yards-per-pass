@@ -1,3 +1,5 @@
+# NOTE: does not run from the repo. Needs scratch inputs beside it: mock-data.json (build_data.py's second
+# output) and the saved live card pages card-<slug>.html, which are not committed. Kept as a record of the check.
 """Cross-check: the stat-card-pool percentiles computed by build_data.py against
 the percentiles printed on the six live /card/<slug> pages."""
 import re, os, sys, json, html as H

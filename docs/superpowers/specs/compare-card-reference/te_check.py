@@ -1,3 +1,5 @@
+# NOTE: does not run from the repo. Needs scratch inputs beside it (live-rec-1009.html, live-rec.json,
+# card-trey-mcbride.html: saved live pages, not committed). Kept as a record of the 2026-10-09 TE check.
 """Same-day check of the TE pool rule: today's /receivers rows vs today's
 /card/trey-mcbride page (both fetched 2026-10-09)."""
 import json, re, os, sys, math, html as H
