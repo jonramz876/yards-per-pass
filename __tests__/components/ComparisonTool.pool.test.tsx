@@ -79,7 +79,7 @@ describe("/compare says which players the radar ranks against (C4)", () => {
   it("two quarterbacks: the 42 qualified quarterbacks, once, under a drawn radar; the legend once; no small-sample line", async () => {
     const v = await show(slug(QB_ROWS, "J.Allen", "Josh Allen", "QB"), slug(QB_ROWS, "M.Stafford", "Matthew Stafford", "QB"), { qb: QB_ROWS });
     expect(v.radarDrawn).toBe(true);
-    expect(v.count("Radar: percentile among the 42 qualified quarterbacks (14+ attempts a game)")).toBe(1);
+    expect(v.count("Radar: percentile among the 42 qualified quarterbacks (14+ pass attempts a game).")).toBe(1);
     expect(v.count(LEGEND)).toBe(1);
     expect(v.text).not.toMatch(/league best/);
     expect(v.text).not.toMatch(/Small sample/);
@@ -88,19 +88,19 @@ describe("/compare says which players the radar ranks against (C4)", () => {
 
   it("two running backs, two WRs, two TEs", async () => {
     const rb = await show(slug(RB_ROWS, "Bi.Robinson", "Bijan Robinson", "RB"), slug(RB_ROWS, "J.Gibbs", "Jahmyr Gibbs", "RB"), { rb: RB_ROWS });
-    expect(rb.count("Radar: percentile among the 54 qualified running backs (6+ carries a game)")).toBe(1);
+    expect(rb.count("Radar: percentile among the 54 qualified running backs (6+ carries a game).")).toBe(1);
     rb.unmount();
     const wr = await show(slug(REC_ROWS, "C.Lamb", "CeeDee Lamb", "WR"), slug(REC_ROWS, "J.Smith-Njigba", "Jaxon Smith-Njigba", "WR"), { receivers: REC_ROWS });
-    expect(wr.count("Radar: percentile among the 129 qualified WRs (2+ targets a game)")).toBe(1);
+    expect(wr.count("Radar: percentile among the 129 qualified WRs (2+ targets a game).")).toBe(1);
     wr.unmount();
     const te = await show(slug(REC_ROWS, "T.McBride", "Trey McBride", "TE"), slug(REC_ROWS, "S.LaPorta", "Sam LaPorta", "TE"), { receivers: REC_ROWS });
-    expect(te.count("Radar: percentile among the 56 qualified TEs (2+ targets a game)")).toBe(1);
+    expect(te.count("Radar: percentile among the 56 qualified TEs (2+ targets a game).")).toBe(1);
   });
 
   it("a WR against a TE (a hand-typed link): each against his own position, both counts", async () => {
     const v = await show(slug(REC_ROWS, "C.Lamb", "CeeDee Lamb", "WR"), slug(REC_ROWS, "T.McBride", "Trey McBride", "TE"), { receivers: REC_ROWS });
     expect(v.radarDrawn).toBe(true);
-    expect(v.count("Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 56 TEs")).toBe(1);
+    expect(v.count("Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 56 TEs.")).toBe(1);
   });
 });
 
@@ -109,7 +109,7 @@ describe("/compare flags a small sample (C6)", () => {
     const v = await show(slug(QB_ROWS, "T.Huntley", "Tyler Huntley", "QB"), slug(QB_ROWS, "J.Allen", "Josh Allen", "QB"), { qb: QB_ROWS });
     expect(v.radarDrawn).toBe(true);
     expect(v.count("Small sample: T.Huntley has 9 pass attempts in 1 game (under 14 a game).")).toBe(1);
-    expect(v.count("Radar: percentile among the 42 qualified quarterbacks (14+ attempts a game)")).toBe(1);
+    expect(v.count("Radar: percentile among the 42 qualified quarterbacks (14+ pass attempts a game).")).toBe(1);
     // The stat card's OVR is not shown on /compare, so nothing is said about it here.
     expect(v.text).not.toMatch(/OVR/);
     expect(v.text.indexOf("Radar: percentile")).toBeLessThan(v.text.indexOf("Small sample"));
@@ -131,7 +131,7 @@ describe("/compare flags a small sample (C6)", () => {
     under.unmount();
     const onTheLine = await show(as("b", "Bo Line"), as("c", "Cy Starter"), { qb: rows });
     expect(onTheLine.text).not.toMatch(/Small sample/);
-    expect(onTheLine.count("Radar: percentile among the 2 qualified quarterbacks (14+ attempts a game)")).toBe(1);
+    expect(onTheLine.count("Radar: percentile among the 2 qualified quarterbacks (14+ pass attempts a game).")).toBe(1);
   });
 
   it("two players with the same short name are written with their full names", async () => {
@@ -149,7 +149,7 @@ describe("/compare with too few qualified players (C4z)", () => {
   it("one qualified quarterback: the sentence replaces the radar, the table still shows, and no other radar sentence appears", async () => {
     const v = await show(as("a", "Al Starter"), as("b", "Bo Backup"), { qb: [qb("a", "A.Starter", 30, 1), qb("b", "B.Backup", 4, 1)] });
     expect(v.radarDrawn).toBe(false);
-    expect(v.count("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).")).toBe(1);
+    expect(v.count("Not enough qualified quarterbacks to draw the radar (14+ pass attempts a game).")).toBe(1);
     expect(v.text).not.toMatch(/Radar: /);
     expect(v.text).not.toMatch(/qualified quarterbacks \(/);
     // The backup is under the line: the small-sample line shows here too, so the visitor sees why.
@@ -164,7 +164,7 @@ describe("/compare with too few qualified players (C4z)", () => {
     const v = await show(as("a", "Al Starter"), as("b", "Bo Starter"), { qb: [qb("a", "A.Starter", 30, 1), qb("b", "B.Starter", 14, 1)] });
     expect(v.radarDrawn).toBe(true);
     expect(v.text).not.toMatch(/Not enough qualified/);
-    expect(v.count("Radar: percentile among the 2 qualified quarterbacks (14+ attempts a game)")).toBe(1);
+    expect(v.count("Radar: percentile among the 2 qualified quarterbacks (14+ pass attempts a game).")).toBe(1);
   });
 
   it("a WR against a TE with both pools short names both positions", async () => {
@@ -192,7 +192,7 @@ describe("/compare leaves out the outline of a player with too few radar stats, 
     expect(outlines(v.container)).toEqual([5, 0]);
     expect(v.container.querySelectorAll("svg circle")).toHaveLength(5);
     expect(v.count("No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.")).toBe(1);
-    expect(v.count("Radar: percentile among the 129 qualified WRs (2+ targets a game)")).toBe(1);
+    expect(v.count("Radar: percentile among the 129 qualified WRs (2+ targets a game).")).toBe(1);
   });
 
   it("with the real rows (2 of 6 missing) he is drawn and nothing is said", async () => {

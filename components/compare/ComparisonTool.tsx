@@ -252,13 +252,13 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
           ) : (
             <div className="max-w-2xl mx-auto text-center text-sm text-gray-500 py-8 space-y-1">
               {tooFewSentence && <p>{tooFewSentence}</p>}
-              {notDrawnSentences.map((sentence) => <p key={sentence}>{sentence}</p>)}
+              {notDrawnSentences.map((sentence, i) => <p key={i}>{sentence}</p>)}
             </div>
           )}
           {(poolSentence || smallSampleSentence || (radarDrawn && notDrawnSentences.length > 0)) && (
             <div className="max-w-2xl mx-auto text-center text-xs text-gray-500 space-y-1">
               {poolSentence && <p>{poolSentence}</p>}
-              {radarDrawn && notDrawnSentences.map((sentence) => <p key={sentence}>{sentence}</p>)}
+              {radarDrawn && notDrawnSentences.map((sentence, i) => <p key={i}>{sentence}</p>)}
               {smallSampleSentence && <p className="text-amber-700">{smallSampleSentence}</p>}
             </div>
           )}

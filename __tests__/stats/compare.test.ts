@@ -170,7 +170,7 @@ describe("the pool is the stat card's, called and not copied", () => {
     expect(got.b.poolPosition).toBe("RB");
     expect(got.b.poolSize).toBe(57);
     expect(comparePoolSentence(got)).toBe(
-      "Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 57 RBs");
+      "Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 57 RBs.");
   });
 
   it("a player under the line is ranked against the qualified pool (he is not in it) and flagged", () => {
@@ -193,7 +193,7 @@ describe("pools of 0, 1 and 2", () => {
     const got = build([qb("a", 13, 1, 0.1), qb("b", 5, 1, 0.2)]);
     expect([got.a.poolSize, got.b.poolSize]).toEqual([0, 0]);
     expect(got.radar).toBe("too-few");
-    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).");
+    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ pass attempts a game).");
     expect(comparePoolSentence(got)).toBeNull();
     for (const v of [...got.a.values, ...got.b.values]) expect(Number.isNaN(v)).toBe(false);
   });
@@ -203,14 +203,14 @@ describe("pools of 0, 1 and 2", () => {
     expect(got.a.poolSize).toBe(1);
     expect(got.radar).toBe("too-few");
     expect(comparePoolSentence(got)).toBeNull();
-    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).");
+    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ pass attempts a game).");
   });
 
   it("two qualify: the radar is drawn and the pool sentence counts 2", () => {
     const got = build([qb("a", 14, 1, 0.1), qb("b", 28, 2, 0.2), qb("c", 5, 1, 0.3)]);
     expect(got.radar).toBe("drawn");
     expect(compareTooFewSentence(got)).toBeNull();
-    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified quarterbacks (14+ attempts a game)");
+    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified quarterbacks (14+ pass attempts a game).");
     // With two in the pool a value is 0 or 50: as coarse as the stat card's own.
     expect([got.a.values[0], got.b.values[0]]).toEqual([0, 50]);
   });
@@ -243,7 +243,7 @@ describe("pools of 0, 1 and 2", () => {
     const neither = wrVsTe([...WRS, ...TES]);
     expect(neither.radar).toBe("drawn");
     expect(comparePoolSentence(neither)).toBe(
-      "Radar: each player against qualified players at his position (2+ targets a game): 2 WRs, 2 TEs");
+      "Radar: each player against qualified players at his position (2+ targets a game): 2 WRs, 2 TEs.");
   });
 
   it("both pools short: one sentence naming both positions, in the pair's order", () => {
@@ -265,23 +265,35 @@ describe("the pool sentence (C4): the count is the pool's own length", () => {
   it("one sentence per group, with the stat card's thresholds", () => {
     expect([QB_MIN_ATT_PER_GAME, RB_MIN_CAR_PER_GAME, WR_MIN_TGT_PER_GAME]).toEqual([14, 6, 2]);
     expect(comparePoolSentence(compare("QB", "J.Allen", "M.Stafford"))).toBe(
-      "Radar: percentile among the 42 qualified quarterbacks (14+ attempts a game)");
+      "Radar: percentile among the 42 qualified quarterbacks (14+ pass attempts a game).");
     expect(comparePoolSentence(compare("RB", "Bi.Robinson", "J.Gibbs"))).toBe(
-      "Radar: percentile among the 54 qualified running backs (6+ carries a game)");
+      "Radar: percentile among the 54 qualified running backs (6+ carries a game).");
     expect(comparePoolSentence(compare("WR", "C.Lamb", "J.Smith-Njigba"))).toBe(
-      "Radar: percentile among the 129 qualified WRs (2+ targets a game)");
+      "Radar: percentile among the 129 qualified WRs (2+ targets a game).");
     expect(comparePoolSentence(compare("WR", "T.McBride", "S.LaPorta"))).toBe(
-      "Radar: percentile among the 56 qualified TEs (2+ targets a game)");
+      "Radar: percentile among the 56 qualified TEs (2+ targets a game).");
     expect(comparePoolSentence(compare("WR", "C.Lamb", "T.McBride"))).toBe(
-      "Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 56 TEs");
+      "Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 56 TEs.");
     expect(comparePoolSentence(compare("WR", "T.McBride", "C.Lamb"))).toBe(
-      "Radar: each player against qualified players at his position (2+ targets a game): 56 TEs, 129 WRs");
+      "Radar: each player against qualified players at his position (2+ targets a game): 56 TEs, 129 WRs.");
   });
 
   it("the number in the sentence is the number of players the percentiles were computed against", () => {
     const got = compare("QB", "J.Allen", "M.Stafford");
     expect(got.a.poolSize).toBe((TABLES.QB as unknown as QBSeasonStat[]).filter(qbEligible).length);
     expect(comparePoolSentence(got)).toContain(` ${got.a.poolSize} `);
+  });
+
+  it("one voice: quarterbacks are counted in pass attempts in every line, and every line ends with a full stop", () => {
+    const low = compare("QB", "T.Huntley", "J.Allen");
+    const few = buildComparison({ group: "QB", rowA: asRow(find(TABLES.QB, "T.Huntley")), rowB: asRow(find(TABLES.QB, "J.Allen")), all: [], teamA: "BAL", teamB: "BUF" });
+    const lines = [comparePoolSentence(low)!, compareSmallSampleSentence(low, "A", "B")!, compareTooFewSentence(few)!];
+    expect(lines).toEqual([
+      "Radar: percentile among the 42 qualified quarterbacks (14+ pass attempts a game).",
+      "Small sample: T.Huntley has 9 pass attempts in 1 game (under 14 a game).",
+      "Not enough qualified quarterbacks to draw the radar (14+ pass attempts a game).",
+    ]);
+    for (const line of [...lines, comparePoolSentence(compare("WR", "C.Lamb", "T.McBride"))!]) expect(line.endsWith(".")).toBe(true);
   });
 
   it("it never calls the rule PFR", () => {
@@ -343,7 +355,7 @@ describe("the small-sample sentence (C6): shown exactly when a player is under t
     const b = { player_id: "b", player_name: "B", team_id: "KC", games: 1, attempts: 30 };
     const got = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b]), teamA: "BUF", teamB: "KC" });
     expect(got.radar).toBe("too-few");
-    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).");
+    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ pass attempts a game).");
     expect(compareSmallSampleSentence(got, "A", "B")).toBe("Small sample: A has 3 pass attempts in 1 game (under 14 a game).");
   });
 
@@ -380,6 +392,15 @@ describe("the small-sample sentence (C6): shown exactly when a player is under t
         expect(s === null || !s.includes("A.Odd")).toBe(true);
       });
     }
+
+    it("0 games: his clause is left out (never \"in 0 games\")", () => {
+      const got = pair(0, 0);
+      expect([got.a.volume, got.a.games, got.a.eligible]).toEqual([0, 0, false]);
+      expect(compareSmallSampleSentence(got, "A", "B")).toBeNull();
+      expect(compareSmallSampleSentence(pair(5, "0"), "A", "B")).toBeNull();
+      // 0 attempts in a real game is a fact and is printed.
+      expect(compareSmallSampleSentence(pair(0, 1), "A", "B")).toBe("Small sample: A.Odd has 0 pass attempts in 1 game (under 14 a game).");
+    });
 
     it("one player's numbers are unusable, the other's are fine: only the other is named", () => {
       const a = { player_id: "a", player_name: "A.Odd", team_id: "BUF", games: 1, attempts: null };
@@ -452,7 +473,7 @@ describe("a player with too few radar stats gets no outline, as on his stat card
       "No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.",
     ]);
     // His values and mask are still his stat card's: only the drawing rule is added.
-    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 129 qualified WRs (2+ targets a game)");
+    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 129 qualified WRs (2+ targets a game).");
   });
 
   it("both players: two sentences, and the pool sentence goes (no radar is drawn)", () => {
@@ -495,10 +516,10 @@ describe("position words come from a closed list", () => {
       const got = build(rows);
       // wrCardPool matches the position exactly: the two qualified rows that carry the same value.
       expect(got.a.poolSize).toBe(2);
-      expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified receivers (2+ targets a game)");
+      expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified receivers (2+ targets a game).");
       const mixed = buildComparison({ group: "WR", rowA: asRow(rows[0]), rowB: asRow(rows[3]), all: asRows(rows), teamA: "DAL", teamB: "ARI" });
       expect(comparePoolSentence(mixed)).toBe(
-        "Radar: each player against qualified players at his position (2+ targets a game): 2 receivers, 2 WRs");
+        "Radar: each player against qualified players at his position (2+ targets a game): 2 receivers, 2 WRs.");
       const few = build([rec("a", junk), rec("b", junk, 1)]);
       expect(compareTooFewSentence(few)).toBe("Not enough qualified receivers to draw the radar (2+ targets a game).");
     });
@@ -600,7 +621,7 @@ describe("buildComparison: values and the missing mask", () => {
     const b = { player_id: "b", player_name: "B", team_id: "ARI", targets: 8, games: 1, ...RADAR_STATS };
     const c = { player_id: "c", player_name: "C", team_id: "ARI", targets: 1, games: 1, ...RADAR_STATS };
     const got = buildComparison({ group: "WR", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b, c]), teamA: "DAL", teamB: "ARI" });
-    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified receivers (2+ targets a game)");
+    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified receivers (2+ targets a game).");
     const few = buildComparison({ group: "WR", rowA: asRow(a), rowB: asRow(c), all: asRows([a, c]), teamA: "DAL", teamB: "ARI" });
     expect(compareTooFewSentence(few)).toBe("Not enough qualified receivers to draw the radar (2+ targets a game).");
   });

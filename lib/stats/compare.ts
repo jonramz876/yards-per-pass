@@ -144,7 +144,7 @@ type GroupConfig = {
   volumeWords: [string, string];
   /** The line: this many a game. */
   minPerGame: number;
-  /** "14+ attempts", as the sentences print the line. */
+  /** "14+ pass attempts", as the sentences print the line (the same noun as volumeWords). */
   thresholdWords: string;
 };
 
@@ -159,7 +159,7 @@ const GROUPS: Record<CompareGroup, GroupConfig> = {
     eligible: (row) => qbEligible(row as QBSeasonStat),
     poolPosition: () => "QB",
     volumeKey: "attempts", volumeWords: ["pass attempt", "pass attempts"],
-    minPerGame: QB_MIN_ATT_PER_GAME, thresholdWords: `${QB_MIN_ATT_PER_GAME}+ attempts`,
+    minPerGame: QB_MIN_ATT_PER_GAME, thresholdWords: `${QB_MIN_ATT_PER_GAME}+ pass attempts`,
   },
   WR: {
     radarKeys: WR_RADAR_KEYS, radarAxes: WR_RADAR_AXES, compStats: WR_COMP_STATS,
@@ -369,9 +369,9 @@ export function comparePoolSentence(c: Comparison): string | null {
   const line = GROUPS[c.group].thresholdWords;
   if (c.a.poolPosition !== c.b.poolPosition) {
     return `Radar: each player against qualified players at his position (${line} a game): ` +
-      `${c.a.poolSize} ${poolWord(c.group, c.a)}, ${c.b.poolSize} ${poolWord(c.group, c.b)}`;
+      `${c.a.poolSize} ${poolWord(c.group, c.a)}, ${c.b.poolSize} ${poolWord(c.group, c.b)}.`;
   }
-  return `Radar: percentile among the ${c.a.poolSize} qualified ${poolWord(c.group, c.a)} (${line} a game)`;
+  return `Radar: percentile among the ${c.a.poolSize} qualified ${poolWord(c.group, c.a)} (${line} a game).`;
 }
 
 /**
@@ -418,13 +418,14 @@ function sentenceNames(c: Comparison, nameA: CompareName, nameB: CompareName): [
 /**
  * C6: one line naming each player who is under the stat card's line. null when
  * neither is. Shown whether or not a radar is drawn. A player whose attempts /
- * targets / carries or games are not usable numbers is left out of the line.
+ * targets / carries or games are not usable numbers, or who has 0 games, is
+ * left out of the line (never a made-up number, never "in 0 games").
  */
 export function compareSmallSampleSentence(c: Comparison, nameA: CompareName, nameB: CompareName): string | null {
   const cfg = GROUPS[c.group];
   const names = sentenceNames(c, nameA, nameB);
   const part = (p: ComparisonPlayer, name: string): string[] =>
-    p.eligible || p.volume === null || p.games === null ? [] : [
+    p.eligible || p.volume === null || p.games === null || p.games === 0 ? [] : [
       `${name} has ${p.volume} ${cfg.volumeWords[p.volume === 1 ? 0 : 1]} in ${p.games} ${p.games === 1 ? "game" : "games"}`,
     ];
   const parts = [...part(c.a, names[0]), ...part(c.b, names[1])];
