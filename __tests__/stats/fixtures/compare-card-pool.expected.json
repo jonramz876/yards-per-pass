@@ -1,0 +1,1110 @@
+{
+ "_provenance": "Expected Compare-page output with the stat card's pools (each player against the qualified players of his own position), computed by docs/superpowers/specs/compare-card-reference/build_data.py (a Python re-statement of the rules, no JavaScript involved) from compare-2026-w4-rows.json on 2026-10-09. Radar percentiles are unrounded; null = no data for that axis. Never edited and never re-captured to make a test pass.",
+ "pairs": {
+  "QB": {
+   "group": "QB",
+   "axes": [
+    "EPA/DB",
+    "CPOE",
+    "DB/Game",
+    "aDOT",
+    "Ball Security",
+    "Success%",
+    "Rush EPA"
+   ],
+   "a": {
+    "slug": "josh-allen",
+    "name": "Josh Allen",
+    "shortName": "J.Allen",
+    "team": "BUF",
+    "color": "#00338D",
+    "position": "QB",
+    "poolSize": 42,
+    "eligible": true,
+    "volume": 119,
+    "games": 4,
+    "values": [
+     83.33333333333334,
+     80.95238095238095,
+     42.857142857142854,
+     88.09523809523809,
+     35.714285714285715,
+     42.857142857142854,
+     97.5609756097561
+    ]
+   },
+   "b": {
+    "slug": "matthew-stafford",
+    "name": "Matthew Stafford",
+    "shortName": "M.Stafford",
+    "team": "LA",
+    "color": "#dc2626",
+    "position": "QB",
+    "poolSize": 42,
+    "eligible": true,
+    "volume": 162,
+    "games": 4,
+    "values": [
+     45.23809523809524,
+     30.952380952380953,
+     88.09523809523809,
+     83.33333333333334,
+     16.666666666666664,
+     47.61904761904761,
+     9.75609756097561
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_db",
+     "label": "EPA/DB",
+     "a": "0.29",
+     "b": "0.05",
+     "winner": 1
+    },
+    {
+     "key": "cpoe",
+     "label": "CPOE",
+     "a": "+6.0",
+     "b": "-0.1",
+     "winner": 1
+    },
+    {
+     "key": "adot",
+     "label": "aDOT",
+     "a": "9.8",
+     "b": "9.6",
+     "winner": 1
+    },
+    {
+     "key": "success_rate",
+     "label": "Success%",
+     "a": "48.0%",
+     "b": "48.5%",
+     "winner": 2
+    },
+    {
+     "key": "passing_yards",
+     "label": "Pass Yds",
+     "a": "1039",
+     "b": "1189",
+     "winner": 2
+    },
+    {
+     "key": "touchdowns",
+     "label": "Pass TD",
+     "a": "6",
+     "b": "6",
+     "winner": 0
+    },
+    {
+     "key": "interceptions",
+     "label": "INT",
+     "a": "3",
+     "b": "6",
+     "winner": 1
+    },
+    {
+     "key": "any_a",
+     "label": "ANY/A",
+     "a": "7.61",
+     "b": "5.94",
+     "winner": 1
+    },
+    {
+     "key": "passer_rating",
+     "label": "Rating",
+     "a": "100.1",
+     "b": "80.5",
+     "winner": 1
+    },
+    {
+     "key": "td_pct",
+     "label": "TD%",
+     "a": "5.0",
+     "b": "3.7",
+     "winner": 1
+    },
+    {
+     "key": "int_pct",
+     "label": "INT%",
+     "a": "2.5",
+     "b": "3.7",
+     "winner": 1
+    },
+    {
+     "key": "sack_pct",
+     "label": "SK%",
+     "a": "7.0",
+     "b": "3.6",
+     "winner": 2
+    },
+    {
+     "key": "total_epa",
+     "label": "Total EPA",
+     "a": "38.8",
+     "b": "9.0",
+     "winner": 1
+    },
+    {
+     "key": "rush_yards",
+     "label": "Rush Yds",
+     "a": "123",
+     "b": "26",
+     "winner": 1
+    },
+    {
+     "key": "rush_tds",
+     "label": "Rush TD",
+     "a": "7",
+     "b": "0",
+     "winner": 1
+    },
+    {
+     "key": "scramble_pct",
+     "label": "SCR%",
+     "a": "5.9",
+     "b": "2.4",
+     "winner": 1
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts",
+     "a": "112.9",
+     "b": "62.2",
+     "winner": 1
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "4",
+     "b": "4",
+     "winner": 0
+    }
+   ]
+  },
+  "WR": {
+   "group": "WR",
+   "axes": [
+    "Tgt/Game",
+    "EPA/Tgt",
+    "CROE",
+    "aDOT",
+    "YAC/Rec",
+    "YPRR"
+   ],
+   "a": {
+    "slug": "ceedee-lamb",
+    "name": "CeeDee Lamb",
+    "shortName": "C.Lamb",
+    "team": "DAL",
+    "color": "#041E42",
+    "position": "WR",
+    "poolSize": 129,
+    "eligible": true,
+    "volume": 46,
+    "games": 4,
+    "values": [
+     97.67441860465115,
+     89.92248062015504,
+     88.37209302325581,
+     36.434108527131784,
+     59.375,
+     null
+    ]
+   },
+   "b": {
+    "slug": "jaxon-smith-njigba",
+    "name": "Jaxon Smith-Njigba",
+    "shortName": "J.Smith-Njigba",
+    "team": "SEA",
+    "color": "#dc2626",
+    "position": "WR",
+    "poolSize": 129,
+    "eligible": true,
+    "volume": 42,
+    "games": 4,
+    "values": [
+     95.34883720930233,
+     86.04651162790698,
+     86.82170542635659,
+     31.007751937984494,
+     63.28125,
+     null
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_target",
+     "label": "EPA/Tgt",
+     "a": "0.88",
+     "b": "0.77",
+     "winner": 1
+    },
+    {
+     "key": "croe",
+     "label": "CROE",
+     "a": "+15.1%",
+     "b": "+13.7%",
+     "winner": 1
+    },
+    {
+     "key": "air_yards_per_target",
+     "label": "aDOT",
+     "a": "10.2",
+     "b": "9.9",
+     "winner": 1
+    },
+    {
+     "key": "yac_per_reception",
+     "label": "YAC/Rec",
+     "a": "4.2",
+     "b": "4.5",
+     "winner": 2
+    },
+    {
+     "key": "yards_per_route_run",
+     "label": "YPRR",
+     "a": "—",
+     "b": "—",
+     "winner": 0
+    },
+    {
+     "key": "targets",
+     "label": "Targets",
+     "a": "46",
+     "b": "42",
+     "winner": 1
+    },
+    {
+     "key": "receptions",
+     "label": "Receptions",
+     "a": "37",
+     "b": "32",
+     "winner": 1
+    },
+    {
+     "key": "receiving_yards",
+     "label": "Yards",
+     "a": "498",
+     "b": "481",
+     "winner": 1
+    },
+    {
+     "key": "receiving_tds",
+     "label": "TDs",
+     "a": "4",
+     "b": "6",
+     "winner": 2
+    },
+    {
+     "key": "catch_rate",
+     "label": "Catch%",
+     "a": "80.4%",
+     "b": "76.2%",
+     "winner": 1
+    },
+    {
+     "key": "target_share",
+     "label": "Tgt Share",
+     "a": "31.9%",
+     "b": "36.5%",
+     "winner": 2
+    },
+    {
+     "key": "air_yards_share",
+     "label": "AY%",
+     "a": "45.7%",
+     "b": "49.9%",
+     "winner": 2
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts (PPR)",
+     "a": "110.8",
+     "b": "116.1",
+     "winner": 2
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "4",
+     "b": "4",
+     "winner": 0
+    }
+   ]
+  },
+  "RB": {
+   "group": "RB",
+   "axes": [
+    "Car/Game",
+    "EPA/Car",
+    "Stuff Avoid",
+    "Explosive%",
+    "Tgt/Game",
+    "Success%"
+   ],
+   "a": {
+    "slug": "bijan-robinson",
+    "name": "Bijan Robinson",
+    "shortName": "Bi.Robinson",
+    "team": "ATL",
+    "color": "#A71930",
+    "position": "RB",
+    "poolSize": 54,
+    "eligible": true,
+    "volume": 85,
+    "games": 4,
+    "values": [
+     92.5925925925926,
+     96.29629629629629,
+     87.03703703703704,
+     74.07407407407408,
+     83.33333333333334,
+     96.29629629629629
+    ]
+   },
+   "b": {
+    "slug": "jahmyr-gibbs",
+    "name": "Jahmyr Gibbs",
+    "shortName": "J.Gibbs",
+    "team": "DET",
+    "color": "#0076B6",
+    "position": "RB",
+    "poolSize": 54,
+    "eligible": true,
+    "volume": 80,
+    "games": 4,
+    "values": [
+     90.74074074074075,
+     64.81481481481481,
+     12.962962962962962,
+     85.18518518518519,
+     98.14814814814815,
+     90.74074074074075
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_carry",
+     "label": "EPA/Car",
+     "a": "0.13",
+     "b": "-0.02",
+     "winner": 1
+    },
+    {
+     "key": "success_rate",
+     "label": "Success%",
+     "a": "54.1%",
+     "b": "47.5%",
+     "winner": 1
+    },
+    {
+     "key": "stuff_rate",
+     "label": "Stuff%",
+     "a": "10.6%",
+     "b": "21.3%",
+     "winner": 1
+    },
+    {
+     "key": "explosive_rate",
+     "label": "Explosive%",
+     "a": "12.9%",
+     "b": "15.0%",
+     "winner": 2
+    },
+    {
+     "key": "carries",
+     "label": "Carries",
+     "a": "85",
+     "b": "80",
+     "winner": 1
+    },
+    {
+     "key": "rushing_yards",
+     "label": "Rush Yds",
+     "a": "494",
+     "b": "353",
+     "winner": 1
+    },
+    {
+     "key": "rushing_tds",
+     "label": "Rush TD",
+     "a": "4",
+     "b": "5",
+     "winner": 2
+    },
+    {
+     "key": "yards_per_carry",
+     "label": "YPC",
+     "a": "5.8",
+     "b": "4.4",
+     "winner": 1
+    },
+    {
+     "key": "total_touches",
+     "label": "TCH",
+     "a": "99",
+     "b": "102",
+     "winner": 2
+    },
+    {
+     "key": "total_rushing_epa",
+     "label": "Total EPA",
+     "a": "11.2",
+     "b": "-1.5",
+     "winner": 1
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts (PPR)",
+     "a": "105.4",
+     "b": "116.1",
+     "winner": 2
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "4",
+     "b": "4",
+     "winner": 0
+    }
+   ]
+  },
+  "TE": {
+   "group": "WR",
+   "axes": [
+    "Tgt/Game",
+    "EPA/Tgt",
+    "CROE",
+    "aDOT",
+    "YAC/Rec",
+    "YPRR"
+   ],
+   "a": {
+    "slug": "trey-mcbride",
+    "name": "Trey McBride",
+    "shortName": "T.McBride",
+    "team": "ARI",
+    "color": "#97233F",
+    "position": "TE",
+    "poolSize": 56,
+    "eligible": true,
+    "volume": 46,
+    "games": 4,
+    "values": [
+     96.42857142857143,
+     50.0,
+     50.0,
+     41.07142857142857,
+     14.285714285714285,
+     null
+    ]
+   },
+   "b": {
+    "slug": "sam-laporta",
+    "name": "Sam LaPorta",
+    "shortName": "S.LaPorta",
+    "team": "DET",
+    "color": "#0076B6",
+    "position": "TE",
+    "poolSize": 56,
+    "eligible": true,
+    "volume": 32,
+    "games": 4,
+    "values": [
+     92.85714285714286,
+     80.35714285714286,
+     51.78571428571429,
+     48.214285714285715,
+     42.857142857142854,
+     null
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_target",
+     "label": "EPA/Tgt",
+     "a": "0.20",
+     "b": "0.58",
+     "winner": 2
+    },
+    {
+     "key": "croe",
+     "label": "CROE",
+     "a": "+2.8%",
+     "b": "+3.2%",
+     "winner": 2
+    },
+    {
+     "key": "air_yards_per_target",
+     "label": "aDOT",
+     "a": "5.5",
+     "b": "5.9",
+     "winner": 2
+    },
+    {
+     "key": "yac_per_reception",
+     "label": "YAC/Rec",
+     "a": "2.5",
+     "b": "4.5",
+     "winner": 2
+    },
+    {
+     "key": "yards_per_route_run",
+     "label": "YPRR",
+     "a": "—",
+     "b": "—",
+     "winner": 0
+    },
+    {
+     "key": "targets",
+     "label": "Targets",
+     "a": "46",
+     "b": "32",
+     "winner": 1
+    },
+    {
+     "key": "receptions",
+     "label": "Receptions",
+     "a": "33",
+     "b": "22",
+     "winner": 1
+    },
+    {
+     "key": "receiving_yards",
+     "label": "Yards",
+     "a": "242",
+     "b": "228",
+     "winner": 1
+    },
+    {
+     "key": "receiving_tds",
+     "label": "TDs",
+     "a": "2",
+     "b": "2",
+     "winner": 0
+    },
+    {
+     "key": "catch_rate",
+     "label": "Catch%",
+     "a": "71.7%",
+     "b": "68.8%",
+     "winner": 1
+    },
+    {
+     "key": "target_share",
+     "label": "Tgt Share",
+     "a": "31.1%",
+     "b": "20.1%",
+     "winner": 1
+    },
+    {
+     "key": "air_yards_share",
+     "label": "AY%",
+     "a": "27.0%",
+     "b": "15.4%",
+     "winner": 1
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts (PPR)",
+     "a": "69.2",
+     "b": "56.8",
+     "winner": 1
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "4",
+     "b": "4",
+     "winner": 0
+    }
+   ]
+  },
+  "WRTE": {
+   "group": "WR",
+   "axes": [
+    "Tgt/Game",
+    "EPA/Tgt",
+    "CROE",
+    "aDOT",
+    "YAC/Rec",
+    "YPRR"
+   ],
+   "a": {
+    "slug": "ceedee-lamb",
+    "name": "CeeDee Lamb",
+    "shortName": "C.Lamb",
+    "team": "DAL",
+    "color": "#041E42",
+    "position": "WR",
+    "poolSize": 129,
+    "eligible": true,
+    "volume": 46,
+    "games": 4,
+    "values": [
+     97.67441860465115,
+     89.92248062015504,
+     88.37209302325581,
+     36.434108527131784,
+     59.375,
+     null
+    ]
+   },
+   "b": {
+    "slug": "trey-mcbride",
+    "name": "Trey McBride",
+    "shortName": "T.McBride",
+    "team": "ARI",
+    "color": "#97233F",
+    "position": "TE",
+    "poolSize": 56,
+    "eligible": true,
+    "volume": 46,
+    "games": 4,
+    "values": [
+     96.42857142857143,
+     50.0,
+     50.0,
+     41.07142857142857,
+     14.285714285714285,
+     null
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_target",
+     "label": "EPA/Tgt",
+     "a": "0.88",
+     "b": "0.20",
+     "winner": 1
+    },
+    {
+     "key": "croe",
+     "label": "CROE",
+     "a": "+15.1%",
+     "b": "+2.8%",
+     "winner": 1
+    },
+    {
+     "key": "air_yards_per_target",
+     "label": "aDOT",
+     "a": "10.2",
+     "b": "5.5",
+     "winner": 1
+    },
+    {
+     "key": "yac_per_reception",
+     "label": "YAC/Rec",
+     "a": "4.2",
+     "b": "2.5",
+     "winner": 1
+    },
+    {
+     "key": "yards_per_route_run",
+     "label": "YPRR",
+     "a": "—",
+     "b": "—",
+     "winner": 0
+    },
+    {
+     "key": "targets",
+     "label": "Targets",
+     "a": "46",
+     "b": "46",
+     "winner": 0
+    },
+    {
+     "key": "receptions",
+     "label": "Receptions",
+     "a": "37",
+     "b": "33",
+     "winner": 1
+    },
+    {
+     "key": "receiving_yards",
+     "label": "Yards",
+     "a": "498",
+     "b": "242",
+     "winner": 1
+    },
+    {
+     "key": "receiving_tds",
+     "label": "TDs",
+     "a": "4",
+     "b": "2",
+     "winner": 1
+    },
+    {
+     "key": "catch_rate",
+     "label": "Catch%",
+     "a": "80.4%",
+     "b": "71.7%",
+     "winner": 1
+    },
+    {
+     "key": "target_share",
+     "label": "Tgt Share",
+     "a": "31.9%",
+     "b": "31.1%",
+     "winner": 1
+    },
+    {
+     "key": "air_yards_share",
+     "label": "AY%",
+     "a": "45.7%",
+     "b": "27.0%",
+     "winner": 1
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts (PPR)",
+     "a": "110.8",
+     "b": "69.2",
+     "winner": 1
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "4",
+     "b": "4",
+     "winner": 0
+    }
+   ]
+  },
+  "LOWQB": {
+   "group": "QB",
+   "axes": [
+    "EPA/DB",
+    "CPOE",
+    "DB/Game",
+    "aDOT",
+    "Ball Security",
+    "Success%",
+    "Rush EPA"
+   ],
+   "a": {
+    "slug": "tyler-huntley",
+    "name": "Tyler Huntley",
+    "shortName": "T.Huntley",
+    "team": "BAL",
+    "color": "#241773",
+    "position": "QB",
+    "poolSize": 42,
+    "eligible": false,
+    "volume": 9,
+    "games": 1,
+    "values": [
+     50.0,
+     95.23809523809523,
+     0.0,
+     0.0,
+     78.57142857142857,
+     90.47619047619048,
+     31.70731707317073
+    ]
+   },
+   "b": {
+    "slug": "josh-allen",
+    "name": "Josh Allen",
+    "shortName": "J.Allen",
+    "team": "BUF",
+    "color": "#dc2626",
+    "position": "QB",
+    "poolSize": 42,
+    "eligible": true,
+    "volume": 119,
+    "games": 4,
+    "values": [
+     83.33333333333334,
+     80.95238095238095,
+     42.857142857142854,
+     88.09523809523809,
+     35.714285714285715,
+     42.857142857142854,
+     97.5609756097561
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_db",
+     "label": "EPA/DB",
+     "a": "0.08",
+     "b": "0.29",
+     "winner": 2
+    },
+    {
+     "key": "cpoe",
+     "label": "CPOE",
+     "a": "+8.4",
+     "b": "+6.0",
+     "winner": 1
+    },
+    {
+     "key": "adot",
+     "label": "aDOT",
+     "a": "0.4",
+     "b": "9.8",
+     "winner": 2
+    },
+    {
+     "key": "success_rate",
+     "label": "Success%",
+     "a": "60.0%",
+     "b": "48.0%",
+     "winner": 1
+    },
+    {
+     "key": "passing_yards",
+     "label": "Pass Yds",
+     "a": "63",
+     "b": "1039",
+     "winner": 2
+    },
+    {
+     "key": "touchdowns",
+     "label": "Pass TD",
+     "a": "0",
+     "b": "6",
+     "winner": 2
+    },
+    {
+     "key": "interceptions",
+     "label": "INT",
+     "a": "0",
+     "b": "3",
+     "winner": 1
+    },
+    {
+     "key": "any_a",
+     "label": "ANY/A",
+     "a": "7.00",
+     "b": "7.61",
+     "winner": 2
+    },
+    {
+     "key": "passer_rating",
+     "label": "Rating",
+     "a": "95.8",
+     "b": "100.1",
+     "winner": 2
+    },
+    {
+     "key": "td_pct",
+     "label": "TD%",
+     "a": "0.0",
+     "b": "5.0",
+     "winner": 2
+    },
+    {
+     "key": "int_pct",
+     "label": "INT%",
+     "a": "0.0",
+     "b": "2.5",
+     "winner": 1
+    },
+    {
+     "key": "sack_pct",
+     "label": "SK%",
+     "a": "0.0",
+     "b": "7.0",
+     "winner": 1
+    },
+    {
+     "key": "total_epa",
+     "label": "Total EPA",
+     "a": "0.8",
+     "b": "38.8",
+     "winner": 2
+    },
+    {
+     "key": "rush_yards",
+     "label": "Rush Yds",
+     "a": "18",
+     "b": "123",
+     "winner": 2
+    },
+    {
+     "key": "rush_tds",
+     "label": "Rush TD",
+     "a": "0",
+     "b": "7",
+     "winner": 2
+    },
+    {
+     "key": "scramble_pct",
+     "label": "SCR%",
+     "a": "10.0",
+     "b": "5.9",
+     "winner": 1
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts",
+     "a": "4.3",
+     "b": "112.9",
+     "winner": 2
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "1",
+     "b": "4",
+     "winner": 2
+    }
+   ]
+  },
+  "WRRB": {
+   "group": "WR",
+   "axes": [
+    "Tgt/Game",
+    "EPA/Tgt",
+    "CROE",
+    "aDOT",
+    "YAC/Rec",
+    "YPRR"
+   ],
+   "a": {
+    "slug": "ceedee-lamb",
+    "name": "CeeDee Lamb",
+    "shortName": "C.Lamb",
+    "team": "DAL",
+    "color": "#041E42",
+    "position": "WR",
+    "poolSize": 129,
+    "eligible": true,
+    "volume": 46,
+    "games": 4,
+    "values": [
+     97.67441860465115,
+     89.92248062015504,
+     88.37209302325581,
+     36.434108527131784,
+     59.375,
+     null
+    ]
+   },
+   "b": {
+    "slug": "aaron-jones",
+    "name": "Aaron Jones",
+    "shortName": "A.Jones",
+    "team": "MIN",
+    "color": "#4F2683",
+    "position": "RB",
+    "poolSize": 57,
+    "eligible": true,
+    "volume": 15,
+    "games": 3,
+    "values": [
+     84.21052631578947,
+     28.07017543859649,
+     14.035087719298245,
+     50.877192982456144,
+     57.89473684210527,
+     null
+    ]
+   },
+   "rows": [
+    {
+     "key": "epa_per_target",
+     "label": "EPA/Tgt",
+     "a": "0.88",
+     "b": "-0.23",
+     "winner": 1
+    },
+    {
+     "key": "croe",
+     "label": "CROE",
+     "a": "+15.1%",
+     "b": "-17.6%",
+     "winner": 1
+    },
+    {
+     "key": "air_yards_per_target",
+     "label": "aDOT",
+     "a": "10.2",
+     "b": "-0.1",
+     "winner": 1
+    },
+    {
+     "key": "yac_per_reception",
+     "label": "YAC/Rec",
+     "a": "4.2",
+     "b": "8.0",
+     "winner": 2
+    },
+    {
+     "key": "yards_per_route_run",
+     "label": "YPRR",
+     "a": "—",
+     "b": "—",
+     "winner": 0
+    },
+    {
+     "key": "targets",
+     "label": "Targets",
+     "a": "46",
+     "b": "15",
+     "winner": 1
+    },
+    {
+     "key": "receptions",
+     "label": "Receptions",
+     "a": "37",
+     "b": "9",
+     "winner": 1
+    },
+    {
+     "key": "receiving_yards",
+     "label": "Yards",
+     "a": "498",
+     "b": "68",
+     "winner": 1
+    },
+    {
+     "key": "receiving_tds",
+     "label": "TDs",
+     "a": "4",
+     "b": "0",
+     "winner": 1
+    },
+    {
+     "key": "catch_rate",
+     "label": "Catch%",
+     "a": "80.4%",
+     "b": "60.0%",
+     "winner": 1
+    },
+    {
+     "key": "target_share",
+     "label": "Tgt Share",
+     "a": "31.9%",
+     "b": "15.0%",
+     "winner": 1
+    },
+    {
+     "key": "air_yards_share",
+     "label": "AY%",
+     "a": "45.7%",
+     "b": "-0.1%",
+     "winner": 1
+    },
+    {
+     "key": "fantasy_pts",
+     "label": "FPts (PPR)",
+     "a": "110.8",
+     "b": "15.8",
+     "winner": 1
+    },
+    {
+     "key": "games",
+     "label": "Games",
+     "a": "4",
+     "b": "3",
+     "winner": 1
+    }
+   ]
+  }
+ }
+}

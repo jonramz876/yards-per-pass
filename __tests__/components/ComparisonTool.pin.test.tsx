@@ -1,20 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { readFileSync } from "fs";
+import { createHash } from "crypto";
 import path from "path";
 
-// THE PIN for the Compare page (compare card spec 2026-10-09, §10 PR 1).
+// THE PIN for the Compare page (compare card spec 2026-10-09, section 10).
 //
-// What it is: everything a visitor of /compare can see for a pair of players,
-// written down from the component AS IT WAS BEFORE its maths moved to
-// lib/stats/compare.ts. This file and its expected file were committed first,
-// on the unmodified component, and must stay byte-identical through the move:
-// that is the proof that PR 1 changes nothing visible.
+// What it is: everything a visitor of /compare can see for a pair of players.
+// It was written down in PR 1 from the component AS IT WAS BEFORE its maths
+// moved to lib/stats/compare.ts, and stayed byte-identical through that move.
 //
 // What it records, per pair and per data path:
-//   radar  values1 / values2 exactly as OverlayRadarChart receives them,
-//          including NaN where the code produces NaN (a missing WR/TE axis)
-//          and 0 where it produces 0 (a missing QB/RB axis)
+//   radar  what OverlayRadarChart receives: values1 / values2 (0-100, never
+//          NaN) and missing1 / missing2 (true where an axis has no data)
 //   chart  both colours (after the contrast rule), both names, the axes
 //   table  every cell's text and class (bg-green-50 marks the better value)
 //          and both header colours
@@ -23,9 +21,12 @@ import path from "path";
 // parseNumericFields: a missing number is null), or the browser reads it
 // itself (raw rows: a missing number can be the string "NaN").
 //
+// PR 1b (the radar now ranks each player in the stat card's pool) replaced the
+// "radar" parts ONLY: new numbers, and a mask in place of NaN. The "chart" and
+// "table" parts are PR 1's, byte for byte; a test below holds their hash.
+//
 // RULES. Never edit the expected file to make this test pass, and never
-// re-capture it. PR 1b (the pool switch) replaces the "radar" half only; the
-// "chart" and "table" halves stay byte-identical then too.
+// re-capture it.
 
 const captured = vi.hoisted(() => ({ calls: [] as Record<string, unknown>[] }));
 
@@ -68,8 +69,9 @@ import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types
 // player against every row of his table.
 import rowsJson from "../stats/fixtures/compare-2026-w4-rows.json";
 // Independent check: the same numbers computed by the Python reference
-// (docs/superpowers/specs/compare-card-reference/build_data.py), 2 decimals.
-import goldJson from "../stats/fixtures/compare-pool-all.expected.json";
+// (docs/superpowers/specs/compare-card-reference/build_data.py), unrounded.
+import goldJson from "../stats/fixtures/compare-card-pool.expected.json";
+import { buildQBCardData, buildWRCardData, buildRBCardData, rbCardPool } from "@/lib/stats/tecmo-card";
 
 type Row = Record<string, unknown>;
 const QB_ROWS = rowsJson.qb as Row[];
@@ -105,7 +107,7 @@ const BIJAN_AS_FB: Slug = { ...P.bijan, position: "FB" };
 // row is edited for the test: Gibbs' real row with stuff_rate removed. As the
 // server sends it (null) the Stuff Avoid axis plots as if it were the best
 // possible value; as the browser reads it ("NaN") it plots at the centre. A
-// known quirk, pinned as it is, not fixed here.
+// known quirk the stat card shares, pinned as it is, not fixed here.
 const RB_ROWS_GIBBS_NO_STUFF_RATE = RB_ROWS.map((r) =>
   r.player_id === P.gibbs.player_id ? { ...r, stuff_rate: null } : r);
 
@@ -132,17 +134,13 @@ const SOURCE_TABLE: Record<Table, string> = { qb: "qb_season_stats", receivers: 
 
 type Cell = { text: string; className: string };
 type Pin = {
-  radar: { values1: (number | "NaN")[]; values2: (number | "NaN")[] };
+  radar: { values1: number[]; values2: number[]; missing1: boolean[]; missing2: boolean[] };
   chart: { color1: unknown; color2: unknown; name1: unknown; name2: unknown; axes: unknown };
   table: {
     headers: { text: string; className: string; style: string | null }[];
     rows: { a: Cell; stat: Cell; b: Cell }[];
   };
 };
-
-// JSON has no NaN: it is written as the string "NaN" in the expected file.
-const nanSafe = (values: unknown): (number | "NaN")[] =>
-  (values as number[]).map((v) => (Number.isNaN(v) ? "NaN" : v));
 
 async function capture(c: Case, dataPath: DataPath): Promise<Pin> {
   params = new URLSearchParams(`p1=${c.p1.slug}&p2=${c.p2.slug}`);
@@ -167,7 +165,10 @@ async function capture(c: Case, dataPath: DataPath): Promise<Pin> {
   const props = captured.calls[captured.calls.length - 1];
   const cell = (el: Element): Cell => ({ text: el.textContent ?? "", className: el.className });
   return {
-    radar: { values1: nanSafe(props.values1), values2: nanSafe(props.values2) },
+    radar: {
+      values1: props.values1 as number[], values2: props.values2 as number[],
+      missing1: props.missing1 as boolean[], missing2: props.missing2 as boolean[],
+    },
     chart: { color1: props.color1, color2: props.color2, name1: props.name1, name2: props.name2, axes: props.axes },
     table: {
       headers: Array.from(container.querySelectorAll("thead th")).map((th) => ({
@@ -191,7 +192,7 @@ beforeEach(() => {
   captured.calls.length = 0;
 });
 
-describe("ComparisonTool pin: what /compare shows, recorded before the maths moved", () => {
+describe("ComparisonTool pin: what /compare shows", () => {
   for (const c of CASES) {
     for (const dataPath of PATHS) {
       it(`${c.id} (${dataPath} rows)`, async () => {
@@ -214,6 +215,24 @@ describe("ComparisonTool pin: what /compare shows, recorded before the maths mov
 describe("ComparisonTool pin: the expected file itself is what the spec says it is", () => {
   const pin = (id: string, dataPath: DataPath) => EXPECTED.pins[`${id}/${dataPath}`];
 
+  it("RADAR ONLY: the chart and table parts are PR 1's, byte for byte (every cell, every highlight, colours, names, axes)", () => {
+    // sha256 of the chart + table parts of all 20 entries, computed from the
+    // expected file as PR 1 committed it (main 8c1bb70), before the pool switch.
+    const PR1_CHART_AND_TABLE = "35c01fce2b873cf02e96ec071761530ba5faadb90aa44dc5005b68e80a773210";
+    const canon = JSON.stringify(Object.keys(EXPECTED.pins).sort().map((k) => [k, EXPECTED.pins[k].chart, EXPECTED.pins[k].table]));
+    expect(createHash("sha256").update(canon, "utf8").digest("hex")).toBe(PR1_CHART_AND_TABLE);
+  });
+
+  it("no NaN reaches the chart any more: numbers plus a mask", () => {
+    for (const [key, p] of Object.entries(EXPECTED.pins)) {
+      for (const values of [p.radar.values1, p.radar.values2]) {
+        for (const v of values) expect(typeof v === "number" && !Number.isNaN(v), key).toBe(true);
+      }
+      expect(p.radar.missing1, key).toHaveLength(p.radar.values1.length);
+      expect(p.radar.missing2, key).toHaveLength(p.radar.values2.length);
+    }
+  });
+
   it("null and \"NaN\" rows give the same page, except the one known quirk (F12)", () => {
     for (const c of CASES) {
       if (c.pathsDiffer) expect(pin(c.id, "browser")).not.toEqual(pin(c.id, "server"));
@@ -228,12 +247,15 @@ describe("ComparisonTool pin: the expected file itself is what the spec says it 
     const STUFF_AVOID = 2;
     expect((real.chart.axes as { label: string }[])[STUFF_AVOID].label).toBe("Stuff Avoid");
     // 1 - null = 1, the value of a back who was never stuffed: he outranks
-    // every back with a stuff rate above 0 (ties do not count as below).
-    const stuffedAtLeastOnce = RB_ROWS_GIBBS_NO_STUFF_RATE.filter((r) => (r.stuff_rate as number) > 0).length;
-    expect(RB_ROWS).toHaveLength(97);
-    expect(server.radar.values2[STUFF_AVOID]).toBe((stuffedAtLeastOnce / 97) * 100);
-    expect(server.radar.values2[STUFF_AVOID]).toBeGreaterThan(real.radar.values2[STUFF_AVOID] as number);
+    // every qualified back with a stuff rate above 0 (ties do not count as below).
+    const pool = rbCardPool(RB_ROWS_GIBBS_NO_STUFF_RATE as unknown as RBSeasonStat[]);
+    expect(pool).toHaveLength(54);
+    const stuffedAtLeastOnce = pool.filter((r) => (r.stuff_rate as number) > 0).length;
+    expect(server.radar.values2[STUFF_AVOID]).toBe((stuffedAtLeastOnce / 54) * 100);
+    expect(server.radar.values2[STUFF_AVOID]).toBeGreaterThan(real.radar.values2[STUFF_AVOID]);
     expect(browser.radar.values2[STUFF_AVOID]).toBe(0);
+    expect(server.radar.missing2).toEqual(Array(6).fill(false));
+    expect(browser.radar.missing2).toEqual(Array(6).fill(false));
     for (const p of [server, browser]) {
       const row = p.table.rows.find((r) => r.stat.text === "Stuff%")!;
       expect(row.b.text).toBe("—");
@@ -242,21 +264,24 @@ describe("ComparisonTool pin: the expected file itself is what the spec says it 
     }
   });
 
-  it("a missing WR/TE axis reaches the chart as NaN; a missing QB/RB axis as 0", () => {
+  it("a missing WR/TE axis reaches the chart as a masked 0; a missing QB/RB axis as a plain 0", () => {
     const YPRR = 5;
     for (const id of ["wr-lamb-smith-njigba", "te-mcbride-laporta", "wr-te-lamb-mcbride"]) {
       for (const p of PATHS) {
-        expect(pin(id, p).radar.values1[YPRR]).toBe("NaN");
-        expect(pin(id, p).radar.values2[YPRR]).toBe("NaN");
+        expect(pin(id, p).radar.missing1).toEqual([false, false, false, false, false, true]);
+        expect(pin(id, p).radar.missing2).toEqual([false, false, false, false, false, true]);
+        expect(pin(id, p).radar.values1[YPRR]).toBe(0);
       }
     }
-    // Missing for one player only: his value is NaN, the other's is a number.
+    // Missing for one player only: his mask is set, the other's is not.
     const YAC = 4;
-    expect(pin("wr-valdes-scantling-lamb", "server").radar.values1[YAC]).toBe("NaN");
-    expect(pin("wr-valdes-scantling-lamb", "server").radar.values2[YAC]).toBeTypeOf("number");
+    expect(pin("wr-valdes-scantling-lamb", "server").radar.missing1[YAC]).toBe(true);
+    expect(pin("wr-valdes-scantling-lamb", "server").radar.missing2[YAC]).toBe(false);
     const RUSH_EPA = 6;
-    expect(pin("qb-penix-allen", "server").radar.values1[RUSH_EPA]).toBe(0);
-    expect(pin("qb-penix-allen", "browser").radar.values1[RUSH_EPA]).toBe(0);
+    for (const p of PATHS) {
+      expect(pin("qb-penix-allen", p).radar.values1[RUSH_EPA]).toBe(0);
+      expect(pin("qb-penix-allen", p).radar.missing1).toEqual(Array(7).fill(false));
+    }
   });
 
   it("near-identical team colours: player 2 is moved to red; different colours are left alone", () => {
@@ -278,19 +303,23 @@ describe("ComparisonTool pin: the expected file itself is what the spec says it 
     expect(pin("rb-fullback-robinson-gibbs", "server")).toEqual(pin("rb-robinson-gibbs", "server"));
   });
 
-  it("agrees with the Python reference for the five reference pairs (radar to 2 decimals, colours, every cell, every highlight)", () => {
-    type GoldPair = {
-      a: { name: string; color: string }; b: { name: string; color: string };
-      axes: string[]; valuesA: (number | null)[]; valuesB: (number | null)[];
-      rows: { label: string; a: string; b: string; winner: number }[];
-    };
+  it("the reversed pair is the same two radars, swapped", () => {
+    const ab = pin("qb-allen-stafford", "server").radar;
+    const ba = pin("qb-stafford-allen", "server").radar;
+    expect(ba.values1).toEqual(ab.values2);
+    expect(ba.values2).toEqual(ab.values1);
+  });
+
+  it("agrees exactly with the Python reference for the five reference pairs (radar, colours, every cell, every highlight)", () => {
+    type GoldSide = { name: string; color: string; values: (number | null)[] };
+    type GoldPair = { a: GoldSide; b: GoldSide; axes: string[]; rows: { label: string; a: string; b: string; winner: number }[] };
     const gold = goldJson.pairs as unknown as Record<string, GoldPair>;
-    const round2 = (v: number | "NaN") => (v === "NaN" ? null : Math.round(v * 100) / 100);
+    const masked = (values: number[], missing: boolean[]) => values.map((v, i) => (missing[i] ? null : v));
     for (const c of CASES.filter((x) => x.gold)) {
       const g = gold[c.gold!];
       const p = pin(c.id, "server");
-      expect(p.radar.values1.map(round2), c.id).toEqual(g.valuesA);
-      expect(p.radar.values2.map(round2), c.id).toEqual(g.valuesB);
+      expect(masked(p.radar.values1, p.radar.missing1), c.id).toEqual(g.a.values);
+      expect(masked(p.radar.values2, p.radar.missing2), c.id).toEqual(g.b.values);
       expect(p.chart, c.id).toEqual({
         color1: g.a.color, color2: g.b.color, name1: g.a.name, name2: g.b.name,
         axes: g.axes.map((label) => ({ label })),
@@ -299,6 +328,29 @@ describe("ComparisonTool pin: the expected file itself is what the spec says it 
         label: r.stat.text, a: r.a.text, b: r.b.text,
         winner: r.a.className.includes("bg-green-50") ? 1 : r.b.className.includes("bg-green-50") ? 2 : 0,
       })), c.id).toEqual(g.rows.map(({ label, a, b, winner }) => ({ label, a, b, winner })));
+    }
+  });
+
+  it("each player's radar on /compare is the radar of his own stat card (same rows, the card's own builder)", () => {
+    const card = (table: Table, slug: Slug) => {
+      if (table === "qb") {
+        const all = QB_ROWS as unknown as QBSeasonStat[];
+        return buildQBCardData(all.find((r) => r.player_id === slug.player_id)!, all, 2026);
+      }
+      if (table === "rb") {
+        const all = RB_ROWS as unknown as RBSeasonStat[];
+        return buildRBCardData(all.find((r) => r.player_id === slug.player_id)!, all, 2026);
+      }
+      const all = REC_ROWS as unknown as ReceiverSeasonStat[];
+      return buildWRCardData(all.find((r) => r.player_id === slug.player_id)!, all, 2026);
+    };
+    for (const c of CASES.filter((x) => !x.pathsDiffer)) {
+      const p = pin(c.id, "server").radar;
+      const [one, two] = [card(c.table, c.p1), card(c.table, c.p2)];
+      expect(p.values1, c.id).toEqual(one.radarValues);
+      expect(p.values2, c.id).toEqual(two.radarValues);
+      expect(p.missing1, c.id).toEqual(one.radarMissing ?? one.radarValues.map(() => false));
+      expect(p.missing2, c.id).toEqual(two.radarMissing ?? two.radarValues.map(() => false));
     }
   });
 
