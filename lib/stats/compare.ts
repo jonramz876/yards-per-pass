@@ -9,16 +9,21 @@
 // list (a test checks the imports). It runs in the browser today and will run
 // on the server for the card.
 //
-// PR 1 = no visible change. The pool is still "every row of the position's
-// season table", exactly as /compare has always ranked. Switching to the stat
-// card's qualified pools is PR 1b and changes only the pool step below.
+// The pool (PR 1b): each player is ranked against the stat card's pool for his
+// own position, through the pool functions lib/stats/tecmo-card.ts exports
+// and its card builders call. So a player has one radar shape on the site.
+// The stat table has no percentiles: the pool never touches it.
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import {
-  getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues,
+  getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues, radarHasTooFewAxes,
   QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
 } from "@/lib/stats/radar";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
+import {
+  qbCardPool, rbCardPool, wrCardPool, qbEligible, rbEligible, wrEligible,
+  QB_MIN_ATT_PER_GAME, WR_MIN_TGT_PER_GAME, RB_MIN_CAR_PER_GAME,
+} from "@/lib/stats/tecmo-card";
 
 // Perceptual color distance (weighted Euclidean, green-sensitive).
 // Inputs must be 7-character #RRGGBB (what getTeamColor returns); anything
@@ -127,23 +132,57 @@ type GroupConfig = {
   getRadarVal: (p: ComparePlayerRow, key: string) => number;
   /** WR/TE: an axis with no data is left out of the outline. QB/RB: it plots at the centre (0). */
   missingAxisIsGap: boolean;
+  /** The stat card's pool for this player: the qualified players of his position. */
+  pool: (row: ComparePlayerRow, all: ComparePlayerRow[]) => ComparePlayerRow[];
+  /** Is this player himself over the stat card's line? */
+  eligible: (row: ComparePlayerRow) => boolean;
+  /** The position his pool is made of. Receiver table: the season row's own position. */
+  poolPosition: (row: ComparePlayerRow) => string;
+  /** The column the line is drawn on (attempts, targets, carries). */
+  volumeKey: string;
+  /** How that column is named in a sentence: [one, many]. */
+  volumeWords: [string, string];
+  /** The line: this many a game. */
+  minPerGame: number;
+  /** "14+ pass attempts", as the sentences print the line (the same noun as volumeWords). */
+  thresholdWords: string;
 };
+
+const receiverPosition = (row: ComparePlayerRow): string => (row as ReceiverSeasonStat).position;
 
 const GROUPS: Record<CompareGroup, GroupConfig> = {
   QB: {
     radarKeys: QB_RADAR_KEYS, radarAxes: QB_RADAR_AXES, compStats: QB_COMP_STATS,
     getRadarVal: (p, k) => getQBRadarVal(p as QBSeasonStat, k),
     missingAxisIsGap: false,
+    pool: (_row, all) => qbCardPool(all as QBSeasonStat[]),
+    eligible: (row) => qbEligible(row as QBSeasonStat),
+    poolPosition: () => "QB",
+    volumeKey: "attempts", volumeWords: ["pass attempt", "pass attempts"],
+    minPerGame: QB_MIN_ATT_PER_GAME, thresholdWords: `${QB_MIN_ATT_PER_GAME}+ pass attempts`,
   },
   WR: {
     radarKeys: WR_RADAR_KEYS, radarAxes: WR_RADAR_AXES, compStats: WR_COMP_STATS,
     getRadarVal: (p, k) => getWRRadarVal(p as ReceiverSeasonStat, k),
     missingAxisIsGap: true,
+    // The row's own position picks the pool, as on the stat card: a WR against
+    // WRs, a TE against TEs, and a receiver-table row whose position is RB (or
+    // anything else) against the qualified rows of that same position.
+    pool: (row, all) => wrCardPool(all as ReceiverSeasonStat[], receiverPosition(row)),
+    eligible: (row) => wrEligible(row as ReceiverSeasonStat),
+    poolPosition: receiverPosition,
+    volumeKey: "targets", volumeWords: ["target", "targets"],
+    minPerGame: WR_MIN_TGT_PER_GAME, thresholdWords: `${WR_MIN_TGT_PER_GAME}+ targets`,
   },
   RB: {
     radarKeys: RB_RADAR_KEYS, radarAxes: RB_RADAR_AXES, compStats: RB_COMP_STATS,
     getRadarVal: (p, k) => getRBRadarVal(p as RBSeasonStat, k),
     missingAxisIsGap: false,
+    pool: (_row, all) => rbCardPool(all as RBSeasonStat[]),
+    eligible: (row) => rbEligible(row as RBSeasonStat),
+    poolPosition: () => "RB",
+    volumeKey: "carries", volumeWords: ["carry", "carries"],
+    minPerGame: RB_MIN_CAR_PER_GAME, thresholdWords: `${RB_MIN_CAR_PER_GAME}+ carries`,
   },
 };
 
@@ -154,6 +193,28 @@ export interface ComparisonPlayer {
   missing: boolean[];
   /** The colour this player is drawn in. */
   color: string;
+  /** How many players his percentiles were ranked against (the stat card's pool for his position). */
+  poolSize: number;
+  /** The position that pool is made of: "QB", "RB", or the receiver row's own position ("WR", "TE", ...). */
+  poolPosition: string;
+  /** False when he is under the stat card's line (a small sample). He is still ranked against the pool. */
+  eligible: boolean;
+  /**
+   * His attempts / targets / carries and his games, for the small-sample
+   * sentence. A numeric string is read as its number; anything that is not a
+   * finite number of 0 or more is null, and the sentence then leaves him out
+   * rather than print a number the row does not hold.
+   */
+  volume: number | null;
+  games: number | null;
+  /** The name his season row carries ("J.Allen"); "" when it has none. */
+  shortName: string;
+  /**
+   * False when half his radar axes or more are missing: his outline is not
+   * drawn, by the stat card chart's own rule (radarHasTooFewAxes). His values
+   * and mask are still filled in.
+   */
+  outline: boolean;
 }
 
 export interface ComparisonTableRow {
@@ -173,16 +234,39 @@ export interface Comparison {
   a: ComparisonPlayer;
   b: ComparisonPlayer;
   rows: ComparisonTableRow[];
+  /** "too-few": one of the two pools has fewer than 2 players, so no radar is drawn (the table still is). */
+  radar: "drawn" | "too-few";
 }
+
+/** A radar needs at least this many qualified players in each player's pool. */
+export const COMPARE_MIN_POOL = 2;
 
 const NO_VALUE = "—";
 
-function radarFor(cfg: GroupConfig, row: ComparePlayerRow, pool: ComparePlayerRow[]): { values: number[]; missing: boolean[] } {
+/** A count as a number: a number or a numeric string, finite and not negative. Anything else is null. */
+function countOrNull(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRow[], color: string): ComparisonPlayer {
+  // The same calls the stat card's builders make for radarValues / radarMissing.
+  const pool = cfg.pool(row, all);
   const values = computeRadarValues(cfg.radarKeys, cfg.getRadarVal, row, pool);
   const missing = cfg.missingAxisIsGap
     ? computeRadarValues(cfg.radarKeys, cfg.getRadarVal, row, pool, true).map((v) => Number.isNaN(v))
     : values.map(() => false);
-  return { values, missing };
+  const record = row as unknown as Record<string, unknown>;
+  return {
+    values, missing, color,
+    poolSize: pool.length,
+    poolPosition: cfg.poolPosition(row),
+    eligible: cfg.eligible(row),
+    volume: countOrNull(record[cfg.volumeKey]),
+    games: countOrNull(record.games),
+    shortName: typeof record.player_name === "string" ? record.player_name.trim() : "",
+    outline: !radarHasTooFewAxes(missing.filter(Boolean).length, cfg.radarKeys.length),
+  };
 }
 
 /**
@@ -190,7 +274,13 @@ function radarFor(cfg: GroupConfig, row: ComparePlayerRow, pool: ComparePlayerRo
  * radar percentiles and which axes are missing, the two colours, and the stat
  * table (printed values and which side is better).
  *
- * `all` is the whole season table of the group. `teamA` / `teamB` are the team
+ * `all` is the whole season table of the group; each player's pool is taken
+ * from it here (the stat card's pool for his position, so two players of
+ * different positions in the receiver table are each ranked in their own).
+ * `radar` is "too-few" when either pool has fewer than 2 players: the caller
+ * shows compareTooFewSentence in place of the radar. A player whose `outline`
+ * is false is not drawn (compareNotDrawnSentences says so); with both false
+ * there is no radar either. `teamA` / `teamB` are the team
  * ids the colours come from (the Compare page passes player_slugs'
  * current_team_id, as it always has).
  *
@@ -214,10 +304,6 @@ export function buildComparison(input: {
   const { group, rowA, rowB, all, teamA, teamB } = input;
   const cfg = GROUPS[group];
 
-  // The pool step. PR 1: every row of the table, for both players.
-  const poolA = all;
-  const poolB = all;
-
   const colorA = getTeamColor(teamA);
   const colorB = ensureContrast(colorA, getTeamColor(teamB));
 
@@ -240,11 +326,122 @@ export function buildComparison(input: {
     };
   });
 
+  const a = playerFor(cfg, rowA, all, colorA);
+  const b = playerFor(cfg, rowB, all, colorB);
   return {
     group,
     axes: cfg.radarAxes,
-    a: { ...radarFor(cfg, rowA, poolA), color: colorA },
-    b: { ...radarFor(cfg, rowB, poolB), color: colorB },
+    a,
+    b,
     rows,
+    radar: a.poolSize >= COMPARE_MIN_POOL && b.poolSize >= COMPARE_MIN_POOL ? "drawn" : "too-few",
   };
+}
+
+// ---- The sentences the Compare page prints with the radar ----
+
+/** The radar's legend line (C5). */
+export const COMPARE_RADAR_LEGEND = "Farther out = higher percentile \u00b7 dashed ring = 50th percentile";
+
+/** The receiver table's position words. A closed list: anything else is "receivers". */
+const RECEIVER_POSITION_WORDS: Record<string, string> = { WR: "WRs", TE: "TEs", RB: "RBs", FB: "FBs", QB: "QBs" };
+
+/** "quarterbacks", "running backs", "WRs", "TEs": the players of a pool, in a sentence. */
+function poolWord(group: CompareGroup, player: ComparisonPlayer): string {
+  if (group === "QB") return "quarterbacks";
+  if (group === "RB") return "running backs";
+  const position: unknown = player.poolPosition;
+  return (typeof position === "string" && Object.prototype.hasOwnProperty.call(RECEIVER_POSITION_WORDS, position)
+    ? RECEIVER_POSITION_WORDS[position] : "receivers");
+}
+
+/** Is any outline drawn at all? No when a pool is too small, or when both players have too few radar stats. */
+export function compareRadarIsDrawn(c: Comparison): boolean {
+  return c.radar === "drawn" && (c.a.outline || c.b.outline);
+}
+
+/**
+ * C4: which players the radar ranks against, with the pool's own count.
+ * null when no radar is drawn (so "the 1 qualified quarterbacks" cannot appear).
+ */
+export function comparePoolSentence(c: Comparison): string | null {
+  if (!compareRadarIsDrawn(c)) return null;
+  const line = GROUPS[c.group].thresholdWords;
+  if (c.a.poolPosition !== c.b.poolPosition) {
+    return `Radar: each player against qualified players at his position (${line} a game): ` +
+      `${c.a.poolSize} ${poolWord(c.group, c.a)}, ${c.b.poolSize} ${poolWord(c.group, c.b)}.`;
+  }
+  return `Radar: percentile among the ${c.a.poolSize} qualified ${poolWord(c.group, c.a)} (${line} a game).`;
+}
+
+/**
+ * C4z: shown in place of the radar when a pool has fewer than 2 players. For
+ * two positions it names the one whose pool is short, or both in the pair's
+ * order. null when the radar is drawn. It does not say "yet": the Compare page
+ * does not know whether the season shown is the newest one, and a past season
+ * can never fill up.
+ */
+export function compareTooFewSentence(c: Comparison): string | null {
+  if (c.radar !== "too-few") return null;
+  const short = [c.a, c.b].filter((p) => p.poolSize < COMPARE_MIN_POOL).map((p) => poolWord(c.group, p));
+  const words = Array.from(new Set(short)).join(" or ");
+  return `Not enough qualified ${words} to draw the radar (${GROUPS[c.group].thresholdWords} a game).`;
+}
+
+/** What the caller knows about a player's name: his full name (a plain string means that), and his slug as a last resort. */
+export type CompareName = string | null | undefined | { fullName?: string | null; slug?: string | null };
+
+const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+/** "josh-allen" as "Josh Allen". */
+function nameFromSlug(slug: string): string {
+  return slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+/**
+ * The two names as a sentence prints them: the season rows' short names; when
+ * the two are the same, or one is missing, each player's full name instead,
+ * falling back to his short name, then a name made from his slug, then
+ * "Player 1" / "Player 2". Never empty and never "null".
+ */
+function sentenceNames(c: Comparison, nameA: CompareName, nameB: CompareName): [string, string] {
+  const useFull = !c.a.shortName || !c.b.shortName || c.a.shortName === c.b.shortName;
+  const pick = (p: ComparisonPlayer, name: CompareName, fallback: string): string => {
+    if (!useFull) return p.shortName;
+    const full = text(typeof name === "object" && name !== null ? name.fullName : name);
+    const slug = text(typeof name === "object" && name !== null ? name.slug : "");
+    return full || p.shortName || nameFromSlug(slug) || fallback;
+  };
+  return [pick(c.a, nameA, "Player 1"), pick(c.b, nameB, "Player 2")];
+}
+
+/**
+ * C6: one line naming each player who is under the stat card's line. null when
+ * neither is. Shown whether or not a radar is drawn. A player whose attempts /
+ * targets / carries or games are not usable numbers, or who has 0 games, is
+ * left out of the line (never a made-up number, never "in 0 games").
+ */
+export function compareSmallSampleSentence(c: Comparison, nameA: CompareName, nameB: CompareName): string | null {
+  const cfg = GROUPS[c.group];
+  const names = sentenceNames(c, nameA, nameB);
+  const part = (p: ComparisonPlayer, name: string): string[] =>
+    p.eligible || p.volume === null || p.games === null || p.games === 0 ? [] : [
+      `${name} has ${p.volume} ${cfg.volumeWords[p.volume === 1 ? 0 : 1]} in ${p.games} ${p.games === 1 ? "game" : "games"}`,
+    ];
+  const parts = [...part(c.a, names[0]), ...part(c.b, names[1])];
+  if (parts.length === 0) return null;
+  return `Small sample: ${parts.join("; ")} (under ${cfg.minPerGame} a game).`;
+}
+
+/**
+ * C4m: one sentence per player whose outline is not drawn because half his
+ * radar stats or more are missing (the stat card chart's rule). Empty when
+ * both are drawn, and when no radar is drawn for want of qualified players.
+ */
+export function compareNotDrawnSentences(c: Comparison, nameA: CompareName, nameB: CompareName): string[] {
+  if (c.radar !== "drawn") return [];
+  const names = sentenceNames(c, nameA, nameB);
+  const one = (p: ComparisonPlayer, name: string): string[] =>
+    p.outline ? [] : [`No outline for ${name}: ${p.missing.filter(Boolean).length} of his ${p.missing.length} radar stats are not available.`];
+  return [...one(c.a, names[0]), ...one(c.b, names[1])];
 }

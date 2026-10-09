@@ -5,7 +5,11 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
-import { buildComparison, type CompareGroup, type ComparisonPlayer } from "@/lib/stats/compare";
+import {
+  buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
+  compareNotDrawnSentences, compareRadarIsDrawn,
+  type CompareGroup, type ComparisonPlayer,
+} from "@/lib/stats/compare";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";
 
@@ -20,11 +24,9 @@ import OverlayRadarChart from "./OverlayRadarChart";
 // JSX text does not decode escape sequences.
 const COMPARISON_UNAVAILABLE = "Couldn't load stats for this comparison. Try again in a moment.";
 
-// The chart has no "missing" props yet, so an axis with no data is handed to
-// it as NaN, as it always was (the chart leaves a NaN axis out of the
-// outline). The compare card's PR 1b gives the chart mask props and removes
-// this conversion.
-const chartValues = (p: ComparisonPlayer): number[] => p.values.map((v, i) => (p.missing[i] ? NaN : v));
+// A player whose outline is not drawn (too few radar stats, the stat card's
+// rule) is handed to the chart with every axis masked: no corners, no dots.
+const chartMask = (p: ComparisonPlayer): boolean[] => (p.outline ? p.missing : p.missing.map(() => true));
 
 interface ComparisonToolProps {
   qbs: QBSeasonStat[];
@@ -138,7 +140,8 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
     return pool.find((p) => p.player_id === player2.player_id) || null;
   }, [player2, pool]);
 
-  // Radar percentiles, colours and the stat table (lib/stats/compare.ts).
+  // Radar percentiles, colours and the stat table (lib/stats/compare.ts). Each
+  // player is ranked against the stat card's pool for his position.
   // WR/TE: an axis with no data (e.g. 2026 YPRR, no participation file) is
   // marked missing, and OverlayRadarChart leaves it out instead of plotting it
   // at the center. QB/RB keep the old 0 until their own missing-axis pass.
@@ -174,6 +177,17 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   };
 
   const samePlayer = player1 && player2 && player1.player_id === player2.player_id;
+
+  // The sentences that go with the radar: which players it ranks against, or
+  // why it (or one outline) is not drawn, and a note when a player is under the
+  // stat card's line.
+  const name1 = { fullName: player1?.player_name, slug: player1?.slug };
+  const name2 = { fullName: player2?.player_name, slug: player2?.slug };
+  const radarDrawn = comparison ? compareRadarIsDrawn(comparison) : false;
+  const poolSentence = comparison ? comparePoolSentence(comparison) : null;
+  const tooFewSentence = comparison ? compareTooFewSentence(comparison) : null;
+  const notDrawnSentences = comparison ? compareNotDrawnSentences(comparison, name1, name2) : [];
+  const smallSampleSentence = comparison ? compareSmallSampleSentence(comparison, name1, name2) : null;
 
   return (
     <div className="space-y-6">
@@ -220,18 +234,34 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
       {/* Comparison view */}
       {comparison && !samePlayer && (
         <div className="space-y-6">
-          {/* Overlay Radar */}
-          <div className="max-w-md mx-auto">
-            <OverlayRadarChart
-              values1={chartValues(comparison.a)}
-              values2={chartValues(comparison.b)}
-              color1={comparison.a.color}
-              color2={comparison.b.color}
-              name1={player1!.player_name}
-              name2={player2!.player_name}
-              axes={comparison.axes}
-            />
-          </div>
+          {/* Overlay Radar, or the reason there is none */}
+          {radarDrawn ? (
+            <div className="max-w-md mx-auto">
+              <OverlayRadarChart
+                values1={comparison.a.values}
+                values2={comparison.b.values}
+                missing1={chartMask(comparison.a)}
+                missing2={chartMask(comparison.b)}
+                color1={comparison.a.color}
+                color2={comparison.b.color}
+                name1={player1!.player_name}
+                name2={player2!.player_name}
+                axes={comparison.axes}
+              />
+            </div>
+          ) : (
+            <div className="max-w-2xl mx-auto text-center text-sm text-gray-500 py-8 space-y-1">
+              {tooFewSentence && <p>{tooFewSentence}</p>}
+              {notDrawnSentences.map((sentence, i) => <p key={i}>{sentence}</p>)}
+            </div>
+          )}
+          {(poolSentence || smallSampleSentence || (radarDrawn && notDrawnSentences.length > 0)) && (
+            <div className="max-w-2xl mx-auto text-center text-xs text-gray-500 space-y-1">
+              {poolSentence && <p>{poolSentence}</p>}
+              {radarDrawn && notDrawnSentences.map((sentence, i) => <p key={i}>{sentence}</p>)}
+              {smallSampleSentence && <p className="text-amber-700">{smallSampleSentence}</p>}
+            </div>
+          )}
 
           {/* Stat Comparison Table */}
           <div className="border border-gray-200 rounded-lg overflow-x-auto">

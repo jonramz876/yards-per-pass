@@ -1,9 +1,18 @@
 // components/compare/OverlayRadarChart.tsx
 "use client";
 
+import { COMPARE_RADAR_LEGEND } from "@/lib/stats/compare";
+
 interface OverlayRadarChartProps {
   values1: number[];
   values2: number[];
+  /**
+   * Per axis: true when that player has no data there. A masked axis is drawn
+   * exactly as a NaN value is: no corner, no dot. Optional; values + mask is
+   * the form that can be sent from a server component (NaN cannot).
+   */
+  missing1?: boolean[];
+  missing2?: boolean[];
   color1: string;
   color2: string;
   name1: string;
@@ -50,8 +59,10 @@ function makePolygon(values: number[], count: number): { polygon: string; points
 }
 
 export default function OverlayRadarChart({
-  values1, values2, color1, color2, name1, name2, axes: customAxes,
+  values1: rawValues1, values2: rawValues2, missing1, missing2, color1, color2, name1, name2, axes: customAxes,
 }: OverlayRadarChartProps) {
+  const values1 = rawValues1.map((v, i) => (missing1?.[i] ? NaN : v));
+  const values2 = rawValues2.map((v, i) => (missing2?.[i] ? NaN : v));
   const axes = customAxes || DEFAULT_AXES;
   const count = axes.length;
   const p1 = makePolygon(values1, count);
@@ -111,7 +122,7 @@ export default function OverlayRadarChart({
 
         {/* Legend */}
         <text x={150} y={278} textAnchor="middle" fontSize={9} fill="#94a3b8">
-          outer ring = league best · dashed = 50th percentile
+          {COMPARE_RADAR_LEGEND}
         </text>
       </svg>
 

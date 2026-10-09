@@ -1,21 +1,25 @@
 """The Python reference for the Compare page's numbers: a re-statement of the
-rules of components/compare/ComparisonTool.tsx + lib/stats/radar.ts +
-percentiles.ts + fantasy.ts as they were on origin/main on 2026-10-07 (no
-JavaScript involved; a failing golden means the two disagree).
+rules of lib/stats/compare.ts + radar.ts + percentiles.ts + fantasy.ts and of
+the stat card's pools in lib/stats/tecmo-card.ts (no JavaScript involved; a
+failing golden means the two disagree).
 
 Reads the three season tables from the repo's own fixture,
 __tests__/stats/fixtures/compare-2026-w4-rows.json (keys qb / receivers / rb),
-and writes the expected file for the pool /compare used before PR 1b (every
-row of the position table):
+and writes the expected file for the pools /compare uses since PR 1b: each
+player against the qualified players of his own position (QB 14+ attempts a
+game, RB 6+ carries, receiver-table rows 2+ targets among rows of the same
+position). Percentiles are written unrounded: (values below his / pool size)
+* 100 is the same arithmetic in Python and JavaScript, so the test compares
+them exactly.
 
   py -3 build_data.py <out json> [mockup mock-data json]
 
-  py -3 build_data.py ../../../../__tests__/stats/fixtures/compare-pool-all.expected.json
+  py -3 build_data.py ../../../../__tests__/stats/fixtures/compare-card-pool.expected.json
 
 reproduces the committed expected file byte for byte (checked 2026-10-09).
 Never run it over the committed file to make a test pass. The optional second
-argument writes the larger file the clickable mockup was built from (it also
-holds the stat card's pools as altA / altB, which PR 1b's expected file uses).
+argument writes the larger file the clickable mockup was built from (a / b
+there are the pool /compare used before PR 1b: every row of the table).
 """
 import json, os, math, sys
 from decimal import Decimal, ROUND_HALF_UP
@@ -188,6 +192,16 @@ EXTRA = [
                    ("T.McBride", "ARI", "Trey McBride", "trey-mcbride", "TE", None, None)),
 ]
 TEAMS.update({"ARI": ("Arizona Cardinals", "#97233F")})
+# Expected-file-only pairs (never in the mockup data): a quarterback under the
+# line (9 attempts in 1 game) and a receiver-table row whose position is RB,
+# which is ranked against the qualified RB rows of that table.
+GOLD_ONLY = [
+    ("LOWQB", "QB", ("T.Huntley", "BAL", "Tyler Huntley", "tyler-huntley", "QB", None, None),
+                    ("J.Allen", "BUF", "Josh Allen", "josh-allen", "QB", 91, "Dual Threat")),
+    ("WRRB", "WR", ("C.Lamb", "DAL", "CeeDee Lamb", "ceedee-lamb", "WR", 97, "Target Magnet"),
+                   ("A.Jones", "MIN", "Aaron Jones", "aaron-jones", "RB", None, None)),
+]
+TEAMS.update({"BAL": ("Baltimore Ravens", "#241773"), "MIN": ("Minnesota Vikings", "#4F2683")})
 
 
 def card_pool(group, row, table):
@@ -198,7 +212,8 @@ def card_pool(group, row, table):
     return [r for r in table if ELIG[group](r)]
 
 out = {"season": 2026, "throughWeek": 4, "pairs": {}}
-for pkey, group, a, b in [(g, g, a, b) for g, a, b in PAIRS] + EXTRA:
+exact = {}  # pair key -> unrounded stat-card-pool percentiles and the stat table
+for pkey, group, a, b in [(g, g, a, b) for g, a, b in PAIRS] + EXTRA + GOLD_ONLY:
     cfg = GROUPS[group]
     pool = cfg["pool"]
     rows = []
@@ -226,6 +241,16 @@ for pkey, group, a, b in [(g, g, a, b) for g, a, b in PAIRS] + EXTRA:
     alt_pool = pool_a
     alt_a, alt_b = percentiles(cfg, pool_a, ra), percentiles(cfg, pool_b, rb_)
     rnd = lambda xs: [None if x is None else round(x, 2) for x in xs]
+    vkey = {"QB": "attempts", "WR": "targets", "RB": "carries"}[group]
+    side = lambda spec, row, col, vals, pl: {
+        "slug": spec[3], "name": spec[2], "shortName": spec[0], "team": spec[1], "color": col,
+        "position": row.get("position", "QB") if group == "WR" else group, "poolSize": len(pl),
+        "eligible": bool(ELIG[group](row)), "volume": row[vkey], "games": row["games"], "values": vals}
+    exact[pkey] = {"group": group, "axes": cfg["axes"],
+                   "a": side(a, ra, c1, alt_a, pool_a), "b": side(b, rb_, c2, alt_b, pool_b),
+                   "rows": [{"key": x["key"], "label": x["label"], "a": x["a"], "b": x["b"], "winner": x["w"]} for x in stats]}
+    if pkey in ("LOWQB", "WRRB"):
+        continue
     players = []
     for spec, row, col in ((a, ra, c1), (b, rb_, c2)):
         vol = {"QB": ("attempts", "pass attempts"), "WR": ("targets", "targets"), "RB": ("carries", "carries")}[group]
@@ -257,16 +282,7 @@ if MOCK:
     json.dump(out, open(MOCK, "w", encoding="utf-8"), ensure_ascii=True, separators=(",", ":"))
     print("mockup data bytes", os.path.getsize(MOCK))
 
-# The expected file for __tests__ (old pool = every row of the table).
-gold = {"_provenance": "Expected Compare-page output with the pool /compare used before PR 1b (every row of the position table), computed by docs/superpowers/specs/compare-card-reference/build_data.py (a Python re-statement of the rules, no JavaScript involved) from compare-2026-w4-rows.json on 2026-10-09. Radar percentiles are rounded to 2 decimals; null = no data for that axis. PR 1b deletes this file with the old pool; it is never edited and never re-captured.", "pairs": {}}
-both = dict(out["pairs"])
-both.update(out["fixtureOnly"])
-for k, p in both.items():
-    side = lambda pl: {"slug": pl["slug"], "name": pl["name"], "team": pl["team"], "color": pl["color"]}
-    gold["pairs"][k] = {
-        "group": p["group"], "a": side(p["players"][0]), "b": side(p["players"][1]),
-        "axes": p["axes"], "valuesA": p["a"], "valuesB": p["b"], "poolSize": p["poolSize"],
-        "rows": [{"key": x["key"], "label": x["label"], "a": x["a"], "b": x["b"], "winner": x["w"]} for x in p["stats"]],
-    }
+# The expected file for __tests__: the stat card's pools, per player.
+gold = {"_provenance": "Expected Compare-page output with the stat card's pools (each player against the qualified players of his own position), computed by docs/superpowers/specs/compare-card-reference/build_data.py (a Python re-statement of the rules, no JavaScript involved) from compare-2026-w4-rows.json on 2026-10-09. Radar percentiles are unrounded; null = no data for that axis. Never edited and never re-captured to make a test pass.", "pairs": exact}
 json.dump(gold, open(OUT, "w", encoding="utf-8", newline="\n"), ensure_ascii=False, indent=1)
 print("expected file bytes", os.path.getsize(OUT))

@@ -103,6 +103,16 @@ export function getRBRadarVal(rb: RBRadarInput, key: string): number {
   }
 }
 
+// ---- When a radar outline is not worth drawing ----
+/**
+ * The stat card chart's rule (components/qb/RadarChart.tsx), shared with the
+ * Compare page: with half the axes or more missing (3 of 6, 4 of 7) there is
+ * no outline to speak of, so none is drawn.
+ */
+export function radarHasTooFewAxes(missingCount: number, axisCount: number): boolean {
+  return missingCount >= Math.ceil(axisCount / 2);
+}
+
 // ---- Generic percentile computation ----
 /**
  * Compute radar percentile values for a player against a league pool.

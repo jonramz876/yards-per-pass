@@ -107,11 +107,62 @@ describe("OverlayRadarChart", () => {
     expect(p2Polygon!.getAttribute("stroke-dasharray")).toBe("6,3");
   });
 
-  it("renders the legend footnote about outer ring and dashed percentile", () => {
-    render(<OverlayRadarChart {...defaultProps} />);
+  it("the legend line is the reworded sentence, once, and no longer says league best", () => {
+    const { container } = render(<OverlayRadarChart {...defaultProps} />);
     expect(
-      screen.getByText("outer ring = league best · dashed = 50th percentile")
-    ).toBeInTheDocument();
+      screen.getAllByText("Farther out = higher percentile · dashed ring = 50th percentile")
+    ).toHaveLength(1);
+    expect(container.textContent).not.toMatch(/league best/);
+  });
+
+  it("what the legend says is true of the drawing: a larger value is never closer in, and the dashed ring is at half the radius", () => {
+    const axes = ["A", "B", "C", "D", "E", "F"].map((label) => ({ label }));
+    const { container } = render(
+      <OverlayRadarChart {...defaultProps} values1={[0, 0, 0, 0, 0, 0]} values2={[10, 25, 50, 75, 90, 100]} axes={axes} />
+    );
+    const polygons = Array.from(container.querySelectorAll("svg polygon"));
+    const center = polygons.find((p) => p.getAttribute("stroke") === defaultProps.color1)!
+      .getAttribute("points")!.trim().split(/\s+/)[0].split(",").map(Number);
+    const dist = (pt: string) => { const [x, y] = pt.split(",").map(Number); return Math.hypot(x - center[0], y - center[1]); };
+    const radii = polygons.find((p) => p.getAttribute("stroke") === defaultProps.color2)!
+      .getAttribute("points")!.trim().split(/\s+/).map(dist);
+    for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeGreaterThan(radii[i - 1]);
+    const outer = radii[5];
+    const dashed = polygons.find((p) => p.getAttribute("stroke-dasharray") === "5,3")!;
+    expect(dist(dashed.getAttribute("points")!.trim().split(/\s+/)[0])).toBeCloseTo(outer / 2, 6);
+    expect(radii[2]).toBeCloseTo(outer / 2, 6);
+  });
+
+  it("a masked axis is treated exactly as a NaN value: no dot, no vertex, grey label only when both players lack it", () => {
+    const axes = ["A", "B", "C", "D", "E", "F"].map((label) => ({ label }));
+    const values1 = [80, 70, 90, 60, 55, 0];
+    const values2 = [50, 85, 40, 70, 0, 0];
+    const masked = render(
+      <OverlayRadarChart {...defaultProps} values1={values1} values2={values2} axes={axes}
+        missing1={[false, false, false, false, false, true]} missing2={[false, false, false, false, true, true]} />
+    );
+    const maskedSvg = masked.container.querySelector("svg")!.outerHTML;
+    masked.unmount();
+    const withNaN = render(
+      <OverlayRadarChart {...defaultProps} values1={[80, 70, 90, 60, 55, NaN]} values2={[50, 85, 40, 70, NaN, NaN]} axes={axes} />
+    );
+    expect(withNaN.container.querySelector("svg")!.outerHTML).toBe(maskedSvg);
+    expect(withNaN.container.querySelectorAll("svg circle")).toHaveLength(9);
+    expect(screen.getByText("F").getAttribute("fill")).toBe("#cbd5e1");
+    // E is missing for player 2 only: the label stays dark.
+    expect(screen.getByText("E").getAttribute("fill")).toBe("#475569");
+  });
+
+  it("without mask props, or with all-false masks, a 0 is a real 0 at the centre", () => {
+    const zeros = [80, 70, 90, 60, 55, 0];
+    const plain = render(<OverlayRadarChart {...defaultProps} values1={zeros} />);
+    const plainSvg = plain.container.querySelector("svg")!.outerHTML;
+    expect(plain.container.querySelectorAll("svg circle")).toHaveLength(12);
+    plain.unmount();
+    const allFalse = render(
+      <OverlayRadarChart {...defaultProps} values1={zeros} missing1={Array(6).fill(false)} missing2={Array(6).fill(false)} />
+    );
+    expect(allFalse.container.querySelector("svg")!.outerHTML).toBe(plainSvg);
   });
 
   it("a NaN axis gets no dot and no vertex", () => {
