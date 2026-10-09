@@ -4,6 +4,7 @@ import path from "path";
 import {
   buildComparison, ensureContrast, colorDistance, getStatVal,
   comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, compareNotDrawnSentences, comparePlotColors, COMPARE_RADAR_LEGEND,
+  compareDisplayName, compareTeamId,
   CONTRAST_PALETTE, MIN_DISTANCE, QB_COMP_STATS, WR_COMP_STATS, RB_COMP_STATS,
   type CompareGroup, type ComparePlayerRow,
 } from "@/lib/stats/compare";
@@ -862,5 +863,47 @@ describe("lib/stats/compare.ts stays pure", () => {
   it("the walker would catch a bad import: it sees runtime imports and ignores type-only ones", () => {
     expect(runtimeImports('import type React from "react";\nimport { a } from "@/lib/supabase/client";\nimport {\n  b,\n} from "./x";\nexport { c } from "next/navigation";\nimport "server-only";'))
       .toEqual(["@/lib/supabase/client", "./x", "next/navigation", "server-only"]);
+  });
+});
+
+// Chaos PR 3, R2 and R3: two small rules that /compare and the share card must
+// share, so they live here once.
+describe("compareTeamId: the team a player is drawn in", () => {
+  const row = (team_id: unknown) => ({ player_id: "x", team_id }) as unknown as ComparePlayerRow;
+
+  it("the season row's team when it has one", () => {
+    expect(compareTeamId(row("BUF"), "KC")).toBe("BUF");
+    expect(compareTeamId(row(" BUF "), "KC")).toBe("BUF");
+  });
+
+  it.each([null, undefined, "", "   ", 7])("row team %j: the team player_slugs names", (v) => {
+    expect(compareTeamId(row(v), "KC")).toBe("KC");
+    expect(compareTeamId(row(v), " KC ")).toBe("KC");
+  });
+
+  it.each([null, undefined, "", "  ", 7])("neither: no team (\"\"), which is drawn in the neutral colour (fallback %j)", (v) => {
+    expect(compareTeamId(row(null), v)).toBe("");
+    expect(compareTeamId(null, v)).toBe("");
+  });
+});
+
+describe("compareDisplayName: full name, else short name, else from the slug, else Player N", () => {
+  it("each step of the chain", () => {
+    expect(compareDisplayName({ fullName: "Josh Allen", slug: "josh-allen" }, "J.Allen", "Player 1")).toBe("Josh Allen");
+    expect(compareDisplayName("Josh Allen", "J.Allen", "Player 1")).toBe("Josh Allen");
+    expect(compareDisplayName({ fullName: "", slug: "josh-allen" }, "J.Allen", "Player 1")).toBe("J.Allen");
+    expect(compareDisplayName({ fullName: null, slug: "josh-allen" }, null, "Player 1")).toBe("Josh Allen");
+    expect(compareDisplayName({ fullName: "  ", slug: "" }, "  ", "Player 2")).toBe("Player 2");
+    expect(compareDisplayName(null, undefined, "Player 1")).toBe("Player 1");
+  });
+
+  it("never empty, never padded, never the word null", () => {
+    for (const name of [null, undefined, "", " ", { fullName: null, slug: null }, { fullName: undefined }, {}]) {
+      for (const short of [null, undefined, "", " ", 5]) {
+        const got = compareDisplayName(name as never, short, "Player 1");
+        expect(got).toBe("Player 1");
+      }
+    }
+    expect(compareDisplayName("  Josh Allen ", null, "Player 1")).toBe("Josh Allen");
   });
 });

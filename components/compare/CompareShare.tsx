@@ -3,8 +3,11 @@
 // link to the share card, for a pair that has one. The pattern of the card
 // pages' own buttons (TeamRadarActions), with one difference: what is copied
 // is not this page's address but the share card's, so the parent hands the
-// absolute URL over ready-made (built from the site URL the server passed,
-// never from window.location: a preview deployment must copy its own links).
+// absolute URL over ready-made. It is built from the site URL the server
+// passed (NEXT_PUBLIC_SITE_URL, else https://yardsperpass.com), never from
+// window.location. So a Vercel PREVIEW deployment copies the PRODUCTION
+// address unless that variable is set for Preview: right for a link meant to
+// be posted, and worth knowing when testing a preview.
 "use client";
 
 import { useState } from "react";
@@ -90,7 +93,12 @@ export default function CompareShare({ shareUrl, cardHref, downloadHref }: Compa
           {COMPARE_DOWNLOAD_TEXT}
         </button>
       </div>
-      <Link href={cardHref} className="text-sm text-slate-500 hover:text-slate-900">
+      {/* prefetch={false}: by default next/link asks the server for the share
+          page's route tree as soon as this is on screen, one function run per
+          pair looked at. Today that request reads nothing only because the
+          share route has no loading.tsx; if one is ever added there, a
+          prefetch would render up to it, so revisit this before adding one. */}
+      <Link href={cardHref} prefetch={false} className="text-sm text-slate-500 hover:text-slate-900">
         {COMPARE_OPEN_CARD_TEXT}
       </Link>
     </div>

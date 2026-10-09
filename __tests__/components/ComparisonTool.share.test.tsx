@@ -15,8 +15,9 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/compare",
 }));
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...rest}>
+  // The prefetch prop is written out so a test can read what the link was given.
+  default: ({ href, children, prefetch, ...rest }: { href: string; children: React.ReactNode; prefetch?: boolean }) => (
+    <a href={href} data-prefetch={String(prefetch)} {...rest}>
       {children}
     </a>
   ),
@@ -107,6 +108,14 @@ describe("the Share block on /compare", () => {
     expect(open.getAttribute("href")).toBe("/card/compare/josh-allen/matthew-stafford");
     expect(block.getAttribute("data-share-url")).toBe("https://yardsperpass.com/card/compare/josh-allen/matthew-stafford");
     expect(block.getAttribute("data-download-href")).toBe("/api/compare-card/josh-allen/matthew-stafford?season=2026&download=1");
+  });
+
+  // Chaos PR 3, COST-1: a next/link with no prefetch prop asks the server for
+  // the share page's route tree as soon as it is on screen, one function run
+  // per pair looked at. The link is only followed on a click.
+  it("the link to the share card is never prefetched", async () => {
+    const block = share(await show(ALLEN, STAFFORD, { qb: QB }))!;
+    expect(block.querySelector("a")!.getAttribute("data-prefetch")).toBe("false");
   });
 
   it("the other order is the other card", async () => {
@@ -237,5 +246,34 @@ describe("a chosen player with no stats: /compare says so (it used to show nothi
     expect((await show(ALLEN, STAFFORD, { qb: QB })).querySelector("[data-compare-no-stats]")).toBeNull();
     const same = await show(ALLEN, { ...ALLEN, slug: "josh-allen-2" }, { qb: QB, wait: "none" });
     expect(same.querySelector("[data-compare-no-stats]")).toBeNull();
+  });
+});
+
+// Chaos PR 3, R3: the sentence used the raw player_slugs name, so an empty one
+// printed " has no 2026 stats yet" and a null one "null has no ...". It now
+// takes the name the other sentences and the server's link preview take: the
+// full name, else the season row's short name, else a name made from the
+// slug, else "Player 1" / "Player 2".
+describe("the no-stats sentence never prints an empty name or \"null\"", () => {
+  const sentence = (el: HTMLElement) => txt(el.querySelector("[data-compare-no-stats]"));
+  const REST = " has no 2026 stats yet, so there is nothing to compare. Comparisons update the day after each game.";
+
+  it.each([["an empty name", ""], ["spaces", "   "], ["null", null], ["undefined", undefined]])(
+    "%s: the name is made from the slug", async (_name, value) => {
+      const blank = { ...ROOKIE, player_name: value } as unknown as Slug;
+      expect(sentence(await show(ALLEN, blank, { qb: QB, wait: "none" }))).toBe(`Rookie Qb${REST}`);
+      expect(sentence(await show(blank, ALLEN, { qb: QB, wait: "none" }))).toBe(`Rookie Qb${REST}`);
+    });
+
+  it("both players without a name: each from his slug, in order", async () => {
+    const a = { ...ROOKIE, player_name: "" };
+    const b = { ...ROOKIE2, player_name: null } as unknown as Slug;
+    expect(sentence(await show(a, b, { qb: QB, wait: "none" })))
+      .toBe("Rookie Qb and Other Rookie have no 2026 stats yet, so there is nothing to compare. Comparisons update the day after each game.");
+  });
+
+  it("a name with spaces around it is trimmed", async () => {
+    const padded = { ...ROOKIE, player_name: "  Rookie Quarterback " };
+    expect(sentence(await show(ALLEN, padded, { qb: QB, wait: "none" }))).toBe(`Rookie Quarterback${REST}`);
   });
 });

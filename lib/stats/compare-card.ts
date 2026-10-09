@@ -15,7 +15,7 @@ import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types
 import { getTeam } from "@/lib/data/teams";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  compareNotDrawnSentences, compareRadarIsDrawn, comparePlotColors, COMPARE_RADAR_LEGEND,
+  compareNotDrawnSentences, compareRadarIsDrawn, comparePlotColors, compareDisplayName, compareTeamId, COMPARE_RADAR_LEGEND,
   type CompareGroup, type ComparePlayerRow, type Comparison, type ComparisonTableRow,
 } from "@/lib/stats/compare";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
@@ -277,11 +277,14 @@ export interface CompareCardPlayerInput {
   /** player_slugs.player_name; a missing one falls back to the short name, then the slug. */
   fullName: string | null | undefined;
   row: ComparePlayerRow;
+  /**
+   * player_slugs.current_team_id: only the fallback for a season row with no
+   * team_id (compareTeamId), exactly as on /compare.
+   */
+  teamId?: string | null;
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
-const titleFromSlug = (slug: string): string =>
-  slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
 function ovrFor(group: CompareGroup, row: ComparePlayerRow, all: ComparePlayerRow[], season: number): number | null {
   const card =
@@ -307,14 +310,15 @@ export function buildCompareCard(input: {
   const { group, all, season } = input;
   const throughWeek = compareWeek(input.throughWeek);
   const rec = (p: CompareCardPlayerInput) => (p.row ?? {}) as unknown as Record<string, unknown>;
-  const teamIdA = str(rec(input.a).team_id);
-  const teamIdB = str(rec(input.b).team_id);
+  // One rule with /compare: the season row's team, else player_slugs' team, else none.
+  const teamIdA = compareTeamId(input.a.row, input.a.teamId);
+  const teamIdB = compareTeamId(input.b.row, input.b.teamId);
 
   const comparison = buildComparison({ group, rowA: input.a.row, rowB: input.b.row, all, teamA: teamIdA, teamB: teamIdB });
   const colors = { a: comparison.a.color, b: comparison.b.color };
 
   const fullName = (p: CompareCardPlayerInput, short: string, fallback: string) =>
-    str(p.fullName) || short || titleFromSlug(str(p.slug)) || fallback;
+    compareDisplayName({ fullName: p.fullName, slug: p.slug }, short, fallback);
   const fullA = fullName(input.a, comparison.a.shortName, "Player 1");
   const fullB = fullName(input.b, comparison.b.shortName, "Player 2");
   const useFull = !comparison.a.shortName || !comparison.b.shortName || comparison.a.shortName === comparison.b.shortName;

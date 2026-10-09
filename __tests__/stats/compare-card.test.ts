@@ -652,3 +652,54 @@ describe("lib/stats/compare-card.ts stays pure", () => {
     expect(Array.from(packages)).toEqual([]);
   });
 });
+
+// Chaos PR 3, R2: for a season row with no team, /compare fell back to the
+// team player_slugs has and the card went straight to the neutral colour, so
+// one player could be two colours. One rule now (compareTeamId): the season
+// row's team, else player_slugs' team, else none (the neutral colour).
+describe("a season row with no team: /compare and the card pick the same colour", () => {
+  const both = (rowTeam: unknown, slugTeamA: string | null, slugTeamB: string | null = "LA") => {
+    const table = TABLES.QB.map((r) => (r.player_name === "J.Allen" ? { ...r, team_id: rowTeam } : r));
+    const rowA = find(table, "J.Allen") as unknown as ComparePlayerRow;
+    const rowB = find(table, "M.Stafford") as unknown as ComparePlayerRow;
+    // /compare: ComparisonTool hands buildComparison player_slugs' teams.
+    const page = buildComparison({ group: "QB", rowA, rowB, all: asRows(table), teamA: slugTeamA as string, teamB: slugTeamB as string });
+    // The card: the loader hands buildCompareCard the same two.
+    const model = buildCompareCard({
+      group: "QB",
+      a: { slug: "josh-allen", fullName: "Josh Allen", row: rowA, teamId: slugTeamA },
+      b: { slug: "matthew-stafford", fullName: "Matthew Stafford", row: rowB, teamId: slugTeamB },
+      all: asRows(table), season: 2026, throughWeek: 4,
+    });
+    return { page, model };
+  };
+
+  it.each([null, undefined, "", "   "])("row team %j, player_slugs says KC: Kansas City's red on both, and the card names the team", (v) => {
+    const { page, model } = both(v, "KC");
+    expect([model.a.color, model.b.color]).toEqual([page.a.color, page.b.color]);
+    expect(model.a.color).toBe(NFL_TEAMS.find((t) => t.id === "KC")!.primaryColor);
+    expect(model.comparison.a.color).toBe(model.a.color);
+    expect(model.a).toMatchObject({ teamId: "KC", teamName: "Kansas City Chiefs" });
+    expect(model.a.meta).toContain("Kansas City Chiefs");
+  });
+
+  it("no team anywhere: the dark neutral on both, and no team printed", () => {
+    for (const slugTeam of [null, "", "  "]) {
+      const { page, model } = both(null, slugTeam);
+      expect([model.a.color, model.b.color]).toEqual([page.a.color, page.b.color]);
+      expect(model.a.color).toBe(COMPARE_NEUTRAL_COLOR);
+      expect(model.a).toMatchObject({ teamId: "", teamName: "" });
+      expect(model.a.meta).not.toMatch(/null|undefined|\u00b7 \u00b7/);
+    }
+  });
+
+  it("a row that has its team keeps it, whatever player_slugs says (a traded player)", () => {
+    const { page, model } = both("BUF", "KC");
+    expect([model.a.color, model.b.color]).toEqual([page.a.color, page.b.color]);
+    expect(model.a).toMatchObject({ teamId: "BUF", teamName: "Buffalo Bills" });
+  });
+
+  it("a card built without the player_slugs team is what it was (the field is optional)", () => {
+    expect(card("QB", ALLEN, STAFFORD).a).toMatchObject({ teamId: "BUF", color: "#00338D" });
+  });
+});

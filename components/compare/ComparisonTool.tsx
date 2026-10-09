@@ -7,7 +7,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  compareNotDrawnSentences, compareRadarIsDrawn, compareChartMask, compareGroup,
+  compareNotDrawnSentences, compareRadarIsDrawn, compareChartMask, compareGroup, compareDisplayName,
   type CompareGroup,
 } from "@/lib/stats/compare";
 // compare-links, not compare-card: the browser must not download the card's model code for four small functions.
@@ -218,7 +218,10 @@ export default function ComparisonTool({
   // where a missing row only means "the other table".
   const noStatsSentence = player1 && player2 && !samePlayer && sameTable && !loadFailed && pool.length > 0 && (!stats1 || !stats2)
     ? compareNoStatsMessage({
-      nameA: player1.player_name, nameB: player2.player_name, missingA: !stats1, missingB: !stats2,
+      // The names by the chain every other sentence and the link preview use: never blank, never "null".
+      nameA: compareDisplayName(name1, stats1?.player_name, "Player 1"),
+      nameB: compareDisplayName(name2, stats2?.player_name, "Player 2"),
+      missingA: !stats1, missingB: !stats2,
       season, isNewestSeason: season === defaultSeason,
     })
     : null;

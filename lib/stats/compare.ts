@@ -28,6 +28,19 @@ import {
 import { radarStrokeColor } from "@/lib/stats/formatters";
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
+const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+/**
+ * The team a player is drawn in, on /compare and on the share card alike: the
+ * team of his season row (the team he played for that season); for a row that
+ * carries none, the team the caller has for him (player_slugs' current team);
+ * "" when there is neither, which is drawn in the neutral colour and printed
+ * as no team at all.
+ */
+export function compareTeamId(row: unknown, fallbackTeamId: unknown): string {
+  const own = text((row as Record<string, unknown> | null | undefined)?.team_id);
+  return own || text(fallbackTeamId);
+}
 /** The dark neutral a colour that cannot be read falls back to (the team radar's neutral outline). */
 export const COMPARE_NEUTRAL_COLOR = "#0f172a";
 /** Is this a colour the functions below can work with: exactly #RRGGBB? */
@@ -321,8 +334,8 @@ function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRo
  * `all` is the whole season table of the group; each player's pool is taken
  * from it here (the stat card's pool for his position, so two players of
  * different positions in the receiver table are each ranked in their own).
- * Colours: comparePlotColors of the two season rows' teams; `teamA` / `teamB`
- * are used only for a row with no team_id.
+ * Colours: comparePlotColors of the two players' teams by compareTeamId (the
+ * season row's team; `teamA` / `teamB` only for a row with no team_id).
  * `radar` is "too-few" when either pool has fewer than 2 players: the caller
  * shows compareTooFewSentence in place of the radar. A player whose `outline`
  * is false is not drawn (compareNotDrawnSentences says so); with both false
@@ -354,13 +367,10 @@ export function buildComparison(input: {
   if (!Array.isArray(all)) throw new Error("buildComparison: the season table must be an array");
 
   // Each player wears the team of his SEASON ROW (the team he played for that
-  // season), as on the share card; the team the caller names (player_slugs'
-  // current team) is only the fallback for a row that carries none.
-  const rowTeam = (row: ComparePlayerRow, fallback: string): string => {
-    const id = (row as unknown as Record<string, unknown>).team_id;
-    return typeof id === "string" && id.trim() !== "" ? id : fallback;
-  };
-  const { a: colorA, b: colorB } = comparePlotColors(rowTeam(rowA, teamA), rowTeam(rowB, teamB));
+  // season); the team the caller names (player_slugs' current team) is only
+  // the fallback for a row that carries none. compareTeamId is the one rule,
+  // for this page and for the share card.
+  const { a: colorA, b: colorB } = comparePlotColors(compareTeamId(rowA, teamA), compareTeamId(rowB, teamB));
 
   const rows = cfg.compStats.map((stat): ComparisonTableRow => {
     const v1 = stat.getValue ? stat.getValue(rowA) : getStatVal(rowA, stat.key);
@@ -453,7 +463,18 @@ export function compareTooFewSentence(c: Comparison): string | null {
 /** What the caller knows about a player's name: his full name (a plain string means that), and his slug as a last resort. */
 export type CompareName = string | null | undefined | { fullName?: string | null; slug?: string | null };
 
-const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+/**
+ * A player's name wherever one is printed about a comparison (the sentences
+ * here, the share card, the "no stats" sentence on /compare and in the link
+ * preview): his full name, else his season row's short name, else a name made
+ * from his slug, else `fallback` ("Player 1" / "Player 2"). Trimmed; never
+ * empty and never the word "null".
+ */
+export function compareDisplayName(name: CompareName, shortName: unknown, fallback: string): string {
+  const full = text(typeof name === "object" && name !== null ? name.fullName : name);
+  const slug = text(typeof name === "object" && name !== null ? name.slug : "");
+  return full || text(shortName) || nameFromSlug(slug) || fallback;
+}
 
 /** "josh-allen" as "Josh Allen". */
 function nameFromSlug(slug: string): string {
@@ -469,10 +490,7 @@ function nameFromSlug(slug: string): string {
 function sentenceNames(c: Comparison, nameA: CompareName, nameB: CompareName): [string, string] {
   const useFull = !c.a.shortName || !c.b.shortName || c.a.shortName === c.b.shortName;
   const pick = (p: ComparisonPlayer, name: CompareName, fallback: string): string => {
-    if (!useFull) return p.shortName;
-    const full = text(typeof name === "object" && name !== null ? name.fullName : name);
-    const slug = text(typeof name === "object" && name !== null ? name.slug : "");
-    return full || p.shortName || nameFromSlug(slug) || fallback;
+    return useFull ? compareDisplayName(name, p.shortName, fallback) : p.shortName;
   };
   return [pick(c.a, nameA, "Player 1"), pick(c.b, nameB, "Player 2")];
 }
