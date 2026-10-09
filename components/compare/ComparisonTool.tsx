@@ -10,7 +10,8 @@ import {
   compareNotDrawnSentences, compareRadarIsDrawn, compareChartMask, compareGroup,
   type CompareGroup,
 } from "@/lib/stats/compare";
-import { compareCardHref, compareImageHref, compareNoStatsMessage, parseCompareSlugs } from "@/lib/stats/compare-card";
+// compare-links, not compare-card: the browser must not download the card's model code for four small functions.
+import { compareCardHref, compareImageHref, compareNoStatsMessage, parseCompareSlugs } from "@/lib/stats/compare-links";
 import CompareShare from "./CompareShare";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";

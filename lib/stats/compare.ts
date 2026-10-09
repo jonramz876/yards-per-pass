@@ -24,7 +24,8 @@ import {
   qbCardPool, rbCardPool, wrCardPool, qbEligible, rbEligible, wrEligible,
   QB_MIN_ATT_PER_GAME, WR_MIN_TGT_PER_GAME, RB_MIN_CAR_PER_GAME,
 } from "@/lib/stats/tecmo-card";
-import { radarStrokeColor } from "@/lib/stats/team-radar";
+// From formatters, not team-radar: this module runs in the browser and must not pull the team tables along.
+import { radarStrokeColor } from "@/lib/stats/formatters";
 
 const HEX6 = /^#[0-9a-fA-F]{6}$/;
 /** The dark neutral a colour that cannot be read falls back to (the team radar's neutral outline). */

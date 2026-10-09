@@ -16,7 +16,7 @@ import {
   COMPARE_DOWNLOAD_TEXT,
   COMPARE_OPEN_CARD_TEXT,
   COMPARE_SHARE_HEADING,
-} from "@/lib/stats/compare-card";
+} from "@/lib/stats/compare-links";
 
 interface CompareShareProps {
   /** The share page's absolute URL, order kept, ?season= only for a past season. */

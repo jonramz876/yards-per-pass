@@ -843,6 +843,22 @@ describe("lib/stats/compare.ts stays pure", () => {
     expect(packages).toEqual([]);
   });
 
+  // Compare card PR 3: the Share block first cost /compare's visitors 16 kB of
+  // JavaScript (138 kB to 154 kB first load), because the browser code reached
+  // the team radar's and the team stats page's modules through two imports.
+  // The bundler keeps a module it can reach, used or not.
+  it("/compare's browser code never reaches the share card's model, the team radar or the team stats modules", () => {
+    const { files } = chain("components/compare/ComparisonTool.tsx");
+    for (const f of ["components/compare/CompareShare.tsx", "lib/stats/compare.ts", "lib/stats/compare-links.ts", "lib/stats/formatters.ts"]) {
+      expect(files, f).toContain(f);
+    }
+    for (const f of ["lib/stats/compare-card.ts", "lib/stats/team-radar.ts", "lib/stats/team-stats.ts", "lib/data/compare-card.ts"]) {
+      expect(files, f).not.toContain(f);
+    }
+    expect(runtimeImports(read("lib/stats/compare-links.ts"))).toEqual([]);
+    expect(runtimeImports(read("lib/stats/formatters.ts"))).toEqual([]);
+  });
+
   it("the walker would catch a bad import: it sees runtime imports and ignores type-only ones", () => {
     expect(runtimeImports('import type React from "react";\nimport { a } from "@/lib/supabase/client";\nimport {\n  b,\n} from "./x";\nexport { c } from "next/navigation";\nimport "server-only";'))
       .toEqual(["@/lib/supabase/client", "./x", "next/navigation", "server-only"]);
