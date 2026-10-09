@@ -15,38 +15,29 @@ import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types
 import { getTeam } from "@/lib/data/teams";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  compareNotDrawnSentences, compareRadarIsDrawn, ensureContrast, COMPARE_RADAR_LEGEND,
+  compareNotDrawnSentences, compareRadarIsDrawn, comparePlotColors, compareDisplayName, compareTeamId, COMPARE_RADAR_LEGEND,
   type CompareGroup, type ComparePlayerRow, type Comparison, type ComparisonTableRow,
 } from "@/lib/stats/compare";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
-import { radarStrokeColor, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
+import { RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
 import { parseSeasonParam } from "@/lib/stats/team-stats";
 import { textColorForBackground } from "@/lib/stats/formatters";
+import {
+  COMPARE_SLUG_MAX_LENGTH, canonicalImageQuery, compareCardPath, compareWeek,
+} from "@/lib/stats/compare-links";
+
+// The links and the Share block's words live in compare-links.ts, a module
+// with no imports, so the Compare page's browser code can use them without
+// downloading the card's model code. Everything is re-exported here.
+export {
+  COMPARE_SLUG_PATTERN, COMPARE_SLUG_MAX_LENGTH, COMPARE_MAX_WEEK,
+  parseCompareSlugs, canonicalImageQuery, compareWeek, compareCardPath, compareCardHref, compareImageHref,
+  compareNoStatsMessage,
+  COMPARE_SHARE_HEADING, COMPARE_OPEN_CARD_TEXT, COMPARE_COPY_LINK_TEXT, COMPARE_COPIED_TEXT, COMPARE_DOWNLOAD_TEXT,
+  COMPARE_COPY_FAILED_TEXT,
+} from "@/lib/stats/compare-links";
 
 /* ─── URLs ─── */
-
-/**
- * A player slug as scripts/ingest.py's make_slug (and its three collision
- * suffixes) can write one: lower-case letters and digits in groups joined by
- * single hyphens. Stricter than the player page's own check on purpose: an
- * upper-case letter, a dot or an apostrophe is not a card URL.
- */
-export const COMPARE_SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-export const COMPARE_SLUG_MAX_LENGTH = 100;
-
-/**
- * The two players a share URL names, in the URL's order (A = left / solid,
- * B = right / dashed), or null: a slug outside the grammar, longer than 100
- * characters, or the same player twice. Reads nothing.
- */
-export function parseCompareSlugs(a: unknown, b: unknown): { a: string; b: string } | null {
-  const ok = (s: unknown): s is string =>
-    typeof s === "string" && s.length >= 1 && s.length <= COMPARE_SLUG_MAX_LENGTH && COMPARE_SLUG_PATTERN.test(s);
-  return ok(a) && ok(b) && a !== b ? { a, b } : null;
-}
-
-/** The weeks a season can have (18 regular-season weeks and the playoffs). */
-export const COMPARE_MAX_WEEK = 22;
 
 /**
  * The query string of a URL as the handler received it, "?" included; "" when
@@ -60,21 +51,6 @@ export function rawQueryOf(url: string): string {
   const path = hash === -1 ? text : text.slice(0, hash);
   const q = path.indexOf("?");
   return q === -1 ? "" : path.slice(q);
-}
-
-/** The one spelling of the image query: "" for none, else "?" + season, w, download in that order. */
-export function canonicalImageQuery(season: number | null, week: number | null, download: boolean): string {
-  const parts = [
-    ...(season === null ? [] : [`season=${season}`]),
-    ...(week === null ? [] : [`w=${week}`]),
-    ...(download ? ["download=1"] : []),
-  ];
-  return parts.length === 0 ? "" : `?${parts.join("&")}`;
-}
-
-/** A week a season can have (1-22), or null: nothing else is ever printed as "Through Week N" or sent as `w`. */
-export function compareWeek(week: unknown): number | null {
-  return typeof week === "number" && Number.isInteger(week) && week >= 1 && week <= COMPARE_MAX_WEEK ? week : null;
 }
 
 /**
@@ -121,16 +97,6 @@ export function parseCompareImageQuery(raw: string): { season: number | null; do
   return raw === canonicalImageQuery(season, week, download) ? { season, download } : null;
 }
 
-/** The share page's path, order kept. */
-export function compareCardPath(a: string, b: string): string {
-  return `/card/compare/${a}/${b}`;
-}
-
-/** The share page for a season: bare for the default season, ?season= for another. */
-export function compareCardHref(a: string, b: string, season: number, defaultSeason: number): string {
-  return `${compareCardPath(a, b)}${season !== defaultSeason ? `?season=${season}` : ""}`;
-}
-
 /**
  * The canonical path: the two slugs in alphabetical order, so the two mirrored
  * pages of a pair name one. It differs from og:url (the page's own order) on
@@ -139,13 +105,6 @@ export function compareCardHref(a: string, b: string, season: number, defaultSea
 export function compareCanonicalPath(a: string, b: string): string {
   const [first, second] = [a, b].sort();
   return compareCardPath(first, second);
-}
-
-/** The image route, always with the season; `week` only makes each week a new URL; `download` asks for an attachment. */
-export function compareImageHref(
-  a: string, b: string, season: number, options: { week?: number | null; download?: boolean } = {},
-): string {
-  return `/api/compare-card/${a}/${b}${canonicalImageQuery(season, compareWeek(options.week), options.download === true)}`;
 }
 
 /** The downloaded file's name. Only what the slug grammar allows survives: it goes into a header value. */
@@ -175,21 +134,9 @@ export const CARD_STAT_KEYS: Record<CompareGroup, readonly string[]> = {
 
 /* ─── Colours ─── */
 
-/**
- * The two colours of the card: each team's outline colour by the team radar's
- * rule (the primary when it shows on white, else the secondary, else a dark
- * neutral: Pittsburgh's and New Orleans' golds do not), then player B's moved
- * away from player A's when the two are too close. An unknown team is the dark
- * neutral. Always two #RRGGBB values, whatever comes in.
- */
-export function comparePlotColors(teamIdA: unknown, teamIdB: unknown): { a: string; b: string } {
-  const stroke = (id: unknown): string => {
-    const team = typeof id === "string" ? getTeam(id) : undefined;
-    return radarStrokeColor(team?.primaryColor ?? "", team?.secondaryColor ?? "");
-  };
-  const a = stroke(teamIdA);
-  return { a, b: ensureContrast(a, stroke(teamIdB)) };
-}
+// The card's two colours are buildComparison's own (comparePlotColors in
+// lib/stats/compare.ts): /compare and the card draw a player in one colour.
+export { comparePlotColors };
 
 /* ─── Sentences (the spec's copy table; each has a test) ─── */
 
@@ -201,6 +148,11 @@ export function compareShareTitle(nameA: string, nameB: string, season: number):
 /** C1b: og:title and twitter:title. No season and no site name: X prints it over the picture. */
 export function comparePreviewTitle(nameA: string, nameB: string): string {
   return `${nameA} vs ${nameB}`;
+}
+
+/** C18: /compare's <title> for a pair. A plain title: the layout's template adds the site name. */
+export function compareToolTitle(nameA: string, nameB: string): string {
+  return `${nameA} vs ${nameB} — Player Comparison`;
 }
 
 /** The page's visible heading and the plate's: the pair and the season. */
@@ -225,21 +177,6 @@ export const COMPARE_CARD_SITE_LINE = RADAR_CARD_SITE_LINE;
 
 /** C9: the table's middle header. */
 export const COMPARE_CARD_STAT_HEADER = "STAT";
-
-/**
- * C10: a real pair with nothing to compare, because one or both have no row
- * for the season. For the newest season the stats may still come.
- */
-export function compareNoStatsMessage(i: {
-  nameA: string; nameB: string; missingA: boolean; missingB: boolean; season: number; isNewestSeason: boolean;
-}): string {
-  const both = i.missingA && i.missingB;
-  const who = both ? `${i.nameA} and ${i.nameB}` : i.missingA ? i.nameA : i.nameB;
-  const verb = both ? "have" : "has";
-  return i.isNewestSeason
-    ? `${who} ${verb} no ${i.season} stats yet, so there is nothing to compare. Comparisons update the day after each game.`
-    : `${who} ${verb} no stats for the ${i.season} season, so there is nothing to compare.`;
-}
 
 /** C12: the links under the card. */
 export const COMPARE_FULL_LINK_TEXT = "See the full comparison →";
@@ -303,7 +240,7 @@ export interface CompareCardModel {
   throughWeek: number | null;
   a: CompareCardPlayer;
   b: CompareCardPlayer;
-  /** buildComparison's output for the pair: what /compare shows. Its own colours are the Compare page's and are not used on the card. */
+  /** buildComparison's output for the pair: what /compare shows, colours included. */
   comparison: Comparison;
   /** Is any outline drawn? No when a pool is too small or both players have too few radar stats. */
   radarDrawn: boolean;
@@ -340,11 +277,14 @@ export interface CompareCardPlayerInput {
   /** player_slugs.player_name; a missing one falls back to the short name, then the slug. */
   fullName: string | null | undefined;
   row: ComparePlayerRow;
+  /**
+   * player_slugs.current_team_id: only the fallback for a season row with no
+   * team_id (compareTeamId), exactly as on /compare.
+   */
+  teamId?: string | null;
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
-const titleFromSlug = (slug: string): string =>
-  slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 
 function ovrFor(group: CompareGroup, row: ComparePlayerRow, all: ComparePlayerRow[], season: number): number | null {
   const card =
@@ -370,14 +310,15 @@ export function buildCompareCard(input: {
   const { group, all, season } = input;
   const throughWeek = compareWeek(input.throughWeek);
   const rec = (p: CompareCardPlayerInput) => (p.row ?? {}) as unknown as Record<string, unknown>;
-  const teamIdA = str(rec(input.a).team_id);
-  const teamIdB = str(rec(input.b).team_id);
+  // One rule with /compare: the season row's team, else player_slugs' team, else none.
+  const teamIdA = compareTeamId(input.a.row, input.a.teamId);
+  const teamIdB = compareTeamId(input.b.row, input.b.teamId);
 
   const comparison = buildComparison({ group, rowA: input.a.row, rowB: input.b.row, all, teamA: teamIdA, teamB: teamIdB });
-  const colors = comparePlotColors(teamIdA, teamIdB);
+  const colors = { a: comparison.a.color, b: comparison.b.color };
 
   const fullName = (p: CompareCardPlayerInput, short: string, fallback: string) =>
-    str(p.fullName) || short || titleFromSlug(str(p.slug)) || fallback;
+    compareDisplayName({ fullName: p.fullName, slug: p.slug }, short, fallback);
   const fullA = fullName(input.a, comparison.a.shortName, "Player 1");
   const fullB = fullName(input.b, comparison.b.shortName, "Player 2");
   const useFull = !comparison.a.shortName || !comparison.b.shortName || comparison.a.shortName === comparison.b.shortName;

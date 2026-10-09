@@ -7,8 +7,8 @@
 // file-convention opengraph-image gets no query string, so there is none in
 // this folder).
 //
-// Nothing links here yet: the Share buttons on /compare are PR 3. Every share
-// page is noindex (decision J3).
+// Linked from the Share block on /compare (components/compare/CompareShare.tsx,
+// PR 3). Every share page is noindex (decision J3).
 //
 // No loading.tsx on purpose: an unknown pair or season is a real 404 and a
 // failed read is a real 500 (app/error.tsx), as on /card/[slug].

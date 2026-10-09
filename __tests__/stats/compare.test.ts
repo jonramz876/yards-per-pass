@@ -3,7 +3,8 @@ import { readFileSync } from "fs";
 import path from "path";
 import {
   buildComparison, ensureContrast, colorDistance, getStatVal,
-  comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, compareNotDrawnSentences, COMPARE_RADAR_LEGEND,
+  comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, compareNotDrawnSentences, comparePlotColors, COMPARE_RADAR_LEGEND,
+  compareDisplayName, compareTeamId,
   CONTRAST_PALETTE, MIN_DISTANCE, QB_COMP_STATS, WR_COMP_STATS, RB_COMP_STATS,
   type CompareGroup, type ComparePlayerRow,
 } from "@/lib/stats/compare";
@@ -723,13 +724,57 @@ describe("ensureContrast: only player 2's colour is ever moved", () => {
     }
   });
 
-  it("an unknown team id uses the site's neutral grey, as the page always did", () => {
-    const got = buildComparison({
-      group: "QB", rowA: asRow(TABLES.QB[0]), rowB: asRow(TABLES.QB[1]),
-      all: asRows(TABLES.QB), teamA: "???", teamB: "BUF",
+  // Compare card PR 3: /compare draws each player in the colour the share card
+  // draws him in, so one player is never two colours on the site. The card's
+  // rule: the outline colour of the team he played for THAT season (his season
+  // row's team), by the team radar's rule (the primary when it shows on white,
+  // else the secondary, else a dark neutral), then player B moved away from A.
+  describe("the colours are the share card's (PR 3)", () => {
+    const withTeams = (teamA: string, teamB: string) => {
+      const rows = TABLES.QB.map((r) =>
+        (r.player_name === "J.Allen" ? { ...r, team_id: teamA } : r.player_name === "M.Stafford" ? { ...r, team_id: teamB } : r));
+      const find = (n: string) => asRow(rows.find((r) => r.player_name === n)!);
+      // What player_slugs says today is passed too, as /compare passes it: it must not decide the colour.
+      return buildComparison({ group: "QB", rowA: find("J.Allen"), rowB: find("M.Stafford"), all: asRows(rows), teamA: "BUF", teamB: "LA" });
+    };
+
+    it("a Steeler is not drawn in Pittsburgh's gold (it does not show on white) but in its black; a Saint likewise", () => {
+      const pit = withTeams("PIT", "KC");
+      expect(pit.a.color).toBe("#101820");
+      expect(pit.a.color).not.toBe(getTeamColor("PIT"));
+      const no = withTeams("KC", "NO");
+      expect(no.b.color).not.toBe(getTeamColor("NO"));
+      expect(colorDistance(no.a.color, no.b.color)).toBeGreaterThanOrEqual(MIN_DISTANCE);
+      // PIT against NO: both would be the same near-black, so player B is moved to red.
+      expect(withTeams("PIT", "NO")).toMatchObject({ a: { color: "#101820" }, b: { color: "#dc2626" } });
     });
-    expect(got.a.color).toBe("#6B7280");
-    expect(colorDistance(got.a.color, got.b.color)).toBeGreaterThanOrEqual(MIN_DISTANCE);
+
+    it("a traded player wears the team of his season row, not the team player_slugs has for him today", () => {
+      const traded = withTeams("KC", "DET");
+      expect([traded.a.color, traded.b.color]).toEqual([getTeamColor("KC"), getTeamColor("DET")]);
+    });
+
+    it("it is exactly the card's pair of colours, for every pair of teams", () => {
+      for (const t1 of ["BUF", "PIT", "NO", "KC", "NYJ", "LA", "DAL", "SEA"]) for (const t2 of ["BUF", "PIT", "NO", "KC", "NYJ", "LA", "DET"]) {
+        const got = withTeams(t1, t2);
+        expect({ a: got.a.color, b: got.b.color }, `${t1}/${t2}`).toEqual(comparePlotColors(t1, t2));
+      }
+    });
+
+    it("the teams whose colours were fine before are unchanged: BUF/LA still blue and red, ATL/DET as they were", () => {
+      expect(withTeams("BUF", "LA")).toMatchObject({ a: { color: "#00338D" }, b: { color: "#dc2626" } });
+      expect(withTeams("ATL", "DET")).toMatchObject({ a: { color: "#A71930" }, b: { color: "#0076B6" } });
+    });
+
+    it("a row with no team falls back to the team the caller names; an unknown team is the dark neutral (it was a mid grey)", () => {
+      const a = { player_id: "a", player_name: "A", games: 4, attempts: 100, epa_per_db: 0.2 };
+      const b = { player_id: "b", player_name: "B", games: 4, attempts: 100, epa_per_db: 0.1 };
+      const named = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b]), teamA: "KC", teamB: "DET" });
+      expect([named.a.color, named.b.color]).toEqual([getTeamColor("KC"), getTeamColor("DET")]);
+      const unknown = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b]), teamA: "???", teamB: "BUF" });
+      expect(unknown.a.color).toBe("#0f172a");
+      expect(colorDistance(unknown.a.color, unknown.b.color)).toBeGreaterThanOrEqual(MIN_DISTANCE);
+    });
   });
 });
 
@@ -799,8 +844,69 @@ describe("lib/stats/compare.ts stays pure", () => {
     expect(packages).toEqual([]);
   });
 
+  // Compare card PR 3: the Share block first cost /compare's visitors 16 kB of
+  // JavaScript (138 kB to 154 kB first load), because the browser code reached
+  // the team radar's and the team stats page's modules through two imports.
+  // The bundler keeps a module it can reach, used or not.
+  it("/compare's browser code never reaches the share card's model, the team radar or the team stats modules", () => {
+    const { files } = chain("components/compare/ComparisonTool.tsx");
+    for (const f of ["components/compare/CompareShare.tsx", "lib/stats/compare.ts", "lib/stats/compare-links.ts", "lib/stats/formatters.ts"]) {
+      expect(files, f).toContain(f);
+    }
+    for (const f of ["lib/stats/compare-card.ts", "lib/stats/team-radar.ts", "lib/stats/team-stats.ts", "lib/data/compare-card.ts"]) {
+      expect(files, f).not.toContain(f);
+    }
+    expect(runtimeImports(read("lib/stats/compare-links.ts"))).toEqual([]);
+    expect(runtimeImports(read("lib/stats/formatters.ts"))).toEqual([]);
+    // The walker follows `import ... from` only: a require() or a dynamic
+    // import() in any walked file would be a way round it (code review M4).
+    for (const f of files) expect(read(f), f).not.toMatch(/\brequire\(|\bimport\(/);
+  });
+
   it("the walker would catch a bad import: it sees runtime imports and ignores type-only ones", () => {
     expect(runtimeImports('import type React from "react";\nimport { a } from "@/lib/supabase/client";\nimport {\n  b,\n} from "./x";\nexport { c } from "next/navigation";\nimport "server-only";'))
       .toEqual(["@/lib/supabase/client", "./x", "next/navigation", "server-only"]);
+  });
+});
+
+// Chaos PR 3, R2 and R3: two small rules that /compare and the share card must
+// share, so they live here once.
+describe("compareTeamId: the team a player is drawn in", () => {
+  const row = (team_id: unknown) => ({ player_id: "x", team_id }) as unknown as ComparePlayerRow;
+
+  it("the season row's team when it has one", () => {
+    expect(compareTeamId(row("BUF"), "KC")).toBe("BUF");
+    expect(compareTeamId(row(" BUF "), "KC")).toBe("BUF");
+  });
+
+  it.each([null, undefined, "", "   ", 7])("row team %j: the team player_slugs names", (v) => {
+    expect(compareTeamId(row(v), "KC")).toBe("KC");
+    expect(compareTeamId(row(v), " KC ")).toBe("KC");
+  });
+
+  it.each([null, undefined, "", "  ", 7])("neither: no team (\"\"), which is drawn in the neutral colour (fallback %j)", (v) => {
+    expect(compareTeamId(row(null), v)).toBe("");
+    expect(compareTeamId(null, v)).toBe("");
+  });
+});
+
+describe("compareDisplayName: full name, else short name, else from the slug, else Player N", () => {
+  it("each step of the chain", () => {
+    expect(compareDisplayName({ fullName: "Josh Allen", slug: "josh-allen" }, "J.Allen", "Player 1")).toBe("Josh Allen");
+    expect(compareDisplayName("Josh Allen", "J.Allen", "Player 1")).toBe("Josh Allen");
+    expect(compareDisplayName({ fullName: "", slug: "josh-allen" }, "J.Allen", "Player 1")).toBe("J.Allen");
+    expect(compareDisplayName({ fullName: null, slug: "josh-allen" }, null, "Player 1")).toBe("Josh Allen");
+    expect(compareDisplayName({ fullName: "  ", slug: "" }, "  ", "Player 2")).toBe("Player 2");
+    expect(compareDisplayName(null, undefined, "Player 1")).toBe("Player 1");
+  });
+
+  it("never empty, never padded, never the word null", () => {
+    for (const name of [null, undefined, "", " ", { fullName: null, slug: null }, { fullName: undefined }, {}]) {
+      for (const short of [null, undefined, "", " ", 5]) {
+        const got = compareDisplayName(name as never, short, "Player 1");
+        expect(got).toBe("Player 1");
+      }
+    }
+    expect(compareDisplayName("  Josh Allen ", null, "Player 1")).toBe("Josh Allen");
   });
 });

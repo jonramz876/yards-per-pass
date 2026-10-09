@@ -27,7 +27,7 @@ import { getRBSeasonStats } from "@/lib/data/rushing";
 import { getPlayerSlugIndex, type PlayerSlugEntry } from "@/lib/data/players";
 import { memoised, type MemoEntry } from "@/lib/data/team-radar-card";
 import { hasNoDatabase } from "@/lib/supabase/server";
-import { compareGroup, type CompareGroup, type ComparePlayerRow } from "@/lib/stats/compare";
+import { compareDisplayName, compareGroup, type CompareGroup, type ComparePlayerRow } from "@/lib/stats/compare";
 import { buildCompareCard, compareNoStatsMessage, compareWeek, type CompareCardModel } from "@/lib/stats/compare-card";
 
 /** A player as both loaders know him. */
@@ -36,6 +36,8 @@ export interface ComparePlayerRef {
   player_id: string;
   player_name: string | null;
   position: string | null;
+  /** player_slugs' team today: only the colour fallback for a season row with no team. */
+  current_team_id?: string | null;
 }
 
 export type CompareCardLoad =
@@ -67,10 +69,9 @@ function readTable(group: CompareGroup, season: number): Promise<ComparePlayerRo
   return getReceiverStats(season);
 }
 
-const nameOf = (p: ComparePlayerRef): string => {
-  const name = typeof p.player_name === "string" ? p.player_name.trim() : "";
-  return name || p.slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-};
+/** A player's name by the one chain /compare uses: full name, his season row's short name (when he has a row), a name from the slug, "Player N". */
+const nameOf = (p: ComparePlayerRef, row: ComparePlayerRow | undefined, fallback: string): string =>
+  compareDisplayName({ fullName: p.player_name, slug: p.slug }, (row as { player_name?: unknown } | undefined)?.player_name, fallback);
 
 /**
  * The season a request means, or a "not-found" for one the site does not
@@ -119,8 +120,8 @@ async function decide(
   }
   const rowA = all.find((r) => r.player_id === a.player_id);
   const rowB = all.find((r) => r.player_id === b.player_id);
-  const nameA = nameOf(a);
-  const nameB = nameOf(b);
+  const nameA = nameOf(a, rowA, "Player 1");
+  const nameB = nameOf(b, rowB, "Player 2");
 
   if (!rowA || !rowB) {
     const missing = { missingA: !rowA, missingB: !rowB };
@@ -134,8 +135,8 @@ async function decide(
     state: "ready", season: when.season, defaultSeason: when.defaultSeason,
     model: buildCompareCard({
       group,
-      a: { slug: a.slug, fullName: a.player_name, row: rowA },
-      b: { slug: b.slug, fullName: b.player_name, row: rowB },
+      a: { slug: a.slug, fullName: a.player_name, row: rowA, teamId: a.current_team_id },
+      b: { slug: b.slug, fullName: b.player_name, row: rowB, teamId: b.current_team_id },
       all, season: when.season, throughWeek: when.throughWeek,
     }),
   };

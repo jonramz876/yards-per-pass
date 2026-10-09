@@ -482,3 +482,34 @@ describe("page and image agree", () => {
     expect(b).toEqual(a);
   });
 });
+
+// Chaos PR 3, R2 and R3: the loader hands the card player_slugs' team (the
+// fallback for a season row with none) and names players by the one chain
+// the Compare page uses.
+describe("the loader: the fallback team and the name chain", () => {
+  it("a season row with no team is drawn in the team player_slugs has for him", async () => {
+    vi.mocked(getQBStats).mockResolvedValue(QB.map((r) => (r.player_id === "00-0034857" ? { ...r, team_id: null } : r)) as never);
+    const got = await page("josh-allen", "matthew-stafford");
+    if (got.state !== "ready") throw new Error(got.state);
+    expect(got.model.a).toMatchObject({ teamId: "BUF", teamName: "Buffalo Bills", color: "#00338D" });
+  });
+
+  it.each([["empty", ""], ["spaces", "  "], ["null", null]])("no stats and a %s player_slugs name: the name is made from the slug, never blank or \"null\"", async (_n, value) => {
+    const index = new Map(INDEX);
+    index.set("rookie-qb", { ...INDEX.get("rookie-qb")!, player_name: value as string });
+    vi.mocked(getPlayerSlugIndex).mockResolvedValue(index as never);
+    const got = await page("josh-allen", "rookie-qb");
+    if (got.state !== "no-stats") throw new Error(got.state);
+    expect(got.nameB).toBe("Rookie Qb");
+    expect(got.message).toBe("Rookie Qb has no 2026 stats yet, so there is nothing to compare. Comparisons update the day after each game.");
+  });
+
+  it("no stats for one, and the OTHER has no player_slugs name: he is named by his season row", async () => {
+    const index = new Map(INDEX);
+    index.set("josh-allen", { ...INDEX.get("josh-allen")!, player_name: "" });
+    vi.mocked(getPlayerSlugIndex).mockResolvedValue(index as never);
+    const got = await page("josh-allen", "rookie-qb");
+    if (got.state !== "no-stats") throw new Error(got.state);
+    expect(got.nameA).toBe("J.Allen");
+  });
+});

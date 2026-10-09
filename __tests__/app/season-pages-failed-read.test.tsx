@@ -45,6 +45,8 @@ vi.mock("@/lib/data/trends", () => ({ getAllSurgeData: vi.fn(), SURGE_STATS: [] 
 vi.mock("@/lib/data/team-stats", () => ({ getTeamStatsSeason: vi.fn() }));
 vi.mock("@/lib/data/box-score", () => ({ getBoxScoreSeasonsCached: vi.fn(async () => [2026]) }));
 vi.mock("@/components/compare/ComparisonTool", () => ({ default: vi.fn(() => null) }));
+// /compare's link preview loader (compare card PR 3): only its metadata uses it, and this file tests page bodies.
+vi.mock("@/lib/data/compare-card", () => ({ loadCompareCardForPage: vi.fn() }));
 
 import { getAvailableSeasons, getDataFreshness, getQBStats, getTeamStats } from "@/lib/data/queries";
 import { getAllPlayerSlugs, getPlayerBySlug } from "@/lib/data/players";
@@ -155,11 +157,27 @@ describe("/compare", () => {
     await expect(call(ComparePage as Page)).rejects.toThrow("Failed to fetch seasons");
   });
 
-  it("an explicit ?season= needs no seasons read, so the tool renders even with the database down", async () => {
-    vi.mocked(getAvailableSeasons).mockRejectedValue(FAILED("seasons"));
+  // Until compare card PR 3 an explicit ?season= made no seasons read at all.
+  // The Share block now needs to know which season is the newest (its links
+  // are bare for that one), so the read is made, but as one that may degrade:
+  // the season shown never depends on it.
+  it("an explicit ?season= does not depend on the seasons read: the tool renders with the database down, and the failure is logged", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failure = FAILED("seasons");
+    vi.mocked(getAvailableSeasons).mockRejectedValue(failure);
     const props = await toolProps({ season: "2025" });
     expect(props.season).toBe(2025);
-    expect(getAvailableSeasons).not.toHaveBeenCalled();
+    // The calendar's guess stands in for the newest season.
+    expect(props.defaultSeason).toBe(2026);
+    expect(logged).toHaveBeenCalledTimes(1);
+    expect(String(logged.mock.calls[0][0])).toContain("Compare page");
+    expect(logged.mock.calls[0][1]).toBe(failure);
+    logged.mockRestore();
+  });
+
+  it("an explicit ?season= with the database up: the newest season comes from the seasons list", async () => {
+    const props = await toolProps({ season: "2025" });
+    expect(props).toMatchObject({ season: 2025, defaultSeason: 2026 });
   });
 
   it("the position table read fails when p1 is given → rejects", async () => {

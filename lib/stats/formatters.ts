@@ -304,3 +304,36 @@ export function textColorForBackground(hex: string): string {
     0.0722 * linearizeChannel(b);
   return lum > LUMINANCE_CROSSOVER ? DARK_TEXT : LIGHT_TEXT;
 }
+
+/* ─── Outline colour on a white chart (the team radar's rule; the Compare radar and its share card use it too) ─── */
+
+
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+/** The outline when neither team colour can be read on white. */
+export const RADAR_NEUTRAL_STROKE = "#0f172a";
+/** WCAG's minimum contrast for graphical objects. */
+export const RADAR_MIN_STROKE_CONTRAST = 3;
+
+/** WCAG contrast ratio of a #rrggbb colour against white (1-21); 1 for anything that is not #rrggbb. */
+export function contrastOnWhite(hex: string): number {
+  if (typeof hex !== "string" || !HEX6.test(hex)) return 1;
+  const channel = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return 1.05 / (luminance + 0.05);
+}
+
+/**
+ * The colour of the radar's outline and dots. The team's primary colour when
+ * it shows on white (3:1 or better); otherwise the secondary if that does;
+ * otherwise a dark neutral. Pittsburgh's and New Orleans' golds are under 2:1
+ * and Pittsburgh's sat on top of the dashed middle ring. The light primary
+ * stays as the fill tint.
+ */
+export function radarStrokeColor(primaryColor: string, secondaryColor: string): string {
+  if (contrastOnWhite(primaryColor) >= RADAR_MIN_STROKE_CONTRAST) return primaryColor;
+  if (contrastOnWhite(secondaryColor) >= RADAR_MIN_STROKE_CONTRAST) return secondaryColor;
+  return RADAR_NEUTRAL_STROKE;
+}
