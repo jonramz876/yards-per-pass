@@ -235,6 +235,15 @@ export function compareStatCardLinkText(name: string): string {
   return `${name} stat card →`;
 }
 
+/** C13 and C13b: the Share block on /compare. */
+export const COMPARE_SHARE_HEADING = "Share this comparison";
+export const COMPARE_OPEN_CARD_TEXT = "Open share card \u2192";
+export const COMPARE_COPY_LINK_TEXT = "Copy Link";
+export const COMPARE_COPIED_TEXT = "Copied!";
+export const COMPARE_DOWNLOAD_TEXT = "Download Image";
+/** On /compare the address bar holds the Compare page, not the card, so the advice differs from the card pages' own. */
+export const COMPARE_COPY_FAILED_TEXT = "Copy failed: open the share card and copy its address";
+
 /** C14: the image route's 503 body. */
 export const COMPARE_IMAGE_UNAVAILABLE = "Comparison image temporarily unavailable. Try again in a few minutes.";
 

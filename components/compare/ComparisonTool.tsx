@@ -7,9 +7,11 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  compareNotDrawnSentences, compareRadarIsDrawn, compareChartMask,
+  compareNotDrawnSentences, compareRadarIsDrawn, compareChartMask, compareGroup,
   type CompareGroup,
 } from "@/lib/stats/compare";
+import { compareCardHref, compareImageHref, compareNoStatsMessage, parseCompareSlugs } from "@/lib/stats/compare-card";
+import CompareShare from "./CompareShare";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";
 
@@ -29,9 +31,21 @@ interface ComparisonToolProps {
   receivers: ReceiverSeasonStat[];
   rbs: RBSeasonStat[];
   season: number;
+  /**
+   * The newest season the site has, worked out on the server: share links are
+   * bare for it and carry ?season= for any other. Without it the season shown
+   * is taken to be the newest.
+   */
+  defaultSeason?: number;
+  /** The site's own origin, from the server (NEXT_PUBLIC_SITE_URL): the Share block copies absolute links built on it. */
+  siteUrl?: string;
 }
 
-export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceivers, rbs: serverRBs, season }: ComparisonToolProps) {
+const SITE_URL_FALLBACK = "https://yardsperpass.com";
+
+export default function ComparisonTool({
+  qbs: serverQBs, receivers: serverReceivers, rbs: serverRBs, season, defaultSeason = season, siteUrl = SITE_URL_FALLBACK,
+}: ComparisonToolProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -185,6 +199,29 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   const notDrawnSentences = comparison ? compareNotDrawnSentences(comparison, name1, name2) : [];
   const smallSampleSentence = comparison ? compareSmallSampleSentence(comparison, name1, name2) : null;
 
+  // Does this pair have a share card? Both players must belong to one stat
+  // table by their own positions (the card's rule: a hand-typed link can put a
+  // running back's receiving row beside a receiver here, and that card is a
+  // 404) and both slugs must fit the share URL's grammar.
+  const sameTable = player1 && player2
+    ? compareGroup(player1.position) !== null && compareGroup(player1.position) === compareGroup(player2.position)
+    : false;
+  const shareSlugs = comparison && !samePlayer && sameTable && player1 && player2
+    ? parseCompareSlugs(player1.slug, player2.slug)
+    : null;
+  const cardHref = shareSlugs ? compareCardHref(shareSlugs.a, shareSlugs.b, season, defaultSeason) : null;
+
+  // Two comparable players, the season table is here, and one or both are not
+  // in it: say so. (Nothing was shown at all before.) Not while the table is
+  // still loading or failed to load, and not for players of different groups,
+  // where a missing row only means "the other table".
+  const noStatsSentence = player1 && player2 && !samePlayer && sameTable && !loadFailed && pool.length > 0 && (!stats1 || !stats2)
+    ? compareNoStatsMessage({
+      nameA: player1.player_name, nameB: player2.player_name, missingA: !stats1, missingB: !stats2,
+      season, isNewestSeason: season === defaultSeason,
+    })
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Player selectors */}
@@ -227,6 +264,10 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
         </div>
       )}
 
+      {noStatsSentence && (
+        <p data-compare-no-stats className="text-center text-sm text-gray-500 py-8">{noStatsSentence}</p>
+      )}
+
       {/* Comparison view */}
       {comparison && !samePlayer && (
         <div className="space-y-6">
@@ -257,6 +298,14 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
               {radarDrawn && notDrawnSentences.map((sentence, i) => <p key={i}>{sentence}</p>)}
               {smallSampleSentence && <p className="text-amber-700">{smallSampleSentence}</p>}
             </div>
+          )}
+
+          {shareSlugs && cardHref && (
+            <CompareShare
+              shareUrl={`${siteUrl.replace(/\/+$/, "")}${cardHref}`}
+              cardHref={cardHref}
+              downloadHref={compareImageHref(shareSlugs.a, shareSlugs.b, season, { download: true })}
+            />
           )}
 
           {/* Stat Comparison Table */}
