@@ -279,11 +279,26 @@ describe("a failed read is a 503 the browser can retry: never a 404, never a pic
     expect(console.error).toHaveBeenCalled();
   });
 
-  it("the failure is not remembered: the next request reads again and draws", async () => {
-    vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: timeout"));
-    await expectUnavailable(await get("josh-allen", "matthew-stafford"));
-    expect((await get("josh-allen", "matthew-stafford")).status).toBe(200);
+  // Chaos COST-2: the failure is kept ten seconds (never as a success), so an
+  // outage is not retried once per image request.
+  it("20 image requests during an outage are ONE read of the failing table; ten seconds later the next request reads again and draws", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: upstream 500"));
+      for (let i = 0; i < 20; i++) {
+        vi.setSystemTime(new Date(Date.parse("2026-10-09T12:00:00Z") + i * 400));
+        await expectUnavailable(await get("josh-allen", i % 2 ? "matthew-stafford" : "rookie-qb"));
+      }
+      expect(getQBStats).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(new Date("2026-10-09T12:00:10Z"));
+      expect((await get("josh-allen", "matthew-stafford")).status).toBe(200);
+      expect(getQBStats).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
+
 });
 
 describe("reads do not scale with pairs", () => {

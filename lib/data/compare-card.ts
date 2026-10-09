@@ -2,28 +2,30 @@
 // card spec 2026-10-09 §4, §6.1; PR 2). Server-only: never import it from a
 // "use client" file.
 //
-// Two loaders, one decision. The share page (and its metadata) and the image
-// route read differently on purpose, then hand what they read to the same
-// `decide`, so they cannot disagree about a pair's state:
+// ONE loader for the share page, its metadata and the image route, so the three
+// cannot disagree about a pair's state, and NO read per slug or per pair:
+// about 850,000 ordered pairs are valid URLs and any made-up slug is a URL too.
+// Everything comes through three one-minute memos:
 //
-//   loadCompareCardForPage   seasons + two per-player reads in one wave, then
-//                            the season table. Its reads sit in Next's data
-//                            cache (the page exports revalidate = 3600); the
-//                            player reads are per PLAYER, shared with
-//                            /card/[slug] and /player/[slug], never per pair.
-//   loadCompareCardForImage  no per-pair read at all. About 850,000 ordered
-//                            pairs are valid URLs, so the route resolves both
-//                            players from a memoised list of every slug and the
-//                            numbers from a memoised season table: zero database
-//                            requests while the three memos are warm.
+//   seasons   data_freshness (season + through_week)
+//   slugs     every player slug (a narrow, ordered read of player_slugs)
+//   GROUP:season   one season table per group, the season already checked
 //
-// A failed read rejects (the page shows its error page, the image answers 503):
-// it is never a 404 and never an empty card.
+// Warm, a card costs no database request at all; a made-up slug is a 404 from
+// the slug list in memory. A failed read rejects (the page shows its error
+// page, the image answers 503), is never a 404 or an empty card, and is
+// remembered for ten seconds (memoised), so a page view that runs the loader
+// three times (metadata, body, and Next's error-page pass) reads once, and an
+// outage is not retried at the visitor's rate.
+//
+// (Until chaos R1 / COST-1 the page read player_slugs once per slug in the URL
+// instead: 200 made-up pairs were 400 requests, and a failed read was made
+// twice per page view.)
 import { getSeasonWeeks, getQBStats, fallbackSeason, type SeasonWeek } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
 import { getRBSeasonStats } from "@/lib/data/rushing";
-import { getPlayerBySlug, getPlayerSlugIndex, type PlayerSlugEntry } from "@/lib/data/players";
-import { memoised } from "@/lib/data/team-radar-card";
+import { getPlayerSlugIndex, type PlayerSlugEntry } from "@/lib/data/players";
+import { memoised, type MemoEntry } from "@/lib/data/team-radar-card";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { compareGroup, type CompareGroup, type ComparePlayerRow } from "@/lib/stats/compare";
 import { buildCompareCard, compareNoStatsMessage, compareWeek, type CompareCardModel } from "@/lib/stats/compare-card";
@@ -139,30 +141,11 @@ async function decide(
   };
 }
 
-/* ─── The share page ─── */
+/* ─── Three memos, no per-pair read ─── */
 
-/**
- * The card for a share page URL. `slugs` have passed parseCompareSlugs and
- * `requested` is a plausible season or null. One wave (the seasons and both
- * players), then the season table.
- */
-export async function loadCompareCardForPage(
-  slugs: { a: string; b: string }, requested: number | null,
-): Promise<CompareCardLoad> {
-  const what = `Compare card page (${slugs.a} vs ${slugs.b})`;
-  const [weeks, a, b] = await Promise.all([getSeasonWeeks(), getPlayerBySlug(slugs.a), getPlayerBySlug(slugs.b)]);
-  const when = resolveSeason(weeks, requested, what);
-  if ("state" in when) return when;
-  if (!a || !b) return { state: "not-found", stored: false, why: `no player for ${!a ? slugs.a : slugs.b}` };
-  return decide(what, { ...a, slug: slugs.a }, { ...b, slug: slugs.b }, when, readTable);
-}
-
-/* ─── The image route: three memos, no per-pair read ─── */
-
-type Entry<T> = { at: number; promise: Promise<T> };
-const weeksMemo = new Map<"seasons", Entry<SeasonWeek[]>>();
-const slugsMemo = new Map<"slugs", Entry<Map<string, PlayerSlugEntry>>>();
-const tableMemo = new Map<string, Entry<ComparePlayerRow[]>>();
+const weeksMemo = new Map<"seasons", MemoEntry<SeasonWeek[]>>();
+const slugsMemo = new Map<"slugs", MemoEntry<Map<string, PlayerSlugEntry>>>();
+const tableMemo = new Map<string, MemoEntry<ComparePlayerRow[]>>();
 
 /** Tests only: forget every memoised read. */
 export function clearCompareCardMemo(): void {
@@ -176,20 +159,18 @@ export function compareCardMemoKeys(): string[] {
   return [...Array.from(weeksMemo.keys()), ...Array.from(slugsMemo.keys()), ...Array.from(tableMemo.keys())].sort();
 }
 
-/** The season table behind the one-minute memo, keyed by group and season. Call it only with a season already checked against data_freshness (or with no database): the keys must stay bounded. */
+/** The season table behind the memo, keyed by group and season. Call it only with a season already checked against data_freshness (or with no database): the keys must stay bounded. */
 function readTableCached(group: CompareGroup, season: number): Promise<ComparePlayerRow[]> {
   return memoised(tableMemo, `${group}:${season}`, () => readTable(group, season));
 }
 
 /**
- * The card for an image URL. In order: the seasons (memo); the season is
- * checked BEFORE any player is looked up; the slug list (memo); the season
- * table (memo). Warm, that is no database request.
+ * The card for two slugs that have passed parseCompareSlugs and a season that
+ * is plausible or null (none asked for: the newest). In order: the seasons;
+ * the season is checked BEFORE any player is looked up; the slug list; the
+ * season table. All three through the memos.
  */
-export async function loadCompareCardForImage(
-  slugs: { a: string; b: string }, requested: number | null,
-): Promise<CompareCardLoad> {
-  const what = `Compare card image (${slugs.a} vs ${slugs.b})`;
+async function loadCompareCard(what: string, slugs: { a: string; b: string }, requested: number | null): Promise<CompareCardLoad> {
   const weeks = await memoised(weeksMemo, "seasons", () => getSeasonWeeks());
   const when = resolveSeason(weeks, requested, what);
   if ("state" in when) return when;
@@ -201,6 +182,17 @@ export async function loadCompareCardForImage(
   }
   const a = index.get(slugs.a);
   const b = index.get(slugs.b);
+  // Not stored anywhere per slug: a rookie is found as soon as the slug list is read again.
   if (!a || !b) return { state: "not-found", stored: false, why: `no player for ${!a ? slugs.a : slugs.b}` };
   return decide(what, a, b, when, readTableCached);
+}
+
+/** The card for a share page URL (and its metadata). */
+export function loadCompareCardForPage(slugs: { a: string; b: string }, requested: number | null): Promise<CompareCardLoad> {
+  return loadCompareCard(`Compare card page (${slugs.a} vs ${slugs.b})`, slugs, requested);
+}
+
+/** The card for an image URL. */
+export function loadCompareCardForImage(slugs: { a: string; b: string }, requested: number | null): Promise<CompareCardLoad> {
+  return loadCompareCard(`Compare card image (${slugs.a} vs ${slugs.b})`, slugs, requested);
 }

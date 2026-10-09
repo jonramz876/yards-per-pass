@@ -169,7 +169,6 @@ describe.each([["image", image], ["page", page]] as const)("the %s loader: every
     clearCompareCardMemo();
     vi.mocked(getSeasonWeeks).mockResolvedValue(WEEKS);
     vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: boom"));
-    vi.mocked(getPlayerBySlug).mockRejectedValue(new Error("Failed to fetch player josh-allen: boom"));
     await expect(load("josh-allen", "matthew-stafford")).rejects.toThrow(/Failed to fetch player/);
   });
 
@@ -185,7 +184,6 @@ describe.each([["image", image], ["page", page]] as const)("the %s loader: every
     vi.mocked(hasNoDatabase).mockReturnValue(true);
     vi.mocked(getSeasonWeeks).mockResolvedValue([]);
     vi.mocked(getPlayerSlugIndex).mockResolvedValue(new Map() as never);
-    vi.mocked(getPlayerBySlug).mockResolvedValue(null);
     expect(await load("josh-allen", "matthew-stafford")).toMatchObject({ state: "not-found", stored: false });
   });
 });
@@ -206,27 +204,132 @@ describe("a week no season can have (chaos R4)", () => {
   });
 });
 
-describe("the page loader's reads", () => {
-  it("one wave of three (seasons and the two players), then the season table: four reads, none of the slug list", async () => {
+// Chaos R1 and COST-1 (compare card PR 2). The share page used to read
+// player_slugs once per slug in the URL, so 200 made-up pairs were 400 database
+// requests, and a failed read was made twice per page view (Next renders the
+// error page as a second pass, outside the first pass's cache() scope), which
+// also made a hung read cost two 5 s limits. The page now reads through the
+// image route's three memos: nothing per slug, nothing per pair, and a failure
+// is read once and remembered for ten seconds.
+describe("the page loader reads nothing per slug and nothing per pair", () => {
+  it("cold: the seasons, the slug list and one season table; the per-player read is never used", async () => {
     await page("josh-allen", "matthew-stafford");
-    expect(reads()).toEqual({ ...NONE, weeks: 1, bySlug: 2, qb: 1 });
-    expect(vi.mocked(getPlayerBySlug).mock.calls.map((c) => c[0])).toEqual(["josh-allen", "matthew-stafford"]);
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+    expect(getPlayerBySlug).not.toHaveBeenCalled();
   });
 
-  it("the three first reads start together, before any of them answers", async () => {
-    let release: (v: typeof WEEKS) => void = () => {};
-    vi.mocked(getSeasonWeeks).mockReturnValue(new Promise((r) => { release = r; }));
-    const pending = page("josh-allen", "matthew-stafford");
-    await Promise.resolve();
-    expect(reads()).toMatchObject({ weeks: 1, bySlug: 2, qb: 0 });
-    release(WEEKS);
-    expect((await pending).state).toBe("ready");
+  it("200 made-up pairs cost NO read beyond the warm slug list, and add no memo key", async () => {
+    await page("josh-allen", "matthew-stafford");
+    const before = reads();
+    const keys = compareCardMemoKeys();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => { throw new Error("no network request expected"); });
+    for (let i = 0; i < 200; i++) {
+      const got = await page(`made-up-${i}`, i % 2 ? `nobody-${i}` : "josh-allen");
+      expect(got).toMatchObject({ state: "not-found", stored: false });
+    }
+    expect(reads()).toEqual(before);
+    expect(compareCardMemoKeys()).toEqual(keys);
+    expect(getPlayerBySlug).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  it("an unknown player, or a pair that is not comparable: the season table is never read", async () => {
-    await page("josh-allen", "nobody-at-all");
+  it("200 made-up pairs on a COLD instance: two reads in all (the seasons and the slug list), not 400", async () => {
+    for (let i = 0; i < 200; i++) await page(`made-up-${i}`, `nobody-${i}`);
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1 });
+  });
+
+  it("warm, any real pair of a group already asked for costs nothing either", async () => {
+    await page("josh-allen", "matthew-stafford");
+    const before = reads();
+    await page("matthew-stafford", "josh-allen");
+    await page("tyler-huntley", "josh-allen");
+    await page("josh-allen", "rookie-qb");
     await page("josh-allen", "ceedee-lamb");
-    expect([reads().qb, reads().rec, reads().rb]).toEqual([0, 0, 0]);
+    expect(reads()).toEqual(before);
+  });
+
+  it("a rookie who appears at the next refresh is found within a minute (the slug list is kept sixty seconds, a 'not found' is never kept per slug)", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      expect((await page("josh-allen", "brand-new-rookie")).state).toBe("not-found");
+      const withRookie = new Map(INDEX);
+      withRookie.set("brand-new-rookie", P("brand-new-rookie", "00-0026498", "Brand New Rookie", "QB", "LA"));
+      vi.mocked(getPlayerSlugIndex).mockResolvedValue(withRookie as never);
+      vi.setSystemTime(new Date("2026-10-09T12:00:30Z"));
+      expect((await page("josh-allen", "brand-new-rookie")).state).toBe("not-found");
+      vi.setSystemTime(new Date("2026-10-09T12:01:01Z"));
+      expect((await page("josh-allen", "brand-new-rookie")).state).toBe("ready");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("a failed read on the page is made once, not once per render pass", () => {
+  // One page view whose load fails runs the loader up to three times: for the
+  // metadata, for the body, and again when Next renders the error page.
+  const threePasses = async () => {
+    const results = [];
+    for (let i = 0; i < 3; i++) results.push(await page("josh-allen", "matthew-stafford").then(() => "ok", (e: Error) => e.message));
+    return results;
+  };
+
+  it.each([
+    ["the slug list (player_slugs)", () => vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500")), "index"],
+    ["the seasons", () => vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: 500")), "weeks"],
+    ["the season table", () => vi.mocked(getQBStats).mockRejectedValue(new Error("Failed to fetch QB stats: 500")), "qb"],
+  ] as const)("%s failing: exactly one request to it for the whole page view", async (_what, breakIt, key) => {
+    breakIt();
+    const results = await threePasses();
+    expect(results.every((r) => r.startsWith("Failed to fetch"))).toBe(true);
+    expect(reads()[key]).toBe(1);
+  });
+
+  it("six page views arriving together during an outage: still one request", async () => {
+    vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500"));
+    const all = await Promise.allSettled(Array.from({ length: 6 }, () => page("josh-allen", "matthew-stafford")));
+    expect(all.every((r) => r.status === "rejected")).toBe(true);
+    await threePasses();
+    expect(reads().index).toBe(1);
+  });
+
+  it("a HUNG read ends the page view after one time limit (about 5 s), not two", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      // The Supabase client cuts a stalled read at 5 s; this stands in for it.
+      vi.mocked(getPlayerSlugIndex).mockImplementation(() =>
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Failed to fetch player slug index: read timed out after 5 s")), 5000)));
+      const started = Date.now();
+      const first = page("josh-allen", "matthew-stafford").catch((e: Error) => e.message);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await first).toMatch(/timed out after 5 s/);
+      // The second pass (the error page) gets the same failure at once: no second wait.
+      const second = await page("josh-allen", "matthew-stafford").catch((e: Error) => e.message);
+      expect(second).toMatch(/timed out after 5 s/);
+      expect(Date.now() - started).toBe(5000);
+      expect(reads().index).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("recovery: ten seconds after the failure the page loads again", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: 500"));
+      await expect(page("josh-allen", "matthew-stafford")).rejects.toThrow(/QB stats/);
+      vi.setSystemTime(new Date("2026-10-09T12:00:09Z"));
+      await expect(page("josh-allen", "matthew-stafford")).rejects.toThrow(/QB stats/);
+      vi.setSystemTime(new Date("2026-10-09T12:00:10Z"));
+      expect((await page("josh-allen", "matthew-stafford")).state).toBe("ready");
+      expect(reads().qb).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -279,18 +382,31 @@ describe("the image loader makes no per-pair read", () => {
     await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/player slug list came back empty/);
   });
 
-  it("requests arriving together share one read of each; a failed read is not kept", async () => {
+  it("requests arriving together share one read of each", async () => {
     const all = await Promise.all([
       image("josh-allen", "matthew-stafford"), image("matthew-stafford", "josh-allen"), image("tyler-huntley", "josh-allen"),
     ]);
     expect(all.map((r) => r.state)).toEqual(["ready", "ready", "ready"]);
     expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
 
-    clearCompareCardMemo();
-    vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: timeout"));
-    await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/timeout/);
-    // The rejection was dropped: the next request reads again and succeeds.
-    expect((await image("josh-allen", "matthew-stafford")).state).toBe("ready");
+  });
+
+  it("a failed read is kept ten seconds (never as a success), then read again", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: timeout"));
+      await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/timeout/);
+      await expect(image("tyler-huntley", "josh-allen")).rejects.toThrow(/timeout/);
+      expect(reads().qb).toBe(1);
+      // Another group's table is not held back by it.
+      expect((await image("ceedee-lamb", "trey-mcbride")).state).toBe("ready");
+      vi.setSystemTime(new Date("2026-10-09T12:00:10Z"));
+      expect((await image("josh-allen", "matthew-stafford")).state).toBe("ready");
+      expect(reads().qb).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("the memo lasts a minute", async () => {

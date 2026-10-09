@@ -68,7 +68,10 @@ const NOINDEX = { index: false, follow: true } as const;
  * season number asked for (null = none). Never pass an object.
  *
  * Rejects when a read fails: a failed read never looks like a 404 or an
- * empty card.
+ * empty card. cache() only spans one render pass, and a failed page view has
+ * more than one (Next renders the error page separately): what keeps the
+ * failed read from being made again is the loader's own ten-second memory of
+ * a failure (lib/data/compare-card.ts), not this wrapper.
  */
 const loadShare = cache((a: string, b: string, requested: number | null): Promise<CompareCardLoad> =>
   loadCompareCardForPage({ a, b }, requested));

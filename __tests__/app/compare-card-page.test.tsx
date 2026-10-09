@@ -116,7 +116,7 @@ beforeEach(() => {
   for (const fn of READS) vi.mocked(fn).mockReset();
   vi.mocked(hasNoDatabase).mockReturnValue(false);
   vi.mocked(getSeasonWeeks).mockResolvedValue(WEEKS);
-  vi.mocked(getPlayerBySlug).mockImplementation(async (slug: string) => (PLAYERS.get(slug) ?? null) as never);
+  vi.mocked(getPlayerSlugIndex).mockResolvedValue(PLAYERS as never);
   vi.mocked(getQBStats).mockResolvedValue(QB as never);
   vi.mocked(getReceiverStats).mockResolvedValue(REC as never);
   vi.mocked(getRBSeasonStats).mockResolvedValue(rowsJson.rb as never);
@@ -375,16 +375,38 @@ describe("metadata of a card", () => {
 });
 
 describe("reads", () => {
-  it("one page view (metadata, then the body) loads once: the seasons, two per-player reads, one season table", async () => {
+  it("one page view (metadata, then the body) loads once: the seasons, the slug list, one season table; never a per-player read", async () => {
     newRequest();
     await generateMetadata(args("josh-allen", "matthew-stafford"));
     await renderPage("josh-allen", "matthew-stafford");
     expect(vi.mocked(getSeasonWeeks)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getPlayerBySlug).mock.calls.map((c) => c[0])).toEqual(["josh-allen", "matthew-stafford"]);
+    expect(vi.mocked(getPlayerSlugIndex)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getQBStats)).toHaveBeenCalledTimes(1);
-    expect(readCount()).toBe(4);
-    // The slug list is the image route's: the page never reads it.
-    expect(getPlayerSlugIndex).not.toHaveBeenCalled();
+    expect(readCount()).toBe(3);
+    expect(getPlayerBySlug).not.toHaveBeenCalled();
+  });
+
+  it("chaos R1: 200 made-up pairs are 404s that cost no read beyond the warm slug list", async () => {
+    await page("josh-allen", "matthew-stafford");
+    const before = readCount();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => { throw new Error("no network request expected"); });
+    for (let i = 0; i < 200; i++) {
+      await expect(page(`made-up-${i}`, `nobody-${i}`)).rejects.toThrow("NEXT_NOT_FOUND");
+      expect((await md(`made-up-${i}`, `nobody-${i}`)).title).toEqual({ absolute: "Comparison Not Found \u2014 Yards Per Pass" });
+    }
+    expect(readCount()).toBe(before);
+    expect(getPlayerBySlug).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("chaos COST-1: a failing read is made ONCE for a page view, though the load runs for the metadata, the body and the error page", async () => {
+    vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500"));
+    // Three passes, each its own cache() scope, as when Next renders the error page.
+    await expect(md("josh-allen", "matthew-stafford")).rejects.toThrow(/slug index/);
+    await expect(page("josh-allen", "matthew-stafford")).rejects.toThrow(/slug index/);
+    await expect(md("josh-allen", "matthew-stafford")).rejects.toThrow(/slug index/);
+    expect(vi.mocked(getPlayerSlugIndex)).toHaveBeenCalledTimes(1);
   });
 
   it("the title and the body can never name different weeks: a refresh between the two does not split them", async () => {
@@ -393,14 +415,15 @@ describe("reads", () => {
     vi.mocked(getSeasonWeeks).mockResolvedValue([{ season: 2026, through_week: 5 }, { season: 2025, through_week: 22 }]);
     const el = render(await SharePage(args("josh-allen", "matthew-stafford"))).container;
     expect(ogImage(meta).url).toContain("&w=4");
-    expect(txt(el.querySelector("[data-compare-season-line]"))).toBe("2026 season · Through Week 4");
+    expect(txt(el.querySelector("[data-compare-season-line]"))).toBe("2026 season \u00b7 Through Week 4");
   });
 });
 
 describe("a failed read is an error, for the page and for its metadata: never a 404, never an empty card", () => {
   it.each([
     ["the seasons", () => vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: timeout"))],
-    ["a player", () => vi.mocked(getPlayerBySlug).mockRejectedValue(new Error("Failed to fetch player josh-allen: timeout"))],
+    ["the slug list", () => vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: timeout"))],
+    ["an empty slug list on a real database", () => vi.mocked(getPlayerSlugIndex).mockResolvedValue(new Map() as never)],
     ["the season table", () => vi.mocked(getQBStats).mockRejectedValue(new Error("Failed to fetch QB stats: timeout"))],
     ["an empty seasons list on a real database", () => vi.mocked(getSeasonWeeks).mockResolvedValue([])],
     ["no rows for a season the site has", () => vi.mocked(getQBStats).mockResolvedValue([])],
