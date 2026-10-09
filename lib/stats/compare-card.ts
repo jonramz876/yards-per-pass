@@ -1,0 +1,425 @@
+// lib/stats/compare-card.ts
+//
+// The comparison share card (compare card spec 2026-10-09, PR 2): everything
+// about it that is not a database read and not a drawing. URL grammar, the
+// card's model (who, which colours, which numbers, which sentences), every
+// sentence, and the image's layout numbers.
+//
+// Pure, like lib/stats/compare.ts, which does the maths: no React, no Next, no
+// Supabase, nothing from lib/data except the static team list (the purity
+// test in __tests__/stats/compare.test.ts walks this file's imports too). The
+// share page, its metadata and the image route all build ONE model with
+// buildCompareCard and print from it, so the three cannot disagree, and every
+// number on the card is buildComparison's: the same as on /compare.
+import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
+import { getTeam } from "@/lib/data/teams";
+import {
+  buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
+  compareNotDrawnSentences, compareRadarIsDrawn, ensureContrast, COMPARE_RADAR_LEGEND,
+  type CompareGroup, type ComparePlayerRow, type Comparison, type ComparisonTableRow,
+} from "@/lib/stats/compare";
+import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
+import { radarStrokeColor, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
+import { parseSeasonParam } from "@/lib/stats/team-stats";
+import { textColorForBackground } from "@/lib/stats/formatters";
+
+/* ─── URLs ─── */
+
+/**
+ * A player slug as scripts/ingest.py's make_slug (and its three collision
+ * suffixes) can write one: lower-case letters and digits in groups joined by
+ * single hyphens. Stricter than the player page's own check on purpose: an
+ * upper-case letter, a dot or an apostrophe is not a card URL.
+ */
+export const COMPARE_SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const COMPARE_SLUG_MAX_LENGTH = 100;
+
+/**
+ * The two players a share URL names, in the URL's order (A = left / solid,
+ * B = right / dashed), or null: a slug outside the grammar, longer than 100
+ * characters, or the same player twice. Reads nothing.
+ */
+export function parseCompareSlugs(a: unknown, b: unknown): { a: string; b: string } | null {
+  const ok = (s: unknown): s is string =>
+    typeof s === "string" && s.length >= 1 && s.length <= COMPARE_SLUG_MAX_LENGTH && COMPARE_SLUG_PATTERN.test(s);
+  return ok(a) && ok(b) && a !== b ? { a, b } : null;
+}
+
+/** The weeks a season can have (18 regular-season weeks and the playoffs). */
+export const COMPARE_MAX_WEEK = 22;
+
+/**
+ * The image route's query string, or null for anything but its one exact
+ * form. Every distinct URL is its own CDN entry and its own render, so the
+ * route draws only for: no query, or `season` (four digits, 1999-2100), `w`
+ * (1-22, no leading zero; ignored, it only makes each week a new URL) and
+ * `download=1`, each at most once and no other key. `w` is never tied to the
+ * current week: the page (cached up to an hour) and the image (a minute) can
+ * be a week apart, and a link the page printed must not become a stored 404.
+ */
+export function parseCompareImageQuery(query: URLSearchParams): { season: number | null; download: boolean } | null {
+  const seen = new Set<string>();
+  let season: number | null = null;
+  let download = false;
+  for (const [key, value] of Array.from(query.entries())) {
+    if (seen.has(key)) return null;
+    seen.add(key);
+    if (key === "season") {
+      if (!/^\d{4}$/.test(value)) return null;
+      season = parseSeasonParam(value);
+      if (season === null) return null;
+    } else if (key === "w") {
+      if (!/^[1-9]\d?$/.test(value) || Number(value) > COMPARE_MAX_WEEK) return null;
+    } else if (key === "download") {
+      if (value !== "1") return null;
+      download = true;
+    } else {
+      return null;
+    }
+  }
+  return { season, download };
+}
+
+/** The share page's path, order kept. */
+export function compareCardPath(a: string, b: string): string {
+  return `/card/compare/${a}/${b}`;
+}
+
+/** The share page for a season: bare for the default season, ?season= for another. */
+export function compareCardHref(a: string, b: string, season: number, defaultSeason: number): string {
+  return `${compareCardPath(a, b)}${season !== defaultSeason ? `?season=${season}` : ""}`;
+}
+
+/**
+ * The canonical path: the two slugs in alphabetical order, so the two mirrored
+ * pages of a pair name one. It differs from og:url (the page's own order) on
+ * purpose, and only matters if these pages are ever indexed.
+ */
+export function compareCanonicalPath(a: string, b: string): string {
+  const [first, second] = [a, b].sort();
+  return compareCardPath(first, second);
+}
+
+/** The image route, always with the season; `week` only makes each week a new URL; `download` asks for an attachment. */
+export function compareImageHref(
+  a: string, b: string, season: number, options: { week?: number | null; download?: boolean } = {},
+): string {
+  const w = options.week;
+  const week = typeof w === "number" && Number.isInteger(w) && w >= 1 && w <= COMPARE_MAX_WEEK ? `&w=${w}` : "";
+  return `/api/compare-card/${a}/${b}?season=${season}${week}${options.download ? "&download=1" : ""}`;
+}
+
+/** The downloaded file's name. Only what the slug grammar allows survives: it goes into a header value. */
+export function compareDownloadFilename(a: string, b: string, season: number): string {
+  const safe = (s: string) => String(s ?? "").replace(/[^a-z0-9-]/g, "").slice(0, COMPARE_SLUG_MAX_LENGTH) || "player";
+  return `${safe(a)}-vs-${safe(b)}-${Math.trunc(Number(season)) || 0}.png`;
+}
+
+/** The Compare page for the same pair and season. */
+export function compareToolHref(a: string, b: string, season: number, defaultSeason: number): string {
+  return `/compare?p1=${a}&p2=${b}${season !== defaultSeason ? `&season=${season}` : ""}`;
+}
+
+/** A player's own stat card page for the season. */
+export function compareStatCardHref(slug: string, season: number, defaultSeason: number): string {
+  return `/card/${slug}${season !== defaultSeason ? `?season=${season}` : ""}`;
+}
+
+/* ─── The rows on the card ─── */
+
+/** Seven of the Compare table's rows per group, by key: the ones the card has room for. */
+export const CARD_STAT_KEYS: Record<CompareGroup, readonly string[]> = {
+  QB: ["passing_yards", "touchdowns", "interceptions", "epa_per_db", "cpoe", "any_a", "fantasy_pts"],
+  WR: ["targets", "receptions", "receiving_yards", "receiving_tds", "epa_per_target", "croe", "fantasy_pts"],
+  RB: ["carries", "rushing_yards", "rushing_tds", "yards_per_carry", "epa_per_carry", "success_rate", "fantasy_pts"],
+};
+
+/* ─── Colours ─── */
+
+/**
+ * The two colours of the card: each team's outline colour by the team radar's
+ * rule (the primary when it shows on white, else the secondary, else a dark
+ * neutral: Pittsburgh's and New Orleans' golds do not), then player B's moved
+ * away from player A's when the two are too close. An unknown team is the dark
+ * neutral. Always two #RRGGBB values, whatever comes in.
+ */
+export function comparePlotColors(teamIdA: unknown, teamIdB: unknown): { a: string; b: string } {
+  const stroke = (id: unknown): string => {
+    const team = typeof id === "string" ? getTeam(id) : undefined;
+    return radarStrokeColor(team?.primaryColor ?? "", team?.secondaryColor ?? "");
+  };
+  const a = stroke(teamIdA);
+  return { a, b: ensureContrast(a, stroke(teamIdB)) };
+}
+
+/* ─── Sentences (the spec's copy table; each has a test) ─── */
+
+/** C1: the share page's <title>, used as `absolute` (the site name is already in it). */
+export function compareShareTitle(nameA: string, nameB: string, season: number): string {
+  return `${nameA} vs ${nameB} — ${season} — Yards Per Pass`;
+}
+
+/** C1b: og:title and twitter:title. No season and no site name: X prints it over the picture. */
+export function comparePreviewTitle(nameA: string, nameB: string): string {
+  return `${nameA} vs ${nameB}`;
+}
+
+/** The page's visible heading and the plate's: the pair and the season. */
+export function compareShareHeading(nameA: string, nameB: string, season: number): string {
+  return `${nameA} vs ${nameB} — ${season}`;
+}
+
+/** C3: the season line of the sub-band. */
+export function compareSeasonLine(season: number, throughWeek: number | null): string {
+  return throughWeek != null ? `${season} season · Through Week ${throughWeek}` : `${season} season`;
+}
+
+/** C7: one sentence per radar axis neither player has data for. */
+export function compareMissingAxisNote(axisLabel: string, season: number): string {
+  return `${axisLabel} is not available for ${season}.`;
+}
+
+/** C8, short form: the site name in the sub-band. The long form is the team radar card's RADAR_CARD_SITE_LINE. */
+export const COMPARE_CARD_SITE_SHORT = "YARDSPERPASS.COM";
+export const COMPARE_CARD_SITE_LINE = RADAR_CARD_SITE_LINE;
+
+/** C9: the table's middle header. */
+export const COMPARE_CARD_STAT_HEADER = "STAT";
+
+/**
+ * C10: a real pair with nothing to compare, because one or both have no row
+ * for the season. For the newest season the stats may still come.
+ */
+export function compareNoStatsMessage(i: {
+  nameA: string; nameB: string; missingA: boolean; missingB: boolean; season: number; isNewestSeason: boolean;
+}): string {
+  const both = i.missingA && i.missingB;
+  const who = both ? `${i.nameA} and ${i.nameB}` : i.missingA ? i.nameA : i.nameB;
+  const verb = both ? "have" : "has";
+  return i.isNewestSeason
+    ? `${who} ${verb} no ${i.season} stats yet, so there is nothing to compare. Comparisons update the day after each game.`
+    : `${who} ${verb} no stats for the ${i.season} season, so there is nothing to compare.`;
+}
+
+/** C12: the links under the card. */
+export const COMPARE_FULL_LINK_TEXT = "See the full comparison →";
+export function compareStatCardLinkText(name: string): string {
+  return `${name} stat card →`;
+}
+
+/** C14: the image route's 503 body. */
+export const COMPARE_IMAGE_UNAVAILABLE = "Comparison image temporarily unavailable. Try again in a few minutes.";
+
+/** C15: the 404 title, used as `absolute`. */
+export const COMPARE_NOT_FOUND_TITLE = "Comparison Not Found — Yards Per Pass";
+
+/** C16: the preview image's alt text. */
+export function compareImageAlt(nameA: string, nameB: string, season: number): string {
+  return `${nameA} vs ${nameB} comparison card, ${season}`;
+}
+
+/** The OVR badge: the stat card's number, or a dash for a player under the line. */
+export function compareOvrText(ovr: number | null): string {
+  return ovr == null || !Number.isFinite(ovr) ? "—" : String(ovr);
+}
+export const COMPARE_OVR_LABEL = "OVR";
+export const COMPARE_VS_LABEL = "VS";
+
+/* ─── The card's model ─── */
+
+export interface CompareCardPlayer {
+  slug: string;
+  /** His full name (player_slugs); the band prints it. */
+  fullName: string;
+  /** The name over his table column: the season row's short name, or his full name when the two short names are equal or one is missing. */
+  headerName: string;
+  /** The season row's position ("QB", "WR", "TE", "RB"). */
+  position: string;
+  /** The team he played for THAT season (the season row's team), never today's. */
+  teamId: string;
+  teamName: string;
+  games: number | null;
+  /** "QB · Buffalo Bills · 4 games". */
+  meta: string;
+  /** The stat card's OVR for the season; null (printed as a dash) for a player under the line. */
+  ovr: number | null;
+  /** His line colour: the band half, the outline, the table's line sample. Always #RRGGBB. */
+  color: string;
+  /** Black or white, whichever reads on `color`. */
+  textColor: string;
+}
+
+export interface CompareCardModel {
+  group: CompareGroup;
+  season: number;
+  throughWeek: number | null;
+  a: CompareCardPlayer;
+  b: CompareCardPlayer;
+  /** buildComparison's output for the pair: what /compare shows. Its own colours are the Compare page's and are not used on the card. */
+  comparison: Comparison;
+  /** Is any outline drawn? No when a pool is too small or both players have too few radar stats. */
+  radarDrawn: boolean;
+  /** The seven card rows, in the card's order: buildComparison's rows, picked by CARD_STAT_KEYS. */
+  rows: ComparisonTableRow[];
+  /** C3. */
+  seasonLine: string;
+  /** C4, or null when no radar is drawn. */
+  poolLine: string | null;
+  /** C4z, or null. */
+  tooFewLine: string | null;
+  /** C6 with " OVR hidden.", or null. */
+  smallSampleLine: string | null;
+  /** C4m, one per player whose outline is left out. */
+  notDrawnLines: string[];
+  /** C7, one per axis neither player has. */
+  missingAxisNotes: string[];
+  /** The image's one full-width line under the body: the small-sample line (it also explains a dash in an OVR badge), or null. */
+  stripLine: string | null;
+  /**
+   * The image's line under the radar: the legend (C5), or, when one player's
+   * outline is left out, the sentence that says so (C4m) in its place: a
+   * reader who sees one outline needs that more than the legend. (With both
+   * left out there is no radar and the sentences stand where it would be.)
+   */
+  paneLine: string;
+  /** The sub-band's left text: C3, then C4 when a radar is drawn. */
+  subBandLine: string;
+}
+
+/** What the builder needs to know about each player beyond his season row. */
+export interface CompareCardPlayerInput {
+  slug: string;
+  /** player_slugs.player_name; a missing one falls back to the short name, then the slug. */
+  fullName: string | null | undefined;
+  row: ComparePlayerRow;
+}
+
+const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+const titleFromSlug = (slug: string): string =>
+  slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+
+function ovrFor(group: CompareGroup, row: ComparePlayerRow, all: ComparePlayerRow[], season: number): number | null {
+  const card =
+    group === "QB" ? buildQBCardData(row as QBSeasonStat, all as QBSeasonStat[], season)
+      : group === "RB" ? buildRBCardData(row as RBSeasonStat, all as RBSeasonStat[], season)
+        : buildWRCardData(row as ReceiverSeasonStat, all as ReceiverSeasonStat[], season);
+  return typeof card.ovr === "number" && Number.isFinite(card.ovr) ? card.ovr : null;
+}
+
+/**
+ * The whole card for two players who both have a row in the season table
+ * `all`. Throws what buildComparison throws for an unknown group or a missing
+ * row: callers check compareGroup and the rows first.
+ */
+export function buildCompareCard(input: {
+  group: CompareGroup;
+  a: CompareCardPlayerInput;
+  b: CompareCardPlayerInput;
+  all: ComparePlayerRow[];
+  season: number;
+  throughWeek: number | null;
+}): CompareCardModel {
+  const { group, all, season } = input;
+  const throughWeek =
+    typeof input.throughWeek === "number" && Number.isInteger(input.throughWeek) && input.throughWeek >= 1 ? input.throughWeek : null;
+  const rec = (p: CompareCardPlayerInput) => (p.row ?? {}) as unknown as Record<string, unknown>;
+  const teamIdA = str(rec(input.a).team_id);
+  const teamIdB = str(rec(input.b).team_id);
+
+  const comparison = buildComparison({ group, rowA: input.a.row, rowB: input.b.row, all, teamA: teamIdA, teamB: teamIdB });
+  const colors = comparePlotColors(teamIdA, teamIdB);
+
+  const fullName = (p: CompareCardPlayerInput, short: string, fallback: string) =>
+    str(p.fullName) || short || titleFromSlug(str(p.slug)) || fallback;
+  const fullA = fullName(input.a, comparison.a.shortName, "Player 1");
+  const fullB = fullName(input.b, comparison.b.shortName, "Player 2");
+  const useFull = !comparison.a.shortName || !comparison.b.shortName || comparison.a.shortName === comparison.b.shortName;
+
+  const player = (
+    p: CompareCardPlayerInput, side: "a" | "b", full: string, teamId: string, color: string,
+  ): CompareCardPlayer => {
+    const c = comparison[side];
+    const rowPosition = str(rec(p).position);
+    const position = group === "QB" ? "QB" : rowPosition || (group === "RB" ? "RB" : "WR");
+    const teamName = getTeam(teamId)?.name ?? teamId;
+    const games = c.games;
+    const meta = [position, teamName, games === null ? "" : `${games} ${games === 1 ? "game" : "games"}`].filter(Boolean).join(" · ");
+    return {
+      slug: p.slug, fullName: full, headerName: useFull ? full : c.shortName, position, teamId, teamName, games, meta,
+      ovr: ovrFor(group, p.row, all, season), color, textColor: textColorForBackground(color),
+    };
+  };
+  const a = player(input.a, "a", fullA, teamIdA, colors.a);
+  const b = player(input.b, "b", fullB, teamIdB, colors.b);
+
+  const names = [{ fullName: fullA, slug: input.a.slug }, { fullName: fullB, slug: input.b.slug }] as const;
+  const rows = CARD_STAT_KEYS[group].flatMap((key) => comparison.rows.filter((r) => r.key === key));
+  const seasonLine = compareSeasonLine(season, throughWeek);
+  const poolLine = comparePoolSentence(comparison);
+  const smallSampleLine = compareSmallSampleSentence(comparison, names[0], names[1], { ovrHidden: true });
+  const notDrawnLines = compareNotDrawnSentences(comparison, names[0], names[1]);
+  const radarDrawn = compareRadarIsDrawn(comparison);
+  const missingAxisNotes = radarDrawn
+    ? comparison.axes.flatMap((axis, i) =>
+      (comparison.a.missing[i] && comparison.b.missing[i] ? [compareMissingAxisNote(axis.label, season)] : []))
+    : [];
+
+  return {
+    group, season, throughWeek, a, b, comparison, radarDrawn, rows,
+    seasonLine, poolLine, tooFewLine: compareTooFewSentence(comparison),
+    smallSampleLine, notDrawnLines, missingAxisNotes,
+    stripLine: smallSampleLine,
+    paneLine: radarDrawn && notDrawnLines.length > 0 ? notDrawnLines[0] : COMPARE_RADAR_LEGEND,
+    subBandLine: poolLine ? `${seasonLine} · ${poolLine}` : seasonLine,
+  };
+}
+
+/** C2: the page's description. */
+export function compareShareDescription(m: CompareCardModel): string {
+  const who = (p: CompareCardPlayer) => `${p.fullName} (${p.position}, ${p.teamName})`;
+  const when = m.throughWeek != null ? `${m.season} through Week ${m.throughWeek}` : `${m.season}`;
+  return `${who(m.a)} vs ${who(m.b)}, ${when}: overlaid radar and head-to-head stats.`;
+}
+
+/* ─── The image's layout (1200 x 630), top to bottom ─── */
+
+/**
+ * X draws the link's title in a dark label over the bottom-left of the image;
+ * on a phone it can reach most of the way across. Nothing a reader needs is
+ * below this line, at any x: only the site line is.
+ */
+export const COMPARE_CARD_KEEP_CLEAR_Y = 522;
+
+export const COMPARE_CARD_LAYOUT = {
+  width: 1200,
+  height: 630,
+  /** The two-colour name band. */
+  band: 92,
+  /** The dark rule under it. */
+  rule: 4,
+  /** Season, pool line and site name. */
+  subBand: 32,
+  /** Radar (left) and table (right). */
+  body: 366,
+  /** The one full-width line: small sample, or a missing outline. */
+  strip: 28,
+  /** Kept clear: the site line only. */
+  footer: 108,
+  /** Side padding of the card. */
+  pad: 36,
+  /** The radar pane's width; the table takes the rest. */
+  pane: 590,
+  /** The radar inside the pane (pane coordinates): centre, outer radius, label gap. */
+  radar: { cx: 295, cy: 174, r: 128, gap: 18, labelFont: 17, labelHeight: 22, stroke: 3.5, dot: 5 },
+  /** The legend line at the bottom of the pane. */
+  legend: { height: 24, font: 13 },
+  /** The table: header height, row height, rows. */
+  table: { head: 40, row: 46, rows: 7 },
+  /** The width a band name may take before it is cut (never under the OVR badge). */
+  nameBox: 430,
+} as const;
+
+/** The band name's pixel-font size: a long name needs a smaller one to stay on its line. */
+export function compareNameFontSize(length: number): number {
+  return length <= 21 ? 20 : length <= 26 ? 16 : 13;
+}

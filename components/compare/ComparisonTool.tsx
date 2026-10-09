@@ -7,8 +7,8 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  compareNotDrawnSentences, compareRadarIsDrawn,
-  type CompareGroup, type ComparisonPlayer,
+  compareNotDrawnSentences, compareRadarIsDrawn, compareChartMask,
+  type CompareGroup,
 } from "@/lib/stats/compare";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";
@@ -23,10 +23,6 @@ import OverlayRadarChart from "./OverlayRadarChart";
 // A string constant, not JSX text: lint rejects a bare apostrophe in JSX, and
 // JSX text does not decode escape sequences.
 const COMPARISON_UNAVAILABLE = "Couldn't load stats for this comparison. Try again in a moment.";
-
-// A player whose outline is not drawn (too few radar stats, the stat card's
-// rule) is handed to the chart with every axis masked: no corners, no dots.
-const chartMask = (p: ComparisonPlayer): boolean[] => (p.outline ? p.missing : p.missing.map(() => true));
 
 interface ComparisonToolProps {
   qbs: QBSeasonStat[];
@@ -240,8 +236,8 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
               <OverlayRadarChart
                 values1={comparison.a.values}
                 values2={comparison.b.values}
-                missing1={chartMask(comparison.a)}
-                missing2={chartMask(comparison.b)}
+                missing1={compareChartMask(comparison.a)}
+                missing2={compareChartMask(comparison.b)}
                 color1={comparison.a.color}
                 color2={comparison.b.color}
                 name1={player1!.player_name}
