@@ -1,0 +1,5463 @@
+{
+ "_about": "What /compare showed for these pairs BEFORE its maths moved to lib/stats/compare.ts: written once on 2026-10-09 by rendering the unmodified ComparisonTool (origin/main 0fd34e8) over __tests__/stats/fixtures/compare-2026-w4-rows.json. Keys are pair/path (server = rows through parseNumericFields, browser = raw rows with the string NaN). radar = the values handed to the chart (the string NaN stands for a NaN value); chart = colours, names, axes; table = every cell. Never edit and never re-capture this file to make a test pass. PR 1b replaces the radar parts only.",
+ "pins": {
+  "qb-allen-stafford/server": {
+   "radar": {
+    "values1": [
+     83.6734693877551,
+     79.59183673469387,
+     51.02040816326531,
+     87.75510204081633,
+     32.6530612244898,
+     44.89795918367347,
+     97.82608695652173
+    ],
+    "values2": [
+     46.93877551020408,
+     34.69387755102041,
+     89.79591836734694,
+     83.6734693877551,
+     16.3265306122449,
+     48.97959183673469,
+     8.695652173913043
+    ]
+   },
+   "chart": {
+    "color1": "#00338D",
+    "color2": "#dc2626",
+    "name1": "Josh Allen",
+    "name2": "Matthew Stafford",
+    "axes": [
+     {
+      "label": "EPA/DB"
+     },
+     {
+      "label": "CPOE"
+     },
+     {
+      "label": "DB/Game"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "Ball Security"
+     },
+     {
+      "label": "Success%"
+     },
+     {
+      "label": "Rush EPA"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Josh Allen",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(0, 51, 141);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Matthew Stafford",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(220, 38, 38);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.29",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/DB",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.05",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+6.0",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "CPOE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.1",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "9.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "48.0%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "48.5%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "1039",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "1189",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "3",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "7.61",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "ANY/A",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.94",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "100.1",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rating",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "5.0",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "TD%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "7.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "SK%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3.6",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "38.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "123",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "26",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "7",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "SCR%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "112.9",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "FPts",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "62.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "qb-allen-stafford/browser": {
+   "radar": {
+    "values1": [
+     83.6734693877551,
+     79.59183673469387,
+     51.02040816326531,
+     87.75510204081633,
+     32.6530612244898,
+     44.89795918367347,
+     97.82608695652173
+    ],
+    "values2": [
+     46.93877551020408,
+     34.69387755102041,
+     89.79591836734694,
+     83.6734693877551,
+     16.3265306122449,
+     48.97959183673469,
+     8.695652173913043
+    ]
+   },
+   "chart": {
+    "color1": "#00338D",
+    "color2": "#dc2626",
+    "name1": "Josh Allen",
+    "name2": "Matthew Stafford",
+    "axes": [
+     {
+      "label": "EPA/DB"
+     },
+     {
+      "label": "CPOE"
+     },
+     {
+      "label": "DB/Game"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "Ball Security"
+     },
+     {
+      "label": "Success%"
+     },
+     {
+      "label": "Rush EPA"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Josh Allen",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(0, 51, 141);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Matthew Stafford",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(220, 38, 38);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.29",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/DB",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.05",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+6.0",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "CPOE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.1",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "9.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "48.0%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "48.5%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "1039",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "1189",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "3",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "7.61",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "ANY/A",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.94",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "100.1",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rating",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "5.0",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "TD%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "7.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "SK%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3.6",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "38.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "123",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "26",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "7",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "SCR%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "112.9",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "FPts",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "62.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "wr-lamb-smith-njigba/server": {
+   "radar": {
+    "values1": [
+     98.61878453038673,
+     90.05524861878453,
+     81.21546961325967,
+     69.33701657458563,
+     43.067846607669615,
+     "NaN"
+    ],
+    "values2": [
+     97.79005524861878,
+     87.84530386740332,
+     79.00552486187846,
+     66.85082872928176,
+     47.49262536873156,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#041E42",
+    "color2": "#dc2626",
+    "name1": "CeeDee Lamb",
+    "name2": "Jaxon Smith-Njigba",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "CeeDee Lamb",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(4, 30, 66);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jaxon Smith-Njigba",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(220, 38, 38);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.88",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.77",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+15.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+13.7%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.9",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "46",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "42",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "37",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "32",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "498",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "481",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "80.4%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "76.2%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "31.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "36.5%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "45.7%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "49.9%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "110.8",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "wr-lamb-smith-njigba/browser": {
+   "radar": {
+    "values1": [
+     98.61878453038673,
+     90.05524861878453,
+     81.21546961325967,
+     69.33701657458563,
+     43.067846607669615,
+     "NaN"
+    ],
+    "values2": [
+     97.79005524861878,
+     87.84530386740332,
+     79.00552486187846,
+     66.85082872928176,
+     47.49262536873156,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#041E42",
+    "color2": "#dc2626",
+    "name1": "CeeDee Lamb",
+    "name2": "Jaxon Smith-Njigba",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "CeeDee Lamb",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(4, 30, 66);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jaxon Smith-Njigba",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(220, 38, 38);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.88",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.77",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+15.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+13.7%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.9",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "46",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "42",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "37",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "32",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "498",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "481",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "80.4%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "76.2%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "31.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "36.5%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "45.7%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "49.9%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "110.8",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "rb-robinson-gibbs/server": {
+   "radar": {
+    "values1": [
+     95.87628865979381,
+     89.69072164948454,
+     74.22680412371135,
+     75.25773195876289,
+     88.65979381443299,
+     91.75257731958763
+    ],
+    "values2": [
+     94.84536082474226,
+     64.94845360824742,
+     23.711340206185564,
+     83.50515463917526,
+     97.9381443298969,
+     79.38144329896907
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#0076B6",
+    "name1": "Bijan Robinson",
+    "name2": "Jahmyr Gibbs",
+    "axes": [
+     {
+      "label": "Car/Game"
+     },
+     {
+      "label": "EPA/Car"
+     },
+     {
+      "label": "Stuff Avoid"
+     },
+     {
+      "label": "Explosive%"
+     },
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "Success%"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Bijan Robinson",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jahmyr Gibbs",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Car",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.02",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "54.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "47.5%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.6%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Stuff%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "21.3%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "12.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Explosive%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.0%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "85",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Carries",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "494",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "353",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YPC",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "99",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TCH",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "102",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "11.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-1.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "105.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "rb-robinson-gibbs/browser": {
+   "radar": {
+    "values1": [
+     95.87628865979381,
+     89.69072164948454,
+     74.22680412371135,
+     75.25773195876289,
+     88.65979381443299,
+     91.75257731958763
+    ],
+    "values2": [
+     94.84536082474226,
+     64.94845360824742,
+     23.711340206185564,
+     83.50515463917526,
+     97.9381443298969,
+     79.38144329896907
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#0076B6",
+    "name1": "Bijan Robinson",
+    "name2": "Jahmyr Gibbs",
+    "axes": [
+     {
+      "label": "Car/Game"
+     },
+     {
+      "label": "EPA/Car"
+     },
+     {
+      "label": "Stuff Avoid"
+     },
+     {
+      "label": "Explosive%"
+     },
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "Success%"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Bijan Robinson",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jahmyr Gibbs",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Car",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.02",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "54.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "47.5%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.6%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Stuff%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "21.3%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "12.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Explosive%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.0%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "85",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Carries",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "494",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "353",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YPC",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "99",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TCH",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "102",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "11.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-1.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "105.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "te-mcbride-laporta/server": {
+   "radar": {
+    "values1": [
+     98.61878453038673,
+     57.182320441988956,
+     54.14364640883977,
+     46.13259668508287,
+     21.828908554572273,
+     "NaN"
+    ],
+    "values2": [
+     94.7513812154696,
+     80.11049723756905,
+     54.41988950276243,
+     48.89502762430939,
+     46.607669616519175,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#97233F",
+    "color2": "#0076B6",
+    "name1": "Trey McBride",
+    "name2": "Sam LaPorta",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Trey McBride",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(151, 35, 63);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Sam LaPorta",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.20",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.58",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "+2.8%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+3.2%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "46",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "32",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "33",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "22",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "242",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "228",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "71.7%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "68.8%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "31.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "20.1%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "27.0%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.4%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "69.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "56.8",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "te-mcbride-laporta/browser": {
+   "radar": {
+    "values1": [
+     98.61878453038673,
+     57.182320441988956,
+     54.14364640883977,
+     46.13259668508287,
+     21.828908554572273,
+     "NaN"
+    ],
+    "values2": [
+     94.7513812154696,
+     80.11049723756905,
+     54.41988950276243,
+     48.89502762430939,
+     46.607669616519175,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#97233F",
+    "color2": "#0076B6",
+    "name1": "Trey McBride",
+    "name2": "Sam LaPorta",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Trey McBride",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(151, 35, 63);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Sam LaPorta",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.20",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.58",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "+2.8%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+3.2%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "46",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "32",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "33",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "22",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "242",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "228",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "71.7%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "68.8%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "31.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "20.1%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "27.0%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.4%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "69.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "56.8",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "wr-te-lamb-mcbride/server": {
+   "radar": {
+    "values1": [
+     98.61878453038673,
+     90.05524861878453,
+     81.21546961325967,
+     69.33701657458563,
+     43.067846607669615,
+     "NaN"
+    ],
+    "values2": [
+     98.61878453038673,
+     57.182320441988956,
+     54.14364640883977,
+     46.13259668508287,
+     21.828908554572273,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#041E42",
+    "color2": "#97233F",
+    "name1": "CeeDee Lamb",
+    "name2": "Trey McBride",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "CeeDee Lamb",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(4, 30, 66);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Trey McBride",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(151, 35, 63);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.88",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.20",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+15.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+2.8%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "46",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "46",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "37",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "33",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "498",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "242",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "80.4%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "71.7%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "31.9%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "31.1%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "45.7%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "27.0%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "110.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "69.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "wr-te-lamb-mcbride/browser": {
+   "radar": {
+    "values1": [
+     98.61878453038673,
+     90.05524861878453,
+     81.21546961325967,
+     69.33701657458563,
+     43.067846607669615,
+     "NaN"
+    ],
+    "values2": [
+     98.61878453038673,
+     57.182320441988956,
+     54.14364640883977,
+     46.13259668508287,
+     21.828908554572273,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#041E42",
+    "color2": "#97233F",
+    "name1": "CeeDee Lamb",
+    "name2": "Trey McBride",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "CeeDee Lamb",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(4, 30, 66);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Trey McBride",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(151, 35, 63);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.88",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.20",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+15.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+2.8%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "46",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "46",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "37",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "33",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "498",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "242",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "80.4%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "71.7%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "31.9%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "31.1%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "45.7%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "27.0%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "110.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "69.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "qb-stafford-allen/server": {
+   "radar": {
+    "values1": [
+     46.93877551020408,
+     34.69387755102041,
+     89.79591836734694,
+     83.6734693877551,
+     16.3265306122449,
+     48.97959183673469,
+     8.695652173913043
+    ],
+    "values2": [
+     83.6734693877551,
+     79.59183673469387,
+     51.02040816326531,
+     87.75510204081633,
+     32.6530612244898,
+     44.89795918367347,
+     97.82608695652173
+    ]
+   },
+   "chart": {
+    "color1": "#003594",
+    "color2": "#dc2626",
+    "name1": "Matthew Stafford",
+    "name2": "Josh Allen",
+    "axes": [
+     {
+      "label": "EPA/DB"
+     },
+     {
+      "label": "CPOE"
+     },
+     {
+      "label": "DB/Game"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "Ball Security"
+     },
+     {
+      "label": "Success%"
+     },
+     {
+      "label": "Rush EPA"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Matthew Stafford",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(0, 53, 148);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Josh Allen",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(220, 38, 38);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.05",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "EPA/DB",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.29",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "-0.1",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CPOE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+6.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "9.6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "48.5%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "48.0%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "1189",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Pass Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "1039",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "INT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.94",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "ANY/A",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.61",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "80.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rating",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "100.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TD%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "INT%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "3.6",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "SK%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "9.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "38.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "26",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "123",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "SCR%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "62.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "112.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "qb-stafford-allen/browser": {
+   "radar": {
+    "values1": [
+     46.93877551020408,
+     34.69387755102041,
+     89.79591836734694,
+     83.6734693877551,
+     16.3265306122449,
+     48.97959183673469,
+     8.695652173913043
+    ],
+    "values2": [
+     83.6734693877551,
+     79.59183673469387,
+     51.02040816326531,
+     87.75510204081633,
+     32.6530612244898,
+     44.89795918367347,
+     97.82608695652173
+    ]
+   },
+   "chart": {
+    "color1": "#003594",
+    "color2": "#dc2626",
+    "name1": "Matthew Stafford",
+    "name2": "Josh Allen",
+    "axes": [
+     {
+      "label": "EPA/DB"
+     },
+     {
+      "label": "CPOE"
+     },
+     {
+      "label": "DB/Game"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "Ball Security"
+     },
+     {
+      "label": "Success%"
+     },
+     {
+      "label": "Rush EPA"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Matthew Stafford",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(0, 53, 148);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Josh Allen",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(220, 38, 38);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.05",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "EPA/DB",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.29",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "-0.1",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CPOE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+6.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "9.6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "48.5%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "48.0%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "1189",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Pass Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "1039",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "6",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "INT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.94",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "ANY/A",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.61",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "80.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rating",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "100.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TD%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "3.7",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "INT%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "3.6",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "SK%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "9.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "38.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "26",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "123",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "SCR%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "62.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "112.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "qb-penix-allen/server": {
+   "radar": {
+    "values1": [
+     89.79591836734694,
+     73.46938775510205,
+     24.489795918367346,
+     20.408163265306122,
+     36.734693877551024,
+     91.83673469387756,
+     0
+    ],
+    "values2": [
+     83.6734693877551,
+     79.59183673469387,
+     51.02040816326531,
+     87.75510204081633,
+     32.6530612244898,
+     44.89795918367347,
+     97.82608695652173
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#00338D",
+    "name1": "Michael Penix Jr.",
+    "name2": "Josh Allen",
+    "axes": [
+     {
+      "label": "EPA/DB"
+     },
+     {
+      "label": "CPOE"
+     },
+     {
+      "label": "DB/Game"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "Ball Security"
+     },
+     {
+      "label": "Success%"
+     },
+     {
+      "label": "Rush EPA"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Michael Penix Jr.",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Josh Allen",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 51, 141);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.42",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/DB",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.29",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+5.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CPOE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+6.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "6.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "62.2%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "48.0%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "479",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "1039",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "1",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "ANY/A",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.61",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "113.1",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rating",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "100.1",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TD%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "SK%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "19.1",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "38.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "123",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "SCR%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "25.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "112.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     }
+    ]
+   }
+  },
+  "qb-penix-allen/browser": {
+   "radar": {
+    "values1": [
+     89.79591836734694,
+     73.46938775510205,
+     24.489795918367346,
+     20.408163265306122,
+     36.734693877551024,
+     91.83673469387756,
+     0
+    ],
+    "values2": [
+     83.6734693877551,
+     79.59183673469387,
+     51.02040816326531,
+     87.75510204081633,
+     32.6530612244898,
+     44.89795918367347,
+     97.82608695652173
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#00338D",
+    "name1": "Michael Penix Jr.",
+    "name2": "Josh Allen",
+    "axes": [
+     {
+      "label": "EPA/DB"
+     },
+     {
+      "label": "CPOE"
+     },
+     {
+      "label": "DB/Game"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "Ball Security"
+     },
+     {
+      "label": "Success%"
+     },
+     {
+      "label": "Rush EPA"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Michael Penix Jr.",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Josh Allen",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 51, 141);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.42",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/DB",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.29",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "+5.5",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CPOE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+6.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "6.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "9.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "62.2%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "48.0%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "479",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "1039",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Pass TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "6",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "1",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "3",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "ANY/A",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.61",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "113.1",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rating",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "100.1",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TD%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.0",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "INT%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "2.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "SK%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7.0",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "19.1",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "38.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "123",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "7",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "SCR%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "25.2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "112.9",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     }
+    ]
+   }
+  },
+  "wr-valdes-scantling-lamb/server": {
+   "radar": {
+    "values1": [
+     0,
+     0,
+     4.696132596685083,
+     90.05524861878453,
+     "NaN",
+     "NaN"
+    ],
+    "values2": [
+     98.61878453038673,
+     90.05524861878453,
+     81.21546961325967,
+     69.33701657458563,
+     43.067846607669615,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#0080C6",
+    "color2": "#041E42",
+    "name1": "Marquez Valdes-Scantling",
+    "name2": "CeeDee Lamb",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Marquez Valdes-Scantling",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(0, 128, 198);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "CeeDee Lamb",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(4, 30, 66);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "-3.01",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.88",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "-52.7%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+15.1%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "15.5",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "10.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "46",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "37",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "498",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0.0%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80.4%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "1.7%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "31.9%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "45.7%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "110.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     }
+    ]
+   }
+  },
+  "wr-valdes-scantling-lamb/browser": {
+   "radar": {
+    "values1": [
+     0,
+     0,
+     4.696132596685083,
+     90.05524861878453,
+     "NaN",
+     "NaN"
+    ],
+    "values2": [
+     98.61878453038673,
+     90.05524861878453,
+     81.21546961325967,
+     69.33701657458563,
+     43.067846607669615,
+     "NaN"
+    ]
+   },
+   "chart": {
+    "color1": "#0080C6",
+    "color2": "#041E42",
+    "name1": "Marquez Valdes-Scantling",
+    "name2": "CeeDee Lamb",
+    "axes": [
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "EPA/Tgt"
+     },
+     {
+      "label": "CROE"
+     },
+     {
+      "label": "aDOT"
+     },
+     {
+      "label": "YAC/Rec"
+     },
+     {
+      "label": "YPRR"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Marquez Valdes-Scantling",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(0, 128, 198);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "CeeDee Lamb",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(4, 30, 66);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "-3.01",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "EPA/Tgt",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "0.88",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "-52.7%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "CROE",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "+15.1%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "15.5",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "aDOT",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "10.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YAC/Rec",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.2",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "—",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "YPRR",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Targets",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "46",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Receptions",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "37",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Yards",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "498",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TDs",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0.0%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Catch%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80.4%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "1.7%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Tgt Share",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "31.9%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "AY%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "45.7%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "0.0",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "110.8",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "2",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     }
+    ]
+   }
+  },
+  "rb-fullback-robinson-gibbs/server": {
+   "radar": {
+    "values1": [
+     95.87628865979381,
+     89.69072164948454,
+     74.22680412371135,
+     75.25773195876289,
+     88.65979381443299,
+     91.75257731958763
+    ],
+    "values2": [
+     94.84536082474226,
+     64.94845360824742,
+     23.711340206185564,
+     83.50515463917526,
+     97.9381443298969,
+     79.38144329896907
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#0076B6",
+    "name1": "Bijan Robinson",
+    "name2": "Jahmyr Gibbs",
+    "axes": [
+     {
+      "label": "Car/Game"
+     },
+     {
+      "label": "EPA/Car"
+     },
+     {
+      "label": "Stuff Avoid"
+     },
+     {
+      "label": "Explosive%"
+     },
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "Success%"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Bijan Robinson",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jahmyr Gibbs",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Car",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.02",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "54.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "47.5%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.6%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Stuff%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "21.3%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "12.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Explosive%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.0%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "85",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Carries",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "494",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "353",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YPC",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "99",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TCH",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "102",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "11.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-1.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "105.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "rb-fullback-robinson-gibbs/browser": {
+   "radar": {
+    "values1": [
+     95.87628865979381,
+     89.69072164948454,
+     74.22680412371135,
+     75.25773195876289,
+     88.65979381443299,
+     91.75257731958763
+    ],
+    "values2": [
+     94.84536082474226,
+     64.94845360824742,
+     23.711340206185564,
+     83.50515463917526,
+     97.9381443298969,
+     79.38144329896907
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#0076B6",
+    "name1": "Bijan Robinson",
+    "name2": "Jahmyr Gibbs",
+    "axes": [
+     {
+      "label": "Car/Game"
+     },
+     {
+      "label": "EPA/Car"
+     },
+     {
+      "label": "Stuff Avoid"
+     },
+     {
+      "label": "Explosive%"
+     },
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "Success%"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Bijan Robinson",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jahmyr Gibbs",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Car",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.02",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "54.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "47.5%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.6%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Stuff%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "21.3%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "12.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Explosive%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.0%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "85",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Carries",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "494",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "353",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YPC",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "99",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TCH",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "102",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "11.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-1.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "105.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "rb-robinson-gibbs-no-stuff-rate/server": {
+   "radar": {
+    "values1": [
+     95.87628865979381,
+     89.69072164948454,
+     73.19587628865979,
+     75.25773195876289,
+     88.65979381443299,
+     91.75257731958763
+    ],
+    "values2": [
+     94.84536082474226,
+     64.94845360824742,
+     83.50515463917526,
+     83.50515463917526,
+     97.9381443298969,
+     79.38144329896907
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#0076B6",
+    "name1": "Bijan Robinson",
+    "name2": "Jahmyr Gibbs",
+    "axes": [
+     {
+      "label": "Car/Game"
+     },
+     {
+      "label": "EPA/Car"
+     },
+     {
+      "label": "Stuff Avoid"
+     },
+     {
+      "label": "Explosive%"
+     },
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "Success%"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Bijan Robinson",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jahmyr Gibbs",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Car",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.02",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "54.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "47.5%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.6%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Stuff%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "12.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Explosive%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.0%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "85",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Carries",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "494",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "353",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YPC",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "99",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TCH",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "102",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "11.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-1.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "105.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  },
+  "rb-robinson-gibbs-no-stuff-rate/browser": {
+   "radar": {
+    "values1": [
+     95.87628865979381,
+     89.69072164948454,
+     73.95833333333334,
+     75.25773195876289,
+     88.65979381443299,
+     91.75257731958763
+    ],
+    "values2": [
+     94.84536082474226,
+     64.94845360824742,
+     0,
+     83.50515463917526,
+     97.9381443298969,
+     79.38144329896907
+    ]
+   },
+   "chart": {
+    "color1": "#A71930",
+    "color2": "#0076B6",
+    "name1": "Bijan Robinson",
+    "name2": "Jahmyr Gibbs",
+    "axes": [
+     {
+      "label": "Car/Game"
+     },
+     {
+      "label": "EPA/Car"
+     },
+     {
+      "label": "Stuff Avoid"
+     },
+     {
+      "label": "Explosive%"
+     },
+     {
+      "label": "Tgt/Game"
+     },
+     {
+      "label": "Success%"
+     }
+    ]
+   },
+   "table": {
+    "headers": [
+     {
+      "text": "Bijan Robinson",
+      "className": "px-4 py-2 text-left font-semibold text-gray-600",
+      "style": "color: rgb(167, 25, 48);"
+     },
+     {
+      "text": "Stat",
+      "className": "px-4 py-2 text-center font-semibold text-gray-500",
+      "style": null
+     },
+     {
+      "text": "Jahmyr Gibbs",
+      "className": "px-4 py-2 text-right font-semibold text-gray-600",
+      "style": "color: rgb(0, 118, 182);"
+     }
+    ],
+    "rows": [
+     {
+      "a": {
+       "text": "0.13",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "EPA/Car",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-0.02",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "54.1%",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Success%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "47.5%",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "10.6%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Stuff%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "—",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "12.9%",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Explosive%",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "15.0%",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "85",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Carries",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "80",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "494",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Rush Yds",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "353",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Rush TD",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "5",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "5.8",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "YPC",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4.4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "99",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "TCH",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "102",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "11.2",
+       "className": "px-4 py-2 text-left tabular-nums font-bold bg-green-50"
+      },
+      "stat": {
+       "text": "Total EPA",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "-1.5",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     },
+     {
+      "a": {
+       "text": "105.4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "FPts (PPR)",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "116.1",
+       "className": "px-4 py-2 text-right tabular-nums font-bold bg-green-50"
+      }
+     },
+     {
+      "a": {
+       "text": "4",
+       "className": "px-4 py-2 text-left tabular-nums "
+      },
+      "stat": {
+       "text": "Games",
+       "className": "px-4 py-2 text-center text-xs text-gray-500 font-medium"
+      },
+      "b": {
+       "text": "4",
+       "className": "px-4 py-2 text-right tabular-nums "
+      }
+     }
+    ]
+   }
+  }
+ }
+}
