@@ -92,6 +92,23 @@ export function rbEligible(r: RBSeasonStat): boolean {
   return r.games > 0 && r.carries / r.games >= RB_MIN_CAR_PER_GAME;
 }
 
+// ---- The pool a player's percentiles are ranked in ----
+// The qualified players of his position, out of the whole season table. One
+// rule, used by the three card builders below and by the Compare page
+// (lib/stats/compare.ts), so a player has the same radar in both places. A
+// player under the line is still ranked against this pool; he is just not in it.
+export function qbCardPool(all: QBSeasonStat[]): QBSeasonStat[] {
+  return all.filter(qbEligible);
+}
+export function rbCardPool(all: RBSeasonStat[]): RBSeasonStat[] {
+  return all.filter(rbEligible);
+}
+/** Position-matched: TEs are ranked against TEs, WRs against WRs (and the
+ *  receiver table's RB rows against each other). `position` is the row's own. */
+export function wrCardPool(all: ReceiverSeasonStat[], position: string): ReceiverSeasonStat[] {
+  return all.filter((r) => r.position === position).filter(wrEligible);
+}
+
 // ---- Which players/seasons have a card (player page button, /card page, OG) ----
 /** Positions that get a Tecmo card. FBs are carried in the RB tables; K/P and
  *  defensive players never have one. Values match player_slugs.position. */
@@ -367,7 +384,7 @@ function qbTdsPerGame(q: QBSeasonStat): number {
 export function buildQBCardData(
   me: QBSeasonStat, all: QBSeasonStat[], season: number,
 ): TecmoCardData {
-  const pool = all.filter(qbEligible);
+  const pool = qbCardPool(all);
   const radarValues = computeRadarValues(QB_RADAR_KEYS, getQBRadarVal, me, pool);
   const eligible = qbEligible(me);
 
@@ -491,7 +508,7 @@ export function buildWRCardData(
   me: ReceiverSeasonStat, all: ReceiverSeasonStat[], season: number,
 ): TecmoCardData {
   // Position-matched pool: TEs are ranked against TEs, WRs against WRs.
-  const pool = all.filter((r) => r.position === me.position).filter(wrEligible);
+  const pool = wrCardPool(all, me.position);
   const radarValues = computeRadarValues(WR_RADAR_KEYS, getWRRadarVal, me, pool);
   // Same percentiles, but NaN on an axis with no data, so the archetype rules
   // ignore it instead of reading it as last place. radarValues (0 sentinel)
@@ -604,7 +621,7 @@ const RB_OVR_KEYS: readonly RBRadarKey[] =
 export function buildRBCardData(
   me: RBSeasonStat, all: RBSeasonStat[], season: number,
 ): TecmoCardData {
-  const pool = all.filter(rbEligible);
+  const pool = rbCardPool(all);
   const radarValues = computeRadarValues(RB_RADAR_KEYS, getRBRadarVal, me, pool);
   const eligible = rbEligible(me);
 
