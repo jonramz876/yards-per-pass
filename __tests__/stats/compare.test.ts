@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import {
   buildComparison, ensureContrast, colorDistance, getStatVal,
-  comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, COMPARE_RADAR_LEGEND,
+  comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence, compareNotDrawnSentences, COMPARE_RADAR_LEGEND,
   CONTRAST_PALETTE, MIN_DISTANCE, QB_COMP_STATS, WR_COMP_STATS, RB_COMP_STATS,
   type CompareGroup, type ComparePlayerRow,
 } from "@/lib/stats/compare";
@@ -12,6 +12,7 @@ import {
   qbCardPool, rbCardPool, wrCardPool, qbEligible, rbEligible, wrEligible,
   QB_MIN_ATT_PER_GAME, WR_MIN_TGT_PER_GAME, RB_MIN_CAR_PER_GAME,
 } from "@/lib/stats/tecmo-card";
+import { radarHasTooFewAxes } from "@/lib/stats/radar";
 import { getTeamColor } from "@/lib/data/teams";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 // Real 2026 season rows through Week 4 (see the file's _provenance line).
@@ -49,6 +50,9 @@ function compare(group: CompareGroup, a: string, b: string, table: Row[] = TABLE
     teamA: rowA.team_id as string, teamB: rowB.team_id as string,
   });
 }
+
+/** The receiver radar's stats, for made-up rows: without them a row has too few axes to be drawn. */
+const RADAR_STATS = { epa_per_target: 0.1, croe: 0.01, air_yards_per_target: 8, yac_per_reception: 4 };
 
 type GoldSide = {
   shortName: string; name: string; team: string; color: string; position: string; poolSize: number;
@@ -189,7 +193,7 @@ describe("pools of 0, 1 and 2", () => {
     const got = build([qb("a", 13, 1, 0.1), qb("b", 5, 1, 0.2)]);
     expect([got.a.poolSize, got.b.poolSize]).toEqual([0, 0]);
     expect(got.radar).toBe("too-few");
-    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks yet to draw the radar (14+ attempts a game).");
+    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).");
     expect(comparePoolSentence(got)).toBeNull();
     for (const v of [...got.a.values, ...got.b.values]) expect(Number.isNaN(v)).toBe(false);
   });
@@ -199,7 +203,7 @@ describe("pools of 0, 1 and 2", () => {
     expect(got.a.poolSize).toBe(1);
     expect(got.radar).toBe("too-few");
     expect(comparePoolSentence(got)).toBeNull();
-    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks yet to draw the radar (14+ attempts a game).");
+    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).");
   });
 
   it("two qualify: the radar is drawn and the pool sentence counts 2", () => {
@@ -220,7 +224,7 @@ describe("pools of 0, 1 and 2", () => {
   });
 
   const rec = (id: string, position: string, targets: number): Row =>
-    ({ player_id: id, player_name: id, team_id: "DAL", position, targets, games: 1, epa_per_target: targets / 10 });
+    ({ player_id: id, player_name: id, team_id: "DAL", position, targets, games: 1, ...RADAR_STATS, epa_per_target: targets / 10 });
   const wrVsTe = (rows: Row[], a = "wr", b = "te") =>
     buildComparison({
       group: "WR", rowA: asRow(rows.find((r) => r.player_id === a)!), rowB: asRow(rows.find((r) => r.player_id === b)!),
@@ -232,10 +236,10 @@ describe("pools of 0, 1 and 2", () => {
   it("a WR-vs-TE pair: the sentence names the position whose pool is short", () => {
     const wrShort = wrVsTe([rec("wr", "WR", 9), ...TES]);
     expect(wrShort.radar).toBe("too-few");
-    expect(compareTooFewSentence(wrShort)).toBe("Not enough qualified WRs yet to draw the radar (2+ targets a game).");
+    expect(compareTooFewSentence(wrShort)).toBe("Not enough qualified WRs to draw the radar (2+ targets a game).");
     const teShort = wrVsTe([...WRS, rec("te", "TE", 7)]);
     expect(teShort.radar).toBe("too-few");
-    expect(compareTooFewSentence(teShort)).toBe("Not enough qualified TEs yet to draw the radar (2+ targets a game).");
+    expect(compareTooFewSentence(teShort)).toBe("Not enough qualified TEs to draw the radar (2+ targets a game).");
     const neither = wrVsTe([...WRS, ...TES]);
     expect(neither.radar).toBe("drawn");
     expect(comparePoolSentence(neither)).toBe(
@@ -244,16 +248,16 @@ describe("pools of 0, 1 and 2", () => {
 
   it("both pools short: one sentence naming both positions, in the pair's order", () => {
     const rows = [rec("wr", "WR", 9), rec("te", "TE", 7)];
-    expect(compareTooFewSentence(wrVsTe(rows))).toBe("Not enough qualified WRs or TEs yet to draw the radar (2+ targets a game).");
-    expect(compareTooFewSentence(wrVsTe(rows, "te", "wr"))).toBe("Not enough qualified TEs or WRs yet to draw the radar (2+ targets a game).");
+    expect(compareTooFewSentence(wrVsTe(rows))).toBe("Not enough qualified WRs or TEs to draw the radar (2+ targets a game).");
+    expect(compareTooFewSentence(wrVsTe(rows, "te", "wr"))).toBe("Not enough qualified TEs or WRs to draw the radar (2+ targets a game).");
   });
 
   it("running backs and same-position receivers", () => {
     const rb = (id: string, carries: number): Row => ({ player_id: id, player_name: id, team_id: "ATL", carries, games: 1, targets: 1 });
     const few = buildComparison({ group: "RB", rowA: asRow(rb("a", 6)), rowB: asRow(rb("b", 5)), all: asRows([rb("a", 6), rb("b", 5)]), teamA: "ATL", teamB: "DET" });
-    expect(compareTooFewSentence(few)).toBe("Not enough qualified running backs yet to draw the radar (6+ carries a game).");
+    expect(compareTooFewSentence(few)).toBe("Not enough qualified running backs to draw the radar (6+ carries a game).");
     const one = wrVsTe([rec("wr", "WR", 9), rec("te", "WR", 1)]);
-    expect(compareTooFewSentence(one)).toBe("Not enough qualified WRs yet to draw the radar (2+ targets a game).");
+    expect(compareTooFewSentence(one)).toBe("Not enough qualified WRs to draw the radar (2+ targets a game).");
   });
 });
 
@@ -334,13 +338,171 @@ describe("the small-sample sentence (C6): shown exactly when a player is under t
       "Small sample: Jameson Williams has 6 pass attempts in 2 games; Javonte Williams has 3 pass attempts in 2 games (under 14 a game).");
   });
 
-  it("no radar, no small-sample sentence (it explains the radar)", () => {
+  it("it is shown when no radar is drawn too, so the visitor sees why (spec section 8)", () => {
     const a = { player_id: "a", player_name: "A", team_id: "BUF", games: 1, attempts: 3 };
     const b = { player_id: "b", player_name: "B", team_id: "KC", games: 1, attempts: 30 };
     const got = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b]), teamA: "BUF", teamB: "KC" });
     expect(got.radar).toBe("too-few");
-    expect(compareSmallSampleSentence(got, "A", "B")).toBeNull();
+    expect(compareTooFewSentence(got)).toBe("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).");
+    expect(compareSmallSampleSentence(got, "A", "B")).toBe("Small sample: A has 3 pass attempts in 1 game (under 14 a game).");
   });
+
+  it("the too-few sentence does not say \"yet\": the page cannot tell a past season, which can never fill up, from this one", () => {
+    const a = { player_id: "a", player_name: "A", team_id: "BUF", games: 1, attempts: 3 };
+    const got = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(a), all: asRows([a]), teamA: "BUF", teamB: "KC" });
+    expect(compareTooFewSentence(got)).not.toMatch(/\byet\b/);
+  });
+
+  describe("it never prints a number the row does not hold", () => {
+    const pair = (volume: unknown, games: unknown) => {
+      const a = { player_id: "a", player_name: "A.Odd", team_id: "BUF", games, attempts: volume };
+      const others = [0, 1, 2].map((i) => ({ player_id: `o${i}`, player_name: `o${i}`, team_id: "KC", games: 1, attempts: 30 + i }));
+      return buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(others[0]), all: asRows([a, ...others]), teamA: "BUF", teamB: "KC" });
+    };
+
+    it("a numeric string is read as its number", () => {
+      const got = pair("40", "4");
+      expect([got.a.volume, got.a.games]).toEqual([40, 4]);
+      expect(got.a.eligible).toBe(false);
+      expect(compareSmallSampleSentence(got, "A", "B")).toBe("Small sample: A.Odd has 40 pass attempts in 4 games (under 14 a game).");
+    });
+
+    for (const [what, value] of [["null", null], ["undefined", undefined], ["NaN", NaN], ["a negative number", -3], ["the string NaN", "NaN"], ["an empty string", ""], ["true", true]] as [string, unknown][]) {
+      it(`volume is ${what}: his clause is left out, no 0 is made up`, () => {
+        const got = pair(value, 2);
+        expect(got.a.volume).toBeNull();
+        expect(compareSmallSampleSentence(got, "A", "B")).toBeNull();
+      });
+      it(`games is ${what}: his clause is left out`, () => {
+        const got = pair(9, value);
+        expect(got.a.games).toBeNull();
+        const s = compareSmallSampleSentence(got, "A", "B");
+        expect(s === null || !s.includes("A.Odd")).toBe(true);
+      });
+    }
+
+    it("one player's numbers are unusable, the other's are fine: only the other is named", () => {
+      const a = { player_id: "a", player_name: "A.Odd", team_id: "BUF", games: 1, attempts: null };
+      const b = { player_id: "b", player_name: "B.Low", team_id: "BUF", games: 1, attempts: 2 };
+      const others = [0, 1].map((i) => ({ player_id: `o${i}`, player_name: `o${i}`, team_id: "KC", games: 1, attempts: 30 + i }));
+      const got = buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b, ...others]), teamA: "BUF", teamB: "KC" });
+      expect(compareSmallSampleSentence(got, "A", "B")).toBe("Small sample: B.Low has 2 pass attempts in 1 game (under 14 a game).");
+    });
+  });
+
+  describe("names: never \"null\", never empty", () => {
+    const same = (nameA: unknown, nameB: unknown) => {
+      const a = { player_id: "a", player_name: nameA, team_id: "BUF", games: 2, attempts: 6 };
+      const b = { player_id: "b", player_name: nameB, team_id: "BUF", games: 2, attempts: 3 };
+      const others = [0, 1].map((i) => ({ player_id: `o${i}`, player_name: `o${i}`, team_id: "KC", games: 1, attempts: 30 + i }));
+      return buildComparison({ group: "QB", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b, ...others]), teamA: "BUF", teamB: "KC" });
+    };
+
+    it("full names are needed but one is missing: the short name, else a name made from the slug", () => {
+      const got = same("J.Williams", "J.Williams");
+      expect(compareSmallSampleSentence(got, { fullName: null, slug: "jameson-williams" }, { fullName: "", slug: "javonte-williams" })).toBe(
+        "Small sample: J.Williams has 6 pass attempts in 2 games; J.Williams has 3 pass attempts in 2 games (under 14 a game).");
+      const noShort = same(null, "");
+      expect(compareSmallSampleSentence(noShort, { fullName: null, slug: "jameson-williams" }, { fullName: "  ", slug: "d-andre-swift-det" })).toBe(
+        "Small sample: Jameson Williams has 6 pass attempts in 2 games; D Andre Swift Det has 3 pass attempts in 2 games (under 14 a game).");
+      expect(compareSmallSampleSentence(noShort, { fullName: "Jameson Williams" }, null)).toBe(
+        "Small sample: Jameson Williams has 6 pass attempts in 2 games; Player 2 has 3 pass attempts in 2 games (under 14 a game).");
+      for (const s of [
+        compareSmallSampleSentence(noShort, null, undefined),
+        compareSmallSampleSentence(noShort, { fullName: null, slug: null }, { slug: "" }),
+        compareSmallSampleSentence(same(undefined, 7), "", "   "),
+      ]) {
+        expect(s).toBe("Small sample: Player 1 has 6 pass attempts in 2 games; Player 2 has 3 pass attempts in 2 games (under 14 a game).");
+      }
+    });
+  });
+});
+
+describe("a player with too few radar stats gets no outline, as on his stat card", () => {
+  it("the threshold is the stat card chart's own: half the axes or more missing", () => {
+    expect([radarHasTooFewAxes(2, 6), radarHasTooFewAxes(3, 6), radarHasTooFewAxes(6, 6)]).toEqual([false, true, true]);
+    expect([radarHasTooFewAxes(3, 7), radarHasTooFewAxes(4, 7)]).toEqual([false, true]);
+    expect(radarHasTooFewAxes(0, 6)).toBe(false);
+  });
+
+  // M.Valdes-Scantling really has 2 of 6 missing (no receptions, no route data).
+  // One more is removed here to reach the threshold.
+  const withThree = TABLES.WR.map((r) => (r.player_name === "M.Valdes-Scantling" ? { ...r, croe: null } : r));
+  const lambToo = withThree.map((r) => (r.player_name === "C.Lamb" ? { ...r, croe: null, epa_per_target: null } : r));
+
+  it("2 of 6 missing: still drawn", () => {
+    const got = compare("WR", "M.Valdes-Scantling", "C.Lamb");
+    expect(got.a.missing.filter(Boolean)).toHaveLength(2);
+    expect([got.a.outline, got.b.outline]).toEqual([true, true]);
+    expect(compareNotDrawnSentences(got, "Marquez Valdes-Scantling", "CeeDee Lamb")).toEqual([]);
+  });
+
+  it("3 of 6 missing: no outline for him, the other player is still drawn, and a sentence says so", () => {
+    const got = compare("WR", "M.Valdes-Scantling", "C.Lamb", withThree);
+    expect(got.a.missing.filter(Boolean)).toHaveLength(3);
+    expect([got.a.outline, got.b.outline]).toEqual([false, true]);
+    expect(got.radar).toBe("drawn");
+    expect(compareNotDrawnSentences(got, "Marquez Valdes-Scantling", "CeeDee Lamb")).toEqual([
+      "No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.",
+    ]);
+    // The other way round too.
+    const swapped = compare("WR", "C.Lamb", "M.Valdes-Scantling", withThree);
+    expect([swapped.a.outline, swapped.b.outline]).toEqual([true, false]);
+    expect(compareNotDrawnSentences(swapped, "CeeDee Lamb", "Marquez Valdes-Scantling")).toEqual([
+      "No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.",
+    ]);
+    // His values and mask are still his stat card's: only the drawing rule is added.
+    expect(comparePoolSentence(got)).toBe("Radar: percentile among the 129 qualified WRs (2+ targets a game)");
+  });
+
+  it("both players: two sentences, and the pool sentence goes (no radar is drawn)", () => {
+    const got = compare("WR", "M.Valdes-Scantling", "C.Lamb", lambToo);
+    expect([got.a.outline, got.b.outline]).toEqual([false, false]);
+    expect(compareNotDrawnSentences(got, "Marquez Valdes-Scantling", "CeeDee Lamb")).toEqual([
+      "No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.",
+      "No outline for C.Lamb: 3 of his 6 radar stats are not available.",
+    ]);
+    expect(comparePoolSentence(got)).toBeNull();
+  });
+
+  it("quarterbacks and running backs are always drawn: a missing stat plots at the centre for them, on the card too", () => {
+    for (const p of [compare("QB", "M.Penix", "J.Allen").a, compare("RB", "Bi.Robinson", "J.Gibbs").a]) expect(p.outline).toBe(true);
+  });
+
+  it("with no radar at all (too few qualified players) there is nothing to say about outlines", () => {
+    const row = find(withThree, "M.Valdes-Scantling");
+    const got = buildComparison({ group: "WR", rowA: asRow(row), rowB: asRow(row), all: asRows([row]), teamA: "LAC", teamB: "LAC" });
+    expect(got.radar).toBe("too-few");
+    expect(compareNotDrawnSentences(got, "A", "B")).toEqual([]);
+  });
+});
+
+describe("position words come from a closed list", () => {
+  const rec = (id: string, position: unknown, targets = 9): Row => ({ player_id: id, player_name: id, team_id: "DAL", position, targets, games: 1, ...RADAR_STATS });
+  const build = (rows: Row[]) =>
+    buildComparison({ group: "WR", rowA: asRow(rows[0]), rowB: asRow(rows[1]), all: asRows(rows), teamA: "DAL", teamB: "ARI" });
+
+  it("WR, TE, RB, FB and QB rows of the receiver table have their own word", () => {
+    for (const [pos, word] of [["WR", "WRs"], ["TE", "TEs"], ["RB", "RBs"], ["FB", "FBs"], ["QB", "QBs"]]) {
+      expect(compareTooFewSentence(build([rec("a", pos), rec("b", pos, 1)]))).toBe(
+        `Not enough qualified ${word} to draw the radar (2+ targets a game).`);
+    }
+  });
+
+  for (const junk of ["wr", "WR ", 7, null, undefined, "<b>", "K"]) {
+    it(`a position of ${JSON.stringify(junk)}: the word is "receivers", and the row is still ranked by the stat card's own rule`, () => {
+      const rows = [rec("a", junk), rec("b", junk), rec("c", junk, 1), rec("w1", "WR"), rec("w2", "WR")];
+      const got = build(rows);
+      // wrCardPool matches the position exactly: the two qualified rows that carry the same value.
+      expect(got.a.poolSize).toBe(2);
+      expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified receivers (2+ targets a game)");
+      const mixed = buildComparison({ group: "WR", rowA: asRow(rows[0]), rowB: asRow(rows[3]), all: asRows(rows), teamA: "DAL", teamB: "ARI" });
+      expect(comparePoolSentence(mixed)).toBe(
+        "Radar: each player against qualified players at his position (2+ targets a game): 2 receivers, 2 WRs");
+      const few = build([rec("a", junk), rec("b", junk, 1)]);
+      expect(compareTooFewSentence(few)).toBe("Not enough qualified receivers to draw the radar (2+ targets a game).");
+    });
+  }
 });
 
 describe("the legend (C5)", () => {
@@ -434,13 +596,13 @@ describe("buildComparison: values and the missing mask", () => {
   });
 
   it("receiver rows with no position: ranked among the other rows with none (the stat card's own filter), and a plain word, never \"undefineds\"", () => {
-    const a = { player_id: "a", player_name: "A", team_id: "DAL", targets: 9, games: 1 };
-    const b = { player_id: "b", player_name: "B", team_id: "ARI", targets: 8, games: 1 };
-    const c = { player_id: "c", player_name: "C", team_id: "ARI", targets: 1, games: 1 };
+    const a = { player_id: "a", player_name: "A", team_id: "DAL", targets: 9, games: 1, ...RADAR_STATS };
+    const b = { player_id: "b", player_name: "B", team_id: "ARI", targets: 8, games: 1, ...RADAR_STATS };
+    const c = { player_id: "c", player_name: "C", team_id: "ARI", targets: 1, games: 1, ...RADAR_STATS };
     const got = buildComparison({ group: "WR", rowA: asRow(a), rowB: asRow(b), all: asRows([a, b, c]), teamA: "DAL", teamB: "ARI" });
     expect(comparePoolSentence(got)).toBe("Radar: percentile among the 2 qualified receivers (2+ targets a game)");
     const few = buildComparison({ group: "WR", rowA: asRow(a), rowB: asRow(c), all: asRows([a, c]), teamA: "DAL", teamB: "ARI" });
-    expect(compareTooFewSentence(few)).toBe("Not enough qualified receivers yet to draw the radar (2+ targets a game).");
+    expect(compareTooFewSentence(few)).toBe("Not enough qualified receivers to draw the radar (2+ targets a game).");
   });
 });
 
@@ -522,8 +684,46 @@ describe("ensureContrast: only player 2's colour is ever moved", () => {
 });
 
 describe("lib/stats/compare.ts stays pure", () => {
+  const ROOT = path.join(__dirname, "..", "..");
+  const read = (rel: string) => readFileSync(path.join(ROOT, rel), "utf8");
+
+  /** Every runtime import of a file ("import type" lines are erased by the compiler and do not count). */
+  function runtimeImports(source: string): string[] {
+    return Array.from(source.matchAll(/^\s*(?:import|export)\s+(?!type\b)[^;]*?from\s+["']([^"']+)["']/gm)).map((m) => m[1])
+      .concat(Array.from(source.matchAll(/^\s*import\s+["']([^"']+)["']/gm)).map((m) => m[1]));
+  }
+
+  /** A project import as a repo-relative file, or null for a package. */
+  function resolve(from: string, spec: string): string | null {
+    let base: string;
+    if (spec.startsWith("@/")) base = spec.slice(2);
+    else if (spec.startsWith(".")) base = path.posix.join(path.posix.dirname(from), spec);
+    else return null;
+    for (const ext of [".ts", ".tsx", "/index.ts"]) {
+      try { read(base + ext); return base + ext; } catch { /* try the next one */ }
+    }
+    throw new Error(`cannot resolve ${spec} from ${from}`);
+  }
+
+  function chain(entry: string): { files: string[]; packages: string[] } {
+    const files: string[] = [];
+    const packages = new Set<string>();
+    const todo = [entry];
+    while (todo.length > 0) {
+      const file = todo.pop()!;
+      if (files.includes(file)) continue;
+      files.push(file);
+      for (const spec of runtimeImports(read(file))) {
+        const next = resolve(file, spec);
+        if (next === null) packages.add(spec);
+        else todo.push(next);
+      }
+    }
+    return { files: files.sort(), packages: Array.from(packages).sort() };
+  }
+
   it("imports nothing from lib/data except the static team list, and no React, Next or Supabase", () => {
-    const source = readFileSync(path.join(__dirname, "..", "..", "lib", "stats", "compare.ts"), "utf8");
+    const source = read("lib/stats/compare.ts");
     const imports = Array.from(source.matchAll(/from\s+["']([^"']+)["']/g)).map((m) => m[1]);
     expect(imports.length).toBeGreaterThan(0);
     expect(imports.filter((i) => i.includes("lib/data"))).toEqual(["@/lib/data/teams"]);
@@ -532,10 +732,25 @@ describe("lib/stats/compare.ts stays pure", () => {
     expect(source).not.toMatch(/\brequire\(|\bimport\(/);
   });
 
-  it("the stat card module it now calls is as clean: no lib/data, React, Next or Supabase import that is not type-only", () => {
-    const source = readFileSync(path.join(__dirname, "..", "..", "lib", "stats", "tecmo-card.ts"), "utf8");
-    const real = Array.from(source.matchAll(/^import\s+(?!type\b)[^;]*?from\s+["']([^"']+)["']/gm)).map((m) => m[1]);
-    expect(real.length).toBeGreaterThan(0);
-    for (const i of real) expect(i).not.toMatch(/lib\/data|supabase|^react|^next|components\//);
+  it("the same holds for everything it pulls in, followed import by import (compare.ts, the stat card module, and on down)", () => {
+    const { files, packages } = chain("lib/stats/compare.ts");
+    // It really walked: the stat card module and what that needs are in the chain.
+    for (const f of ["lib/stats/compare.ts", "lib/stats/tecmo-card.ts", "lib/stats/radar.ts", "lib/stats/percentiles.ts", "lib/stats/archetypes.ts", "lib/data/teams.ts"]) {
+      expect(files, f).toContain(f);
+    }
+    expect(files.filter((f) => f.startsWith("lib/data/"))).toEqual(["lib/data/teams.ts"]);
+    for (const f of files) {
+      expect(f, f).toMatch(/^lib\/(stats|data)\//);
+      const source = read(f);
+      expect(source, f).not.toMatch(/^\s*["']use client["']/m);
+      expect(source, f).not.toMatch(/\brequire\(|\bimport\(/);
+    }
+    // No package at all at run time: no React, no Next, no Supabase.
+    expect(packages).toEqual([]);
+  });
+
+  it("the walker would catch a bad import: it sees runtime imports and ignores type-only ones", () => {
+    expect(runtimeImports('import type React from "react";\nimport { a } from "@/lib/supabase/client";\nimport {\n  b,\n} from "./x";\nexport { c } from "next/navigation";\nimport "server-only";'))
+      .toEqual(["@/lib/supabase/client", "./x", "next/navigation", "server-only"]);
   });
 });

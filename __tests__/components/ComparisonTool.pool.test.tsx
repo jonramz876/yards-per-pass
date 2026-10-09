@@ -149,10 +149,12 @@ describe("/compare with too few qualified players (C4z)", () => {
   it("one qualified quarterback: the sentence replaces the radar, the table still shows, and no other radar sentence appears", async () => {
     const v = await show(as("a", "Al Starter"), as("b", "Bo Backup"), { qb: [qb("a", "A.Starter", 30, 1), qb("b", "B.Backup", 4, 1)] });
     expect(v.radarDrawn).toBe(false);
-    expect(v.count("Not enough qualified quarterbacks yet to draw the radar (14+ attempts a game).")).toBe(1);
+    expect(v.count("Not enough qualified quarterbacks to draw the radar (14+ attempts a game).")).toBe(1);
     expect(v.text).not.toMatch(/Radar: /);
     expect(v.text).not.toMatch(/qualified quarterbacks \(/);
-    expect(v.text).not.toMatch(/Small sample/);
+    // The backup is under the line: the small-sample line shows here too, so the visitor sees why.
+    expect(v.count("Small sample: B.Backup has 4 pass attempts in 1 game (under 14 a game).")).toBe(1);
+    expect(v.text).not.toMatch(/\byet\b/);
     expect(v.count(LEGEND)).toBe(0);
     expect(screen.getByText("Pass Yds")).toBeTruthy();
     expect(screen.getByText("210")).toBeTruthy();
@@ -170,6 +172,42 @@ describe("/compare with too few qualified players (C4z)", () => {
     const as2 = (id: string, position: string): Slug => ({ player_id: id, slug: id, player_name: id.toUpperCase(), position, current_team_id: "DAL" });
     const v = await show(as2("w", "WR"), as2("t", "TE"), { receivers: [rec("w", "WR"), rec("t", "TE")] });
     expect(v.radarDrawn).toBe(false);
-    expect(v.count("Not enough qualified WRs or TEs yet to draw the radar (2+ targets a game).")).toBe(1);
+    expect(v.count("Not enough qualified WRs or TEs to draw the radar (2+ targets a game).")).toBe(1);
+  });
+});
+
+describe("/compare leaves out the outline of a player with too few radar stats, as his stat card does", () => {
+  // M.Valdes-Scantling really has 2 of 6 radar stats missing; one more is removed here.
+  const withThree = REC_ROWS.map((r) => (r.player_name === "M.Valdes-Scantling" ? { ...r, croe: null } : r));
+  const lambToo = withThree.map((r) => (r.player_name === "C.Lamb" ? { ...r, croe: null, epa_per_target: null } : r));
+  const outlines = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll("svg polygon"))
+      .filter((p) => p.getAttribute("stroke-width") === "2")
+      .map((p) => (p.getAttribute("points") ?? "").trim().split(/\s+/).filter(Boolean).length);
+
+  it("one player: his outline and dots are gone, the other's are drawn, and a sentence names him", async () => {
+    const v = await show(slug(withThree, "M.Valdes-Scantling", "Marquez Valdes-Scantling", "WR"), slug(withThree, "C.Lamb", "CeeDee Lamb", "WR"), { receivers: withThree });
+    expect(v.radarDrawn).toBe(true);
+    // Drawn back to front: player 2 (Lamb, 5 corners: no route data), then player 1 (none).
+    expect(outlines(v.container)).toEqual([5, 0]);
+    expect(v.container.querySelectorAll("svg circle")).toHaveLength(5);
+    expect(v.count("No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.")).toBe(1);
+    expect(v.count("Radar: percentile among the 129 qualified WRs (2+ targets a game)")).toBe(1);
+  });
+
+  it("with the real rows (2 of 6 missing) he is drawn and nothing is said", async () => {
+    const v = await show(slug(REC_ROWS, "M.Valdes-Scantling", "Marquez Valdes-Scantling", "WR"), slug(REC_ROWS, "C.Lamb", "CeeDee Lamb", "WR"), { receivers: REC_ROWS });
+    expect(outlines(v.container)).toEqual([5, 4]);
+    expect(v.text).not.toMatch(/No outline/);
+  });
+
+  it("both players: no radar, the two sentences where it would be, the table still there", async () => {
+    const v = await show(slug(lambToo, "M.Valdes-Scantling", "Marquez Valdes-Scantling", "WR"), slug(lambToo, "C.Lamb", "CeeDee Lamb", "WR"), { receivers: lambToo });
+    expect(v.radarDrawn).toBe(false);
+    expect(v.count("No outline for M.Valdes-Scantling: 3 of his 6 radar stats are not available.")).toBe(1);
+    expect(v.count("No outline for C.Lamb: 3 of his 6 radar stats are not available.")).toBe(1);
+    expect(v.text).not.toMatch(/Radar: /);
+    expect(v.count(LEGEND)).toBe(0);
+    expect(screen.getByText("Targets")).toBeTruthy();
   });
 });

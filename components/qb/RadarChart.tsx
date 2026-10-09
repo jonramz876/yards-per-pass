@@ -1,6 +1,8 @@
 // components/qb/RadarChart.tsx
 "use client";
 
+import { radarHasTooFewAxes } from "@/lib/stats/radar";
+
 interface RadarChartProps {
   /** Percentile values (0–100) for each axis, in order */
   values: number[];
@@ -52,7 +54,7 @@ export default function RadarChart({ values, color, axes: customAxes, missing }:
   const count = axes.length;
 
   const nullCount = values.filter((v, i) => isNaN(v) || v < 0 || missing?.[i]).length;
-  if (nullCount >= Math.ceil(count / 2)) {
+  if (radarHasTooFewAxes(nullCount, count)) {
     return (
       <div className="text-center text-gray-400 text-sm py-8">
         Not enough data for radar chart

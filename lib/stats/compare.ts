@@ -16,7 +16,7 @@
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import { getTeamColor } from "@/lib/data/teams";
 import {
-  getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues,
+  getQBRadarVal, getWRRadarVal, getRBRadarVal, computeRadarValues, radarHasTooFewAxes,
   QB_RADAR_AXES, QB_RADAR_KEYS, WR_RADAR_AXES, WR_RADAR_KEYS, RB_RADAR_AXES, RB_RADAR_KEYS,
 } from "@/lib/stats/radar";
 import { qbFantasyPoints, wrFantasyPoints, rbFantasyPoints } from "@/lib/stats/fantasy";
@@ -199,11 +199,22 @@ export interface ComparisonPlayer {
   poolPosition: string;
   /** False when he is under the stat card's line (a small sample). He is still ranked against the pool. */
   eligible: boolean;
-  /** His attempts / targets / carries (0 when the row holds no number) and games, for the small-sample sentence. */
-  volume: number;
-  games: number;
+  /**
+   * His attempts / targets / carries and his games, for the small-sample
+   * sentence. A numeric string is read as its number; anything that is not a
+   * finite number of 0 or more is null, and the sentence then leaves him out
+   * rather than print a number the row does not hold.
+   */
+  volume: number | null;
+  games: number | null;
   /** The name his season row carries ("J.Allen"); "" when it has none. */
   shortName: string;
+  /**
+   * False when half his radar axes or more are missing: his outline is not
+   * drawn, by the stat card chart's own rule (radarHasTooFewAxes). His values
+   * and mask are still filled in.
+   */
+  outline: boolean;
 }
 
 export interface ComparisonTableRow {
@@ -232,7 +243,11 @@ export const COMPARE_MIN_POOL = 2;
 
 const NO_VALUE = "—";
 
-const finiteOrZero = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+/** A count as a number: a number or a numeric string, finite and not negative. Anything else is null. */
+function countOrNull(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 
 function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRow[], color: string): ComparisonPlayer {
   // The same calls the stat card's builders make for radarValues / radarMissing.
@@ -247,9 +262,10 @@ function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRo
     poolSize: pool.length,
     poolPosition: cfg.poolPosition(row),
     eligible: cfg.eligible(row),
-    volume: finiteOrZero(record[cfg.volumeKey]),
-    games: finiteOrZero(record.games),
-    shortName: typeof record.player_name === "string" ? record.player_name : "",
+    volume: countOrNull(record[cfg.volumeKey]),
+    games: countOrNull(record.games),
+    shortName: typeof record.player_name === "string" ? record.player_name.trim() : "",
+    outline: !radarHasTooFewAxes(missing.filter(Boolean).length, cfg.radarKeys.length),
   };
 }
 
@@ -262,7 +278,9 @@ function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRo
  * from it here (the stat card's pool for his position, so two players of
  * different positions in the receiver table are each ranked in their own).
  * `radar` is "too-few" when either pool has fewer than 2 players: the caller
- * shows compareTooFewSentence in place of the radar. `teamA` / `teamB` are the team
+ * shows compareTooFewSentence in place of the radar. A player whose `outline`
+ * is false is not drawn (compareNotDrawnSentences says so); with both false
+ * there is no radar either. `teamA` / `teamB` are the team
  * ids the colours come from (the Compare page passes player_slugs'
  * current_team_id, as it always has).
  *
@@ -325,11 +343,21 @@ export function buildComparison(input: {
 /** The radar's legend line (C5). */
 export const COMPARE_RADAR_LEGEND = "Farther out = higher percentile \u00b7 dashed ring = 50th percentile";
 
+/** The receiver table's position words. A closed list: anything else is "receivers". */
+const RECEIVER_POSITION_WORDS: Record<string, string> = { WR: "WRs", TE: "TEs", RB: "RBs", FB: "FBs", QB: "QBs" };
+
 /** "quarterbacks", "running backs", "WRs", "TEs": the players of a pool, in a sentence. */
 function poolWord(group: CompareGroup, player: ComparisonPlayer): string {
   if (group === "QB") return "quarterbacks";
   if (group === "RB") return "running backs";
-  return player.poolPosition ? `${player.poolPosition}s` : "receivers";
+  const position: unknown = player.poolPosition;
+  return (typeof position === "string" && Object.prototype.hasOwnProperty.call(RECEIVER_POSITION_WORDS, position)
+    ? RECEIVER_POSITION_WORDS[position] : "receivers");
+}
+
+/** Is any outline drawn at all? No when a pool is too small, or when both players have too few radar stats. */
+export function compareRadarIsDrawn(c: Comparison): boolean {
+  return c.radar === "drawn" && (c.a.outline || c.b.outline);
 }
 
 /**
@@ -337,7 +365,7 @@ function poolWord(group: CompareGroup, player: ComparisonPlayer): string {
  * null when no radar is drawn (so "the 1 qualified quarterbacks" cannot appear).
  */
 export function comparePoolSentence(c: Comparison): string | null {
-  if (c.radar !== "drawn") return null;
+  if (!compareRadarIsDrawn(c)) return null;
   const line = GROUPS[c.group].thresholdWords;
   if (c.a.poolPosition !== c.b.poolPosition) {
     return `Radar: each player against qualified players at his position (${line} a game): ` +
@@ -349,32 +377,70 @@ export function comparePoolSentence(c: Comparison): string | null {
 /**
  * C4z: shown in place of the radar when a pool has fewer than 2 players. For
  * two positions it names the one whose pool is short, or both in the pair's
- * order. null when the radar is drawn.
+ * order. null when the radar is drawn. It does not say "yet": the Compare page
+ * does not know whether the season shown is the newest one, and a past season
+ * can never fill up.
  */
 export function compareTooFewSentence(c: Comparison): string | null {
   if (c.radar !== "too-few") return null;
   const short = [c.a, c.b].filter((p) => p.poolSize < COMPARE_MIN_POOL).map((p) => poolWord(c.group, p));
   const words = Array.from(new Set(short)).join(" or ");
-  return `Not enough qualified ${words} yet to draw the radar (${GROUPS[c.group].thresholdWords} a game).`;
+  return `Not enough qualified ${words} to draw the radar (${GROUPS[c.group].thresholdWords} a game).`;
+}
+
+/** What the caller knows about a player's name: his full name (a plain string means that), and his slug as a last resort. */
+export type CompareName = string | null | undefined | { fullName?: string | null; slug?: string | null };
+
+const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+/** "josh-allen" as "Josh Allen". */
+function nameFromSlug(slug: string): string {
+  return slug.split("-").filter(Boolean).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+/**
+ * The two names as a sentence prints them: the season rows' short names; when
+ * the two are the same, or one is missing, each player's full name instead,
+ * falling back to his short name, then a name made from his slug, then
+ * "Player 1" / "Player 2". Never empty and never "null".
+ */
+function sentenceNames(c: Comparison, nameA: CompareName, nameB: CompareName): [string, string] {
+  const useFull = !c.a.shortName || !c.b.shortName || c.a.shortName === c.b.shortName;
+  const pick = (p: ComparisonPlayer, name: CompareName, fallback: string): string => {
+    if (!useFull) return p.shortName;
+    const full = text(typeof name === "object" && name !== null ? name.fullName : name);
+    const slug = text(typeof name === "object" && name !== null ? name.slug : "");
+    return full || p.shortName || nameFromSlug(slug) || fallback;
+  };
+  return [pick(c.a, nameA, "Player 1"), pick(c.b, nameB, "Player 2")];
 }
 
 /**
  * C6: one line naming each player who is under the stat card's line. null when
- * neither is, and when no radar is drawn (the line explains the radar). Names
- * are the season rows' short names; when the two are the same (or one is
- * missing) both players are written with the full names passed in.
+ * neither is. Shown whether or not a radar is drawn. A player whose attempts /
+ * targets / carries or games are not usable numbers is left out of the line.
  */
-export function compareSmallSampleSentence(c: Comparison, fullNameA: string, fullNameB: string): string | null {
-  if (c.radar !== "drawn") return null;
+export function compareSmallSampleSentence(c: Comparison, nameA: CompareName, nameB: CompareName): string | null {
   const cfg = GROUPS[c.group];
-  const useFull = !c.a.shortName || !c.b.shortName || c.a.shortName === c.b.shortName;
-  const part = (p: ComparisonPlayer, fullName: string): string =>
-    `${useFull ? fullName : p.shortName} has ${p.volume} ${cfg.volumeWords[p.volume === 1 ? 0 : 1]} ` +
-    `in ${p.games} ${p.games === 1 ? "game" : "games"}`;
-  const parts = [
-    ...(c.a.eligible ? [] : [part(c.a, fullNameA)]),
-    ...(c.b.eligible ? [] : [part(c.b, fullNameB)]),
-  ];
+  const names = sentenceNames(c, nameA, nameB);
+  const part = (p: ComparisonPlayer, name: string): string[] =>
+    p.eligible || p.volume === null || p.games === null ? [] : [
+      `${name} has ${p.volume} ${cfg.volumeWords[p.volume === 1 ? 0 : 1]} in ${p.games} ${p.games === 1 ? "game" : "games"}`,
+    ];
+  const parts = [...part(c.a, names[0]), ...part(c.b, names[1])];
   if (parts.length === 0) return null;
   return `Small sample: ${parts.join("; ")} (under ${cfg.minPerGame} a game).`;
+}
+
+/**
+ * C4m: one sentence per player whose outline is not drawn because half his
+ * radar stats or more are missing (the stat card chart's rule). Empty when
+ * both are drawn, and when no radar is drawn for want of qualified players.
+ */
+export function compareNotDrawnSentences(c: Comparison, nameA: CompareName, nameB: CompareName): string[] {
+  if (c.radar !== "drawn") return [];
+  const names = sentenceNames(c, nameA, nameB);
+  const one = (p: ComparisonPlayer, name: string): string[] =>
+    p.outline ? [] : [`No outline for ${name}: ${p.missing.filter(Boolean).length} of his ${p.missing.length} radar stats are not available.`];
+  return [...one(c.a, names[0]), ...one(c.b, names[1])];
 }

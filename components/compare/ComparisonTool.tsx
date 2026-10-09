@@ -7,7 +7,8 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 import {
   buildComparison, comparePoolSentence, compareTooFewSentence, compareSmallSampleSentence,
-  type CompareGroup,
+  compareNotDrawnSentences, compareRadarIsDrawn,
+  type CompareGroup, type ComparisonPlayer,
 } from "@/lib/stats/compare";
 import PlayerSearchInput, { type SelectedPlayer } from "./PlayerSearchInput";
 import OverlayRadarChart from "./OverlayRadarChart";
@@ -22,6 +23,10 @@ import OverlayRadarChart from "./OverlayRadarChart";
 // A string constant, not JSX text: lint rejects a bare apostrophe in JSX, and
 // JSX text does not decode escape sequences.
 const COMPARISON_UNAVAILABLE = "Couldn't load stats for this comparison. Try again in a moment.";
+
+// A player whose outline is not drawn (too few radar stats, the stat card's
+// rule) is handed to the chart with every axis masked: no corners, no dots.
+const chartMask = (p: ComparisonPlayer): boolean[] => (p.outline ? p.missing : p.missing.map(() => true));
 
 interface ComparisonToolProps {
   qbs: QBSeasonStat[];
@@ -174,12 +179,15 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
   const samePlayer = player1 && player2 && player1.player_id === player2.player_id;
 
   // The sentences that go with the radar: which players it ranks against, or
-  // why it is not drawn, and a note when a player is under the stat card's line.
+  // why it (or one outline) is not drawn, and a note when a player is under the
+  // stat card's line.
+  const name1 = { fullName: player1?.player_name, slug: player1?.slug };
+  const name2 = { fullName: player2?.player_name, slug: player2?.slug };
+  const radarDrawn = comparison ? compareRadarIsDrawn(comparison) : false;
   const poolSentence = comparison ? comparePoolSentence(comparison) : null;
   const tooFewSentence = comparison ? compareTooFewSentence(comparison) : null;
-  const smallSampleSentence = comparison && player1 && player2
-    ? compareSmallSampleSentence(comparison, player1.player_name, player2.player_name)
-    : null;
+  const notDrawnSentences = comparison ? compareNotDrawnSentences(comparison, name1, name2) : [];
+  const smallSampleSentence = comparison ? compareSmallSampleSentence(comparison, name1, name2) : null;
 
   return (
     <div className="space-y-6">
@@ -227,13 +235,13 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
       {comparison && !samePlayer && (
         <div className="space-y-6">
           {/* Overlay Radar, or the reason there is none */}
-          {comparison.radar === "drawn" ? (
+          {radarDrawn ? (
             <div className="max-w-md mx-auto">
               <OverlayRadarChart
                 values1={comparison.a.values}
                 values2={comparison.b.values}
-                missing1={comparison.a.missing}
-                missing2={comparison.b.missing}
+                missing1={chartMask(comparison.a)}
+                missing2={chartMask(comparison.b)}
                 color1={comparison.a.color}
                 color2={comparison.b.color}
                 name1={player1!.player_name}
@@ -242,11 +250,15 @@ export default function ComparisonTool({ qbs: serverQBs, receivers: serverReceiv
               />
             </div>
           ) : (
-            <p className="text-center text-sm text-gray-500 py-8">{tooFewSentence}</p>
+            <div className="max-w-2xl mx-auto text-center text-sm text-gray-500 py-8 space-y-1">
+              {tooFewSentence && <p>{tooFewSentence}</p>}
+              {notDrawnSentences.map((sentence) => <p key={sentence}>{sentence}</p>)}
+            </div>
           )}
-          {(poolSentence || smallSampleSentence) && (
+          {(poolSentence || smallSampleSentence || (radarDrawn && notDrawnSentences.length > 0)) && (
             <div className="max-w-2xl mx-auto text-center text-xs text-gray-500 space-y-1">
               {poolSentence && <p>{poolSentence}</p>}
+              {radarDrawn && notDrawnSentences.map((sentence) => <p key={sentence}>{sentence}</p>)}
               {smallSampleSentence && <p className="text-amber-700">{smallSampleSentence}</p>}
             </div>
           )}
