@@ -191,6 +191,11 @@ export function comparePreviewTitle(nameA: string, nameB: string): string {
   return `${nameA} vs ${nameB}`;
 }
 
+/** C18: /compare's <title> for a pair. A plain title: the layout's template adds the site name. */
+export function compareToolTitle(nameA: string, nameB: string): string {
+  return `${nameA} vs ${nameB} — Player Comparison`;
+}
+
 /** The page's visible heading and the plate's: the pair and the season. */
 export function compareShareHeading(nameA: string, nameB: string, season: number): string {
   return `${nameA} vs ${nameB} — ${season}`;

@@ -50,7 +50,7 @@ import { getAvailableSeasons } from "@/lib/data/queries";
 import { metadata as homeMetadata } from "@/app/page";
 import { metadata as glossaryMetadata } from "@/app/glossary/page";
 import { metadata as privacyMetadata } from "@/app/privacy/page";
-import { metadata as compareMetadata } from "@/app/compare/page";
+import { generateMetadata as compareMeta } from "@/app/compare/page";
 import { generateMetadata as teamsMeta } from "@/app/teams/page";
 import { generateMetadata as qbMeta } from "@/app/qb-leaderboard/page";
 import { generateMetadata as receiversMeta } from "@/app/receivers/page";
@@ -92,16 +92,19 @@ describe("canonical tags on the static pages", () => {
     expect("openGraph" in (homeMetadata ?? {})).toBe(false);
   });
 
-  it("glossary, privacy and compare point to themselves", () => {
+  // /compare's metadata is a function since compare card PR 3 (a pasted pair
+  // link previews the comparison); with no pair it is what it always was.
+  it("glossary, privacy and compare point to themselves", async () => {
     expect(glossaryMetadata.alternates?.canonical).toBe(`${BASE}/glossary`);
     expect(privacyMetadata.alternates?.canonical).toBe(`${BASE}/privacy`);
-    expect(compareMetadata.alternates?.canonical).toBe(`${BASE}/compare`);
+    expect((await meta(compareMeta as Gen)).alternates?.canonical).toBe(`${BASE}/compare`);
+    expect((await meta(compareMeta as Gen, { season: "2025" })).alternates?.canonical).toBe(`${BASE}/compare`);
   });
 
-  it("glossary, privacy and compare keep their titles (guard)", () => {
+  it("glossary, privacy and compare keep their titles (guard)", async () => {
     expect(glossaryMetadata.title).toBe("NFL Analytics Glossary");
     expect(privacyMetadata.title).toBe("Privacy Policy");
-    expect(compareMetadata.title).toBe("Player Comparison");
+    expect((await meta(compareMeta as Gen)).title).toBe("Player Comparison");
   });
 });
 
