@@ -381,13 +381,29 @@ describe("one load per request: the title and the body can never disagree", () =
     expect(el.querySelector("[data-radar-card]")).not.toBeNull();
   });
 
-  it("a failed load fails both halves of the request the same way, and the next request loads again", async () => {
-    vi.mocked(getTeamRadarRows).mockRejectedValueOnce(FAILED);
-    newRequest();
-    await expect(generateMetadata(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
-    await expect(SharePage(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
-    const el = await page("BUF", "offense");
-    expect(el.querySelector("[data-radar-card]")).not.toBeNull();
+  // Compare card PR 2, chaos COST-2: the season-wide read's memo now keeps a
+  // FAILURE for ten seconds (it used to forget it at once), so a failing page
+  // view reads once however many render passes it has, and an outage is not
+  // retried at the visitor's rate. After ten seconds the next request reads again.
+  it("a failed load fails both halves of the request the same way with ONE read; ten seconds later the next request loads again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
+      vi.mocked(getTeamRadarRows).mockRejectedValueOnce(FAILED);
+      newRequest();
+      await expect(generateMetadata(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
+      await expect(SharePage(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
+      // The error page is a new render pass (a new cache() scope): still no second read.
+      newRequest();
+      await expect(generateMetadata(args("BUF", "offense"))).rejects.toThrow("Failed to fetch team radar rows");
+      expect(getTeamRadarRows).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(new Date("2026-10-06T12:00:10Z"));
+      const el = await page("BUF", "offense");
+      expect(el.querySelector("[data-radar-card]")).not.toBeNull();
+      expect(getTeamRadarRows).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("the next request sees the new data", async () => {
