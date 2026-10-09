@@ -38,7 +38,7 @@ type Entry<T> = { at: number; promise: Promise<T> };
  * getBoxScoreSeasonsCached pattern). Module scope: per server instance, empty
  * on a cold start.
  */
-function memoised<K, T>(store: Map<K, Entry<T>>, key: K, read: () => Promise<T>): Promise<T> {
+export function memoised<K, T>(store: Map<K, Entry<T>>, key: K, read: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = store.get(key);
   if (hit && now - hit.at < TEAM_RADAR_MEMO_TTL_MS) return hit.promise;
