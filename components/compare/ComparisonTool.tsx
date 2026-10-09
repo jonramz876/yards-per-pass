@@ -306,6 +306,8 @@ export default function ComparisonTool({
 
           {shareSlugs && cardHref && (
             <CompareShare
+              // A new block for each card, so "Copied!" never carries over to the next pair.
+              key={cardHref}
               shareUrl={`${siteUrl.replace(/\/+$/, "")}${cardHref}`}
               cardHref={cardHref}
               downloadHref={compareImageHref(shareSlugs.a, shareSlugs.b, season, { download: true })}

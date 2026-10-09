@@ -153,6 +153,74 @@ describe("the Share block on /compare", () => {
     expect(screen.queryByText("Copied!")).toBeNull();
   });
 
+  // Code review PR 3: the two fallback branches of Copy Link.
+  it("a browser with no clipboard API at all: the old copy command is used, and Copied! only because it said so", async () => {
+    Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true });
+    const exec = vi.fn(() => true);
+    (document as unknown as { execCommand: unknown }).execCommand = exec;
+    await show(ALLEN, STAFFORD, { qb: QB });
+    fireEvent.click(screen.getByText("Copy Link"));
+    await screen.findByText("Copied!");
+    expect(exec).toHaveBeenCalledWith("copy");
+    // The helper input is gone again.
+    expect(document.body.querySelector(":scope > input")).toBeNull();
+  });
+
+  it("the clipboard API refuses but the old copy command works: Copied!", async () => {
+    writeText.mockRejectedValue(new Error("NotAllowedError"));
+    const exec = vi.fn(() => true);
+    (document as unknown as { execCommand: unknown }).execCommand = exec;
+    await show(ALLEN, STAFFORD, { qb: QB });
+    fireEvent.click(screen.getByText("Copy Link"));
+    await screen.findByText("Copied!");
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(exec).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Copy failed: open the share card and copy its address")).toBeNull();
+  });
+
+  it("a site URL that ends in a slash (or two) gives no double slash in the copied address", async () => {
+    for (const siteUrl of ["https://preview.example/", "https://preview.example//"]) {
+      writeText.mockClear();
+      const el = await show(ALLEN, STAFFORD, { qb: QB, siteUrl });
+      expect(share(el)!.getAttribute("data-share-url")).toBe("https://preview.example/card/compare/josh-allen/matthew-stafford");
+      fireEvent.click(screen.getByText("Copy Link"));
+      await screen.findByText("Copied!");
+      expect(writeText).toHaveBeenCalledWith("https://preview.example/card/compare/josh-allen/matthew-stafford");
+    }
+  });
+
+  it("the block is there on the browser-read path too: the server sent no rows and the tool fetched the table itself", async () => {
+    tables.qb_season_stats = { data: QB, error: null };
+    const el = await show(ALLEN, STAFFORD);
+    const block = share(el)!;
+    expect(block).not.toBeNull();
+    expect(block.getAttribute("data-share-url")).toBe("https://yardsperpass.com/card/compare/josh-allen/matthew-stafford");
+    expect(block.getAttribute("data-download-href")).toBe("/api/compare-card/josh-allen/matthew-stafford?season=2026&download=1");
+    expect(block.querySelector("a")!.getAttribute("href")).toBe("/card/compare/josh-allen/matthew-stafford");
+  });
+
+  // Code review PR 3, M3: the block kept its "Copied!" for the rest of its two
+  // seconds after the card it points at had changed.
+  it("Copied! does not carry over to another card: when the share link changes the button says Copy Link again", async () => {
+    cleanup();
+    params = new URLSearchParams([["p1", ALLEN.slug], ["p2", STAFFORD.slug]]);
+    tables.player_slugs = { data: [ALLEN, STAFFORD], error: null };
+    const tool = (season: number) => (
+      <ComparisonTool
+        qbs={QB as unknown as QBSeasonStat[]} receivers={[]} rbs={[]}
+        season={season} defaultSeason={2026} siteUrl="https://yardsperpass.com"
+      />
+    );
+    const view = render(tool(2026));
+    await screen.findByRole("table", {}, { timeout: 3000 });
+    fireEvent.click(screen.getByText("Copy Link"));
+    await screen.findByText("Copied!");
+    view.rerender(tool(2025));
+    await waitFor(() => expect(share(view.container)!.getAttribute("data-share-url")).toContain("?season=2025"));
+    expect(screen.queryByText("Copied!")).toBeNull();
+    expect(screen.getByText("Copy Link")).toBeTruthy();
+  });
+
   it("Download Image opens the image route with download=1", async () => {
     const open = vi.spyOn(window, "open").mockImplementation(() => null);
     await show(ALLEN, STAFFORD, { qb: QB });

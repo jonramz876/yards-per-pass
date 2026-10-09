@@ -858,6 +858,9 @@ describe("lib/stats/compare.ts stays pure", () => {
     }
     expect(runtimeImports(read("lib/stats/compare-links.ts"))).toEqual([]);
     expect(runtimeImports(read("lib/stats/formatters.ts"))).toEqual([]);
+    // The walker follows `import ... from` only: a require() or a dynamic
+    // import() in any walked file would be a way round it (code review M4).
+    for (const f of files) expect(read(f), f).not.toMatch(/\brequire\(|\bimport\(/);
   });
 
   it("the walker would catch a bad import: it sees runtime imports and ignores type-only ones", () => {
