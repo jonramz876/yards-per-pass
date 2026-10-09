@@ -96,17 +96,19 @@ type RadarImageFont = { name: string; data: ArrayBuffer; style: "normal"; weight
  *   whole table in Press Start 2P: unreadable and far too wide. With no fonts
  *   option next/og uses its own default font for everything.
  *
- * `load` exists for the tests; callers pass nothing.
+ * `load` exists for the tests; callers pass nothing (undefined). `label` names
+ * the image in the log line: the comparison card image shares this loader.
  */
 export async function radarImageFonts(
   load: { sans: () => Promise<ArrayBuffer>; pixel: () => Promise<ArrayBuffer> } = { sans: loadSans, pixel: loadPixel },
+  label = "Team radar image",
 ): Promise<RadarImageFont[] | undefined> {
   const fonts: RadarImageFont[] = [];
   for (const [name, read] of [[SANS, load.sans], [PIXEL, load.pixel]] as const) {
     try {
       fonts.push({ name, data: await read(), style: "normal", weight: 400 });
     } catch (err) {
-      console.error(`Team radar image: font ${name} unavailable`, err);
+      console.error(`${label}: font ${name} unavailable`, err);
     }
   }
   return fonts.some((f) => f.name === SANS) ? fonts : undefined;

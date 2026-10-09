@@ -11,11 +11,11 @@ import {
   COMPARE_CARD_STAT_HEADER, COMPARE_FULL_LINK_TEXT, COMPARE_IMAGE_UNAVAILABLE, COMPARE_NOT_FOUND_TITLE,
   buildCompareCard, compareCanonicalPath, compareCardHref, compareCardPath, compareDownloadFilename, compareImageAlt,
   compareImageHref, compareMissingAxisNote, compareNameFontSize, compareNoStatsMessage, compareOvrFontSize, compareOvrText, comparePlotColors,
-  comparePreviewTitle, compareSeasonLine, compareWeek, compareShareDescription, compareShareHeading, compareShareTitle,
+  comparePreviewTitle, compareSeasonLine, compareWeek, rawQueryOf, compareShareDescription, compareShareHeading, compareShareTitle,
   compareStatCardHref, compareStatCardLinkText, compareToolHref, parseCompareImageQuery, parseCompareSlugs,
 } from "@/lib/stats/compare-card";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
-import { rawQueryOf, parseRadarImageQuery } from "@/lib/stats/team-radar";
+import { RADAR_NEUTRAL_STROKE, parseRadarImageQuery, radarImageHref } from "@/lib/stats/team-radar";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 // Real 2026 season rows through Week 4 (see the file's _provenance line).
@@ -136,14 +136,32 @@ describe("the image route's query string: one SPELLING", () => {
     expect(parseCompareImageQuery(raw)).toBeNull();
   });
 
-  it("the team radar image route has the same rule when it is handed the raw string", () => {
-    for (const ok of ["", "?season=2026", "?season=2026&w=4", "?season=2026&w=4&download=1", "?season=2026&download=1", "?download=1"]) {
-      expect(parseRadarImageQuery(ok), ok).not.toBeNull();
+  // Code review I1: every href the share page can print must come back
+  // through the route's own two steps (the raw query of the URL, then the
+  // parser) as a card. A link the page prints must never be a stored 404.
+  it("round trip: every image link the page can print is accepted, with or without a week, a usable week or not, download or not", () => {
+    for (const season of [2026, 2025, 1999, 2100]) {
+      for (const week of [null, undefined, 1, 4, 18, 22, 0, 23, 99, 4.5, NaN]) {
+        for (const download of [false, true]) {
+          const href = compareImageHref("josh-allen", "matthew-stafford", season, { week: week as number | null, download });
+          const parsed = parseCompareImageQuery(rawQueryOf(`https://yardsperpass.com${href}`));
+          expect(parsed, href).toEqual({ season, download });
+          // And the forms are exactly these four.
+          expect(href.split("?")[1]).toMatch(/^season=\d{4}(&w=([1-9]|1\d|2[0-2]))?(&download=1)?$/);
+        }
+      }
     }
-    for (const bad of ["?", "?&", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?w=4&season=2026", "?download=1&season=2026", "?x=1", "?season=1998"]) {
-      expect(parseRadarImageQuery(bad), bad).toBeNull();
+  });
+
+  it("the rule is the comparison route's only: the live team radar route still reads its query in any order", () => {
+    for (const lenient of ["w=4&season=2026", "download=1&season=2026", "season=2026&"]) {
+      expect(parseRadarImageQuery(new URLSearchParams(lenient)), lenient).toEqual({ season: 2026, download: lenient.includes("download") });
+      expect(parseCompareImageQuery(`?${lenient}`), lenient).toBeNull();
     }
-    expect(parseRadarImageQuery("?season=2025&w=3&download=1")).toEqual({ season: 2025, download: true });
+    // The team radar share page's own links pass its parser, as they always did.
+    for (const href of [radarImageHref("BUF", "off", 2026), radarImageHref("BUF", "off", 2026, { week: 4 }), radarImageHref("BUF", "def", 2025, { week: 22, download: true })]) {
+      expect(parseRadarImageQuery(new URL(href, "https://x").searchParams), href).not.toBeNull();
+    }
   });
 });
 
@@ -230,6 +248,10 @@ describe("colours are always #RRGGBB, whatever comes in", () => {
       expect(CONTRAST_PALETTE).toContain(both);
       expect(colorDistance(COMPARE_NEUTRAL_COLOR, both)).toBeGreaterThanOrEqual(MIN_DISTANCE);
     }
+  });
+
+  it("the dark neutral is the team radar's neutral outline (copied, not imported, to keep that module out of /compare's bundle)", () => {
+    expect(COMPARE_NEUTRAL_COLOR).toBe(RADAR_NEUTRAL_STROKE);
   });
 
   it("valid colours behave exactly as before", () => {

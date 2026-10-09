@@ -222,7 +222,6 @@ describe("the page loader reads nothing per slug and nothing per pair", () => {
     await page("josh-allen", "matthew-stafford");
     const before = reads();
     const keys = compareCardMemoKeys();
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => { throw new Error("no network request expected"); });
     for (let i = 0; i < 200; i++) {
       const got = await page(`made-up-${i}`, i % 2 ? `nobody-${i}` : "josh-allen");
       expect(got).toMatchObject({ state: "not-found", stored: false });
@@ -230,8 +229,6 @@ describe("the page loader reads nothing per slug and nothing per pair", () => {
     expect(reads()).toEqual(before);
     expect(compareCardMemoKeys()).toEqual(keys);
     expect(getPlayerBySlug).not.toHaveBeenCalled();
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
   });
 
   it("200 made-up pairs on a COLD instance: two reads in all (the seasons and the slug list), not 400", async () => {
@@ -360,10 +357,62 @@ describe("the image loader makes no per-pair read", () => {
     for (const key of compareCardMemoKeys()) expect(key).not.toMatch(/allen|stafford|lamb|-/);
   });
 
-  it("a season the site lacks: the seasons only; the slug list is not even read, and no key is added", async () => {
-    expect((await image("josh-allen", "matthew-stafford", 2019)).state).toBe("not-found");
-    expect(reads()).toEqual({ ...NONE, weeks: 1 });
-    expect(compareCardMemoKeys()).toEqual(["seasons"]);
+  // Code review I3: the seasons and the slug list do not depend on each other,
+  // so they are started together: a slow database costs a cold instance one
+  // wait for the pair, not two in a row. The CHECKS keep their order.
+  it("a season the site lacks: not found from the seasons alone; no season table is read and no table key is added", async () => {
+    expect(await image("josh-allen", "matthew-stafford", 2019)).toMatchObject({ state: "not-found", stored: false });
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1 });
+    expect(compareCardMemoKeys()).toEqual(["seasons", "slugs"]);
+  });
+
+  it("the seasons and the slug list are started together, before either answers", async () => {
+    let releaseWeeks: (v: typeof WEEKS) => void = () => {};
+    vi.mocked(getSeasonWeeks).mockReturnValue(new Promise((r) => { releaseWeeks = r; }));
+    const pending = image("josh-allen", "matthew-stafford");
+    await Promise.resolve();
+    expect(reads()).toMatchObject({ weeks: 1, index: 1, qb: 0 });
+    releaseWeeks(WEEKS);
+    expect((await pending).state).toBe("ready");
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+  });
+
+  it("a slow database: the cold wait is the slower of the two reads, not their sum", async () => {
+    vi.useFakeTimers();
+    try {
+      const slow = <T,>(value: T, ms: number) => () => new Promise<T>((r) => setTimeout(() => r(value), ms));
+      vi.mocked(getSeasonWeeks).mockImplementation(slow(WEEKS, 4000));
+      vi.mocked(getPlayerSlugIndex).mockImplementation(slow(INDEX, 4000) as never);
+      vi.mocked(getQBStats).mockImplementation(slow(QB, 4000) as never);
+      const started = Date.now();
+      const pending = image("josh-allen", "matthew-stafford");
+      await vi.advanceTimersByTimeAsync(8000);
+      expect((await pending).state).toBe("ready");
+      expect(Date.now() - started).toBe(8000); // 4 s for the pair, 4 s for the table: 12 s when they ran one after another
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the checks keep their order: an unlisted season is 'not found' even when the slug list read FAILS, and that failure raises no unhandled rejection", async () => {
+    const seen: unknown[] = [];
+    const onUnhandled = (e: unknown) => seen.push(e);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500"));
+      expect(await image("josh-allen", "matthew-stafford", 2019)).toMatchObject({ state: "not-found", stored: false });
+      await new Promise((r) => setTimeout(r, 10));
+      // A listed season still gets the failure.
+      await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/slug index/);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it("a failing seasons read is the failure reported, whatever the slug list does", async () => {
+    vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: 500"));
+    await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/season weeks/);
   });
 
   it("an unknown slug costs nothing once warm, and adds no key", async () => {

@@ -166,16 +166,27 @@ function readTableCached(group: CompareGroup, season: number): Promise<ComparePl
 
 /**
  * The card for two slugs that have passed parseCompareSlugs and a season that
- * is plausible or null (none asked for: the newest). In order: the seasons;
- * the season is checked BEFORE any player is looked up; the slug list; the
- * season table. All three through the memos.
+ * is plausible or null (none asked for: the newest). The seasons and the slug
+ * list do not depend on each other, so both reads are STARTED together (code
+ * review I3): on a slow database a cold instance waits once for the pair, not
+ * twice in a row. The checks keep their order: the season is settled from the
+ * seasons before the slug list's answer is looked at, so an unlisted season is
+ * "not found" whatever the slug list read does. Then the season table. All
+ * three through the memos.
  */
 async function loadCompareCard(what: string, slugs: { a: string; b: string }, requested: number | null): Promise<CompareCardLoad> {
-  const weeks = await memoised(weeksMemo, "seasons", () => getSeasonWeeks());
+  const weeksRead = memoised(weeksMemo, "seasons", () => getSeasonWeeks());
+  const indexRead = memoised(slugsMemo, "slugs", () => getPlayerSlugIndex());
+  // If this request ends before it looks at the slug list (an unlisted season,
+  // a failed seasons read), a failure of that read must not go unhandled. The
+  // memo keeps it for the next caller either way.
+  indexRead.catch(() => {});
+
+  const weeks = await weeksRead;
   const when = resolveSeason(weeks, requested, what);
   if ("state" in when) return when;
 
-  const index = await memoised(slugsMemo, "slugs", () => getPlayerSlugIndex());
+  const index = await indexRead;
   if (index.size === 0 && !hasNoDatabase()) {
     // The read succeeded with no rows: never a minute of 404s for every player.
     throw new Error(`${what}: the player slug list came back empty`);

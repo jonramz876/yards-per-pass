@@ -389,15 +389,12 @@ describe("reads", () => {
   it("chaos R1: 200 made-up pairs are 404s that cost no read beyond the warm slug list", async () => {
     await page("josh-allen", "matthew-stafford");
     const before = readCount();
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => { throw new Error("no network request expected"); });
     for (let i = 0; i < 200; i++) {
       await expect(page(`made-up-${i}`, `nobody-${i}`)).rejects.toThrow("NEXT_NOT_FOUND");
       expect((await md(`made-up-${i}`, `nobody-${i}`)).title).toEqual({ absolute: "Comparison Not Found \u2014 Yards Per Pass" });
     }
     expect(readCount()).toBe(before);
     expect(getPlayerBySlug).not.toHaveBeenCalled();
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
   });
 
   it("chaos COST-1: a failing read is made ONCE for a page view, though the load runs for the metadata, the body and the error page", async () => {

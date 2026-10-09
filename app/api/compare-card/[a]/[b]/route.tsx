@@ -18,13 +18,13 @@
 import { ImageResponse } from "next/og";
 import { loadCompareCardForImage, type CompareCardLoad } from "@/lib/data/compare-card";
 import { radarImageFonts } from "@/lib/og/team-radar-image";
-import { rawQueryOf } from "@/lib/stats/team-radar";
 import { compareCardImage, comparePlateImage } from "@/lib/og/compare-card-image";
 import {
   COMPARE_IMAGE_UNAVAILABLE,
   compareDownloadFilename,
   parseCompareImageQuery,
   parseCompareSlugs,
+  rawQueryOf,
 } from "@/lib/stats/compare-card";
 
 // The fonts are read with fs.
@@ -79,7 +79,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ a: strin
   }
   if (card.state === "not-found") return notFound(card.stored);
 
-  const fonts = await radarImageFonts();
+  const fonts = await radarImageFonts(undefined, "Compare card image");
 
   if (card.state === "no-stats") {
     // A real pair with nothing to compare this season: a plate that says so in

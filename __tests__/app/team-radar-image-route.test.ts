@@ -101,25 +101,20 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-// Compare card PR 2, chaos R2: the same weakness was here. A query that
-// parses to a valid card but is spelled another way is its own CDN entry and
-// its own render; only the spelling the share page prints is drawn.
-describe("another spelling of a valid query is a 404 the CDN keeps, with no read", () => {
-  it.each(["?", "?&", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?w=4&season=2026", "?download=1&season=2026", "?season=2026&&w=4"])(
-    "%s",
+// Compare card PR 2 (code review I1): the comparison image route accepts only
+// ONE spelling of its query. That rule is NOT applied here: this route is
+// live, links to it are already posted, and what Next and Vercel hand the
+// handler as req.url in production has not been verified. It keeps reading the
+// parsed query, in any order, exactly as before.
+describe("the query is read as parsed, in any order (unchanged; live links depend on it)", () => {
+  it.each(["?season=2026", "?season=2026&w=3", "?w=3&season=2026", "?download=1&season=2026", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?"])(
+    "%s draws the card",
     async (query) => {
       const res = await get("BUF", "offense", query);
-      expect(res.headers.get("cache-control")).toBe(JUNK_CACHE);
-      await expectNotFound(res);
-      noRead();
+      expect(res.status).toBe(200);
+      expect(images[0].element).toBe("CARD");
     },
   );
-
-  it("the spellings the share page prints are all drawn", async () => {
-    for (const query of ["", "?season=2026", "?season=2026&w=3", "?season=2026&download=1", "?season=2026&w=3&download=1"]) {
-      expect((await get("BUF", "offense", query)).status, query).toBe(200);
-    }
-  });
 });
 
 describe("route config", () => {

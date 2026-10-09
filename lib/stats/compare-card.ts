@@ -19,7 +19,7 @@ import {
   type CompareGroup, type ComparePlayerRow, type Comparison, type ComparisonTableRow,
 } from "@/lib/stats/compare";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
-import { radarStrokeColor, canonicalImageQuery, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
+import { radarStrokeColor, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
 import { parseSeasonParam } from "@/lib/stats/team-stats";
 import { textColorForBackground } from "@/lib/stats/formatters";
 
@@ -48,6 +48,30 @@ export function parseCompareSlugs(a: unknown, b: unknown): { a: string; b: strin
 /** The weeks a season can have (18 regular-season weeks and the playoffs). */
 export const COMPARE_MAX_WEEK = 22;
 
+/**
+ * The query string of a URL as the handler received it, "?" included; "" when
+ * the URL has none. (`new URL(...).search` is "" for a bare "?" as well; note
+ * that Next rebuilds req.url from the parsed URL, so in production a bare "?"
+ * has usually gone before a handler sees it.)
+ */
+export function rawQueryOf(url: string): string {
+  const text = String(url ?? "");
+  const hash = text.indexOf("#");
+  const path = hash === -1 ? text : text.slice(0, hash);
+  const q = path.indexOf("?");
+  return q === -1 ? "" : path.slice(q);
+}
+
+/** The one spelling of the image query: "" for none, else "?" + season, w, download in that order. */
+export function canonicalImageQuery(season: number | null, week: number | null, download: boolean): string {
+  const parts = [
+    ...(season === null ? [] : [`season=${season}`]),
+    ...(week === null ? [] : [`w=${week}`]),
+    ...(download ? ["download=1"] : []),
+  ];
+  return parts.length === 0 ? "" : `?${parts.join("&")}`;
+}
+
 /** A week a season can have (1-22), or null: nothing else is ever printed as "Through Week N" or sent as `w`. */
 export function compareWeek(week: unknown): number | null {
   return typeof week === "number" && Number.isInteger(week) && week >= 1 && week <= COMPARE_MAX_WEEK ? week : null;
@@ -62,9 +86,11 @@ export function compareWeek(week: unknown): number | null {
  * draws only for: no query, or `season` (four digits, 1999-2100), `w` (1-22,
  * no leading zero; ignored, it only makes each week a new URL) and
  * `download=1`, each at most once, no other key, IN THAT ORDER, and spelled
- * exactly as the share page prints them: "?", "?&", a trailing "&",
+ * exactly as the share page prints them: "?&", a trailing "&",
  * percent-encoded digits or another key order are other spellings of the same
- * picture and are refused. `w` is never tied to the current week: the page
+ * picture and are refused. This rule is this route's ONLY: the live team
+ * radar image route keeps reading its parsed query in any order until the
+ * rule has been seen working on Vercel here (code review I1). `w` is never tied to the current week: the page
  * (cached up to an hour) and the image (a minute) can be a week apart, and a
  * link the page printed must not become a stored 404.
  */

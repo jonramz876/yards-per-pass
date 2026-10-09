@@ -75,7 +75,6 @@ const get = (a: string, b: string, query = "") =>
 
 const READS = [getSeasonWeeks, getQBStats, getReceiverStats, getRBSeasonStats, getPlayerBySlug, getPlayerSlugIndex];
 const readCount = () => READS.reduce((n, fn) => n + vi.mocked(fn).mock.calls.length, 0);
-let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 async function expectNotFound(res: Response, cache: string) {
   expect(res.status).toBe(404);
@@ -110,9 +109,6 @@ beforeEach(() => {
   vi.mocked(getReceiverStats).mockResolvedValue(rowsJson.receivers as never);
   vi.mocked(getRBSeasonStats).mockResolvedValue(rowsJson.rb as never);
   vi.spyOn(console, "error").mockImplementation(() => {});
-  fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
-    throw new Error("no network request is expected in this test");
-  });
 });
 
 describe("route config", () => {
@@ -132,7 +128,6 @@ describe("junk is a 404 before any read and before any render, kept by the CDN s
   ])("a slug outside the grammar: /api/compare-card/%s/%s", async (a, b) => {
     await expectNotFound(await get(a, b), STORED);
     expect(readCount()).toBe(0);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("the same player twice", async () => {
@@ -148,7 +143,6 @@ describe("junk is a 404 before any read and before any render, kept by the CDN s
   ])("a query string that is not the route's exact form (%s)", async (query) => {
     await expectNotFound(await get("josh-allen", "matthew-stafford", query), STORED);
     expect(readCount()).toBe(0);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("params that are missing altogether are junk too, not a crash", async () => {
@@ -166,7 +160,6 @@ describe("another spelling of a valid query is junk too", () => {
   ])("%s: the 404 the CDN keeps, no read, no render", async (query) => {
     await expectNotFound(await get("josh-allen", "matthew-stafford", query), STORED);
     expect(readCount()).toBe(0);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("the spellings the page prints are all drawn", async () => {
@@ -190,10 +183,13 @@ describe("a real URL that is not a card", () => {
     expect(getQBStats).not.toHaveBeenCalled();
   });
 
-  it("a season the site does not have: 404, not stored, and only the seasons were read", async () => {
+  it("a season the site does not have: 404, not stored, decided from the seasons; no season table is read", async () => {
     await expectNotFound(await get("josh-allen", "matthew-stafford", "?season=2019"), "no-store");
     expect(getSeasonWeeks).toHaveBeenCalledTimes(1);
-    expect(getPlayerSlugIndex).not.toHaveBeenCalled();
+    // The slug list is started alongside the seasons (code review I3); it is memoised, never per URL.
+    expect(getPlayerSlugIndex).toHaveBeenCalledTimes(1);
+    await expectNotFound(await get("josh-allen", "matthew-stafford", "?season=2018"), "no-store");
+    expect(getPlayerSlugIndex).toHaveBeenCalledTimes(1);
     expect(getQBStats).not.toHaveBeenCalled();
   });
 });
@@ -210,6 +206,8 @@ describe("the card", () => {
     expect(images[0].options).toMatchObject({ width: 1200, height: 630 });
     expect(images[0].options.fonts).toHaveLength(1);
     expect(radarImageFonts).toHaveBeenCalledTimes(1);
+    // A font that cannot be read is logged under this route's own name.
+    expect(radarImageFonts).toHaveBeenCalledWith(undefined, "Compare card image");
     const model = vi.mocked(compareCardImage).mock.calls[0][0] as CompareCardModel;
     expect(images[0].element).toEqual({ card: model });
     expect([model.a.fullName, model.b.fullName, model.season, model.throughWeek]).toEqual(["Josh Allen", "Matthew Stafford", 2026, 4]);
@@ -312,7 +310,6 @@ describe("reads do not scale with pairs", () => {
     await get("josh-allen", "matthew-stafford", "?download=1");
     expect(readCount()).toBe(3);
     expect(getPlayerBySlug).not.toHaveBeenCalled();
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 

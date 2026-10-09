@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ReactElement } from "react";
@@ -243,6 +243,37 @@ describe("the radar on the picture", () => {
     }
   });
 
+  // Code review M9: three things that could break with no other test failing.
+  it("the outlines are see-through and the rings are not filled in: A's shape never hides B's or the rings", () => {
+    const els = flatten(compareCardImage(model("QB", ALLEN, STAFFORD)));
+    expect(one(els, "data-outline", "a").props.fill).toMatch(/^#[0-9a-fA-F]{6}1F$/);
+    expect(one(els, "data-outline", "b").props.fill).toMatch(/^#[0-9a-fA-F]{6}1A$/);
+    expect(one(els, "data-ring", "outer").props.fill).toBe("none");
+    expect(one(els, "data-ring", "inner").props.fill).toBe("none");
+    expect(one(els, "data-ring", "mid").props.fill).toMatch(/^rgba\(251,191,36,0\.0\d+\)$/);
+  });
+
+  it("the VS block on the seam does not cover either OVR badge", () => {
+    const els = flatten(compareCardImage(model("QB", ALLEN, STAFFORD)));
+    const vs = style(one(els, "data-vs")) as { left: number; width: number };
+    const badgeA = style(one(els, "data-ovr", "a")) as { left: number; width: number };
+    const badgeB = style(one(els, "data-ovr", "b")) as { left: number; width: number };
+    // Badge positions are local to their 600 px half; the VS block's is card-wide.
+    expect(badgeA.left + badgeA.width).toBeLessThanOrEqual(vs.left);
+    expect(600 + badgeB.left).toBeGreaterThanOrEqual(vs.left + vs.width);
+    expect(vs.left + vs.width / 2).toBe(600);
+  });
+
+  it("the legend line is the last thing in the radar pane, and the site line sits at the bottom right of the band under it", () => {
+    const els = flatten(compareCardImage(model("QB", ALLEN, STAFFORD)));
+    const legend = style(one(els, "data-legend")) as { top: number; height: number; position: string; left: number; width: number };
+    expect(legend.position).toBe("absolute");
+    expect(legend.top + legend.height).toBe(L.body);
+    expect([legend.left, legend.width]).toEqual([0, L.pane]);
+    const footer = style(by(els, "data-block", "footer")[0]);
+    expect(footer).toMatchObject({ alignItems: "flex-end", justifyContent: "flex-end", height: L.footer });
+  });
+
   it("a missing axis is a gap: no corner, no dot, and its label is grey only when neither player has it", () => {
     const m = model("WR", MVS, LAMB);
     const els = flatten(compareCardImage(m));
@@ -345,9 +376,17 @@ describe("long names", () => {
     expect(sized("Marquez Valdes-Scantling Jr")).toBe(13);
   });
 
-  it("the longest table header names keep to their 240 px column", () => {
+  it("the table header names keep to their 240 px columns: clipped, never wrapped, player B's right-aligned to the table's edge", () => {
     const els = flatten(compareCardImage(model("WR", LONG_A, LONG_B)));
-    for (const side of ["a", "b"] as const) expect(style(one(els, "data-head-name", side)).whiteSpace).toBe("nowrap");
+    const column = (side: "a" | "b") => {
+      const name = one(els, "data-head-name", side);
+      expect(style(name).whiteSpace).toBe("nowrap");
+      return els.find((e) => Array.isArray(e.props.children) && (e.props.children as unknown[]).includes(name))!;
+    };
+    expect(style(column("a"))).toMatchObject({ width: 240, overflow: "hidden" });
+    expect(style(column("b"))).toMatchObject({ width: 240, overflow: "hidden", justifyContent: "flex-end" });
+    // The three header cells fill the 570 px table exactly.
+    expect(240 + (style(one(els, "data-head-stat")).width as number) + 240).toBe(570);
   });
 });
 
@@ -405,6 +444,17 @@ describe("fonts are shared with the team radar image, not copied", () => {
     expect(source).toMatch(/import \{ PIXEL, SANS \} from "@\/lib\/og\/team-radar-image"/);
     const code = source.split(/\r?\n/).filter((line) => !line.trim().startsWith("//")).join("\n");
     expect(code).not.toMatch(/<text|<polygon|display: "grid"/);
+  });
+
+  it("a font that cannot be read is logged under the caller's own name (the team radar's by default)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const broken = { sans: async () => { throw new Error("ENOENT"); }, pixel: async () => new ArrayBuffer(8) };
+    expect(await radarImageFonts(broken, "Compare card image")).toBeUndefined();
+    expect(spy.mock.calls[0][0]).toBe("Compare card image: font RadarSans unavailable");
+    spy.mockClear();
+    await radarImageFonts(broken);
+    expect(spy.mock.calls[0][0]).toBe("Team radar image: font RadarSans unavailable");
+    spy.mockRestore();
   });
 
   it("the shared loader finds both font files in this checkout and names them as the image does", async () => {

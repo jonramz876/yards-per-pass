@@ -16,8 +16,8 @@
 // Everything printed comes from ONE model, buildCompareCard
 // (lib/stats/compare-card.ts), which the share page prints from too. The
 // layout numbers are COMPARE_CARD_LAYOUT's: fixed heights from the top, so
-// nothing can slide below the keep-clear line (y = 522), under which only the
-// site line sits.
+// nothing can slide below the keep-clear line (COMPARE_CARD_KEEP_CLEAR_Y,
+// y = 546), under which only the site line sits.
 import { PIXEL, SANS } from "@/lib/og/team-radar-image";
 import { radarPathD } from "@/lib/stats/team-radar";
 import {
