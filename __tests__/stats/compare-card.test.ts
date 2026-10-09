@@ -10,7 +10,7 @@ import {
   CARD_STAT_KEYS, COMPARE_CARD_KEEP_CLEAR_Y, COMPARE_CARD_LAYOUT, COMPARE_CARD_SITE_LINE, COMPARE_CARD_SITE_SHORT,
   COMPARE_CARD_STAT_HEADER, COMPARE_FULL_LINK_TEXT, COMPARE_IMAGE_UNAVAILABLE, COMPARE_NOT_FOUND_TITLE,
   buildCompareCard, compareCanonicalPath, compareCardHref, compareCardPath, compareDownloadFilename, compareImageAlt,
-  compareImageHref, compareMissingAxisNote, compareNameFontSize, compareNoStatsMessage, compareOvrText, comparePlotColors,
+  compareImageHref, compareMissingAxisNote, compareNameFontSize, compareNoStatsMessage, compareOvrFontSize, compareOvrText, comparePlotColors,
   comparePreviewTitle, compareSeasonLine, compareWeek, compareShareDescription, compareShareHeading, compareShareTitle,
   compareStatCardHref, compareStatCardLinkText, compareToolHref, parseCompareImageQuery, parseCompareSlugs,
 } from "@/lib/stats/compare-card";
@@ -549,7 +549,15 @@ describe("the image's layout numbers", () => {
     expect(L.band + L.rule + L.subBand + L.body + L.strip + L.footer).toBe(L.height);
     expect([L.width, L.height]).toEqual([1200, 630]);
     expect(L.band + L.rule + L.subBand + L.body + L.strip).toBe(COMPARE_CARD_KEEP_CLEAR_Y);
-    expect(COMPARE_CARD_KEEP_CLEAR_Y).toBe(522);
+    // After the chaos pass the kept-clear band is 84 px (it was 108): the body got the 24.
+    expect(COMPARE_CARD_KEEP_CLEAR_Y).toBe(546);
+    expect([L.footer, L.body]).toEqual([84, 390]);
+  });
+
+  it("the OVR badge's number always has a margin: two digits at 24 px, three (100) at 18 px", () => {
+    expect([compareOvrFontSize("91"), compareOvrFontSize("\u2014"), compareOvrFontSize("7"), compareOvrFontSize("100")]).toEqual([24, 24, 24, 18]);
+    // The pixel font is one em per character; the badge is 76 px wide.
+    for (const text of ["7", "91", "100"]) expect(text.length * compareOvrFontSize(text)).toBeLessThanOrEqual(76 - 2 * 10);
   });
 
   it("the radar, its labels and the legend line fit inside the pane, for 6 and 7 axes", () => {

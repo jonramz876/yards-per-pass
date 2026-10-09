@@ -277,13 +277,13 @@ export default async function CompareSharePage({ params, searchParams }: PagePro
                 {m.rows.map((row) => (
                   <tr key={row.key} data-compare-row={row.key} className="border-b border-slate-100">
                     <td className="px-2 py-1.5 text-left tabular-nums">
-                      <span className={`inline-block min-w-[76px] rounded-lg px-2.5 py-1 text-center text-base ${row.winner === 1 ? "bg-green-100 font-semibold text-green-800" : "text-slate-900"}`}>
+                      <span className={`inline-block min-w-[76px] rounded-lg px-2.5 py-1 text-center text-base ${row.winner === 1 ? "bg-green-100 font-semibold text-green-800 ring-1 ring-green-300" : "text-slate-900"}`}>
                         {row.a}
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-center text-xs font-medium text-slate-500">{row.label}</td>
                     <td className="px-2 py-1.5 text-right tabular-nums">
-                      <span className={`inline-block min-w-[76px] rounded-lg px-2.5 py-1 text-center text-base ${row.winner === 2 ? "bg-green-100 font-semibold text-green-800" : "text-slate-900"}`}>
+                      <span className={`inline-block min-w-[76px] rounded-lg px-2.5 py-1 text-center text-base ${row.winner === 2 ? "bg-green-100 font-semibold text-green-800 ring-1 ring-green-300" : "text-slate-900"}`}>
                         {row.b}
                       </span>
                     </td>

@@ -169,6 +169,9 @@ describe.each(Object.entries(CASES))("what Satori is given: %s", (_name, build) 
       for (const [cell, win] of [[a, want.winner === 1], [b, want.winner === 2]] as const) {
         const pill = flatten(cell)[1];
         expect(style(pill).backgroundColor).toBe(win ? "#dcfce7" : "#ffffff");
+        // A visible edge, so the pill reads as a pill even beside a green player's line (Jets green);
+        // the other cell has the same box in white, so the numbers stay aligned.
+        expect(style(pill).border).toBe(win ? "1px solid #86efac" : "1px solid #ffffff");
         expect(style(pill).color).toBe(win ? "#166534" : "#0f172a");
         expect(style(pill).fontWeight).toBeUndefined();
       }
@@ -345,6 +348,21 @@ describe("long names", () => {
   it("the longest table header names keep to their 240 px column", () => {
     const els = flatten(compareCardImage(model("WR", LONG_A, LONG_B)));
     for (const side of ["a", "b"] as const) expect(style(one(els, "data-head-name", side)).whiteSpace).toBe("nowrap");
+  });
+});
+
+describe("the OVR badge", () => {
+  it("OVR 100 is drawn smaller so it does not fill the badge edge to edge; 91 and a dash keep the full size", () => {
+    const m = model("QB", ALLEN, HUNTLEY);
+    const hundred = { ...m, a: { ...m.a, ovr: 100 } };
+    const els = flatten(compareCardImage(hundred));
+    const a = one(els, "data-ovr-value", "a");
+    const b = one(els, "data-ovr-value", "b");
+    expect([text(a), style(a).fontSize]).toEqual(["100", 18]);
+    expect([text(b), style(b).fontSize]).toEqual(["\u2014", 24]);
+    const badge = style(one(els, "data-ovr", "a")) as { width: number };
+    expect(3 * (style(a).fontSize as number)).toBeLessThanOrEqual(badge.width - 20);
+    expect(style(one(flatten(compareCardImage(m)), "data-ovr-value", "a")).fontSize).toBe(24);
   });
 });
 

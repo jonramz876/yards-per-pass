@@ -28,6 +28,7 @@ import {
   COMPARE_OVR_LABEL,
   COMPARE_VS_LABEL,
   compareNameFontSize,
+  compareOvrFontSize,
   compareOvrText,
   type CompareCardModel,
   type CompareCardPlayer,
@@ -43,6 +44,7 @@ const PANEL = "#f8fafc";
 const MISSING = "#cbd5e1";
 const WIN_BG = "#dcfce7";
 const WIN_TEXT = "#166534";
+const WIN_EDGE = "#86efac";
 const DASH = "9,5";
 
 const R = L.radar;
@@ -145,7 +147,7 @@ function bandHalf(p: CompareCardPlayer, side: "a" | "b"): JSX.Element {
           fontFamily: PIXEL,
         }}
       >
-        <div data-ovr-value={side} style={{ display: "flex", fontSize: 24 }}>
+        <div data-ovr-value={side} style={{ display: "flex", height: 26, alignItems: "center", fontSize: compareOvrFontSize(compareOvrText(p.ovr)) }}>
           {compareOvrText(p.ovr)}
         </div>
         <div style={{ display: "flex", marginTop: 8, fontSize: 8 }}>{COMPARE_OVR_LABEL}</div>
@@ -175,6 +177,10 @@ function valueCell(text: string, win: boolean, side: "a" | "b"): JSX.Element {
           alignItems: "center",
           justifyContent: "center",
           borderRadius: 8,
+          // An edge on the winning pill, so it reads as a pill and not as a
+          // patch of the player's colour when his line is green too (the Jets).
+          // The other cell carries the same box in white: the numbers stay aligned.
+          border: `1px solid ${win ? WIN_EDGE : WHITE}`,
           fontSize: 23,
           backgroundColor: win ? WIN_BG : WHITE,
           color: win ? WIN_TEXT : NAVY,

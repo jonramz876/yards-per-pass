@@ -236,6 +236,14 @@ export function compareImageAlt(nameA: string, nameB: string, season: number): s
 export function compareOvrText(ovr: number | null): string {
   return ovr == null || !Number.isFinite(ovr) ? "—" : String(ovr);
 }
+/**
+ * The badge number's size in the pixel font (one em per character, in a badge
+ * 76 px wide): 24 px for up to two characters, 18 px for three (an OVR of
+ * 100), so the number never runs edge to edge.
+ */
+export function compareOvrFontSize(text: string): number {
+  return String(text).length >= 3 ? 18 : 24;
+}
 export const COMPARE_OVR_LABEL = "OVR";
 export const COMPARE_VS_LABEL = "VS";
 
@@ -401,7 +409,7 @@ export function compareShareDescription(m: CompareCardModel): string {
  * on a phone it can reach most of the way across. Nothing a reader needs is
  * below this line, at any x: only the site line is.
  */
-export const COMPARE_CARD_KEEP_CLEAR_Y = 522;
+export const COMPARE_CARD_KEEP_CLEAR_Y = 546;
 
 export const COMPARE_CARD_LAYOUT = {
   width: 1200,
@@ -413,21 +421,21 @@ export const COMPARE_CARD_LAYOUT = {
   /** Season, pool line and site name. */
   subBand: 32,
   /** Radar (left) and table (right). */
-  body: 366,
+  body: 390,
   /** The one full-width line: small sample, or a missing outline. */
   strip: 28,
-  /** Kept clear: the site line only. */
-  footer: 108,
+  /** Kept clear: the site line only. 84 px (108 until the chaos pass: the body got the other 24). */
+  footer: 84,
   /** Side padding of the card. */
   pad: 36,
   /** The radar pane's width; the table takes the rest. */
   pane: 590,
   /** The radar inside the pane (pane coordinates): centre, outer radius, label gap. */
-  radar: { cx: 295, cy: 174, r: 128, gap: 18, labelFont: 17, labelHeight: 22, stroke: 3.5, dot: 5 },
+  radar: { cx: 295, cy: 183, r: 140, gap: 18, labelFont: 17, labelHeight: 22, stroke: 3.5, dot: 5 },
   /** The legend line at the bottom of the pane. */
   legend: { height: 24, font: 13 },
   /** The table: header height, row height, rows. */
-  table: { head: 40, row: 46, rows: 7 },
+  table: { head: 40, row: 50, rows: 7 },
   /** The width a band name may take before it is cut (never under the OVR badge). */
   nameBox: 430,
 } as const;
