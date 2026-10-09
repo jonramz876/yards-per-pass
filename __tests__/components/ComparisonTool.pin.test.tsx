@@ -218,6 +218,11 @@ describe("ComparisonTool pin: the expected file itself is what the spec says it 
   it("RADAR ONLY: the chart and table parts are PR 1's, byte for byte (every cell, every highlight, colours, names, axes)", () => {
     // sha256 of the chart + table parts of all 20 entries, computed from the
     // expected file as PR 1 committed it (main 8c1bb70), before the pool switch.
+    // Compare card PR 2 (chaos W1) changed one rule of the table ON PURPOSE: two
+    // values that PRINT the same are a tie and neither is highlighted. None of
+    // the 10 pinned pairs has such a row, so this hash did not move; a pair
+    // that has one is tested in __tests__/stats/compare.test.ts (P.Bryant vs
+    // D.London, CROE +9.1% on both sides).
     const PR1_CHART_AND_TABLE = "35c01fce2b873cf02e96ec071761530ba5faadb90aa44dc5005b68e80a773210";
     const canon = JSON.stringify(Object.keys(EXPECTED.pins).sort().map((k) => [k, EXPECTED.pins[k].chart, EXPECTED.pins[k].table]));
     expect(createHash("sha256").update(canon, "utf8").digest("hex")).toBe(PR1_CHART_AND_TABLE);

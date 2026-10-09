@@ -643,6 +643,35 @@ describe("buildComparison: the stat table (the pool does not touch it)", () => {
     expect(row("Pass TD")).toMatchObject({ a: "6", b: "6", winner: 0 });
   });
 
+  // Chaos W1 (compare card PR 2): the winner used to be decided on the unrounded
+  // numbers, so two cells that PRINT the same could carry one green highlight.
+  // On a shared picture nobody can hover for more decimals: a printed tie is a tie.
+  it("two values that print the same are a tie: no highlight on either side (real 2026 rows)", () => {
+    const croe = compare("WR", "P.Bryant", "D.London").rows.find((r) => r.label === "CROE")!;
+    expect(croe).toEqual({ key: "croe", label: "CROE", a: "+9.1%", b: "+9.1%", winner: 0 });
+    const croe2 = compare("WR", "J.Taylor@IND", "J.Warren@PIT").rows.find((r) => r.label === "CROE")!;
+    expect(croe2).toMatchObject({ a: "-13.9%", b: "-13.9%", winner: 0 });
+    const ypc = compare("RB", "T.Goodson", "S.McGowan").rows.find((r) => r.label === "YPC")!;
+    expect(ypc).toMatchObject({ a: "3.8", b: "3.8", winner: 0 });
+    // The rows that print differently keep their winner.
+    expect(compare("WR", "P.Bryant", "D.London").rows.filter((r) => r.a !== r.b).every((r) => r.winner !== 0)).toBe(true);
+  });
+
+  it("across every row of every real pair of the same team's table sample: a highlight exists exactly when the two cells print differently", () => {
+    for (const group of ["QB", "WR", "RB"] as const) {
+      const table = TABLES[group].slice(0, 40);
+      for (let i = 0; i + 1 < table.length; i += 2) {
+        const got = buildComparison({
+          group, rowA: asRow(table[i]), rowB: asRow(table[i + 1]), all: asRows(TABLES[group]), teamA: "BUF", teamB: "KC",
+        });
+        for (const r of got.rows) {
+          if (r.a === r.b) expect(r.winner, `${group} ${r.label} ${r.a}`).toBe(0);
+          else if (r.a !== "—" && r.b !== "—") expect(r.winner, `${group} ${r.label} ${r.a} / ${r.b}`).not.toBe(0);
+        }
+      }
+    }
+  });
+
   it("the table is the same whatever the rest of the season table holds", () => {
     const full = compare("QB", "J.Allen", "M.Stafford");
     const onlyTwo = compare("QB", "J.Allen", "M.Stafford", TABLES.QB.filter((r) => ["J.Allen", "M.Stafford"].includes(r.player_name as string)));

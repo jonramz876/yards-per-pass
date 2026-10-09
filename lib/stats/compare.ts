@@ -340,18 +340,17 @@ export function buildComparison(input: {
     const v2 = stat.getValue ? stat.getValue(rowB) : getStatVal(rowB, stat.key);
     const valid1 = !isNaN(v1);
     const valid2 = !isNaN(v2);
+    const a = valid1 ? stat.format(v1) : NO_VALUE;
+    const b = valid2 ? stat.format(v2) : NO_VALUE;
     let winner: 0 | 1 | 2 = 0;
-    if (valid1 && valid2) {
+    // A highlight needs two values that PRINT differently: +9.12% and +9.07%
+    // both print "+9.1%", and a reader of the table (or of a shared picture)
+    // would see two equal numbers with one marked better.
+    if (valid1 && valid2 && a !== b) {
       if (stat.higherBetter) winner = v1 > v2 ? 1 : v2 > v1 ? 2 : 0;
       else winner = v1 < v2 ? 1 : v2 < v1 ? 2 : 0;
     }
-    return {
-      key: stat.key,
-      label: stat.label,
-      a: valid1 ? stat.format(v1) : NO_VALUE,
-      b: valid2 ? stat.format(v2) : NO_VALUE,
-      winner,
-    };
+    return { key: stat.key, label: stat.label, a, b, winner };
   });
 
   const a = playerFor(cfg, rowA, all, colorA);
