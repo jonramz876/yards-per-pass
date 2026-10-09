@@ -66,20 +66,31 @@ describe("getTeamRadarRowsCached — a short per-season memo of the season-wide 
     expect(getTeamRadarRows).toHaveBeenCalledTimes(2);
   });
 
-  it("a rejection is never kept: every waiting caller gets it, and the next call reads again", async () => {
+  // Compare card PR 2, chaos COST-2: a failed read used to be forgotten at
+  // once, so a fast-failing outage was retried at the visitor's rate.
+  it("a rejection is kept for ten seconds, never as a success: every caller in that window gets it, then the season is read again", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
     vi.mocked(getTeamRadarRows).mockRejectedValueOnce(FAILED);
     const results = await Promise.allSettled([getTeamRadarRowsCached(2026), getTeamRadarRowsCached(2026)]);
     expect(results.map((r) => r.status)).toEqual(["rejected", "rejected"]);
+    vi.setSystemTime(new Date("2026-10-06T12:00:09Z"));
+    await expect(getTeamRadarRowsCached(2026)).rejects.toThrow("Failed to fetch team radar rows");
     expect(getTeamRadarRows).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(new Date("2026-10-06T12:00:11Z"));
     await expect(getTeamRadarRowsCached(2026)).resolves.toBe(ROWS);
     expect(getTeamRadarRows).toHaveBeenCalledTimes(2);
   });
 
-  it("a read that throws before it returns a promise is a rejection too, and is not kept", async () => {
+  it("a read that throws before it returns a promise is a rejection too, kept the same ten seconds", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
     vi.mocked(getTeamRadarRows).mockImplementationOnce(() => {
       throw FAILED;
     });
     await expect(getTeamRadarRowsCached(2026)).rejects.toThrow("Failed to fetch team radar rows");
+    await expect(getTeamRadarRowsCached(2026)).rejects.toThrow("Failed to fetch team radar rows");
+    vi.setSystemTime(new Date("2026-10-06T12:00:10Z"));
     await expect(getTeamRadarRowsCached(2026)).resolves.toBe(ROWS);
   });
 });
@@ -207,9 +218,14 @@ describe("getAvailableSeasonsCached — the image route's seasons list, one read
     expect(getAvailableSeasons).toHaveBeenCalledTimes(2);
   });
 
-  it("a rejection is never kept", async () => {
+  it("a rejection is kept ten seconds, then the list is read again", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
     vi.mocked(getAvailableSeasons).mockRejectedValueOnce(new Error("Failed to fetch seasons: TypeError: fetch failed"));
     await expect(getAvailableSeasonsCached()).rejects.toThrow("Failed to fetch seasons");
+    await expect(getAvailableSeasonsCached()).rejects.toThrow("Failed to fetch seasons");
+    expect(getAvailableSeasons).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(new Date("2026-10-06T12:00:10Z"));
     await expect(getAvailableSeasonsCached()).resolves.toEqual([2026, 2025, 2024]);
     expect(getAvailableSeasons).toHaveBeenCalledTimes(2);
   });

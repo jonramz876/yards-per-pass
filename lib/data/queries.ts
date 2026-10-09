@@ -114,3 +114,33 @@ export async function getAvailableSeasons(signal?: AbortSignal): Promise<number[
     .map((r: { season: unknown }) => Number(r.season))
     .filter((s: number) => Number.isInteger(s) && s > 0);
 }
+
+/** One season the site has data for, and the last week that data covers (null when the row holds none). */
+export interface SeasonWeek {
+  season: number;
+  through_week: number | null;
+}
+
+/**
+ * Every season in data_freshness with its through_week, newest first: the
+ * season list AND "Through Week N" from one read (compare card spec
+ * 2026-10-09 section 6.1). Throws on a failed read; [] means the table really
+ * is empty. getAvailableSeasons is left as it is for its many callers.
+ */
+export async function getSeasonWeeks(): Promise<SeasonWeek[]> {
+  const supabase = createServerClient();
+  const { data, error } = await supabase
+    .from("data_freshness")
+    .select("season, through_week")
+    .order("season", { ascending: false });
+  if (error) throw queryError("season weeks", error);
+  return ((data as { season: unknown; through_week: unknown }[] | null) ?? [])
+    .map((row) => {
+      const week = Number(row.through_week);
+      return {
+        season: Number(row.season),
+        through_week: row.through_week != null && Number.isInteger(week) && week >= 1 ? week : null,
+      };
+    })
+    .filter((row) => Number.isInteger(row.season) && row.season > 0);
+}

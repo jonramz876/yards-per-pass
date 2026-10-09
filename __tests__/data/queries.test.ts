@@ -24,7 +24,7 @@ vi.mock("@/lib/supabase/server", () => {
   };
 });
 
-import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats } from "@/lib/data/queries";
+import { getAvailableSeasons, getDataFreshness, getTeamStats, getQBStats, getSeasonWeeks } from "@/lib/data/queries";
 
 beforeEach(() => {
   calls.length = 0;
@@ -134,5 +134,41 @@ describe("getDataFreshness (read resilience spec §1.2)", () => {
     const err = await getDataFreshness(2026).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).toBe("Failed to fetch data freshness: TypeError: fetch failed");
+  });
+});
+
+// Compare card spec 2026-10-09 section 6.1: the season list and "Through Week
+// N" from one read.
+describe("getSeasonWeeks", () => {
+  it("reads season and through_week from data_freshness, newest first", async () => {
+    result = { data: [{ season: 2026, through_week: 4 }, { season: 2025, through_week: 22 }], error: null };
+    expect(await getSeasonWeeks()).toEqual([{ season: 2026, through_week: 4 }, { season: 2025, through_week: 22 }]);
+    expect(calls).toContainEqual(["from", "data_freshness"]);
+    expect(calls).toContainEqual(["select", "season, through_week"]);
+    expect(calls).toContainEqual(["order", "season", { ascending: false }]);
+  });
+
+  it("coerces text columns, drops a season that is no year, and keeps a season whose week is unusable with week null", async () => {
+    result = {
+      data: [
+        { season: "2026", through_week: "4" }, { season: 2025, through_week: null }, { season: 2024, through_week: 0 },
+        { season: 2023, through_week: "abc" }, { season: null, through_week: 3 }, { season: "x", through_week: 3 }, { season: 2022.5, through_week: 3 },
+      ],
+      error: null,
+    };
+    expect(await getSeasonWeeks()).toEqual([
+      { season: 2026, through_week: 4 }, { season: 2025, through_week: null }, { season: 2024, through_week: null }, { season: 2023, through_week: null },
+    ]);
+  });
+
+  it("an empty table is [], a null answer is []", async () => {
+    expect(await getSeasonWeeks()).toEqual([]);
+    result = { data: null, error: null };
+    expect(await getSeasonWeeks()).toEqual([]);
+  });
+
+  it("a failed read throws: it is never an empty list", async () => {
+    result = { data: null, error: { message: "TypeError: fetch failed" } };
+    await expect(getSeasonWeeks()).rejects.toThrow(/Failed to fetch season weeks/);
   });
 });

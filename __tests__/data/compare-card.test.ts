@@ -1,0 +1,484 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// lib/data/compare-card.ts (compare card spec 2026-10-09 §4, §6.1; PR 2): the
+// two loaders behind the comparison share card. The page reads per player; the
+// image route reads NOTHING per pair (three one-minute memos). Both hand what
+// they read to one decision, so they agree about every pair's state.
+vi.mock("@/lib/data/queries", () => ({
+  getSeasonWeeks: vi.fn(),
+  getQBStats: vi.fn(),
+  getAvailableSeasons: vi.fn(),
+  fallbackSeason: () => 2026,
+}));
+vi.mock("@/lib/data/receivers", () => ({ getReceiverStats: vi.fn() }));
+vi.mock("@/lib/data/rushing", () => ({ getRBSeasonStats: vi.fn() }));
+vi.mock("@/lib/data/players", () => ({ getPlayerBySlug: vi.fn(), getPlayerSlugIndex: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ hasNoDatabase: vi.fn(() => false) }));
+
+import rowsJson from "../stats/fixtures/compare-2026-w4-rows.json";
+import {
+  loadCompareCardForImage, loadCompareCardForPage, clearCompareCardMemo, compareCardMemoKeys,
+} from "@/lib/data/compare-card";
+import { getSeasonWeeks, getQBStats } from "@/lib/data/queries";
+import { getReceiverStats } from "@/lib/data/receivers";
+import { getRBSeasonStats } from "@/lib/data/rushing";
+import { getPlayerBySlug, getPlayerSlugIndex } from "@/lib/data/players";
+import { hasNoDatabase } from "@/lib/supabase/server";
+
+type Row = Record<string, unknown>;
+const QB = rowsJson.qb as Row[];
+const REC = rowsJson.receivers as Row[];
+const RB = rowsJson.rb as Row[];
+const WEEKS = [{ season: 2026, through_week: 4 }, { season: 2025, through_week: 22 }, { season: 2024, through_week: 22 }];
+
+const P = (slug: string, player_id: string, player_name: string, position: string, current_team_id: string) =>
+  ({ slug, player_id, player_name, position, current_team_id });
+const PLAYERS = [
+  P("josh-allen", "00-0034857", "Josh Allen", "QB", "BUF"),
+  P("matthew-stafford", "00-0026498", "Matthew Stafford", "QB", "LA"),
+  P("tyler-huntley", "00-0035993", "Tyler Huntley", "QB", "BAL"),
+  P("ceedee-lamb", "00-0036358", "CeeDee Lamb", "WR", "DAL"),
+  P("jaxon-smith-njigba", "00-0038543", "Jaxon Smith-Njigba", "WR", "SEA"),
+  P("trey-mcbride", "00-0037744", "Trey McBride", "TE", "ARI"),
+  P("bijan-robinson", "00-0038542", "Bijan Robinson", "RB", "ATL"),
+  P("jahmyr-gibbs", "00-0039139", "Jahmyr Gibbs", "RB", "DET"),
+  // Real players with no 2026 row in these tables.
+  P("rookie-qb", "00-0099999", "Rookie Quarterback", "QB", "NYJ"),
+  P("other-rookie", "00-0099998", "Other Rookie", "QB", "NYG"),
+  P("some-kicker", "00-0088888", "Some Kicker", "K", "BUF"),
+  P("some-fullback", "00-0038542", "Some Fullback", "FB", "ATL"),
+];
+const INDEX = new Map(PLAYERS.map((p) => [p.slug, p]));
+
+const reads = () => ({
+  weeks: vi.mocked(getSeasonWeeks).mock.calls.length,
+  index: vi.mocked(getPlayerSlugIndex).mock.calls.length,
+  bySlug: vi.mocked(getPlayerBySlug).mock.calls.length,
+  qb: vi.mocked(getQBStats).mock.calls.length,
+  rec: vi.mocked(getReceiverStats).mock.calls.length,
+  rb: vi.mocked(getRBSeasonStats).mock.calls.length,
+});
+const NONE = { weeks: 0, index: 0, bySlug: 0, qb: 0, rec: 0, rb: 0 };
+
+beforeEach(() => {
+  clearCompareCardMemo();
+  for (const fn of [getSeasonWeeks, getQBStats, getReceiverStats, getRBSeasonStats, getPlayerBySlug, getPlayerSlugIndex]) vi.mocked(fn).mockReset();
+  vi.mocked(hasNoDatabase).mockReturnValue(false);
+  vi.mocked(getSeasonWeeks).mockResolvedValue(WEEKS);
+  vi.mocked(getPlayerSlugIndex).mockResolvedValue(INDEX as never);
+  vi.mocked(getPlayerBySlug).mockImplementation(async (slug: string) => (INDEX.get(slug) ?? null) as never);
+  vi.mocked(getQBStats).mockResolvedValue(QB as never);
+  vi.mocked(getReceiverStats).mockResolvedValue(REC as never);
+  vi.mocked(getRBSeasonStats).mockResolvedValue(RB as never);
+});
+
+const image = (a: string, b: string, season: number | null = null) => loadCompareCardForImage({ a, b }, season);
+const page = (a: string, b: string, season: number | null = null) => loadCompareCardForPage({ a, b }, season);
+
+describe.each([["image", image], ["page", page]] as const)("the %s loader: every state", (_name, load) => {
+  it("both players have stats: the card, for the newest season when none is asked for", async () => {
+    const got = await load("josh-allen", "matthew-stafford");
+    if (got.state !== "ready") throw new Error(got.state);
+    expect(got.season).toBe(2026);
+    expect(got.defaultSeason).toBe(2026);
+    expect(got.model.a.fullName).toBe("Josh Allen");
+    expect(got.model.b.fullName).toBe("Matthew Stafford");
+    expect(got.model.throughWeek).toBe(4);
+    expect([got.model.a.ovr, got.model.b.ovr]).toEqual([91, 76]);
+    expect(got.model.subBandLine).toBe(
+      "2026 season · Through Week 4 · Radar: percentile among the 42 qualified quarterbacks (14+ pass attempts a game).");
+  });
+
+  it("order is kept: the mirrored URL is the mirrored card", async () => {
+    const ab = await load("josh-allen", "matthew-stafford");
+    const ba = await load("matthew-stafford", "josh-allen");
+    if (ab.state !== "ready" || ba.state !== "ready") throw new Error("not ready");
+    expect(ba.model.a.fullName).toBe("Matthew Stafford");
+    expect(ba.model.comparison.a.values).toEqual(ab.model.comparison.b.values);
+    expect(ba.model.rows.map((r) => r.a)).toEqual(ab.model.rows.map((r) => r.b));
+  });
+
+  it("a WR and a TE share a table: a card, each in his own pool", async () => {
+    const got = await load("ceedee-lamb", "trey-mcbride");
+    if (got.state !== "ready") throw new Error(got.state);
+    expect(got.model.poolLine).toBe("Radar: each player against qualified players at his position (2+ targets a game): 129 WRs, 56 TEs.");
+  });
+
+  it("a fullback is compared in the running back table", async () => {
+    const got = await load("some-fullback", "jahmyr-gibbs");
+    expect(got.state).toBe("ready");
+  });
+
+  it("a past season: that season's rows and week", async () => {
+    const got = await load("josh-allen", "matthew-stafford", 2025);
+    if (got.state !== "ready") throw new Error(got.state);
+    expect(got.season).toBe(2025);
+    expect(got.defaultSeason).toBe(2026);
+    expect(got.model.seasonLine).toBe("2025 season · Through Week 22");
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(2025);
+  });
+
+  it("one player has no stats for the season: a message, never a card", async () => {
+    const got = await load("josh-allen", "rookie-qb");
+    expect(got).toMatchObject({
+      state: "no-stats", season: 2026, nameA: "Josh Allen", nameB: "Rookie Quarterback", missingA: false, missingB: true,
+      message: "Rookie Quarterback has no 2026 stats yet, so there is nothing to compare. Comparisons update the day after each game.",
+    });
+  });
+
+  it("neither has: both are named; for a past season the sentence makes no promise", async () => {
+    expect(await load("rookie-qb", "other-rookie")).toMatchObject({
+      state: "no-stats", missingA: true, missingB: true,
+      message: "Rookie Quarterback and Other Rookie have no 2026 stats yet, so there is nothing to compare. Comparisons update the day after each game.",
+    });
+    expect(await load("josh-allen", "rookie-qb", 2025)).toMatchObject({
+      state: "no-stats", season: 2025,
+      message: "Rookie Quarterback has no stats for the 2025 season, so there is nothing to compare.",
+    });
+  });
+
+  it("different position groups, or a position with no table: no card, and it never can be one (stored)", async () => {
+    for (const [a, b] of [["josh-allen", "ceedee-lamb"], ["ceedee-lamb", "bijan-robinson"], ["some-kicker", "josh-allen"], ["josh-allen", "some-kicker"]]) {
+      expect(await load(a, b), `${a}/${b}`).toMatchObject({ state: "not-found", stored: true });
+    }
+    // No season table was read for any of them.
+    expect([reads().qb, reads().rec, reads().rb]).toEqual([0, 0, 0]);
+  });
+
+  it("two slugs that name one player: no card", async () => {
+    expect(await load("bijan-robinson", "some-fullback")).toMatchObject({ state: "not-found", stored: true });
+  });
+
+  it("an unknown slug: no card today, but it may be one tomorrow (not stored), and no season table is read", async () => {
+    expect(await load("josh-allen", "nobody-at-all")).toMatchObject({ state: "not-found", stored: false });
+    expect(await load("nobody-at-all", "josh-allen")).toMatchObject({ state: "not-found", stored: false });
+    expect([reads().qb, reads().rec, reads().rb]).toEqual([0, 0, 0]);
+  });
+
+  it("a season the site does not have: not found, not stored, no season table read", async () => {
+    expect(await load("josh-allen", "matthew-stafford", 2019)).toMatchObject({ state: "not-found", stored: false });
+    expect([reads().qb, reads().rec, reads().rb]).toEqual([0, 0, 0]);
+  });
+
+  it("a failed read rejects: seasons, the players, or the season table", async () => {
+    vi.mocked(getQBStats).mockRejectedValue(new Error("Failed to fetch QB stats: TypeError: fetch failed"));
+    await expect(load("josh-allen", "matthew-stafford")).rejects.toThrow(/Failed to fetch QB stats/);
+    clearCompareCardMemo();
+    vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: timeout"));
+    await expect(load("josh-allen", "matthew-stafford")).rejects.toThrow(/season weeks/);
+    clearCompareCardMemo();
+    vi.mocked(getSeasonWeeks).mockResolvedValue(WEEKS);
+    vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: boom"));
+    await expect(load("josh-allen", "matthew-stafford")).rejects.toThrow(/Failed to fetch player/);
+  });
+
+  it("an empty answer that cannot be true is a failed read too: no seasons, or no rows for a season the site has", async () => {
+    vi.mocked(getQBStats).mockResolvedValue([]);
+    await expect(load("josh-allen", "matthew-stafford")).rejects.toThrow(/returned no rows for 2026/);
+    clearCompareCardMemo();
+    vi.mocked(getSeasonWeeks).mockResolvedValue([]);
+    await expect(load("josh-allen", "matthew-stafford")).rejects.toThrow(/no seasons from data_freshness/);
+  });
+
+  it("with no database at all (CI, a placeholder build) nothing throws: an unknown pair is just not found", async () => {
+    vi.mocked(hasNoDatabase).mockReturnValue(true);
+    vi.mocked(getSeasonWeeks).mockResolvedValue([]);
+    vi.mocked(getPlayerSlugIndex).mockResolvedValue(new Map() as never);
+    expect(await load("josh-allen", "matthew-stafford")).toMatchObject({ state: "not-found", stored: false });
+  });
+});
+
+describe("a week no season can have (chaos R4)", () => {
+  it.each([0, 23, 99, null])("through_week %s in data_freshness: the card and the no-stats state carry no week", async (week) => {
+    vi.mocked(getSeasonWeeks).mockResolvedValue([{ season: 2026, through_week: week as number | null }, { season: 2025, through_week: 22 }]);
+    for (const load of [image, page]) {
+      clearCompareCardMemo();
+      const ready = await load("josh-allen", "matthew-stafford");
+      if (ready.state !== "ready") throw new Error(ready.state);
+      expect(ready.model.throughWeek).toBeNull();
+      expect(ready.model.seasonLine).toBe("2026 season");
+      const none = await load("josh-allen", "rookie-qb");
+      if (none.state !== "no-stats") throw new Error(none.state);
+      expect(none.throughWeek).toBeNull();
+    }
+  });
+});
+
+// Chaos R1 and COST-1 (compare card PR 2). The share page used to read
+// player_slugs once per slug in the URL, so 200 made-up pairs were 400 database
+// requests, and a failed read was made twice per page view (Next renders the
+// error page as a second pass, outside the first pass's cache() scope), which
+// also made a hung read cost two 5 s limits. The page now reads through the
+// image route's three memos: nothing per slug, nothing per pair, and a failure
+// is read once and remembered for ten seconds.
+describe("the page loader reads nothing per slug and nothing per pair", () => {
+  it("cold: the seasons, the slug list and one season table; the per-player read is never used", async () => {
+    await page("josh-allen", "matthew-stafford");
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+    expect(getPlayerBySlug).not.toHaveBeenCalled();
+  });
+
+  it("200 made-up pairs cost NO read beyond the warm slug list, and add no memo key", async () => {
+    await page("josh-allen", "matthew-stafford");
+    const before = reads();
+    const keys = compareCardMemoKeys();
+    for (let i = 0; i < 200; i++) {
+      const got = await page(`made-up-${i}`, i % 2 ? `nobody-${i}` : "josh-allen");
+      expect(got).toMatchObject({ state: "not-found", stored: false });
+    }
+    expect(reads()).toEqual(before);
+    expect(compareCardMemoKeys()).toEqual(keys);
+    expect(getPlayerBySlug).not.toHaveBeenCalled();
+  });
+
+  it("200 made-up pairs on a COLD instance: two reads in all (the seasons and the slug list), not 400", async () => {
+    for (let i = 0; i < 200; i++) await page(`made-up-${i}`, `nobody-${i}`);
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1 });
+  });
+
+  it("warm, any real pair of a group already asked for costs nothing either", async () => {
+    await page("josh-allen", "matthew-stafford");
+    const before = reads();
+    await page("matthew-stafford", "josh-allen");
+    await page("tyler-huntley", "josh-allen");
+    await page("josh-allen", "rookie-qb");
+    await page("josh-allen", "ceedee-lamb");
+    expect(reads()).toEqual(before);
+  });
+
+  it("a rookie who appears at the next refresh is found within a minute (the slug list is kept sixty seconds, a 'not found' is never kept per slug)", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      expect((await page("josh-allen", "brand-new-rookie")).state).toBe("not-found");
+      const withRookie = new Map(INDEX);
+      withRookie.set("brand-new-rookie", P("brand-new-rookie", "00-0026498", "Brand New Rookie", "QB", "LA"));
+      vi.mocked(getPlayerSlugIndex).mockResolvedValue(withRookie as never);
+      vi.setSystemTime(new Date("2026-10-09T12:00:30Z"));
+      expect((await page("josh-allen", "brand-new-rookie")).state).toBe("not-found");
+      vi.setSystemTime(new Date("2026-10-09T12:01:01Z"));
+      expect((await page("josh-allen", "brand-new-rookie")).state).toBe("ready");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("a failed read on the page is made once, not once per render pass", () => {
+  // One page view whose load fails runs the loader up to three times: for the
+  // metadata, for the body, and again when Next renders the error page.
+  const threePasses = async () => {
+    const results = [];
+    for (let i = 0; i < 3; i++) results.push(await page("josh-allen", "matthew-stafford").then(() => "ok", (e: Error) => e.message));
+    return results;
+  };
+
+  it.each([
+    ["the slug list (player_slugs)", () => vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500")), "index"],
+    ["the seasons", () => vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: 500")), "weeks"],
+    ["the season table", () => vi.mocked(getQBStats).mockRejectedValue(new Error("Failed to fetch QB stats: 500")), "qb"],
+  ] as const)("%s failing: exactly one request to it for the whole page view", async (_what, breakIt, key) => {
+    breakIt();
+    const results = await threePasses();
+    expect(results.every((r) => r.startsWith("Failed to fetch"))).toBe(true);
+    expect(reads()[key]).toBe(1);
+  });
+
+  it("six page views arriving together during an outage: still one request", async () => {
+    vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500"));
+    const all = await Promise.allSettled(Array.from({ length: 6 }, () => page("josh-allen", "matthew-stafford")));
+    expect(all.every((r) => r.status === "rejected")).toBe(true);
+    await threePasses();
+    expect(reads().index).toBe(1);
+  });
+
+  it("a HUNG read ends the page view after one time limit (about 5 s), not two", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      // The Supabase client cuts a stalled read at 5 s; this stands in for it.
+      vi.mocked(getPlayerSlugIndex).mockImplementation(() =>
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Failed to fetch player slug index: read timed out after 5 s")), 5000)));
+      const started = Date.now();
+      const first = page("josh-allen", "matthew-stafford").catch((e: Error) => e.message);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await first).toMatch(/timed out after 5 s/);
+      // The second pass (the error page) gets the same failure at once: no second wait.
+      const second = await page("josh-allen", "matthew-stafford").catch((e: Error) => e.message);
+      expect(second).toMatch(/timed out after 5 s/);
+      expect(Date.now() - started).toBe(5000);
+      expect(reads().index).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("recovery: ten seconds after the failure the page loads again", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: 500"));
+      await expect(page("josh-allen", "matthew-stafford")).rejects.toThrow(/QB stats/);
+      vi.setSystemTime(new Date("2026-10-09T12:00:09Z"));
+      await expect(page("josh-allen", "matthew-stafford")).rejects.toThrow(/QB stats/);
+      vi.setSystemTime(new Date("2026-10-09T12:00:10Z"));
+      expect((await page("josh-allen", "matthew-stafford")).state).toBe("ready");
+      expect(reads().qb).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("the image loader makes no per-pair read", () => {
+  it("cold: the seasons, the slug list and one season table; never a per-player read", async () => {
+    await image("josh-allen", "matthew-stafford");
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+  });
+
+  it("warm: NO read at all, for the same pair, the mirrored pair, or any other pair of the group", async () => {
+    await image("josh-allen", "matthew-stafford");
+    const before = reads();
+    await image("josh-allen", "matthew-stafford");
+    await image("matthew-stafford", "josh-allen");
+    await image("tyler-huntley", "josh-allen");
+    await image("josh-allen", "rookie-qb");
+    expect(reads()).toEqual(before);
+  });
+
+  it("the memo keys are the seasons, the slug list and (group, season): never a slug, never a pair", async () => {
+    await image("josh-allen", "matthew-stafford");
+    await image("tyler-huntley", "josh-allen");
+    expect(compareCardMemoKeys()).toEqual(["QB:2026", "seasons", "slugs"]);
+    await image("ceedee-lamb", "trey-mcbride");
+    await image("bijan-robinson", "jahmyr-gibbs");
+    await image("josh-allen", "matthew-stafford", 2025);
+    expect(compareCardMemoKeys()).toEqual(["QB:2025", "QB:2026", "RB:2026", "WR:2026", "seasons", "slugs"]);
+    for (const key of compareCardMemoKeys()) expect(key).not.toMatch(/allen|stafford|lamb|-/);
+  });
+
+  // Code review I3: the seasons and the slug list do not depend on each other,
+  // so they are started together: a slow database costs a cold instance one
+  // wait for the pair, not two in a row. The CHECKS keep their order.
+  it("a season the site lacks: not found from the seasons alone; no season table is read and no table key is added", async () => {
+    expect(await image("josh-allen", "matthew-stafford", 2019)).toMatchObject({ state: "not-found", stored: false });
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1 });
+    expect(compareCardMemoKeys()).toEqual(["seasons", "slugs"]);
+  });
+
+  it("the seasons and the slug list are started together, before either answers", async () => {
+    let releaseWeeks: (v: typeof WEEKS) => void = () => {};
+    vi.mocked(getSeasonWeeks).mockReturnValue(new Promise((r) => { releaseWeeks = r; }));
+    const pending = image("josh-allen", "matthew-stafford");
+    await Promise.resolve();
+    expect(reads()).toMatchObject({ weeks: 1, index: 1, qb: 0 });
+    releaseWeeks(WEEKS);
+    expect((await pending).state).toBe("ready");
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+  });
+
+  it("a slow database: the cold wait is the slower of the two reads, not their sum", async () => {
+    vi.useFakeTimers();
+    try {
+      const slow = <T,>(value: T, ms: number) => () => new Promise<T>((r) => setTimeout(() => r(value), ms));
+      vi.mocked(getSeasonWeeks).mockImplementation(slow(WEEKS, 4000));
+      vi.mocked(getPlayerSlugIndex).mockImplementation(slow(INDEX, 4000) as never);
+      vi.mocked(getQBStats).mockImplementation(slow(QB, 4000) as never);
+      const started = Date.now();
+      const pending = image("josh-allen", "matthew-stafford");
+      await vi.advanceTimersByTimeAsync(8000);
+      expect((await pending).state).toBe("ready");
+      expect(Date.now() - started).toBe(8000); // 4 s for the pair, 4 s for the table: 12 s when they ran one after another
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the checks keep their order: an unlisted season is 'not found' even when the slug list read FAILS, and that failure raises no unhandled rejection", async () => {
+    const seen: unknown[] = [];
+    const onUnhandled = (e: unknown) => seen.push(e);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      vi.mocked(getPlayerSlugIndex).mockRejectedValue(new Error("Failed to fetch player slug index: 500"));
+      expect(await image("josh-allen", "matthew-stafford", 2019)).toMatchObject({ state: "not-found", stored: false });
+      await new Promise((r) => setTimeout(r, 10));
+      // A listed season still gets the failure.
+      await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/slug index/);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it("a failing seasons read is the failure reported, whatever the slug list does", async () => {
+    vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: 500"));
+    await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/season weeks/);
+  });
+
+  it("an unknown slug costs nothing once warm, and adds no key", async () => {
+    await image("josh-allen", "matthew-stafford");
+    const before = reads();
+    const keys = compareCardMemoKeys();
+    for (const slug of ["nobody-at-all", "another-nobody", "x", "zz-top"]) {
+      expect((await image("josh-allen", slug)).state).toBe("not-found");
+    }
+    expect(reads()).toEqual(before);
+    expect(compareCardMemoKeys()).toEqual(keys);
+  });
+
+  it("an empty slug list on a real database is a failed read, never a minute of 'not found' for every player", async () => {
+    vi.mocked(getPlayerSlugIndex).mockResolvedValue(new Map() as never);
+    await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/player slug list came back empty/);
+  });
+
+  it("requests arriving together share one read of each", async () => {
+    const all = await Promise.all([
+      image("josh-allen", "matthew-stafford"), image("matthew-stafford", "josh-allen"), image("tyler-huntley", "josh-allen"),
+    ]);
+    expect(all.map((r) => r.state)).toEqual(["ready", "ready", "ready"]);
+    expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+
+  });
+
+  it("a failed read is kept ten seconds (never as a success), then read again", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      vi.mocked(getQBStats).mockRejectedValueOnce(new Error("Failed to fetch QB stats: timeout"));
+      await expect(image("josh-allen", "matthew-stafford")).rejects.toThrow(/timeout/);
+      await expect(image("tyler-huntley", "josh-allen")).rejects.toThrow(/timeout/);
+      expect(reads().qb).toBe(1);
+      // Another group's table is not held back by it.
+      expect((await image("ceedee-lamb", "trey-mcbride")).state).toBe("ready");
+      vi.setSystemTime(new Date("2026-10-09T12:00:10Z"));
+      expect((await image("josh-allen", "matthew-stafford")).state).toBe("ready");
+      expect(reads().qb).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the memo lasts a minute", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+      await image("josh-allen", "matthew-stafford");
+      vi.setSystemTime(new Date("2026-10-09T12:00:59Z"));
+      await image("josh-allen", "matthew-stafford");
+      expect(reads()).toEqual({ ...NONE, weeks: 1, index: 1, qb: 1 });
+      vi.setSystemTime(new Date("2026-10-09T12:01:01Z"));
+      await image("josh-allen", "matthew-stafford");
+      expect(reads()).toEqual({ ...NONE, weeks: 2, index: 2, qb: 2 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("page and image agree", () => {
+  it("the same model for the same pair, read two different ways", async () => {
+    const a = await page("ceedee-lamb", "jaxon-smith-njigba");
+    const b = await image("ceedee-lamb", "jaxon-smith-njigba");
+    expect(b).toEqual(a);
+  });
+});

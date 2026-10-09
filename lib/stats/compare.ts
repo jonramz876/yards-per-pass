@@ -25,9 +25,17 @@ import {
   QB_MIN_ATT_PER_GAME, WR_MIN_TGT_PER_GAME, RB_MIN_CAR_PER_GAME,
 } from "@/lib/stats/tecmo-card";
 
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+/** The dark neutral a colour that cannot be read falls back to (the team radar's neutral outline). */
+export const COMPARE_NEUTRAL_COLOR = "#0f172a";
+/** Is this a colour the functions below can work with: exactly #RRGGBB? */
+export function isHexColor(v: unknown): v is string {
+  return typeof v === "string" && HEX6.test(v);
+}
+
 // Perceptual color distance (weighted Euclidean, green-sensitive).
 // Inputs must be 7-character #RRGGBB (what getTeamColor returns); anything
-// else gives NaN distances or throws.
+// else gives NaN. ensureContrast checks its inputs before it calls this.
 export function colorDistance(hex1: string, hex2: string): number {
   const r1 = parseInt(hex1.slice(1, 3), 16), g1 = parseInt(hex1.slice(3, 5), 16), b1 = parseInt(hex1.slice(5, 7), 16);
   const r2 = parseInt(hex2.slice(1, 3), 16), g2 = parseInt(hex2.slice(3, 5), 16), b2 = parseInt(hex2.slice(5, 7), 16);
@@ -37,17 +45,34 @@ export function colorDistance(hex1: string, hex2: string): number {
 export const CONTRAST_PALETTE = ["#dc2626", "#2563eb", "#16a34a", "#d97706", "#9333ea", "#0891b2"];
 export const MIN_DISTANCE = 150;
 
-/** Player 2's colour, moved to a palette colour when it is too close to player 1's. Player 1's is never moved. */
+/**
+ * Player 2's colour, moved to a palette colour when it is too close to player 1's. Player 1's is never moved.
+ * A colour that is not #RRGGBB never comes back out: a bad c1 is measured as
+ * the dark neutral, and a bad c2 is replaced by a palette colour.
+ */
 export function ensureContrast(c1: string, c2: string): string {
-  if (colorDistance(c1, c2) >= MIN_DISTANCE) return c2;
+  const base = isHexColor(c1) ? c1 : COMPARE_NEUTRAL_COLOR;
+  if (isHexColor(c2) && colorDistance(base, c2) >= MIN_DISTANCE) return c2;
   for (const alt of CONTRAST_PALETTE) {
-    if (colorDistance(c1, alt) >= MIN_DISTANCE) return alt;
+    if (colorDistance(base, alt) >= MIN_DISTANCE) return alt;
   }
   return CONTRAST_PALETTE[1]; // terminal fallback: blue
 }
 
 /** The three stat tables a comparison can come from. TE rows live in the WR table; FB counts as RB. */
 export type CompareGroup = "QB" | "WR" | "RB";
+
+/**
+ * The stat table a position is compared in, from player_slugs.position: QB;
+ * WR and TE share the receiver table; FB counts as RB. Anything else (K, P, a
+ * defender, null, a mis-cased value) has no table: null, and no comparison.
+ */
+export function compareGroup(position: unknown): CompareGroup | null {
+  if (position === "QB") return "QB";
+  if (position === "WR" || position === "TE") return "WR";
+  if (position === "RB" || position === "FB") return "RB";
+  return null;
+}
 export type ComparePlayerRow = QBSeasonStat | ReceiverSeasonStat | RBSeasonStat;
 export type CompStat = {
   label: string;
@@ -288,10 +313,10 @@ function playerFor(cfg: GroupConfig, row: ComparePlayerRow, all: ComparePlayerRo
  * known exception kept as it is (spec F12): a running back's stuff_rate of
  * null plots as a 0% stuff rate, while "NaN" plots at the centre.
  *
- * Preconditions (not checked here): `group` is already one of the three
- * tables, so the caller maps player_slugs.position first (TE goes to WR, FB to
- * RB) and turns any other position away; and `rowA` / `rowB` are real rows. An
- * unknown group or a missing row throws a TypeError.
+ * Preconditions, checked: `group` is one of the three tables (map
+ * player_slugs.position with compareGroup first and turn a null away), and
+ * `rowA` / `rowB` are real rows. Anything else throws an Error that says which,
+ * so a caller's mistake can never come out as a comparison.
  */
 export function buildComparison(input: {
   group: CompareGroup;
@@ -302,7 +327,10 @@ export function buildComparison(input: {
   teamB: string;
 }): Comparison {
   const { group, rowA, rowB, all, teamA, teamB } = input;
-  const cfg = GROUPS[group];
+  const cfg = typeof group === "string" && Object.prototype.hasOwnProperty.call(GROUPS, group) ? GROUPS[group] : undefined;
+  if (!cfg) throw new Error(`buildComparison: unknown group ${JSON.stringify(group) ?? String(group)} (expected QB, WR or RB)`);
+  if (rowA == null || rowB == null) throw new Error("buildComparison: both players need a season row");
+  if (!Array.isArray(all)) throw new Error("buildComparison: the season table must be an array");
 
   const colorA = getTeamColor(teamA);
   const colorB = ensureContrast(colorA, getTeamColor(teamB));
@@ -312,18 +340,17 @@ export function buildComparison(input: {
     const v2 = stat.getValue ? stat.getValue(rowB) : getStatVal(rowB, stat.key);
     const valid1 = !isNaN(v1);
     const valid2 = !isNaN(v2);
+    const a = valid1 ? stat.format(v1) : NO_VALUE;
+    const b = valid2 ? stat.format(v2) : NO_VALUE;
     let winner: 0 | 1 | 2 = 0;
-    if (valid1 && valid2) {
+    // A highlight needs two values that PRINT differently: +9.12% and +9.07%
+    // both print "+9.1%", and a reader of the table (or of a shared picture)
+    // would see two equal numbers with one marked better.
+    if (valid1 && valid2 && a !== b) {
       if (stat.higherBetter) winner = v1 > v2 ? 1 : v2 > v1 ? 2 : 0;
       else winner = v1 < v2 ? 1 : v2 < v1 ? 2 : 0;
     }
-    return {
-      key: stat.key,
-      label: stat.label,
-      a: valid1 ? stat.format(v1) : NO_VALUE,
-      b: valid2 ? stat.format(v2) : NO_VALUE,
-      winner,
-    };
+    return { key: stat.key, label: stat.label, a, b, winner };
   });
 
   const a = playerFor(cfg, rowA, all, colorA);
@@ -358,6 +385,14 @@ function poolWord(group: CompareGroup, player: ComparisonPlayer): string {
 /** Is any outline drawn at all? No when a pool is too small, or when both players have too few radar stats. */
 export function compareRadarIsDrawn(c: Comparison): boolean {
   return c.radar === "drawn" && (c.a.outline || c.b.outline);
+}
+
+/**
+ * The mask a chart gets for a player: his missing axes, or every axis when
+ * his outline is not drawn at all (no corners, no dots).
+ */
+export function compareChartMask(p: ComparisonPlayer): boolean[] {
+  return p.outline ? p.missing : p.missing.map(() => true);
 }
 
 /**
@@ -420,8 +455,12 @@ function sentenceNames(c: Comparison, nameA: CompareName, nameB: CompareName): [
  * neither is. Shown whether or not a radar is drawn. A player whose attempts /
  * targets / carries or games are not usable numbers, or who has 0 games, is
  * left out of the line (never a made-up number, never "in 0 games").
+ * `ovrHidden` (the share card, where each player's OVR is shown and an
+ * under-the-line player's is a dash) adds " OVR hidden." at the end.
  */
-export function compareSmallSampleSentence(c: Comparison, nameA: CompareName, nameB: CompareName): string | null {
+export function compareSmallSampleSentence(
+  c: Comparison, nameA: CompareName, nameB: CompareName, options: { ovrHidden?: boolean } = {},
+): string | null {
   const cfg = GROUPS[c.group];
   const names = sentenceNames(c, nameA, nameB);
   const part = (p: ComparisonPlayer, name: string): string[] =>
@@ -430,7 +469,7 @@ export function compareSmallSampleSentence(c: Comparison, nameA: CompareName, na
     ];
   const parts = [...part(c.a, names[0]), ...part(c.b, names[1])];
   if (parts.length === 0) return null;
-  return `Small sample: ${parts.join("; ")} (under ${cfg.minPerGame} a game).`;
+  return `Small sample: ${parts.join("; ")} (under ${cfg.minPerGame} a game).${options.ovrHidden ? " OVR hidden." : ""}`;
 }
 
 /**

@@ -19,7 +19,7 @@ import { teamRadarSlice, type TeamRadarSlice } from "@/lib/stats/team-radar";
  * share-page view in the same instance filled the rows memo from the page's
  * hour-long data cache first (the image is then as old as the page, never
  * older). A read that RESOLVES empty is kept for the minute like any other
- * answer; only a rejection is dropped at once.
+ * answer; a rejection is kept ten seconds (MEMO_FAILURE_TTL_MS).
  *
  * It is NOT what bounds the share PAGE. The page exports `revalidate = 3600`,
  * so its reads are already in Next's data cache for up to an hour (cleared by
@@ -29,31 +29,47 @@ import { teamRadarSlice, type TeamRadarSlice } from "@/lib/stats/team-radar";
  */
 export const TEAM_RADAR_MEMO_TTL_MS = 60_000;
 
-type Entry<T> = { at: number; promise: Promise<T> };
+/**
+ * How long a FAILED read is remembered: ten seconds (compare card PR 2, chaos
+ * COST-2). Before this a rejection was forgotten at once, so while the
+ * database was failing fast every image request was a new database request, at
+ * the visitor's or a crawler's rate: the wrong direction in an outage. Now
+ * everyone who asks within ten seconds of the failure gets that same failure
+ * and nothing is read; the first request after that reads again. It is never
+ * kept as a success, and the site recovers within ten seconds of the database.
+ */
+export const MEMO_FAILURE_TTL_MS = 10_000;
+
+/** One memoised read: when it started, its promise, and when it failed (if it did). */
+export type MemoEntry<T> = { at: number; promise: Promise<T>; failedAt?: number };
+type Entry<T> = MemoEntry<T>;
 
 /**
  * A promise memo: callers arriving while the read is in flight share it (the
- * PROMISE is stored), and a rejection deletes the entry at once, so a failed
- * read is never replayed and the next caller reads again (the
- * getBoxScoreSeasonsCached pattern). Module scope: per server instance, empty
- * on a cold start.
+ * PROMISE is stored). An answer is kept for TEAM_RADAR_MEMO_TTL_MS; a
+ * rejection for MEMO_FAILURE_TTL_MS, counted from the moment it failed, and
+ * handed to every caller in that window as the rejection it is. Module scope:
+ * per server instance, empty on a cold start.
  */
-function memoised<K, T>(store: Map<K, Entry<T>>, key: K, read: () => Promise<T>): Promise<T> {
+export function memoised<K, T>(store: Map<K, MemoEntry<T>>, key: K, read: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = store.get(key);
-  if (hit && now - hit.at < TEAM_RADAR_MEMO_TTL_MS) return hit.promise;
+  if (hit) {
+    const fresh = hit.failedAt === undefined ? now - hit.at < TEAM_RADAR_MEMO_TTL_MS : now - hit.failedAt < MEMO_FAILURE_TTL_MS;
+    if (fresh) return hit.promise;
+  }
   let promise: Promise<T>;
   try {
     promise = read();
   } catch (err) {
-    // A throw before the promise exists must not escape as a sync throw.
-    return Promise.reject(err);
+    // A throw before the promise exists is a failed read like any other.
+    promise = Promise.reject(err);
   }
-  const entry = { at: now, promise };
+  const entry: MemoEntry<T> = { at: now, promise };
   store.set(key, entry);
   promise.catch(() => {
-    // Only this entry: a retry already stored under the same key stays.
-    if (store.get(key) === entry) store.delete(key);
+    // Stamped when it fails, so a read cut at the 5 s limit still gets its full window.
+    entry.failedAt = Date.now();
   });
   return promise;
 }

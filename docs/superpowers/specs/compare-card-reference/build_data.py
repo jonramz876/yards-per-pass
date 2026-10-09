@@ -227,10 +227,11 @@ for pkey, group, a, b in [(g, g, a, b) for g, a, b in PAIRS] + EXTRA + GOLD_ONLY
         v1 = getv(ra) if getv else num(ra.get(key))
         v2 = getv(rb_) if getv else num(rb_.get(key))
         ok1, ok2 = not math.isnan(v1), not math.isnan(v2)
+        ta, tb = (fmt(v1) if ok1 else "—"), (fmt(v2) if ok2 else "—")
         w = 0
-        if ok1 and ok2:
+        if ok1 and ok2 and ta != tb:  # two values that PRINT the same are a tie (compare card PR 2, chaos W1)
             w = (1 if v1 > v2 else 2 if v2 > v1 else 0) if hb else (1 if v1 < v2 else 2 if v2 < v1 else 0)
-        stats.append({"label": label, "key": key, "a": fmt(v1) if ok1 else "—", "b": fmt(v2) if ok2 else "—", "w": w})
+        stats.append({"label": label, "key": key, "a": ta, "b": tb, "w": w})
     c1 = TEAMS[a[1]][1]
     c2raw = TEAMS[b[1]][1]
     c2 = ensure_contrast(c1, c2raw)

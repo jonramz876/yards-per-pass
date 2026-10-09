@@ -43,6 +43,9 @@ describe("sitemap", () => {
     // Team radar PR 3: the share pages (/card/team/BUF/offense) and their
     // image route are not listed either (team radar spec §7).
     expect(entries.filter((e) => /\/card\/team|\/api\/team-radar/.test(e.url))).toHaveLength(0);
+    // Compare card PR 2: the comparison share pages (/card/compare/a/b, noindex)
+    // and their image route are not listed (compare card spec §4).
+    expect(entries.filter((e) => /\/card\/compare|\/api\/compare-card/.test(e.url))).toHaveLength(0);
     expect(entries.filter((e) => e.url.includes("/player/"))).toHaveLength(3);
     expect(entries).toHaveLength(11 + 32 + 3);
   });

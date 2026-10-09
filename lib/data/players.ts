@@ -258,3 +258,38 @@ export async function getQBPassLocationStats(
     )
   );
 }
+
+/** What the comparison image needs to know about a player: who he is, his position and his team. */
+export interface PlayerSlugEntry {
+  slug: string;
+  player_id: string;
+  player_name: string;
+  position: string;
+  current_team_id: string;
+}
+
+/** The columns getPlayerSlugIndex reads: narrow on purpose (about 1,300 rows). */
+export const PLAYER_SLUG_INDEX_COLUMNS = "slug, player_id, player_name, position, current_team_id";
+
+/**
+ * Every player slug, as a Map by slug (compare card spec 2026-10-09 section
+ * 6.1): the comparison image route looks both players up here, behind a
+ * one-minute memo, so it makes no per-pair database read at all.
+ *
+ * Read in slug order: the table is over 1,000 rows, so it is paged, and
+ * unordered pages can skip or repeat a row; a skipped row here would be a real
+ * player answered "not found". Throws on a failed read.
+ */
+export async function getPlayerSlugIndex(): Promise<Map<string, PlayerSlugEntry>> {
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows("player_slugs", PLAYER_SLUG_INDEX_COLUMNS, {}, { order: ["slug"] });
+  } catch (err) {
+    throw queryError("player slug index", err);
+  }
+  const index = new Map<string, PlayerSlugEntry>();
+  for (const row of rows) {
+    if (typeof row.slug === "string" && row.slug) index.set(row.slug, row as unknown as PlayerSlugEntry);
+  }
+  return index;
+}

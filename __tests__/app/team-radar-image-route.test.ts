@@ -101,6 +101,22 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
+// Compare card PR 2 (code review I1): the comparison image route accepts only
+// ONE spelling of its query. That rule is NOT applied here: this route is
+// live, links to it are already posted, and what Next and Vercel hand the
+// handler as req.url in production has not been verified. It keeps reading the
+// parsed query, in any order, exactly as before.
+describe("the query is read as parsed, in any order (unchanged; live links depend on it)", () => {
+  it.each(["?season=2026", "?season=2026&w=3", "?w=3&season=2026", "?download=1&season=2026", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?"])(
+    "%s draws the card",
+    async (query) => {
+      const res = await get("BUF", "offense", query);
+      expect(res.status).toBe(200);
+      expect(images[0].element).toBe("CARD");
+    },
+  );
+});
+
 describe("route config", () => {
   it("runs on Node (the fonts are read with fs) and is never cached by Next itself", () => {
     expect(route.runtime).toBe("nodejs");
@@ -320,16 +336,29 @@ describe("a failed read is a 503 the browser can retry: never a 404, never a sto
     expect(String(vi.mocked(console.error).mock.calls[0][0])).toContain("defense");
   });
 
-  it("a failed read is not remembered: the next request draws the card", async () => {
-    vi.mocked(getTeamRadarRows).mockRejectedValueOnce(new Error("Failed to fetch team radar rows for 2026: TimeoutError"));
-    await expectUnavailable(await get("BUF", "offense"));
-    const res = await get("BUF", "offense");
-    expect(res.status).toBe(200);
-    expect(images[0].element).toBe("CARD");
+  // Compare card PR 2, chaos COST-2: the failure is kept ten seconds (never as
+  // a success), so an outage is not retried once per image request.
+  it("a failed read is answered 503 for ten seconds without reading again, then the next request draws the card", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-10-06T12:00:00Z"));
+      vi.mocked(getTeamRadarRows).mockRejectedValueOnce(new Error("Failed to fetch team radar rows for 2026: timeout"));
+      await expectUnavailable(await get("BUF", "offense"));
+      for (let i = 1; i <= 5; i++) {
+        vi.setSystemTime(new Date(`2026-10-06T12:00:0${i}Z`));
+        await expectUnavailable(await get("BUF", "offense"));
+        await expectUnavailable(await get("KC", "defense"));
+      }
+      expect(getTeamRadarRows).toHaveBeenCalledTimes(1);
+      vi.setSystemTime(new Date("2026-10-06T12:00:11Z"));
+      const res = await get("BUF", "offense");
+      expect(res.status).toBe(200);
+      expect(getTeamRadarRows).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  // Chaos R3: the vaguer "not available for the 2025 season" plate used to go
-  // out as a 200 the CDN kept for an hour.
   it("a failed coverage probe on a past season with no rows is a 503, not a cacheable plate", async () => {
     vi.mocked(getBoxScoreSeasonsCached).mockRejectedValue(new Error("probe failed"));
     vi.mocked(getTeamRadarRows).mockResolvedValue([]);
