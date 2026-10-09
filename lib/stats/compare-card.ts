@@ -19,7 +19,7 @@ import {
   type CompareGroup, type ComparePlayerRow, type Comparison, type ComparisonTableRow,
 } from "@/lib/stats/compare";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
-import { radarStrokeColor, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
+import { radarStrokeColor, canonicalImageQuery, RADAR_CARD_SITE_LINE } from "@/lib/stats/team-radar";
 import { parseSeasonParam } from "@/lib/stats/team-stats";
 import { textColorForBackground } from "@/lib/stats/formatters";
 
@@ -48,20 +48,33 @@ export function parseCompareSlugs(a: unknown, b: unknown): { a: string; b: strin
 /** The weeks a season can have (18 regular-season weeks and the playoffs). */
 export const COMPARE_MAX_WEEK = 22;
 
+/** A week a season can have (1-22), or null: nothing else is ever printed as "Through Week N" or sent as `w`. */
+export function compareWeek(week: unknown): number | null {
+  return typeof week === "number" && Number.isInteger(week) && week >= 1 && week <= COMPARE_MAX_WEEK ? week : null;
+}
+
 /**
- * The image route's query string, or null for anything but its one exact
- * form. Every distinct URL is its own CDN entry and its own render, so the
- * route draws only for: no query, or `season` (four digits, 1999-2100), `w`
- * (1-22, no leading zero; ignored, it only makes each week a new URL) and
- * `download=1`, each at most once and no other key. `w` is never tied to the
- * current week: the page (cached up to an hour) and the image (a minute) can
- * be a week apart, and a link the page printed must not become a stored 404.
+ * The image route's query, or null for anything but its one exact form AND
+ * spelling. `raw` is the query string exactly as typed, "?" included
+ * (rawQueryOf(req.url)); "" when the URL has none.
+ *
+ * Every distinct URL is its own CDN entry and its own render, so the route
+ * draws only for: no query, or `season` (four digits, 1999-2100), `w` (1-22,
+ * no leading zero; ignored, it only makes each week a new URL) and
+ * `download=1`, each at most once, no other key, IN THAT ORDER, and spelled
+ * exactly as the share page prints them: "?", "?&", a trailing "&",
+ * percent-encoded digits or another key order are other spellings of the same
+ * picture and are refused. `w` is never tied to the current week: the page
+ * (cached up to an hour) and the image (a minute) can be a week apart, and a
+ * link the page printed must not become a stored 404.
  */
-export function parseCompareImageQuery(query: URLSearchParams): { season: number | null; download: boolean } | null {
+export function parseCompareImageQuery(raw: string): { season: number | null; download: boolean } | null {
+  if (typeof raw !== "string") return null;
   const seen = new Set<string>();
   let season: number | null = null;
+  let week: number | null = null;
   let download = false;
-  for (const [key, value] of Array.from(query.entries())) {
+  for (const [key, value] of Array.from(new URLSearchParams(raw).entries())) {
     if (seen.has(key)) return null;
     seen.add(key);
     if (key === "season") {
@@ -69,7 +82,9 @@ export function parseCompareImageQuery(query: URLSearchParams): { season: number
       season = parseSeasonParam(value);
       if (season === null) return null;
     } else if (key === "w") {
-      if (!/^[1-9]\d?$/.test(value) || Number(value) > COMPARE_MAX_WEEK) return null;
+      if (!/^[1-9]\d?$/.test(value)) return null;
+      week = compareWeek(Number(value));
+      if (week === null) return null;
     } else if (key === "download") {
       if (value !== "1") return null;
       download = true;
@@ -77,7 +92,7 @@ export function parseCompareImageQuery(query: URLSearchParams): { season: number
       return null;
     }
   }
-  return { season, download };
+  return raw === canonicalImageQuery(season, week, download) ? { season, download } : null;
 }
 
 /** The share page's path, order kept. */
@@ -104,9 +119,7 @@ export function compareCanonicalPath(a: string, b: string): string {
 export function compareImageHref(
   a: string, b: string, season: number, options: { week?: number | null; download?: boolean } = {},
 ): string {
-  const w = options.week;
-  const week = typeof w === "number" && Number.isInteger(w) && w >= 1 && w <= COMPARE_MAX_WEEK ? `&w=${w}` : "";
-  return `/api/compare-card/${a}/${b}?season=${season}${week}${options.download ? "&download=1" : ""}`;
+  return `/api/compare-card/${a}/${b}${canonicalImageQuery(season, compareWeek(options.week), options.download === true)}`;
 }
 
 /** The downloaded file's name. Only what the slug grammar allows survives: it goes into a header value. */
@@ -171,7 +184,8 @@ export function compareShareHeading(nameA: string, nameB: string, season: number
 
 /** C3: the season line of the sub-band. */
 export function compareSeasonLine(season: number, throughWeek: number | null): string {
-  return throughWeek != null ? `${season} season · Through Week ${throughWeek}` : `${season} season`;
+  const week = compareWeek(throughWeek);
+  return week !== null ? `${season} season · Through Week ${week}` : `${season} season`;
 }
 
 /** C7: one sentence per radar axis neither player has data for. */
@@ -320,8 +334,7 @@ export function buildCompareCard(input: {
   throughWeek: number | null;
 }): CompareCardModel {
   const { group, all, season } = input;
-  const throughWeek =
-    typeof input.throughWeek === "number" && Number.isInteger(input.throughWeek) && input.throughWeek >= 1 ? input.throughWeek : null;
+  const throughWeek = compareWeek(input.throughWeek);
   const rec = (p: CompareCardPlayerInput) => (p.row ?? {}) as unknown as Record<string, unknown>;
   const teamIdA = str(rec(input.a).team_id);
   const teamIdB = str(rec(input.b).team_id);

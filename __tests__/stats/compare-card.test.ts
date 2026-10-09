@@ -11,10 +11,11 @@ import {
   COMPARE_CARD_STAT_HEADER, COMPARE_FULL_LINK_TEXT, COMPARE_IMAGE_UNAVAILABLE, COMPARE_NOT_FOUND_TITLE,
   buildCompareCard, compareCanonicalPath, compareCardHref, compareCardPath, compareDownloadFilename, compareImageAlt,
   compareImageHref, compareMissingAxisNote, compareNameFontSize, compareNoStatsMessage, compareOvrText, comparePlotColors,
-  comparePreviewTitle, compareSeasonLine, compareShareDescription, compareShareHeading, compareShareTitle,
+  comparePreviewTitle, compareSeasonLine, compareWeek, compareShareDescription, compareShareHeading, compareShareTitle,
   compareStatCardHref, compareStatCardLinkText, compareToolHref, parseCompareImageQuery, parseCompareSlugs,
 } from "@/lib/stats/compare-card";
 import { buildQBCardData, buildWRCardData, buildRBCardData } from "@/lib/stats/tecmo-card";
+import { rawQueryOf, parseRadarImageQuery } from "@/lib/stats/team-radar";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import type { QBSeasonStat, ReceiverSeasonStat, RBSeasonStat } from "@/lib/types";
 // Real 2026 season rows through Week 4 (see the file's _provenance line).
@@ -84,7 +85,8 @@ describe("the share URL: two slugs, order kept", () => {
 });
 
 describe("the image route's query string: one exact form", () => {
-  const q = (s: string) => parseCompareImageQuery(new URLSearchParams(s));
+  // The route hands over the raw query string, "?" included ("" when the URL has none).
+  const q = (s: string) => parseCompareImageQuery(s === "" ? "" : `?${s}`);
 
   it("nothing, or season / w / download=1, once each", () => {
     expect(q("")).toEqual({ season: null, download: false });
@@ -105,6 +107,69 @@ describe("the image route's query string: one exact form", () => {
     "download=0", "download=true", "download=", "Download=1", "download=1&download=1",
   ])("anything else is no card (%s)", (s) => {
     expect(q(s)).toBeNull();
+  });
+});
+
+// Chaos R2: every spelling of a query string is its own CDN entry and its own
+// render of the same picture. Only the spelling the page itself prints is drawn.
+describe("the image route's query string: one SPELLING", () => {
+  it("the raw query of a URL, \"?\" included", () => {
+    expect(rawQueryOf("https://x/api/compare-card/a/b")).toBe("");
+    expect(rawQueryOf("https://x/api/compare-card/a/b?")).toBe("?");
+    expect(rawQueryOf("https://x/api/compare-card/a/b?season=2026&w=4")).toBe("?season=2026&w=4");
+    expect(rawQueryOf("https://x/a/b?season=2026#frag")).toBe("?season=2026");
+    expect(rawQueryOf("/api/compare-card/a/b?download=1")).toBe("?download=1");
+  });
+
+  it("accepted: no query at all, or season, w, download in the order the page prints them", () => {
+    for (const ok of ["", "?season=2026", "?season=2026&w=4", "?season=2026&w=4&download=1", "?season=2026&download=1", "?w=4", "?w=22&download=1", "?download=1"]) {
+      expect(parseCompareImageQuery(ok), ok).not.toBeNull();
+    }
+    expect(parseCompareImageQuery("?season=2025&w=18&download=1")).toEqual({ season: 2025, download: true });
+  });
+
+  it.each([
+    "?", "?&", "?&&&&", "?season=2026&", "?&season=2026", "?season=2026&&w=4", "?season=%32%30%32%36", "?season=2026&w=%34",
+    "?w=4&season=2026", "?download=1&season=2026", "?download=1&w=4", "?season=2026&download=1&w=4",
+    "?season=2026#", "?season=2026 ", "? season=2026", "?season=2026&w=4&", "?season=2026;w=4", "?season=+2026", "?w=04",
+  ])("refused, though it would parse to a valid card: %s", (raw) => {
+    expect(parseCompareImageQuery(raw)).toBeNull();
+  });
+
+  it("the team radar image route has the same rule when it is handed the raw string", () => {
+    for (const ok of ["", "?season=2026", "?season=2026&w=4", "?season=2026&w=4&download=1", "?season=2026&download=1", "?download=1"]) {
+      expect(parseRadarImageQuery(ok), ok).not.toBeNull();
+    }
+    for (const bad of ["?", "?&", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?w=4&season=2026", "?download=1&season=2026", "?x=1", "?season=1998"]) {
+      expect(parseRadarImageQuery(bad), bad).toBeNull();
+    }
+    expect(parseRadarImageQuery("?season=2025&w=3&download=1")).toEqual({ season: 2025, download: true });
+  });
+});
+
+// Chaos R4: a week no season can have must never be printed.
+describe("\"Through Week N\" only for a week a season can have (1-22)", () => {
+  it("compareWeek", () => {
+    expect([1, 4, 18, 22].map(compareWeek)).toEqual([1, 4, 18, 22]);
+    for (const bad of [0, 23, 99, 1_000_000_000, -1, 4.5, NaN, Infinity, null, undefined, "4", "x"]) {
+      expect(compareWeek(bad), String(bad)).toBeNull();
+    }
+  });
+
+  it.each([0, 23, 99, null, NaN, 4.5])("week %s: no week phrase on the card, in the sub-band, the description or the image URL", (week) => {
+    const m = card("QB", ALLEN, STAFFORD, TABLES.QB, week as number | null);
+    expect(m.throughWeek).toBeNull();
+    expect(m.seasonLine).toBe("2026 season");
+    expect(m.subBandLine).toBe("2026 season \u00b7 Radar: percentile among the 42 qualified quarterbacks (14+ pass attempts a game).");
+    expect(compareShareDescription(m)).toBe(
+      "Josh Allen (QB, Buffalo Bills) vs Matthew Stafford (QB, Los Angeles Rams), 2026: overlaid radar and head-to-head stats.");
+    expect(compareSeasonLine(2026, week as number | null)).toBe("2026 season");
+    expect(compareImageHref("a", "b", 2026, { week: week as number | null })).toBe("/api/compare-card/a/b?season=2026");
+  });
+
+  it("weeks 1 and 22 are printed", () => {
+    expect(card("QB", ALLEN, STAFFORD, TABLES.QB, 22).seasonLine).toBe("2026 season \u00b7 Through Week 22");
+    expect(compareSeasonLine(2026, 1)).toBe("2026 season \u00b7 Through Week 1");
   });
 });
 
@@ -223,7 +288,7 @@ describe("links", () => {
   it("every image link the page can print is one the route accepts", () => {
     for (const week of [null, 1, 4, 18, 22]) for (const download of [false, true]) {
       const href = compareImageHref("josh-allen", "matthew-stafford", 2026, { week, download });
-      expect(parseCompareImageQuery(new URL(href, "https://x").searchParams), href).not.toBeNull();
+      expect(parseCompareImageQuery(rawQueryOf(href)), href).not.toBeNull();
     }
   });
 

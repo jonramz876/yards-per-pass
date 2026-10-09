@@ -25,6 +25,7 @@ import { radarImageFonts, teamRadarCardImage, teamRadarPlateImage } from "@/lib/
 import {
   RADAR_IMAGE_UNAVAILABLE,
   parseRadarImageQuery,
+  rawQueryOf,
   parseRadarSide,
   parseRadarTeamId,
   radarDownloadFilename,
@@ -75,7 +76,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ team_id:
   const team = teamId ? getTeam(teamId) : undefined;
   if (!side || !team) return notFound(true);
 
-  const query = parseRadarImageQuery(new URL(req.url).searchParams);
+  const query = parseRadarImageQuery(rawQueryOf(req.url));
   if (!query) return notFound(true);
 
   let season: number;

@@ -157,6 +157,25 @@ describe("junk is a 404 before any read and before any render, kept by the CDN s
   });
 });
 
+// Chaos R2: every spelling of a query is its own CDN entry and its own render
+// of the same picture. Only the spelling the page prints is drawn.
+describe("another spelling of a valid query is junk too", () => {
+  it.each([
+    "?", "?&", "?&&&&", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?season=2026&w=%34",
+    "?w=4&season=2026", "?download=1&season=2026", "?season=2026&download=1&w=4", "?season=2026&&w=4",
+  ])("%s: the 404 the CDN keeps, no read, no render", async (query) => {
+    await expectNotFound(await get("josh-allen", "matthew-stafford", query), STORED);
+    expect(readCount()).toBe(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("the spellings the page prints are all drawn", async () => {
+    for (const query of ["", "?season=2026", "?season=2026&w=4", "?season=2026&download=1", "?season=2026&w=4&download=1"]) {
+      expect((await get("josh-allen", "matthew-stafford", query)).status, query).toBe(200);
+    }
+  });
+});
+
 describe("a real URL that is not a card", () => {
   it("two players of different position groups, or a kicker: 404 the CDN keeps (it can never be a card)", async () => {
     await expectNotFound(await get("josh-allen", "ceedee-lamb"), STORED);

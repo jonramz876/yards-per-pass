@@ -190,6 +190,22 @@ describe.each([["image", image], ["page", page]] as const)("the %s loader: every
   });
 });
 
+describe("a week no season can have (chaos R4)", () => {
+  it.each([0, 23, 99, null])("through_week %s in data_freshness: the card and the no-stats state carry no week", async (week) => {
+    vi.mocked(getSeasonWeeks).mockResolvedValue([{ season: 2026, through_week: week as number | null }, { season: 2025, through_week: 22 }]);
+    for (const load of [image, page]) {
+      clearCompareCardMemo();
+      const ready = await load("josh-allen", "matthew-stafford");
+      if (ready.state !== "ready") throw new Error(ready.state);
+      expect(ready.model.throughWeek).toBeNull();
+      expect(ready.model.seasonLine).toBe("2026 season");
+      const none = await load("josh-allen", "rookie-qb");
+      if (none.state !== "no-stats") throw new Error(none.state);
+      expect(none.throughWeek).toBeNull();
+    }
+  });
+});
+
 describe("the page loader's reads", () => {
   it("one wave of three (seasons and the two players), then the season table: four reads, none of the slug list", async () => {
     await page("josh-allen", "matthew-stafford");

@@ -5,7 +5,7 @@
 // button's file. Order is kept: /a/b draws A on the left, /b/a is its mirror.
 //
 // In order: (1) both slugs must fit the slug grammar and differ, and (2) the
-// query string must be the route's one exact form (parseCompareImageQuery),
+// query string must be the route's one exact form AND spelling (parseCompareImageQuery),
 // both before any read: about 850,000 ordered pairs are valid URLs and every
 // distinct URL is its own CDN entry and its own render, so junk gets a 404 the
 // CDN keeps for an hour instead of a picture. (3)-(5) Seasons, the slug list
@@ -18,6 +18,7 @@
 import { ImageResponse } from "next/og";
 import { loadCompareCardForImage, type CompareCardLoad } from "@/lib/data/compare-card";
 import { radarImageFonts } from "@/lib/og/team-radar-image";
+import { rawQueryOf } from "@/lib/stats/team-radar";
 import { compareCardImage, comparePlateImage } from "@/lib/og/compare-card-image";
 import {
   COMPARE_IMAGE_UNAVAILABLE,
@@ -66,7 +67,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ a: strin
   const slugs = parseCompareSlugs(raw?.a, raw?.b);
   if (!slugs) return notFound(true);
 
-  const query = parseCompareImageQuery(new URL(req.url).searchParams);
+  const query = parseCompareImageQuery(rawQueryOf(req.url));
   if (!query) return notFound(true);
 
   let card: CompareCardLoad;

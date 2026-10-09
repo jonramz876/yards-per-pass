@@ -26,7 +26,7 @@ import { getPlayerBySlug, getPlayerSlugIndex, type PlayerSlugEntry } from "@/lib
 import { memoised } from "@/lib/data/team-radar-card";
 import { hasNoDatabase } from "@/lib/supabase/server";
 import { compareGroup, type CompareGroup, type ComparePlayerRow } from "@/lib/stats/compare";
-import { buildCompareCard, compareNoStatsMessage, type CompareCardModel } from "@/lib/stats/compare-card";
+import { buildCompareCard, compareNoStatsMessage, compareWeek, type CompareCardModel } from "@/lib/stats/compare-card";
 
 /** A player as both loaders know him. */
 export interface ComparePlayerRef {
@@ -87,7 +87,8 @@ function resolveSeason(
   const defaultSeason = weeks[0]?.season ?? fallbackSeason();
   const season = requested ?? defaultSeason;
   const row = weeks.find((w) => w.season === season);
-  return { season, defaultSeason, throughWeek: row?.through_week ?? null, listed: row !== undefined };
+  // A week no season can have (bad data) is no week: it is never printed and never sent as `w`.
+  return { season, defaultSeason, throughWeek: compareWeek(row?.through_week), listed: row !== undefined };
 }
 
 /** Everything after the players are known: the group check, the season table, the state. */

@@ -657,6 +657,19 @@ export function parseRadarTeamId(raw: string | null | undefined): string | null 
 }
 
 /**
+ * The query string of a URL exactly as it was typed, "?" included; "" when the
+ * URL has none. `new URL(...).search` cannot be used for this: it is "" for a
+ * bare "?" as well.
+ */
+export function rawQueryOf(url: string): string {
+  const text = String(url ?? "");
+  const hash = text.indexOf("#");
+  const path = hash === -1 ? text : text.slice(0, hash);
+  const q = path.indexOf("?");
+  return q === -1 ? "" : path.slice(q);
+}
+
+/**
  * The image route's query string, or null for anything but its one exact
  * form (chaos R1). Every distinct URL is its own CDN entry and its own
  * render, so the route draws only for: no query, or `season` (four digits,
@@ -664,13 +677,22 @@ export function parseRadarTeamId(raw: string | null | undefined): string | null 
  * URL) and `download=1`, each at most once and no other key. The share page
  * keeps the site-wide rule (a junk ?season= is the newest season); the image
  * never draws the newest season's card under a junk URL.
+ *
+ * Handed the RAW query string (rawQueryOf(req.url), which is what the route
+ * passes), it also refuses every other SPELLING of a valid query (compare card
+ * PR 2, chaos R2): "?", "?&", a trailing "&", percent-encoded digits, the keys
+ * in another order. Only what the share page itself prints is accepted:
+ * season, then w, then download.
  */
-export function parseRadarImageQuery(query: URLSearchParams): { season: number | null; download: boolean } | null {
+export function parseRadarImageQuery(query: URLSearchParams | string): { season: number | null; download: boolean } | null {
+  const raw = typeof query === "string" ? query : null;
+  const params = typeof query === "string" ? new URLSearchParams(query) : query;
   const seen = new Set<string>();
   let season: number | null = null;
+  let week: string | null = null;
   let download = false;
   // Array.from: a URLSearchParams lists a repeated key once per value.
-  for (const [key, value] of Array.from(query.entries())) {
+  for (const [key, value] of Array.from(params.entries())) {
     if (seen.has(key)) return null;
     seen.add(key);
     if (key === "season") {
@@ -679,6 +701,7 @@ export function parseRadarImageQuery(query: URLSearchParams): { season: number |
       if (season === null) return null;
     } else if (key === "w") {
       if (!/^\d{1,2}$/.test(value)) return null;
+      week = value;
     } else if (key === "download") {
       if (value !== "1") return null;
       download = true;
@@ -686,7 +709,18 @@ export function parseRadarImageQuery(query: URLSearchParams): { season: number |
       return null;
     }
   }
+  if (raw !== null && raw !== canonicalImageQuery(season, week, download)) return null;
   return { season, download };
+}
+
+/** The one spelling of an image query: "" for none, else "?" + season, w, download in that order. */
+export function canonicalImageQuery(season: number | null, week: string | number | null, download: boolean): string {
+  const parts = [
+    ...(season === null ? [] : [`season=${season}`]),
+    ...(week === null ? [] : [`w=${week}`]),
+    ...(download ? ["download=1"] : []),
+  ];
+  return parts.length === 0 ? "" : `?${parts.join("&")}`;
 }
 
 export function radarSideSlug(side: RadarSide): "offense" | "defense" {

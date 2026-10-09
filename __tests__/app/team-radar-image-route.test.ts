@@ -101,6 +101,27 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
+// Compare card PR 2, chaos R2: the same weakness was here. A query that
+// parses to a valid card but is spelled another way is its own CDN entry and
+// its own render; only the spelling the share page prints is drawn.
+describe("another spelling of a valid query is a 404 the CDN keeps, with no read", () => {
+  it.each(["?", "?&", "?season=2026&", "?&season=2026", "?season=%32%30%32%36", "?w=4&season=2026", "?download=1&season=2026", "?season=2026&&w=4"])(
+    "%s",
+    async (query) => {
+      const res = await get("BUF", "offense", query);
+      expect(res.headers.get("cache-control")).toBe(JUNK_CACHE);
+      await expectNotFound(res);
+      noRead();
+    },
+  );
+
+  it("the spellings the share page prints are all drawn", async () => {
+    for (const query of ["", "?season=2026", "?season=2026&w=3", "?season=2026&download=1", "?season=2026&w=3&download=1"]) {
+      expect((await get("BUF", "offense", query)).status, query).toBe(200);
+    }
+  });
+});
+
 describe("route config", () => {
   it("runs on Node (the fonts are read with fs) and is never cached by Next itself", () => {
     expect(route.runtime).toBe("nodejs");
