@@ -46,9 +46,9 @@ import {
 
 // ------------------------------------------------------------------ fonts
 /** Press Start 2P: the band, the plate and the site line (the family name the player card registers too). */
-const PIXEL = "PressStart";
+export const PIXEL = "PressStart";
 /** The readable font for labels, the table and the footer. */
-const SANS = "RadarSans";
+export const SANS = "RadarSans";
 
 /**
  * Where the readable font is read from, relative to the deployment root: the
