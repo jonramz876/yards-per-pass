@@ -157,7 +157,8 @@ function BandHalf({ player, side }: { player: CompareCardPlayer; side: "a" | "b"
       </div>
       <div
         data-compare-ovr={side}
-        className={`${PIXEL} flex-none rounded-md bg-white px-2 pb-1 pt-2 text-center text-slate-900 sm:px-3 ${right ? "mr-5 sm:mr-8" : "ml-5 sm:ml-8"}`}
+        // The margin is on the seam side: it keeps the badge clear of the VS block that sits on the seam.
+        className={`${PIXEL} flex-none rounded-md bg-white px-2 pb-1 pt-2 text-center text-slate-900 sm:px-3 ${right ? "ml-4 sm:ml-6" : "mr-4 sm:mr-6"}`}
       >
         <div className="text-[13px] sm:text-[20px]">{compareOvrText(player.ovr)}</div>
         <div className="mt-1 text-[6px] sm:text-[8px]">{COMPARE_OVR_LABEL}</div>
