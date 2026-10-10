@@ -2037,3 +2037,31 @@ describe("PR 2 copy: M17 and the ties sentence", () => {
     expect(M.MATCHUP_TIES_NOTE).not.toContain("'");
   });
 });
+
+describe("gameWeekLabel (PR 2, for the header): the week, or the playoff round", () => {
+  const g = (over: Partial<Game> = {}) => game(over);
+  it("a regular-season game is \"Week N\"", () => {
+    expect(M.gameWeekLabel(g({ game_type: "REG", week: 5 }))).toBe("Week 5");
+    expect(M.gameWeekLabel(g({ game_type: "REG", week: 18 }))).toBe("Week 18");
+  });
+  it("a playoff game is its round's name (the names currentSlate uses)", () => {
+    expect(M.gameWeekLabel(g({ game_type: "WC", week: 19 }))).toBe("Wild Card");
+    expect(M.gameWeekLabel(g({ game_type: "DIV", week: 20 }))).toBe("Divisional");
+    expect(M.gameWeekLabel(g({ game_type: "CON", week: 21 }))).toBe("Conference Championship");
+    expect(M.gameWeekLabel(g({ game_type: "SB", week: 22 }))).toBe("Super Bowl");
+  });
+  it("an empty, null or lower-case game_type goes through normalizeGameType, like every other reader", () => {
+    expect(M.gameWeekLabel(g({ game_type: "", week: 3 }))).toBe("Week 3");
+    expect(M.gameWeekLabel(g({ game_type: null as never, week: 3 }))).toBe("Week 3");
+    expect(M.gameWeekLabel(g({ game_type: "reg", week: 3 }))).toBe("Week 3");
+    expect(M.gameWeekLabel(g({ game_type: "sb", week: 22 }))).toBe("Super Bowl");
+  });
+  it("no usable week, or no game: an empty string, never \"Week NaN\"", () => {
+    for (const week of [null, undefined, NaN, "5", Infinity]) {
+      expect(M.gameWeekLabel(g({ game_type: "REG", week: week as never }))).toBe("");
+    }
+    expect(M.gameWeekLabel(null as never)).toBe("");
+    expect(M.gameWeekLabel(undefined as never)).toBe("");
+    expect(M.gameWeekLabel("game" as never)).toBe("");
+  });
+});
