@@ -322,7 +322,14 @@ describe("MATCHUP_CARD_LAYOUT (§6.3)", () => {
     expect(L.half * 2).toBe(L.width);
     expect(L.seam).toEqual({ left: 568, top: 11, width: 64, height: 54 });
     expect(L.seam.left + L.seam.width / 2).toBe(L.width / 2);
-    expect([L.subLineMaxWidth, L.subLineMaxWidthAlone, L.plateMessageWidth, L.paneMessageWidth]).toEqual([500, 900, 900, 460]);
+    expect([L.subLineMaxWidth, L.subLineMaxWidthAlone, L.plateMessageWidth, L.paneMessageWidth]).toEqual([512, 900, 900, 460]);
+    // at their caps the three sub-band items still cannot meet: 512 + K4's 432 + the site name's 160 = 1,104 of 1,120
+    expect(L.subLineMaxWidth + 432 + 160).toBeLessThanOrEqual(L.width - 2 * L.padX);
+  });
+
+  it("the markers as drawn (chaos F3: the clearance test below stands on these)", () => {
+    expect(L.marker).toEqual({ dot: 6, dotStroke: 1.3, square: 5.5, squareStroke: 2.6 });
+    expect(L.marker.dot).toBe(C.MATCHUP_CARD_RADAR.dot);
   });
 
   it("the radar geometry", () => {
@@ -515,13 +522,31 @@ describe("buildMatchupCard: the card (§6.1)", () => {
   it("the band: upper-cased names, their size, the card colours, readable text, the rule, the record", () => {
     expect(CARD.band.away).toEqual({
       id: "BUF", name: "BUFFALO BILLS", nameSize: 24, color: CARD.colours.away,
-      textColor: textColorForBackground(CARD.colours.away), ruleColor: CARD.colours.awayRule, meta: "2-1 · away",
+      textColor: textColorForBackground(CARD.colours.away).toUpperCase(), ruleColor: CARD.colours.awayRule, meta: "2-1 · away",
     });
     expect(CARD.band.home).toEqual({
       id: "HOU", name: "HOUSTON TEXANS", nameSize: 24, color: CARD.colours.home,
-      textColor: textColorForBackground(CARD.colours.home), ruleColor: CARD.colours.homeRule, meta: "1-1-1 · home",
+      textColor: textColorForBackground(CARD.colours.home).toUpperCase(), ruleColor: CARD.colours.homeRule, meta: "1-1-1 · home",
     });
     expect(CARD.band.seam).toBe("AT");
+  });
+
+  it("every colour in the model is upper-case #RRGGBB, the band text too (review nit 9); band text is ink on a light card colour", () => {
+    const seen = new Set<string>();
+    for (const a of NFL_TEAMS) {
+      const h = a.id === "BUF" ? "HOU" : "BUF";
+      for (const [x, y] of [[a.id, h], [h, a.id]]) {
+        const c = asCard(card(load({ awayId: x, homeId: y }), x, y));
+        for (const half of [c.band.away, c.band.home]) {
+          for (const hex of [half.color, half.textColor, half.ruleColor]) expect(hex, `${x} at ${y}`).toMatch(/^#[0-9A-F]{6}$/);
+          expect(["#FFFFFF", "#0F172A"]).toContain(half.textColor);
+          seen.add(half.textColor);
+        }
+        for (const p of c.panes) for (const hex of [p.offColor, p.defColor]) expect(hex).toMatch(/^#[0-9A-F]{6}$/);
+      }
+    }
+    // chaos F12: not always white
+    expect(Array.from(seen).sort()).toEqual(["#0F172A", "#FFFFFF"]);
   });
 
   it("seven labels per pane in RADAR_AXES order, named as the overlay names them, at the pinned boxes", () => {
@@ -758,9 +783,77 @@ describe("buildMatchupCard: missing spokes and panes that cannot be drawn (§6.1
     expect(p.alt).toBe(c.alt);
     expect(p.description).toBe(p.message);
     expect(Object.keys(p).sort()).toEqual(
-      ["alt", "band", "colours", "defaultSeason", "description", "hasGame", "kind", "message", "previewTitle", "season", "throughWeek", "title"],
+      ["alt", "band", "colours", "defaultSeason", "description", "hasGame", "kind", "message", "previewTitle", "reason", "season", "throughWeek", "title"],
     );
     assertPlain(p);
+  });
+
+  it("a plate says why it is one, so the image route can tell a real plate from an unavailable one (review nit 5)", () => {
+    const base = load();
+    const few = ROWS.filter((r) => r.game_id === "2026_01_BUF_HOU");
+    const zeroed = ROWS.map((r) => (r.team_id === "BUF" || r.team_id === "HOU" ? { ...r, pass_plays: 0, attempts: 0, sacks: 0, total_drives: 0 } : r));
+    const noBuf = ROWS.filter((r) => r.team_id !== "BUF" && r.opponent_id !== "BUF");
+    expect(asPlate(card({ ...load({ rows: few }), state: "small-pool" } as MatchupLoad)).reason).toBe("small-pool");
+    expect(asPlate(card({ ...base, state: "uncovered", model: null, firstSeason: 2026, season: 2025 } as MatchupLoad)).reason).toBe("uncovered");
+    expect(asPlate(card(load({ rows: zeroed }))).reason).toBe("no-radar");
+    expect(asPlate(card(load({ rows: noBuf }))).reason).toBe("no-radar");
+    expect(asPlate(card(load({ gamesAvailable: false, game: null, records: null }))).reason).toBe("unavailable");
+    expect(asPlate(card({ ...base, model: null } as never)).reason).toBe("unavailable");
+    // unavailable wins over every state: such a plate must never be stored
+    expect(asPlate(card({ ...base, state: "uncovered", model: null, firstSeason: 2026, gamesAvailable: false } as MatchupLoad)).reason).toBe("unavailable");
+  });
+
+  it("the model's two teams must be the two teams passed, in that order: else the unavailable plate (review should-fix 2)", () => {
+    const l = load({ awayId: "BUF", homeId: "HOU" });
+    expect(asPlate(card(l, "HOU", "BUF"))).toMatchObject({ reason: "unavailable", message: C.MATCHUP_CARD_UNAVAILABLE });
+    expect(asPlate(card(l, "BUF", "LA")).reason).toBe("unavailable");
+    expect(asPlate(card(l, "LA", "HOU")).reason).toBe("unavailable");
+    expect(card(l, "BUF", "HOU").kind).toBe("card");
+  });
+
+  it("a game row that is not this pair in this order is no game: VS, no venue, no score (chaos F10)", () => {
+    for (const other of [
+      game({ away_team: "HOU", home_team: "BUF", away_score: 24, home_score: 16 }),
+      game({ away_team: "BUF", home_team: "LA" }),
+      game({ away_team: "buf", home_team: "HOU" }),
+      game({ away_team: "BUF ✓", home_team: "HOU" }),
+      {} as MatchupGame,
+    ]) {
+      const c = asCard(card(load({ game: other })));
+      expect(c.hasGame).toBe(false);
+      expect(c.band.seam).toBe("VS");
+      expect(c.band.away.meta).toBe("2-1");
+      expect(c.subLine).toBe("No 2026 game between these teams · 2026 through Week 3");
+      expect(c.title).toContain(" vs ");
+    }
+  });
+
+  it("nothing from a game row reaches the card unchecked: an unknown game type prints no round name, an impossible week no week", () => {
+    const pre = asCard(card(load({ game: game({ game_type: "PRE" }) })));
+    expect(pre.subLine).toBe("Thu Oct 8 · 8:15 PM ET · 2026 through Week 3");
+    expect(pre.hasGame).toBe(true);
+    expect(pre.showHowTo).toBe(true);
+    for (const game_type of ["PRÉ-SAISON ✓", "x".repeat(300), "<b>", "POST"]) {
+      const c = asCard(card(load({ game: game({ game_type }) })));
+      expect(c.subLine, game_type).toBe("Thu Oct 8 · 8:15 PM ET · 2026 through Week 3");
+    }
+    for (const week of [0, 23, 1.5, -1, NaN, "5" as never]) {
+      expect(asCard(card(load({ game: game({ week }) }))).subLine, String(week)).toBe("Thu Oct 8 · 8:15 PM ET · 2026 through Week 3");
+    }
+    // the four playoff rounds and a regular-season week are the only names there are
+    expect(C.matchupCardSubLine({ game: game({ game_type: "SB", week: 22 }), season: 2026, throughWeek: 18 })).toBe(
+      "Super Bowl · Thu Oct 8 · 8:15 PM ET · 2026 through Week 18",
+    );
+    expect(C.matchupCardSubLine({ game: game({ week: 22 }), season: 2026, throughWeek: 18 })).toBe("Week 22 · Thu Oct 8 · 8:15 PM ET · 2026 through Week 18");
+  });
+
+  it("the Final line prints team ids as letters only, whatever the row holds (the builder only ever passes the two validated ids)", () => {
+    const line = C.matchupCardSubLine({
+      game: game({ away_team: "B<U>F✓", home_team: "ho\nu", away_score: 24, home_score: 16 }), season: 2026, throughWeek: 5,
+    });
+    expect(line).toBe("Week 5 · Thu Oct 8 · Final: BUF 24, HOU 16 · 2026 through Week 5");
+    const played = asCard(card(load({ game: game({ away_score: 24, home_score: 16 }) })));
+    expect(played.subLine).toContain("Final: BUF 24, HOU 16");
   });
 
   it("never throws on a load that is not what it should be", () => {
@@ -781,6 +874,166 @@ describe("buildMatchupCard: missing spokes and panes that cannot be drawn (§6.1
     const whole: MatchupLoad = load();
     const part: MatchupCardLoad = whole;
     expect(card(part)).toEqual(card(whole));
+  });
+});
+
+/* ─── After the PR 1 code review and chaos pass ─── */
+
+describe("a short pool (review should-fix 1: spec F7 and F8 held with a pool of 31)", () => {
+  const G = C.MATCHUP_CARD_RADAR;
+  // BUF's offense has no turnover rate and no stuff rate, so the other 31 offenses are a pool of 31 on those two spokes
+  const rows = ROWS.map((r) => (r.team_id === "BUF" ? { ...r, designed_runs: null, total_drives: 0 } : r));
+  const STUFF = RADAR_AXES.findIndex((a) => a.key === "stuff");
+  const TO = RADAR_AXES.findIndex((a) => a.key === "to");
+
+  it("the vertex is at (pool − rank) / (pool − 1) of its own pool, not the 32-based point, and the label has no 'of N'", () => {
+    let checked = 0;
+    for (const t of NFL_TEAMS.filter((x) => x.id !== "BUF")) {
+      const l = load({ rows, awayId: t.id, homeId: "BUF" });
+      const m = l.model as MatchupModel;
+      expect(m.teamsPlayed).toBe(32);
+      const pane = drawn(asCard(card(l, t.id, "BUF")).panes[0]);
+      for (const i of [STUFF, TO]) {
+        const spoke = m.awayBall!.overlay.off!.spokes[i];
+        expect(spoke.pool, `${t.id} ${spoke.key}`).toBe(31);
+        const rank = spoke.rank as number;
+        const v = pane.off.find((x) => x.key === spoke.key)!;
+        const [x, y] = radarPoint(G, G.r * radarRadius((31 - rank) / 30), i);
+        expect(v.x).toBeCloseTo(x, 9);
+        expect(v.y).toBeCloseTo(y, 9);
+        const label = pane.labels[i].offLine;
+        expect(label).toBe(`${fmtRadarPct(spoke.value)} · ${spokeRankLabel(spoke)}`);
+        expect(label).not.toContain(" of ");
+        if (rank > 1) {
+          const [x32, y32] = radarPoint(G, G.r * radarRadius((32 - rank) / 31), i);
+          expect(Math.hypot(v.x - x32, v.y - y32), `${t.id} ${spoke.key} rank ${rank}`).toBeGreaterThan(0.05);
+          checked += 1;
+        }
+      }
+    }
+    // most of the 62 spokes are not ranked 1st, so the two radii really were told apart
+    expect(checked).toBeGreaterThan(30);
+  });
+});
+
+describe("one rule for a missing spoke (chaos F2): no value, no rank or no score = a dash AND no vertex", () => {
+  const SACK = RADAR_AXES.findIndex((a) => a.key === "sack");
+  const withSpoke = (patch: Record<string, unknown>) => {
+    const l = load();
+    const m = JSON.parse(JSON.stringify(l.model)) as MatchupModel;
+    Object.assign(m.awayBall!.overlay.off!.spokes[SACK], patch);
+    return drawn(asCard(card({ ...l, model: m } as MatchupLoad)).panes[0]);
+  };
+
+  it("an untouched spoke has both", () => {
+    const p = withSpoke({});
+    expect(p.off.some((v) => v.key === "sack")).toBe(true);
+    expect(p.labels[SACK].offLine).not.toBe(DASH);
+  });
+
+  it.each([
+    ["rank null", { rank: null }],
+    ["score null", { score: null }],
+    ["value null", { value: null }],
+    ["value NaN", { value: NaN }],
+    ["value Infinity", { value: Infinity }],
+    ["value a string", { value: "0.5" }],
+    ["value undefined", { value: undefined }],
+    ["rank NaN", { rank: NaN }],
+    ["rank a string", { rank: "3" }],
+    ["rank undefined", { rank: undefined }],
+    ["score NaN", { score: NaN }],
+    ["score Infinity", { score: Infinity }],
+    ["score a string", { score: "0.5" }],
+    ["score undefined", { score: undefined }],
+  ])("%s: a dash and no vertex", (_name, patch) => {
+    const p = withSpoke(patch);
+    expect(p.labels[SACK].offLine).toBe(DASH);
+    expect(p.off.some((v) => v.key === "sack")).toBe(false);
+    expect(p.off).toHaveLength(6);
+    // the defense line of the same spoke is another team's and is untouched
+    expect(p.labels[SACK].defLine).not.toBe(DASH);
+    expect(p.def.some((v) => v.key === "sack")).toBe(true);
+    assertPlain(p);
+  });
+
+  it("a score outside 0-1 is clamped, as on the page's chart", () => {
+    const G = C.MATCHUP_CARD_RADAR;
+    const over = withSpoke({ score: 1.5 }).off.find((v) => v.key === "sack")!;
+    expect(Math.hypot(over.x - G.cx, over.y - G.cy)).toBeCloseTo(G.r, 9);
+    const under = withSpoke({ score: -2 }).off.find((v) => v.key === "sack")!;
+    expect(Math.hypot(under.x - G.cx, under.y - G.cy)).toBeCloseTo(G.r * RADAR_HUB, 9);
+  });
+
+  it("a label's name never falls back to the radar's own axis name ('Sack rate'): the card's words are the overlay's (review nit 6)", () => {
+    const l = load();
+    const m = JSON.parse(JSON.stringify(l.model)) as MatchupModel;
+    m.awayBall!.overlay.spokes = [];
+    const p = drawn(asCard(card({ ...l, model: m } as MatchupLoad)).panes[0]);
+    expect(p.labels.map((x) => x.name)).toEqual(["Explosive pass", "Pass success", "Sacks", "Turnovers", "Stuffs", "Run success", "Explosive run"]);
+  });
+});
+
+describe("markers and label boxes (chaos F3): the tightest spot on the card", () => {
+  const G = C.MATCHUP_CARD_RADAR;
+  const K = C.MATCHUP_CARD_LAYOUT.marker;
+  const BOXES = C.MATCHUP_CARD_LABEL_BOXES;
+
+  it("at every rank of every pool from 1 to 40, no marker comes within 1 px of any label box", () => {
+    // as drawn: the fill plus half the stroke
+    const squareHalf = K.square + K.squareStroke / 2;
+    const dotRadius = K.dot + K.dotStroke / 2;
+    let square = { d: Infinity, spoke: -1, box: -1, rank: 0 };
+    let dot = { d: Infinity, spoke: -1, box: -1, rank: 0 };
+    for (let pool = 1; pool <= 40; pool += 1) {
+      for (let rank = 1; rank <= pool; rank += 1) {
+        const score = pool === 1 ? 1 : (pool - rank) / (pool - 1);
+        for (let i = 0; i < 7; i += 1) {
+          const [x, y] = radarPoint(G, G.r * radarRadius(score), i);
+          BOXES.forEach((b, j) => {
+            const dx = Math.max(b.left - x, 0, x - (b.left + b.width));
+            const dy = Math.max(b.top - y, 0, y - (b.top + b.height));
+            const sq = Math.hypot(Math.max(dx - squareHalf, 0), Math.max(dy - squareHalf, 0));
+            const dt = Math.hypot(dx, dy) - dotRadius;
+            if (sq < square.d) square = { d: sq, spoke: i, box: j, rank };
+            if (dt < dot.d) dot = { d: dt, spoke: i, box: j, rank };
+          });
+        }
+      }
+    }
+    expect(square.d).toBeGreaterThanOrEqual(1);
+    expect(dot.d).toBeGreaterThanOrEqual(1);
+    // a defense square at 1st on Pass success (or Explosive run), against that spoke's own box: 1.02 px
+    expect(square.d).toBeCloseTo(1.02, 2);
+    expect([1, 6]).toContain(square.spoke);
+    expect(square.box).toBe(square.spoke);
+    expect(square.rank).toBe(1);
+    // an offense dot at 1st on Sacks (or Run success): 3.10 px
+    expect(dot.d).toBeCloseTo(3.1, 2);
+    expect([2, 5]).toContain(dot.spoke);
+  });
+});
+
+describe("matchupCardImageHref never prints a season its own parser refuses (chaos F5)", () => {
+  it.each([[1998], [2101], [0], [-2026], [2026.5], [NaN], [Infinity], [1e21], [null], [undefined], ["2026"], [{}]])(
+    "season %s is left out, and what is printed parses",
+    (season) => {
+      for (const week of [null, 5]) {
+        for (const download of [false, true]) {
+          const href = C.matchupCardImageHref("BUF", "LA", season as never, { week, download });
+          expect(href).not.toContain("season");
+          expect(href).not.toMatch(/undefined|NaN|Infinity|null/);
+          expect(C.parseMatchupImageQuery(rawQueryOf(href)), href).toEqual({ season: null, download });
+        }
+      }
+    },
+  );
+
+  it("a real season is printed as before, and options may be null", () => {
+    for (const season of [1999, 2025, 2026, 2100]) {
+      expect(C.matchupCardImageHref("BUF", "LA", season, { week: 5 })).toBe(`/api/matchup-card/BUF/LA?season=${season}&w=5`);
+    }
+    expect(C.matchupCardImageHref("BUF", "LA", 2026, null as never)).toBe("/api/matchup-card/BUF/LA?season=2026");
   });
 });
 
@@ -862,21 +1115,55 @@ describe("text fit at real glyph widths (§6.3, §6.4; 6 px to spare)", () => {
     expect(SANS.width("12-4-1 · home", 16) + SPARE).toBeLessThanOrEqual(L.nameBox.width);
   });
 
-  it("the sub-band: the widest regular-season K3, K4 and the site name fit in 1,120 with room between them", () => {
-    const k3 = C.matchupCardSubLine({ game: WORST_REG_GAME, season: 2026, throughWeek: 18 });
-    expect(k3).toBe("Week 18 · Sat Jan 10 · Final: WAS 38, NYG 35 · 2026 through Week 18");
+  it("the sub-band: the WIDEST regular-season K3 there can be, K4 and the site name fit in 1,120 with 12 px to spare each way (chaos F1)", () => {
+    // Searched, not guessed: every weekday, every month, every ordered pair of the 32 ids, a played and an
+    // unplayed game. Digits are all one width in this font (asserted), so one two-digit week, day and score
+    // stands for all of them, and the widest week / through-week is any two-digit one.
+    const digit = SANS.width("0", 15);
+    for (const d of "123456789") expect(SANS.width(d, 15)).toBe(digit);
+    const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const ids = NFL_TEAMS.map((t) => t.id);
+    let widest = { w: 0, text: "" };
+    let widestInSeason = { w: 0, text: "" };
+    let widestUnplayed = 0;
+    for (const weekday of WEEKDAYS) {
+      for (let month = 1; month <= 12; month += 1) {
+        const gameday = `2026-${String(month).padStart(2, "0")}-28`;
+        const unplayed = C.matchupCardSubLine({ game: game({ week: 18, gameday, weekday, gametime: "12:30" }), season: 2026, throughWeek: 18 });
+        widestUnplayed = Math.max(widestUnplayed, SANS.width(unplayed, 15));
+        for (const away_team of ids) {
+          for (const home_team of ids) {
+            if (away_team === home_team) continue;
+            const text = C.matchupCardSubLine({
+              game: game({ week: 18, gameday, weekday, away_team, home_team, away_score: 38, home_score: 35 }), season: 2026, throughWeek: 18,
+            });
+            const w = SANS.width(text, 15);
+            if (w > widest.w) widest = { w, text };
+            // the months a regular season is played in
+            if ([9, 10, 11, 12, 1].includes(month) && w > widestInSeason.w) widestInSeason = { w, text };
+          }
+        }
+      }
+    }
+    expect(widest.text).toBe("Week 18 · Mon May 28 · Final: HOU 38, WAS 35 · 2026 through Week 18");
+    expect(widest.w).toBeCloseTo(498.5, 1);
+    expect(widestInSeason.text).toBe("Week 18 · Mon Nov 28 · Final: HOU 38, WAS 35 · 2026 through Week 18");
+    expect(widestInSeason.w).toBeCloseTo(496.9, 1);
+    // the pair the spec first named is 19 px narrower
+    expect(SANS.width(C.matchupCardSubLine({ game: WORST_REG_GAME, season: 2026, throughWeek: 18 }), 15)).toBeCloseTo(477.7, 1);
+    expect(widestUnplayed).toBeLessThan(widest.w);
+    expect(SANS.width(C.matchupCardSubLine({ game: null, season: 2026, throughWeek: 18 }), 15)).toBeLessThan(widest.w);
+
     const available = L.width - 2 * L.padX;
     expect(available).toBe(1120);
-    const w3 = SANS.width(k3, 15);
     const w4 = SANS.width(C.MATCHUP_CARD_HOW_TO, 15);
     const site = PIXEL.width(C.MATCHUP_CARD_SITE_NAME, 10);
-    expect(w3).toBeCloseTo(477.7, 1);
     expect(w4).toBeCloseTo(432.0, 1);
     expect(site).toBe(160);
-    expect(w3 + SPARE).toBeLessThanOrEqual(L.subLineMaxWidth);
-    expect(w3 + w4 + site + 2 * SPARE).toBeLessThanOrEqual(available);
-    // the no-game form and an unplayed game are narrower
-    expect(SANS.width(C.matchupCardSubLine({ game: null, season: 2026, throughWeek: 18 }), 15)).toBeLessThan(w3);
+    const WIDE_SPARE = 12;
+    // in its own box, and between the three items of the row
+    expect(widest.w + WIDE_SPARE).toBeLessThanOrEqual(L.subLineMaxWidth);
+    expect(widest.w + w4 + site + 2 * WIDE_SPARE).toBeLessThanOrEqual(available);
   });
 
   it("a playoff K3 does not fit beside K4, which is why it is dropped; alone it fits its 900 px", () => {
