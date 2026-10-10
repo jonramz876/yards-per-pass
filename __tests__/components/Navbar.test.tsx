@@ -11,6 +11,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 vi.mock("@/components/search/SearchPalette", () => ({ default: () => null }));
+// The sheet is a portal that renders nothing while closed; stand in for it so
+// the mobile list can be read.
+vi.mock("@/components/ui/sheet", () => ({
+  Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetTrigger: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  SheetContent: ({ children }: { children: React.ReactNode }) => <div data-sheet-content>{children}</div>,
+}));
 
 import Navbar from "@/components/layout/Navbar";
 
@@ -23,17 +30,47 @@ function desktopLinks(pathname = "/", query = "") {
   return { row, links: Array.from(row.querySelectorAll("a")) };
 }
 
+/** The mobile sheet's links (the sheet is mocked open: its content renders inline). */
+function mobileLinks(pathname = "/", query = "") {
+  nav.pathname = pathname;
+  nav.params = new URLSearchParams(query);
+  const { container } = render(<Navbar />);
+  const sheet = container.querySelector("[data-sheet-content]");
+  if (!sheet) throw new Error("no mobile sheet");
+  return Array.from(sheet.querySelectorAll("a"));
+}
+
 beforeEach(() => {
   nav.pathname = "/";
   nav.params = new URLSearchParams();
 });
 
 describe("Navbar", () => {
-  it("lists Team Tiers, Team Stats, Passing, … in that order", () => {
+  it("lists Team Tiers, Team Stats, Matchups, Passing, … in that order (ten labels)", () => {
     const { links } = desktopLinks();
     expect(links.map((a) => a.textContent)).toEqual([
-      "Team Tiers", "Team Stats", "Passing", "Receiving", "Rushing", "Run Gaps", "Trends", "Compare", "Glossary",
+      "Team Tiers", "Team Stats", "Matchups", "Passing", "Receiving", "Rushing", "Run Gaps", "Trends", "Compare", "Glossary",
     ]);
+  });
+
+  it("Matchups → /matchup, right after Team Stats, and never carries ?season= (the index is always the newest season)", () => {
+    expect(desktopLinks().links[2].getAttribute("href")).toBe("/matchup");
+    expect(desktopLinks("/rushing", "season=2025").links[2].getAttribute("href")).toBe("/matchup");
+    expect(mobileLinks("/rushing", "season=2025").find((a) => a.textContent === "Matchups")?.getAttribute("href")).toBe("/matchup");
+  });
+
+  it.each(["/matchup", "/matchup/BUF/LA"])("Matchups is active on %s in BOTH the desktop row and the mobile sheet", (path) => {
+    const desk = desktopLinks(path).links;
+    expect(desk[2].className).toContain("text-navy font-semibold");
+    expect(desk.filter((a) => a.className.includes("font-semibold")).map((a) => a.textContent)).toEqual(["Matchups"]);
+    const mobile = mobileLinks(path);
+    expect(mobile.filter((a) => a.className.split(/\s+/).includes("text-navy")).map((a) => a.textContent)).toEqual(["Matchups"]);
+  });
+
+  it("a child path does not light up a link that merely shares a prefix (/team-stats is not under /teams)", () => {
+    const { links } = desktopLinks("/team-stats");
+    expect(links.filter((a) => a.className.includes("font-semibold")).map((a) => a.textContent)).toEqual(["Team Stats"]);
+    expect(desktopLinks("/team/BUF").links.filter((a) => a.className.includes("font-semibold"))).toHaveLength(0);
   });
 
   it("Team Stats → /team-stats, carrying ?season= like the other data pages", () => {
