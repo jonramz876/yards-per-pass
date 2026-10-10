@@ -1105,5 +1105,14 @@ export function matchupNoUpcomingNote(season: number): string {
 export const MATCHUP_LADDER_NOTE =
   "The red marker slides toward the unit with the better league rank. The farther from the middle, the bigger the rank gap.";
 
+/**
+ * The header's line for a pair with no game in the season (it was a private
+ * constant of components/matchup/MatchupHeader.tsx; the matchup share card
+ * prints the same sentence, matchup card spec 2026-10-11 F6).
+ */
+export function matchupNoGameText(season: number): string {
+  return `No ${season} game between these teams`;
+}
+
 /** M16 — /matchup when the games read failed. */
 export const MATCHUP_GAMES_UNAVAILABLE = "This week’s games are unavailable right now.";
