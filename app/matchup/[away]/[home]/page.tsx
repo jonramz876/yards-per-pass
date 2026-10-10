@@ -17,10 +17,12 @@ import Link from "next/link";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { getTeam } from "@/lib/data/teams";
 import { loadMatchup, type MatchupLoad } from "@/lib/data/matchup";
-import { getSeasonWeeksCached } from "@/lib/data/compare-card";
+import { listedMatchupSeason } from "@/lib/data/matchup-season";
 import { MATCHUP_SMALL_POOL_NOTE, matchupNoGamesNote, matchupUncoveredHeading } from "@/lib/stats/matchup";
-import { flipBall, matchupHref, parseBall, parseMatchupSeason, parseMatchupTeamId, type Ball } from "@/lib/stats/matchup-links";
+import { buildMatchupCard, matchupCardAlt, matchupCardImageHref } from "@/lib/stats/matchup-card";
+import { flipBall, matchupCardHref, matchupHref, parseBall, parseMatchupSeason, parseMatchupTeamId, type Ball } from "@/lib/stats/matchup-links";
 import type { Team } from "@/lib/types";
+import MatchupShare from "./MatchupShare";
 import MatchupBallToggle from "@/components/matchup/MatchupBallToggle";
 import MatchupBallView from "@/components/matchup/MatchupBallView";
 import MatchupHeader from "@/components/matchup/MatchupHeader";
@@ -70,27 +72,8 @@ function parseRequest(p: RouteParams, q: SearchParams): Parsed | null {
 
 const hasGame = (load: MatchupLoad): boolean => load.game !== null;
 
-/**
- * The season the 308 keeps: the one asked for when the site lists it, else
- * none (chaos pass on PR 2, finding 9: `?season=2031` used to stay in the
- * address while the page showed the newest season; the 307 already dropped
- * it). With no season in the address nothing is read. With one, the answer
- * comes from the memoised season list every matchup page already reads (one
- * shared read, never one per pair). If that list cannot be read the season is
- * dropped: the bare address is always right, and the page it leads to reports
- * the failure itself.
- */
-async function listedSeason(requested: number | null, what: string): Promise<number | null> {
-  if (requested === null) return null;
-  try {
-    const weeks: unknown = await getSeasonWeeksCached();
-    const listed = Array.isArray(weeks) && weeks.some((w) => w !== null && typeof w === "object" && (w as { season?: unknown }).season === requested);
-    return listed ? requested : null;
-  } catch (err) {
-    console.error(`${what}: the season list could not be read for a redirect; the season was left out of the address`, err);
-    return null;
-  }
-}
+/** The base of every absolute URL the server prints (canonical, og:url, the preview image, the Share block's link). */
+const siteBase = (): string => process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
 
 // -------------------------------------------------------------------
 // Metadata
@@ -106,7 +89,7 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   // About to 307 to the other order: never an "A at B" title for the wrong order.
   if (load.swap) return NOT_FOUND;
 
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://yardsperpass.com";
+  const base = siteBase();
   // Only a real season other than the newest gets a URL of its own; `ball` is
   // a view of one page and never part of the canonical.
   const url = `${base}${matchupHref(away.id, home.id, { season: load.season, defaultSeason: load.defaultSeason })}`;
@@ -117,12 +100,29 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
   // 992 ordered pairs, most never played: only a scheduled pair with ranks is indexable.
   const indexable = load.state === "ready" && hasGame(load);
 
+  // The link preview is the matchup card's picture (matchup card spec
+  // 2026-10-11 §8.3): one card per game, so `ball` changes nothing. Always
+  // with the season; the week only makes each week a new URL for caches. In
+  // the small-pool and uncovered states the same URL draws the plate. When the
+  // games could not be read no image is named: the image route answers 503
+  // there rather than draw a "VS" card for a game that may be scheduled.
+  const image = load.gamesAvailable
+    ? `${base}${matchupCardImageHref(away.id, home.id, load.season, { week: load.model?.throughWeek ?? null })}`
+    : null;
+
   return {
     title,
     description,
     alternates: { canonical: url },
     ...(indexable ? {} : { robots: { index: false, follow: true } }),
-    openGraph: { title, description, url, type: "website" },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+      ...(image ? { images: [{ url: image, width: 1200, height: 630, alt: matchupCardAlt(away.name, home.name, load.season, hasGame(load)) }] } : {}),
+    },
+    ...(image ? { twitter: { card: "summary_large_image" as const, title, description, images: [image] } } : {}),
   };
 }
 
@@ -141,7 +141,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
   // validated values, never echoed, and a season the site does not list is
   // left out (no read at all unless the address names a season).
   if (!canonicalCase) {
-    const season = await listedSeason(requested, `Matchup (${away.id} at ${home.id})`);
+    const season = await listedMatchupSeason(requested, `Matchup (${away.id} at ${home.id})`);
     permanentRedirect(matchupHref(away.id, home.id, { season, ball }));
   }
 
@@ -215,12 +215,29 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
     { team: home, games: model.home.games },
   ].filter((t) => t.games === 0);
 
+  // The Share block is offered exactly when the share page is a card (matchup
+  // card spec 2026-10-11 §8.2): the games were read, and the card's own model
+  // says at least one of the two radars can be drawn.
+  const shareCard = load.gamesAvailable && buildMatchupCard({ away, home, load }).kind === "card";
+  const cardHref = matchupCardHref(away.id, home.id, { season, defaultSeason });
+
   return (
     <div className={CONTAINER}>
       {header}
       {idle.map(({ team }) => (
         <p key={team.id} data-no-games-note className={MESSAGE}>{matchupNoGamesNote(team.name, season)}</p>
       ))}
+      {/* In normal flow, above the tabs: it pushes them down and covers nothing.
+          One card per game, so it is the same block whichever tab is open. Keyed
+          by its card, so "Copied!" never carries over to another pair. */}
+      {shareCard && (
+        <MatchupShare
+          key={cardHref}
+          shareUrl={`${siteBase()}${cardHref}`}
+          cardHref={cardHref}
+          downloadHref={matchupCardImageHref(away.id, home.id, season, { week: model.throughWeek, download: true })}
+        />
+      )}
       <div className="mt-4">
         {/* Both sides are rendered here, on the server, and handed to the client
             toggle as finished markup: it shows one whole side and hides the other. */}

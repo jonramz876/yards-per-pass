@@ -27,7 +27,7 @@ Page order on `/matchup/[away]/[home]`, top to bottom (decisions.md "OVERRIDE FR
 
 - No "Biggest mismatches" sorted list or filters (direction C).
 - No generated sentences (direction B).
-- No share card, no image route, no `opengraph-image`. `generateMetadata` gives title and description only.
+- No share card, no image route, no `opengraph-image`. `generateMetadata` gives title and description only. **Amended: superseded by the matchup card spec `2026-10-11-matchup-card-design.md` (PR 2, 2026-10-10): the page now names the matchup card as its preview image and has a Share block. Still no `opengraph-image` file under `app/matchup/`.**
 - No OVR on players.
 - No "last 4 games" view. Season to date only.
 - No two-radar hero and no side-by-side double ladder (revision 2's layout; not built).
@@ -240,7 +240,7 @@ Examples:
 - Description: "{AWAY} offense against the {HOME} defense, and {HOME} offense against the {AWAY} defense, by league rank through Week {w}: EPA per play, success rate, explosive plays, sacks, stuffs and turnovers." ("through Week {w}" dropped when the week is unknown.)
 - Canonical: `${base}/matchup/AWAY/HOME`, plus `?season=` only for a real season other than the newest. `canonicalSeason` (`lib/utils.ts:36-40`) is called with the VALIDATED value, `canonicalSeason(requested === null ? undefined : String(requested), seasons)`, as `app/card/team/[team_id]/[side]/page.tsx:113` does. Handing it the raw string would let `?season=2025.9` (the page shows the newest season) produce a canonical naming 2025, because the helper parses with a bare `parseInt`.
 - `robots`: indexable only when the state is `ready` AND the pair has a game in this order in the season. Any other pair or state is `noindex, follow` (S5: 992 ordered pairs, most of them never played, would be thin pages).
-- No `openGraph.images`, no `twitter.images`.
+- No `openGraph.images`, no `twitter.images`. **Amended: superseded by the matchup card spec `2026-10-11-matchup-card-design.md` (PR 2, 2026-10-10): the page now names the matchup card as its preview image and has a Share block (`openGraph.images` and `twitter.images` are set whenever the games were read).**
 - **Revision 3 changes nothing here.** The title, description, canonical and robots rules describe the pair, not the layout. `ball` now also picks the radar, but it is still only a view of one page: it stays out of the canonical, and `?ball=home` and the bare URL share one canonical and one title.
 
 `/matchup`: title "Team Matchups", a fixed description, canonical `${base}/matchup`.
@@ -846,7 +846,7 @@ For the spec reviewer and Jon; each is a small, reversible choice.
 | S16 | In C's mockup the whole tile is one link; the override says "name linking to the player page" | The name is the link | The override's wording, and M10 ("Names open the player page") | Wrap the tile in the `Link` instead |
 | S17 | C's mockup shows 7 tiles per row from 1100 px, by `auto-fill, minmax(150px, 1fr)` | Counted columns: 2 below 768, 4 from 768, 7 from 1280 | The site's container is narrower than the mockup's at the same window width, and a 150 px minimum track breaks §8.2's width rule (§8.3) | One class list |
 | S18 | A's count line names the teams ("BUF offense ranks higher on 2 …") | The as-built M4 text, with the pairing named in the sub-heading above it | Spec review 1 finding 15 fixed a contradiction in that sentence; PR 1 built and tested M4 | One function |
-| S19 | A's mockup has a "Share" button beside the tabs and a row of game chips and pickers above the header | Neither is on the matchup page | The share card is cut from v1; the chips and pickers are the `/matchup` index, reached by the "← This week's matchups" link | — |
+| S19 | A's mockup has a "Share" button beside the tabs and a row of game chips and pickers above the header | Neither is on the matchup page | The share card is cut from v1; the chips and pickers are the `/matchup` index, reached by the "← This week's matchups" link. **Amended: superseded by the matchup card spec `2026-10-11-matchup-card-design.md` (PR 2, 2026-10-10): the page now names the matchup card as its preview image and has a Share block (between the header and the tabs, not beside them).** | — |
 
 ## 14. Files
 
