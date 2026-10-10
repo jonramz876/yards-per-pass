@@ -1153,7 +1153,7 @@ Pages in that table: `/matchup`, `/matchup/BUF/LA`, `?ball=home`, `/matchup/TB/A
 
 ### After the chaos pass and the code review of PR 2 (2026-10-10)
 
-Reports: session files `chaos-pr2.md` (11 findings; about 1,900 browser loads, 992 pairs over HTTP, 346 vitest probes, 45 forced-failure runs; no crash on real data) and `code-review-pr2.md` (READY TO MERGE; one docs should-fix, five nits). The branch was rebased onto `main` after PR #42 merged. Each fix below was built test-first. vitest after them: 3166 tests / 115 files.
+Reports: session files `chaos-pr2.md` (11 findings; all 992 ordered pairs over HTTP, a browser width matrix of 11 pages at 10 widths, 346 vitest probes, 45 forced-failure runs; no crash on real data) and `code-review-pr2.md` (READY TO MERGE; one docs should-fix, five nits). The branch was rebased onto `main` after PR #42 merged. Each fix below was built test-first. vitest after them: 3166 tests / 115 files.
 
 | Finding | Decision | As built |
 |---|---|---|
