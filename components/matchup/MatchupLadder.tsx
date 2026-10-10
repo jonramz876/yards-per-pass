@@ -24,15 +24,16 @@ export const LADDER_VALUE_MD = 30;
 export const LADDER_VALUE_SM = 23;
 
 /**
- * The longest "rank · word" the defense cell prints on ONE line, from md up
- * ("24th · takeaways", 16 characters, measured on one line in the 104 px
- * column at 12.5 px). Anything longer ("T-14th · takeaways", "14th of 29 ·
- * allowed") is stacked: the rank, then the word on its own line, with no dot.
- * Below md the 70 px column never holds both, so the cell is always stacked
- * there. Decided by length, not left to the browser: a browser wraps after
- * the dot and leaves it dangling.
+ * The longest "rank · word" the defense cell prints on ONE line, from md up:
+ * 15 characters ("3rd · takeaways", "T-4th · allowed"). Measured in a browser
+ * on 2026-10-10 in the 104 px column at 12.5 px: every 15-character line of
+ * week 5's 30 ladders stayed on one line, while at 16 "22nd · takeaways" and
+ * "32nd · takeaways" wrapped. Anything longer is stacked: the rank, then the
+ * word on its own line, with no dot. Below md the 70 px column never holds
+ * both, so the cell is always stacked there. Decided by length, not left to
+ * the browser: a browser wraps after the dot and leaves it dangling.
  */
-export const DEF_RANK_ONE_LINE_MAX = 16;
+export const DEF_RANK_ONE_LINE_MAX = 15;
 
 const ROW_GRID = "grid grid-cols-[70px_minmax(0,1fr)_70px] gap-[6px] md:grid-cols-[104px_minmax(0,1fr)_104px] md:gap-[10px]";
 const VALUE = `${BARLOW} text-[23px] md:text-[30px] font-bold leading-none tabular-nums text-slate-900`;
