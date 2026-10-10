@@ -19,6 +19,7 @@ vi.mock("next/navigation", () => ({
 import RootError from "@/app/error";
 import CompareError from "@/app/compare/error";
 import GameError from "@/app/game/[game_id]/error";
+import MatchupError from "@/app/matchup/error";
 import PlayerError from "@/app/player/[slug]/error";
 import QBError from "@/app/qb-leaderboard/error";
 import ReceiversError from "@/app/receivers/error";
@@ -35,6 +36,7 @@ const BOUNDARIES: [string, Boundary, string][] = [
   ["app/error.tsx (/ and /card)", RootError as Boundary, "Something went wrong"],
   ["app/compare/error.tsx", CompareError as Boundary, "Something went wrong"],
   ["app/game/[game_id]/error.tsx", GameError as Boundary, "Unable to load this box score"],
+  ["app/matchup/error.tsx (/matchup and /matchup/[away]/[home])", MatchupError as Boundary, "Unable to load matchups"],
   ["app/player/[slug]/error.tsx", PlayerError as Boundary, "Unable to load player data"],
   ["app/qb-leaderboard/error.tsx", QBError as Boundary, "Unable to load QB data"],
   ["app/receivers/error.tsx", ReceiversError as Boundary, "Unable to load receiver data"],

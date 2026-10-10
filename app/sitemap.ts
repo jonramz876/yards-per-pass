@@ -35,6 +35,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: base, lastModified: dataUpdated, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/teams`, lastModified: dataUpdated, changeFrequency: "weekly", priority: 0.9 },
     { url: `${base}/team-stats`, lastModified: dataUpdated, changeFrequency: "weekly", priority: 0.9 },
+    // The matchup index only; no /matchup/[away]/[home] pair is listed (992 ordered pairs, most never played).
+    { url: `${base}/matchup`, lastModified: dataUpdated, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/qb-leaderboard`, lastModified: dataUpdated, changeFrequency: "weekly", priority: 0.9 },
     { url: `${base}/receivers`, lastModified: dataUpdated, changeFrequency: "weekly", priority: 0.9 },
     { url: `${base}/rushing`, lastModified: dataUpdated, changeFrequency: "weekly", priority: 0.9 },

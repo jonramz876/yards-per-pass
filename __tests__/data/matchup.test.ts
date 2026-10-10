@@ -46,7 +46,7 @@ import {
 import { TEAM_STATS_COLUMNS } from "@/lib/data/team-stats";
 import { TEAM_RADAR_COLUMNS } from "@/lib/data/team-radar";
 import { TEAM_GAME_NUMERIC, getBoxScoreSeasonsCached } from "@/lib/data/box-score";
-import { clearCompareCardMemo, compareCardMemoKeys } from "@/lib/data/compare-card";
+import { clearCompareCardMemo, compareCardMemoKeys, getCompareTableCached } from "@/lib/data/compare-card";
 import { getSeasonGames, type GameRecord } from "@/lib/data/games";
 import { getSeasonWeeks, getQBStats } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
@@ -813,5 +813,81 @@ describe("chaos F6: a may-degrade read that resolves with the wrong kind of thin
     const got = await loadMatchup("BUF", "HOU", null);
     expect(got.lineup![0].away).toMatchObject({ name: "Josh Allen", href: "/player/josh-allen" });
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+});
+
+// Code review of PR 1, nit 2: a load that finds its answer unusable must fail
+// THAT answer in the memo, not whatever the memo holds by the time the load
+// ends. A slow sibling read can keep a load open while another request
+// re-reads the same key and gets a good answer; that good entry must stay.
+describe("code review nit 2: only the answer the load read is failed in the memo", () => {
+  const deferred = <T,>() => {
+    let resolve!: (v: T) => void;
+    const promise = new Promise<T>((r) => { resolve = r; });
+    return { promise, resolve };
+  };
+
+  it("a player table re-read while the load was open is not overwritten by the load's old empty answer", async () => {
+    const rows = deferred<Row[]>();
+    vi.mocked(fetchAllRows).mockReturnValueOnce(rows.promise as never);
+    vi.mocked(getRBSeasonStats).mockResolvedValueOnce([]).mockResolvedValue(RB as never);
+    const slow = loadMatchup("BUF", "HOU", null);
+    await vi.waitFor(() => expect(reads().rb).toBe(1));
+    // Another request: the memo entry is replaced by a new, good read.
+    clearCompareCardMemo();
+    expect(await getCompareTableCached("RB", 2026)).toEqual(RB);
+    rows.resolve(ROWS);
+    expect((await slow).playersAvailable).toBe(false); // its own answer was the empty one
+    const next = await loadMatchup("BUF", "HOU", null);
+    expect(next.playersAvailable).toBe(true);
+    expect(reads().rb).toBe(2);
+  });
+
+  it("the same for the games: a newer good schedule stays", async () => {
+    const rows = deferred<Row[]>();
+    vi.mocked(fetchAllRows).mockReturnValueOnce(rows.promise as never);
+    vi.mocked(getSeasonGames).mockResolvedValueOnce([]).mockResolvedValue(GAMES);
+    const slow = loadMatchup("BUF", "HOU", null);
+    await vi.waitFor(() => expect(reads().games).toBe(1));
+    clearMatchupMemo();
+    expect(await getSeasonGamesCached(2026)).toEqual(GAMES);
+    rows.resolve(ROWS);
+    expect((await slow).gamesAvailable).toBe(false);
+    expect((await loadMatchup("BUF", "HOU", null)).gamesAvailable).toBe(true);
+    expect(reads().games).toBe(2);
+  });
+
+  it("the same for the rows: a newer good answer stays", async () => {
+    const games = deferred<GameRecord[]>();
+    vi.mocked(getSeasonGames).mockReturnValueOnce(games.promise);
+    vi.mocked(fetchAllRows).mockResolvedValueOnce([]);
+    const slow = loadMatchup("BUF", "HOU", null);
+    slow.catch(() => {});
+    await vi.waitFor(() => expect(reads().rows).toBe(1));
+    clearMatchupMemo();
+    expect(await getMatchupRowsCached(2026)).toHaveLength(ROWS.length);
+    games.resolve(GAMES);
+    await expect(slow).rejects.toThrow(/newest season/);
+    expect((await loadMatchup("BUF", "HOU", null)).state).toBe("ready");
+    expect(reads().rows).toBe(2);
+  });
+
+  it("with nothing re-read in between, the empty answer is still failed (the F5 behaviour)", async () => {
+    vi.mocked(getRBSeasonStats).mockResolvedValueOnce([]).mockResolvedValue(RB as never);
+    expect((await loadMatchup("BUF", "HOU", null)).playersAvailable).toBe(false);
+    await expect(getCompareTableCached("RB", 2026)).rejects.toThrow();
+  });
+});
+
+// Code review of PR 1, nit 4: the failure is shared with the compare card
+// (one memo), so its message must not name a matchup pair.
+describe("code review nit 4: the shared table failure has a neutral message", () => {
+  it("names the table and the season, never the pair or the word Matchup", async () => {
+    vi.mocked(getQBStats).mockResolvedValueOnce([]);
+    await loadMatchup("BUF", "HOU", null);
+    const err = await getCompareTableCached("QB", 2026).then(() => null, (e: Error) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err!.message).toMatch(/QB season table for 2026/);
+    expect(err!.message).not.toMatch(/BUF|HOU|Matchup \(/);
   });
 });

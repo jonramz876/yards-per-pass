@@ -10,6 +10,7 @@ import type { TeamGame, TeamSeasonStat } from "@/lib/types";
 import { textColorForBackground } from "@/lib/stats/formatters";
 import { normalizeGameId } from "@/lib/stats/box-score";
 import { getTeam } from "@/lib/data/teams";
+import { matchupHref, parseMatchupTeamId } from "@/lib/stats/matchup-links";
 
 interface ScheduleSectionProps {
   schedule: TeamGame[];
@@ -30,6 +31,13 @@ interface ScheduleSectionProps {
    * score line to /game/<game_id>; everything else stays unlinked (spec §7).
    */
   boxScoreSeasons: number[];
+  /**
+   * The newest stats season (the page's own, computed on the server). With it,
+   * an unplayed tile's kickoff line links to that game's team matchup
+   * (/matchup/AWAY/HOME, team matchup spec §9). Absent: no tile links and the
+   * section renders exactly as it did before the matchup page existed.
+   */
+  defaultSeason?: number;
 }
 
 const PIXEL = "font-[family-name:var(--font-pixel)]";
@@ -187,6 +195,28 @@ function boxScoreTitle(game: TeamGame): string {
   return `Box score: ${game.away_team} ${game.away_score}, ${game.home_team} ${game.home_score}`;
 }
 
+/** A schedule row's team id when it is a real team in its canonical spelling, else null. */
+function realTeamId(raw: string): string | null {
+  const id = parseMatchupTeamId(raw);
+  return id !== null && id === raw && getTeam(id) ? id : null;
+}
+
+/**
+ * Matchup link for a tile (team matchup spec §9): only an unplayed game of a
+ * season the site has stats for, between two real teams. Never the
+ * upcoming-season grid (that season has no stats, so the link would silently
+ * show another season) and never a played tile (its score line is the box
+ * score link).
+ */
+function matchupLinkHref(game: TeamGame, defaultSeason: number | undefined, isUpcomingGrid: boolean): string | null {
+  if (defaultSeason === undefined || isUpcomingGrid || game.played) return null;
+  if (!Number.isInteger(game.season) || game.season > defaultSeason) return null;
+  const away = realTeamId(game.away_team);
+  const home = realTeamId(game.home_team);
+  if (!away || !home || away === home) return null;
+  return matchupHref(away, home, { season: game.season, defaultSeason });
+}
+
 function skinFor(game: TeamGame): TileSkin {
   if (!game.played) return UPCOMING_TILE;
   if (game.result === "W") return WIN_TILE;
@@ -203,7 +233,18 @@ function stateFor(game: TeamGame): string {
 
 /* ─── Tiles ─── */
 
-function GameTile({ game, isNext, href }: { game: TeamGame; isNext: boolean; href: string | null }) {
+function GameTile({
+  game,
+  isNext,
+  href,
+  matchup,
+}: {
+  game: TeamGame;
+  isNext: boolean;
+  href: string | null;
+  /** The game's matchup page, for an unplayed tile that links to one; else null. */
+  matchup: string | null;
+}) {
   const skin = skinFor(game);
   const fg = textColorForBackground(skin.bg);
   const border = isNext && !game.played ? NEXT_BORDER : skin.border;
@@ -261,6 +302,27 @@ function GameTile({ game, isNext, href }: { game: TeamGame; isNext: boolean; hre
             </span>
           </div>
         )
+      ) : matchup ? (
+        // The opponent above already links to their team page and links can't
+        // nest, so the kickoff line is the matchup link. prefetch={false}: the
+        // matchup page renders per request, and a team page shows up to 17 of
+        // these. With no kickoff time yet the line reads PREVIEW.
+        <Link
+          href={matchup}
+          prefetch={false}
+          data-matchup-link
+          title={`Matchup: ${game.away_team} at ${game.home_team}`}
+          className="mt-1.5 flex items-baseline justify-center gap-1 leading-none opacity-75 underline decoration-dotted decoration-[1.5px] underline-offset-[3px] hover:opacity-100 hover:decoration-solid"
+        >
+          {time ? (
+            <>
+              {day && <span className={`${PIXEL} text-[6px] lg:text-[8px]`}>{day.toUpperCase()}</span>}
+              <span className="text-[8px] lg:text-[10px]">{time}</span>
+            </>
+          ) : (
+            <span className={`${PIXEL} text-[6px] lg:text-[8px]`}>PREVIEW</span>
+          )}
+        </Link>
       ) : (
         // Kickoff line is dropped entirely when the game has no scheduled time.
         time && (
@@ -298,6 +360,7 @@ export default function ScheduleSection({
   teamStats,
   upcomingSeason,
   boxScoreSeasons,
+  defaultSeason,
 }: ScheduleSectionProps) {
   // No schedule rows (pre-backfill season) → the section is omitted entirely.
   if (schedule.length === 0) return null;
@@ -328,6 +391,7 @@ export default function ScheduleSection({
             game={game}
             isNext={game.game_id === nextGameId}
             href={boxScoreHref(game, boxScoreSeasons)}
+            matchup={matchupLinkHref(game, defaultSeason, upcomingSeason !== undefined)}
           />
         );
       }
@@ -373,6 +437,7 @@ export default function ScheduleSection({
             game={game}
             isNext={game.game_id === nextGameId}
             href={boxScoreHref(game, boxScoreSeasons)}
+            matchup={matchupLinkHref(game, defaultSeason, upcomingSeason !== undefined)}
           />
         ))}
       </div>

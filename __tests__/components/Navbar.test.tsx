@@ -11,6 +11,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 vi.mock("@/components/search/SearchPalette", () => ({ default: () => null }));
+// The sheet is a portal that renders nothing while closed; stand in for it so
+// the mobile list can be read.
+vi.mock("@/components/ui/sheet", () => ({
+  Sheet: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetTrigger: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+  SheetContent: ({ children }: { children: React.ReactNode }) => <div data-sheet-content>{children}</div>,
+}));
 
 import Navbar from "@/components/layout/Navbar";
 
@@ -23,17 +30,47 @@ function desktopLinks(pathname = "/", query = "") {
   return { row, links: Array.from(row.querySelectorAll("a")) };
 }
 
+/** The mobile sheet's links (the sheet is mocked open: its content renders inline). */
+function mobileLinks(pathname = "/", query = "") {
+  nav.pathname = pathname;
+  nav.params = new URLSearchParams(query);
+  const { container } = render(<Navbar />);
+  const sheet = container.querySelector("[data-sheet-content]");
+  if (!sheet) throw new Error("no mobile sheet");
+  return Array.from(sheet.querySelectorAll("a"));
+}
+
 beforeEach(() => {
   nav.pathname = "/";
   nav.params = new URLSearchParams();
 });
 
 describe("Navbar", () => {
-  it("lists Team Tiers, Team Stats, Passing, … in that order", () => {
+  it("lists Team Tiers, Team Stats, Matchups, Passing, … in that order (ten labels)", () => {
     const { links } = desktopLinks();
     expect(links.map((a) => a.textContent)).toEqual([
-      "Team Tiers", "Team Stats", "Passing", "Receiving", "Rushing", "Run Gaps", "Trends", "Compare", "Glossary",
+      "Team Tiers", "Team Stats", "Matchups", "Passing", "Receiving", "Rushing", "Run Gaps", "Trends", "Compare", "Glossary",
     ]);
+  });
+
+  it("Matchups → /matchup, right after Team Stats, and never carries ?season= (the index is always the newest season)", () => {
+    expect(desktopLinks().links[2].getAttribute("href")).toBe("/matchup");
+    expect(desktopLinks("/rushing", "season=2025").links[2].getAttribute("href")).toBe("/matchup");
+    expect(mobileLinks("/rushing", "season=2025").find((a) => a.textContent === "Matchups")?.getAttribute("href")).toBe("/matchup");
+  });
+
+  it.each(["/matchup", "/matchup/BUF/LA"])("Matchups is active on %s in BOTH the desktop row and the mobile sheet", (path) => {
+    const desk = desktopLinks(path).links;
+    expect(desk[2].className).toContain("text-navy font-semibold");
+    expect(desk.filter((a) => a.className.includes("font-semibold")).map((a) => a.textContent)).toEqual(["Matchups"]);
+    const mobile = mobileLinks(path);
+    expect(mobile.filter((a) => a.className.split(/\s+/).includes("text-navy")).map((a) => a.textContent)).toEqual(["Matchups"]);
+  });
+
+  it("a child path does not light up a link that merely shares a prefix (/team-stats is not under /teams)", () => {
+    const { links } = desktopLinks("/team-stats");
+    expect(links.filter((a) => a.className.includes("font-semibold")).map((a) => a.textContent)).toEqual(["Team Stats"]);
+    expect(desktopLinks("/team/BUF").links.filter((a) => a.className.includes("font-semibold"))).toHaveLength(0);
   });
 
   it("Team Stats → /team-stats, carrying ?season= like the other data pages", () => {
@@ -50,12 +87,34 @@ describe("Navbar", () => {
     expect(links[0].className).not.toContain("font-semibold");
   });
 
-  it("the desktop row is gap-3, gap-6 from xl (measured 2026-09-28: no label wraps at 1024, one line at 1280)", () => {
+  // Ten labels (Matchups added 2026-10-10). Measured in a browser that day:
+  // the ten links and the search button are 676 px of content; the row has
+  // 769 px at 1024 and 897 px from 1152 up. With the nine-label spacing
+  // (gap-3 / xl:gap-6) "Team Tiers", "Team Stats" and "Run Gaps" wrapped at
+  // both widths. The spec's first fallback at each width fixes it: gap-2
+  // (756 px) below xl, xl:gap-5 (876 px) from xl. No label was shortened.
+  it("the desktop row is gap-2, gap-5 from xl (measured 2026-10-10 for ten labels: one line at 1024 and at 1280)", () => {
     const { row } = desktopLinks();
     const cls = row.className.split(/\s+/);
-    expect(cls).toContain("gap-3");
-    expect(cls).toContain("xl:gap-6");
-    expect(cls).not.toContain("gap-8");
-    expect(cls).not.toContain("gap-6");
+    expect(cls).toContain("gap-2");
+    expect(cls).toContain("xl:gap-5");
+    for (const old of ["gap-3", "xl:gap-6", "gap-6", "gap-8"]) expect(cls).not.toContain(old);
+  });
+
+  // The spec's second fallback, needed for its other rule: between 768 and
+  // 1023 the row must be no worse than main at the same width. With gap-2
+  // alone the ten labels still wrapped from 975 to 1022 px, where main's nine
+  // sit on one line. At 13 px below xl the row is 712 px (main: 718), so it is
+  // one line from 975 px, as on main. From 1280 the links are 14 px as before.
+  it("the desktop links are 13 px below xl and text-sm from xl (measured 2026-10-10: no worse than main from 768 to 1023)", () => {
+    const { links } = desktopLinks("/matchup");
+    for (const a of links) {
+      const cls = a.className.split(/\s+/);
+      expect(cls).toContain("text-[13px]");
+      expect(cls).toContain("xl:text-sm");
+      expect(cls).not.toContain("text-sm");
+    }
+    // the mobile sheet's links are not part of that row and keep their size
+    for (const a of mobileLinks()) expect(a.className).toContain("text-lg");
   });
 });

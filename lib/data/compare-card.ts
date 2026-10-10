@@ -195,12 +195,19 @@ export function getCompareTableCached(group: CompareGroup, season: number): Prom
  * left alone it would be handed out for the full minute; marked, everyone gets
  * `err` for MEMO_FAILURE_TTL_MS (ten seconds) and then the table is read
  * again. Same key as the read, so no new key shape.
+ *
+ * `read` is the promise the caller got from getCompareTableCached: when it is
+ * given, the entry is replaced only while the memo still holds THAT promise.
+ * A load kept open by a slow sibling read must not overwrite a newer, good
+ * answer another request has read in the meantime (PR 1 code review, nit 2).
  */
-export function failCompareTable(group: CompareGroup, season: number, err: Error): void {
+export function failCompareTable(group: CompareGroup, season: number, err: Error, read?: Promise<unknown>): void {
+  const key = `${group}:${season}`;
+  if (read !== undefined && tableMemo.get(key)?.promise !== read) return;
   const promise = Promise.reject<ComparePlayerRow[]>(err);
   promise.catch(() => {});
   const now = Date.now();
-  tableMemo.set(`${group}:${season}`, { at: now, promise, failedAt: now });
+  tableMemo.set(key, { at: now, promise, failedAt: now });
 }
 
 /**

@@ -10,6 +10,8 @@ import SearchPalette from "@/components/search/SearchPalette";
 const NAV_LINKS = [
   { href: "/teams", label: "Team Tiers" },
   { href: "/team-stats", label: "Team Stats" },
+  // The matchup index is always the newest season, so it never carries ?season=.
+  { href: "/matchup", label: "Matchups", noSeason: true },
   { href: "/qb-leaderboard", label: "Passing" },
   { href: "/receivers", label: "Receiving" },
   { href: "/rushing", label: "Rushing" },
@@ -39,6 +41,10 @@ export default function Navbar() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // A link is active on its own page and on any page under it
+  // (/matchup/BUF/LA lights up Matchups). Used by both link lists below.
+  const isActive = (href: string) => pathname === href || (pathname ?? "").startsWith(`${href}/`);
+
   // Carry the current season param across page navigation
   function linkHref(base: string) {
     const season = searchParams.get("season");
@@ -55,13 +61,15 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop links + search */}
-          <div className="hidden md:flex items-center gap-3 xl:gap-6">
+          {/* Spacing and link size measured for ten labels (2026-10-10): one line
+              at 1024 and at 1280, and no worse than the nine-label row from 768 to 1023. */}
+          <div className="hidden md:flex items-center gap-2 xl:gap-5">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={"noSeason" in link ? link.href : linkHref(link.href)}
-                className={`text-sm font-medium transition-colors ${
-                  pathname === link.href
+                className={`text-[13px] xl:text-sm font-medium transition-colors ${
+                  isActive(link.href)
                     ? "text-navy font-semibold"
                     : "text-gray-500 hover:text-navy"
                 }`}
@@ -136,7 +144,7 @@ export default function Navbar() {
                       href={"noSeason" in link ? link.href : linkHref(link.href)}
                       onClick={() => setOpen(false)}
                       className={`text-lg font-medium ${
-                        pathname === link.href ? "text-navy" : "text-gray-500"
+                        isActive(link.href) ? "text-navy" : "text-gray-500"
                       }`}
                     >
                       {link.label}
