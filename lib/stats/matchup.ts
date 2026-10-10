@@ -667,6 +667,28 @@ export function pairLineups(
   return out;
 }
 
+/**
+ * Each team's players in tile order (QB, RB, RB, WR/TE ×4), from the paired
+ * rows loadMatchup returns (spec §7.3a). pairLineups keeps each side's order
+ * and only adds null where a side has fewer, so reading one side down the rows
+ * and dropping the empty slots gives back that team's pickMainPlayers list.
+ * Anything that is not a list of rows is two empty lists.
+ */
+export function lineupByTeam(
+  rows: ReadonlyArray<{ away: LineupPlayer | null; home: LineupPlayer | null }> | null | undefined,
+): { away: LineupPlayer[]; home: LineupPlayer[] } {
+  const out: { away: LineupPlayer[]; home: LineupPlayer[] } = { away: [], home: [] };
+  if (!Array.isArray(rows)) return out;
+  const isPlayer = (p: unknown): p is LineupPlayer => p !== null && typeof p === "object";
+  for (const row of rows as unknown[]) {
+    if (row === null || typeof row !== "object") continue;
+    const { away, home } = row as { away?: unknown; home?: unknown };
+    if (isPlayer(away)) out.away.push(away);
+    if (isPlayer(home)) out.home.push(home);
+  }
+  return out;
+}
+
 /* ─── Schedule rules (spec §6.4). `today` is injected; this module never reads the clock. ─── */
 
 /**
@@ -994,7 +1016,7 @@ export function overlayCountLine(tally: { off: number; def: number; even: number
   return `${lead}: offense is ${EDGE_LEAN_MIN_GAP}+ places higher on ${tally.off}, defense on ${tally.def}, ${tally.even} within ${EDGE_LEAN_MIN_GAP - 1} places.`;
 }
 
-/** M5 — under the two radars. */
+/** M5 — the side panel's paragraph, under the count line. */
 export const MATCHUP_RADAR_NOTE =
   "Both shapes are drawn by league rank, so the outer ring is 1st on every spoke and the amber ring is the middle of the league. Where the solid shape reaches past the dashed one, the offense ranks higher. Each label shows offense rank v defense rank.";
 
@@ -1014,6 +1036,13 @@ export function matchupRankNote(s: {
   const week = isNum(s.throughWeek) ? `, through Week ${s.throughWeek}` : "";
   return `Every rank is among ${among}${week} (${s.awayId} has played ${gamesWord(s.awayGames)}, ${s.homeId} ${s.homeGames}). A defense is ranked on what its opponents did, so allowing less ranks higher; for sacks, takeaways and stuffs, making more ranks higher.`;
 }
+
+/**
+ * Beside M6 (PR 1 code review): the ladder ranks ties the radar's way, the
+ * Team Stats table numbers its sorted rows, so one team can carry two numbers.
+ */
+export const MATCHUP_TIES_NOTE =
+  "Tied teams share a place here, as on the team radars (T-7th and T-7th, then 9th). The Team Stats table numbers its rows one by one, so a tied team can carry a different number there.";
 
 /** M7 — the edge rule, with its numbers from the constants. */
 export function matchupEdgeNote(): string {
@@ -1039,6 +1068,11 @@ export const MATCHUP_FORMULA_LINE: string = (["sack", "to", "stuff"] as const)
 /** M10 — who the main players are. */
 export const MATCHUP_PLAYERS_NOTE =
   "Players: the quarterback with the most dropbacks, the two backs with the most carries and the four wide receivers or tight ends with the most targets. A traded player is listed with the team he has played most for. Names open the player page.";
+
+/** M17 — a team with no player to list (it has not played yet). */
+export function matchupNoPlayersNote(teamName: string, season: number): string {
+  return `No ${season} players to show for the ${teamName} yet.`;
+}
 
 /** M12 — the player tables could not be read. */
 export const MATCHUP_PLAYERS_UNAVAILABLE = "Main players are unavailable right now.";
