@@ -1981,3 +1981,59 @@ describe("lib/stats/matchup.ts is pure (§7.2)", () => {
     expect(source).not.toMatch(/new Date\(|Date\.now\(|Date\.parse\(/);
   });
 });
+
+/* ─── PR 2 additions (§7.3a): the player tiles' lists, M17, and the ties sentence ─── */
+
+describe("lineupByTeam (§7.3a): each team's players in tile order, from the paired rows", () => {
+  const player = (slot: LineupPlayer["slot"], pos: string, playerId: string): LineupPlayer =>
+    ({ slot, pos, playerId, name: playerId, href: null, stats: [] });
+  const real = (teamId: string) => pick({ teamId, qbs: QBS, rbs: RBS, receivers: RECS });
+
+  it("undoes pairLineups for real teams: { away, home } are the two pickMainPlayers lists", () => {
+    for (const [a, h] of [["BUF", "DET"], ["DET", "BUF"], ["KC", "PIT"]]) {
+      const away = real(a);
+      const home = real(h);
+      expect(away.length).toBeGreaterThan(0);
+      expect(M.lineupByTeam(M.pairLineups(away, home))).toEqual({ away, home });
+    }
+  });
+
+  it("a team with one RB and no QB: no null in the output, order kept", () => {
+    const away = [player("RB", "RB", "r1"), player("REC", "WR", "w0"), player("REC", "TE", "w1")];
+    const home = [player("QB", "QB", "q"), player("RB", "RB", "hr1"), player("RB", "RB", "hr2")];
+    const got = M.lineupByTeam(M.pairLineups(away, home));
+    expect(got.away.map((p) => p.playerId)).toEqual(["r1", "w0", "w1"]);
+    expect(got.home.map((p) => p.playerId)).toEqual(["q", "hr1", "hr2"]);
+    expect([...got.away, ...got.home].every((p) => p !== null && typeof p === "object")).toBe(true);
+  });
+
+  it("both teams empty: two empty lists", () => {
+    expect(M.lineupByTeam(M.pairLineups([], []))).toEqual({ away: [], home: [] });
+  });
+
+  it("null, undefined, a non-array and rows holding null: two empty lists, no throw", () => {
+    for (const bad of [null, undefined, "rows", 7, {}, [null, undefined, 5, "x"], [{ away: null, home: null }], [{}]]) {
+      expect(M.lineupByTeam(bad as never), JSON.stringify(bad)).toEqual({ away: [], home: [] });
+    }
+  });
+
+  it("the output survives JSON", () => {
+    const got = M.lineupByTeam(M.pairLineups(real("BUF"), real("DET")));
+    expect(JSON.parse(JSON.stringify(got))).toEqual(got);
+  });
+});
+
+describe("PR 2 copy: M17 and the ties sentence", () => {
+  it("M17: a team with no player to list", () => {
+    expect(M.matchupNoPlayersNote("Buffalo Bills", 2026)).toBe("No 2026 players to show for the Buffalo Bills yet.");
+    expect(M.matchupNoPlayersNote("San Francisco 49ers", 2025)).toBe("No 2025 players to show for the San Francisco 49ers yet.");
+    expect(M.matchupNoPlayersNote("Buffalo Bills", 2026)).not.toContain("'");
+  });
+
+  it("ties (PR 1 code review should-fix): a shared place here, row numbers on Team Stats", () => {
+    expect(M.MATCHUP_TIES_NOTE).toBe(
+      "Tied teams share a place here, as on the team radars (T-7th and T-7th, then 9th). The Team Stats table numbers its rows one by one, so a tied team can carry a different number there.",
+    );
+    expect(M.MATCHUP_TIES_NOTE).not.toContain("'");
+  });
+});
