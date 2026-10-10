@@ -148,8 +148,14 @@ export function getSeasonGamesCached(season: number): Promise<GameRecord[]> {
  * the full minute: a minute of error pages from one bad answer. Marked,
  * everyone gets `err` for MEMO_FAILURE_TTL_MS (ten seconds, the window a
  * rejected read gets) and then the read is made again. Same key, no new shape.
+ *
+ * `read` is the promise this load was handed for the key. The entry is
+ * replaced only while the memo still holds that promise: a load kept open by a
+ * slow sibling read must not overwrite a newer, good answer another request
+ * has read in the meantime (PR 1 code review, nit 2).
  */
-function failMemo<T>(store: Map<number, MemoEntry<T>>, season: number, err: Error): void {
+function failMemo<T>(store: Map<number, MemoEntry<T>>, season: number, err: Error, read: Promise<unknown>): void {
+  if (store.get(season)?.promise !== read) return;
   const promise = Promise.reject<T>(err);
   promise.catch(() => {});
   const now = Date.now();
@@ -269,12 +275,21 @@ export async function loadMatchup(awayId: string, homeId: string, requestedSeaso
   const season = requestedSeason !== null && seasons.includes(requestedSeason) ? requestedSeason : defaultSeason;
   const isLatestSeason = season === defaultSeason;
 
+  // The promises are kept: failing an answer in its memo is done only while
+  // the memo still holds the very promise this load read (failMemo).
+  const rowsPromise = getMatchupRowsCached(season);
+  const gamesPromise = getSeasonGamesCached(season);
+  const tablePromise = {
+    QB: getCompareTableCached("QB", season),
+    RB: getCompareTableCached("RB", season),
+    WR: getCompareTableCached("WR", season),
+  };
   const [rowsRead, gamesRead, qbRead, rbRead, recRead, slugRead] = await Promise.allSettled([
-    getMatchupRowsCached(season),
-    getSeasonGamesCached(season),
-    getCompareTableCached("QB", season),
-    getCompareTableCached("RB", season),
-    getCompareTableCached("WR", season),
+    rowsPromise,
+    gamesPromise,
+    tablePromise.QB,
+    tablePromise.RB,
+    tablePromise.WR,
     slugsRead,
   ]);
 
@@ -284,7 +299,7 @@ export async function loadMatchup(awayId: string, homeId: string, requestedSeaso
   /** A core answer that resolved but cannot be right: fail it in the memo too (ten seconds, not sixty), then throw. */
   const failRows = (message: string): never => {
     const err = new Error(`${what}: ${message}`);
-    failMemo(rowsMemo, season, err);
+    failMemo(rowsMemo, season, err, rowsPromise);
     throw err;
   };
 
@@ -331,7 +346,7 @@ export async function loadMatchup(awayId: string, homeId: string, requestedSeaso
     const games = usableGames(gamesRead.value);
     if (!Array.isArray(gamesRead.value) || (games.length === 0 && !uncovered)) {
       const err = new Error(`${what}: the games read for ${season} returned no usable game although the season has stats`);
-      failMemo(gamesMemo, season, err);
+      failMemo(gamesMemo, season, err, gamesPromise);
       console.error(`${what}: the games read returned nothing usable for ${season}; no week, date, records or order redirect`, err);
     } else {
       gamesAvailable = true;
@@ -373,7 +388,13 @@ export async function loadMatchup(awayId: string, homeId: string, requestedSeaso
     const usable = usablePlayers(read.value);
     if (!Array.isArray(read.value) || (usable.length === 0 && !hasNoDatabase())) {
       failed.push(name);
-      failCompareTable(group, season, new Error(`${what}: the ${name} season table for ${season} came back empty or unusable`));
+      // The compare card shares this memo, so the message names no pair (PR 1 code review, nit 4).
+      failCompareTable(
+        group,
+        season,
+        new Error(`The ${name} season table for ${season} came back empty or unusable (marked failed by the matchup loader)`),
+        tablePromise[group]
+      );
       continue;
     }
     players.push(usable);
@@ -438,11 +459,12 @@ export async function loadMatchupIndex(): Promise<MatchupIndexLoad> {
   }
   const season = weeks[0]?.season ?? fallbackSeason();
   try {
-    const answer: unknown = await getSeasonGamesCached(season);
+    const gamesPromise = getSeasonGamesCached(season);
+    const answer: unknown = await gamesPromise;
     const games = usableGames(answer);
     if (games.length === 0) {
       const err = new Error(`Matchup index: the games read for ${season} returned no usable game`);
-      failMemo(gamesMemo, season, err);
+      failMemo(gamesMemo, season, err, gamesPromise);
       throw err;
     }
     // The date is taken per call, so the memoised games never pin yesterday's slate.

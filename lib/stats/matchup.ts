@@ -667,7 +667,7 @@ export function pairLineups(
   return out;
 }
 
-/* ─── Schedule rules (spec §6.4). Neither needs today's date. ─── */
+/* ─── Schedule rules (spec §6.4). `today` is injected; this module never reads the clock. ─── */
 
 /**
  * A `games` row as these rules read it: the fields of lib/data/games.ts's
