@@ -359,8 +359,8 @@ export function matchupSeasonRows(rows: ReadonlyArray<Record<string, unknown>> |
 
 const NO_CELL: RankedValue = { value: null, rank: null, tied: false, pool: 0 };
 
-/** The spoke labels on the overlay radar: short, and the same word for both sides. */
-const OVERLAY_LABELS: Record<RadarAxisKey, string> = {
+/** The spoke labels on the overlay radar: short, and the same word for both sides. (Exported for the matchup card's label fallback.) */
+export const OVERLAY_LABELS: Record<RadarAxisKey, string> = {
   expl_pass: "Explosive pass",
   pass_sr: "Pass success",
   sack: "Sacks",

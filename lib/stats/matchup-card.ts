@@ -18,9 +18,11 @@ import { formatRecord, normalizeGameType, type WinLossTie } from "@/lib/stats/bo
 import { EM_DASH, textColorForBackground } from "@/lib/stats/formatters";
 import { canonicalImageQuery, compareWeek } from "@/lib/stats/compare-links";
 import { parseCompareImageQuery } from "@/lib/stats/compare-card";
+import { parseMatchupSeason } from "@/lib/stats/matchup-links";
 import {
   MATCHUP_NO_OVERLAY_NOTE,
   MATCHUP_SMALL_POOL_NOTE,
+  OVERLAY_LABELS,
   formatKickoff,
   gameWeekLabel,
   matchupNoGameText,
@@ -78,14 +80,22 @@ function safeId(id: unknown): string {
 }
 
 /**
- * The image route, away first, always with the season; `week` (1-22 only)
- * makes each week a new URL; `download` asks for an attachment. The ids are
- * the caller's validated upper-case ones.
+ * The image route, away first, with the season; `week` (1-22 only) makes each
+ * week a new URL; `download` asks for an attachment. The ids are the caller's
+ * validated upper-case ones.
+ *
+ * A season the route's own parser would refuse (not a whole number from 1999
+ * to 2100: matchupCardHref's guard) is left out, never printed: the URL then
+ * names no season, which the route reads as the newest, instead of being a
+ * link the site printed that answers a stored 404 (chaos F5). Callers pass
+ * `load.season`, so this does not happen today.
  */
 export function matchupCardImageHref(
   awayId: string, homeId: string, season: number, options: { week?: number | null; download?: boolean } = {},
 ): string {
-  return `/api/matchup-card/${awayId}/${homeId}${canonicalImageQuery(season, compareWeek(options.week), options.download === true)}`;
+  const named = typeof season === "number" && Number.isSafeInteger(season) && parseMatchupSeason(String(season)) === season;
+  const query = canonicalImageQuery(named ? season : null, compareWeek(options?.week), options?.download === true);
+  return `/api/matchup-card/${awayId}/${homeId}${query}`;
 }
 
 /** The downloaded file's name: "BUF-at-LA-2026-matchup.png", "-vs-" when the pair has no game. */
@@ -117,8 +127,14 @@ export const MATCHUP_CARD_LAYOUT = {
   nameBox: { width: 520, height: 32 },
   /** the AT / VS box over the seam */
   seam: { left: 568, top: 11, width: 64, height: 54 },
-  /** the sub-band's left line: its max-width beside K4, and alone (a playoff game) */
-  subLineMaxWidth: 500,
+  /**
+   * the sub-band's left line: its max-width beside K4, and alone (a playoff
+   * game). 512, not the mockup's 500: the widest regular-season line there can
+   * be is 498.5 px (a test searches for it), and 512 + K4's 432 + the site
+   * name's 160 = 1,104 of the 1,120 between the paddings, so the three items
+   * cannot meet even at their caps
+   */
+  subLineMaxWidth: 512,
   subLineMaxWidthAlone: 900,
   /** a pane: a legend row, then the radar area */
   pane: { width: 599, legend: 34, radar: 363 },
@@ -126,6 +142,13 @@ export const MATCHUP_CARD_LAYOUT = {
   divider: 2,
   /** a spoke label: a fixed column of three rows (name, offense line, defense line) */
   label: { height: 60, rows: [18, 21, 21], nameSize: 14, statSize: 17, mark: 11, markGap: 6, topWidth: 180 },
+  /**
+   * the vertex markers as drawn: an offense dot (radius, stroke width) and a
+   * defense square (half-side, stroke width). A 1st-place square on Pass
+   * success or Explosive run ends 1.02 px from that spoke's own label box (a
+   * test holds 1 px), so none of the four may grow without re-deriving the boxes
+   */
+  marker: { dot: 6, dotStroke: 1.3, square: 5.5, squareStroke: 2.6 },
   /** the sentence of a pane that cannot be drawn, and of a plate */
   paneMessageWidth: 460,
   plateMessageWidth: 900,
@@ -212,16 +235,40 @@ export function matchupCardSeasonLine(season: number, throughWeek: number | null
   return throughWeek === null ? `${season} season` : `${season} through Week ${throughWeek}`;
 }
 
+/** The four playoff rounds gameWeekLabel has a name for. */
+const PLAYOFF_ROUNDS: readonly string[] = ["WC", "DIV", "CON", "SB"];
+
+/**
+ * A game's week as the card prints it: "Week 5" for a regular-season week
+ * 1-22, the round's name for one of the four playoff rounds, and "" for
+ * anything else. The header's gameWeekLabel prints an unknown game type as it
+ * is; on the image that would be unchecked text (any length, any character:
+ * chaos F10), so the card prints no name at all.
+ */
+function cardWeekLabel(game: MatchupGame): string {
+  const type = normalizeGameType(game.game_type);
+  if (PLAYOFF_ROUNDS.includes(type)) return gameWeekLabel(game);
+  return type === "REG" && compareWeek(game.week) !== null ? gameWeekLabel(game) : "";
+}
+
 /**
  * K3 — the sub-band's left line. A game: its week (or playoff round), its
  * kickoff or final score as the matchup page's header prints them, then the
  * season part; empty parts are dropped. No game: the header's sentence, then
  * the season part.
+ *
+ * Nothing of the game row is printed as it came: the week and the round go
+ * through cardWeekLabel, the date and the time through formatKickoff's own
+ * parsing, and the two ids of a "Final:" line are reduced to their letters
+ * (buildMatchupCard only ever passes a row whose ids are the two validated
+ * team ids).
  */
 export function matchupCardSubLine(i: { game: MatchupGame | null; season: number; throughWeek: number | null }): string {
   const seasonLine = matchupCardSeasonLine(i.season, i.throughWeek);
-  if (i.game === null) return `${matchupNoGameText(i.season)} · ${seasonLine}`;
-  return [gameWeekLabel(i.game), formatKickoff(i.game), seasonLine].filter((part) => part !== "").join(" · ");
+  const game = i.game;
+  if (game === null || typeof game !== "object") return `${matchupNoGameText(i.season)} · ${seasonLine}`;
+  const kickoff = formatKickoff({ ...game, away_team: safeId(game.away_team), home_team: safeId(game.home_team) });
+  return [cardWeekLabel(game), kickoff, seasonLine].filter((part) => part !== "").join(" · ");
 }
 
 /** K4 — the sub-band's middle line (left out for a playoff game: the left line would not fit beside it). */
@@ -376,23 +423,43 @@ export type MatchupCardModel =
       /** K5 */
       legendLine: string;
     })
-  | (MatchupCardCommon & { kind: "plate"; message: string });
+  | (MatchupCardCommon & { kind: "plate"; message: string; reason: MatchupPlateReason });
 
-/** One label line: the rate and the rank, or a dash when either is missing. */
-function labelLine(spoke: Pick<RadarSpoke, "value" | "rank" | "tied"> | undefined): string {
-  if (!spoke || spoke.value === null || spoke.rank === null) return EM_DASH;
-  const value = fmtRadarPct(spoke.value);
-  const rank = spokeRankLabel(spoke);
-  return value === EM_DASH || rank === EM_DASH ? EM_DASH : `${value} · ${rank}`;
+/**
+ * Why a model is a plate. "uncovered", "small-pool" and "no-radar" (neither
+ * radar can be drawn: a team with no games, or too few rates) are real states
+ * of the season and their plate is an image worth keeping. "unavailable" is
+ * not: the games could not be read, or the builder was handed a load that is
+ * not this pair's. The image route answers 503 for it and must never store it
+ * (it checks `gamesAvailable` before building; this field is the second lock).
+ */
+export type MatchupPlateReason = "uncovered" | "small-pool" | "no-radar" | "unavailable";
+
+const finite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * ONE rule for a missing spoke, used by the label and by the vertex (spec §7,
+ * chaos F2): a spoke with no value, no rank or no score (null, or anything
+ * that is not a finite number) is missing: a dash for its line and no vertex.
+ * Otherwise the score the chart plots, clamped to 0-1 as plottableScore does.
+ */
+function spokeScore(spoke: Pick<RadarSpoke, "value" | "rank" | "score"> | null | undefined): number | null {
+  if (!spoke || !finite(spoke.value) || !finite(spoke.rank) || !finite(spoke.score)) return null;
+  return plottableScore(spoke);
 }
 
-/** The vertices of one unit: a spoke the chart can plot, at its own pool's radius (spec F7). */
+/** One label line: the rate and the rank, or a dash for a missing spoke. */
+function labelLine(spoke: RadarSpoke | undefined): string {
+  if (!spoke || spokeScore(spoke) === null) return EM_DASH;
+  return `${fmtRadarPct(spoke.value)} · ${spokeRankLabel(spoke)}`;
+}
+
+/** The vertices of one unit: every spoke that is not missing, at its own pool's radius (spec F7). */
 function vertices(spokes: readonly RadarSpoke[]): MatchupCardVertex[] {
   const g = MATCHUP_CARD_RADAR;
   const out: MatchupCardVertex[] = [];
   RADAR_AXES.forEach((axis, i) => {
-    const spoke = spokes[i];
-    const score = spoke ? plottableScore(spoke) : null;
+    const score = spokeScore(spokes[i]);
     if (score === null) return;
     const [x, y] = radarPoint(g, g.r * radarRadius(score), i);
     out.push({ key: axis.key, x, y });
@@ -401,21 +468,35 @@ function vertices(spokes: readonly RadarSpoke[]): MatchupCardVertex[] {
 }
 
 /**
- * The card for one pair, as plain data (never NaN, never undefined). `load`
- * is the loader's answer with `gamesAvailable === true`; callers check first
- * (the image answers 503, the page shows a message), and the builder returns
- * a plate saying K11 if handed one without. Never throws.
+ * The card for one pair, as plain data. `load` is the loader's answer with
+ * `gamesAvailable === true`; callers check first (the image answers 503, the
+ * page shows a message), and the builder returns the "unavailable" plate if
+ * handed one without.
+ *
+ * It does not throw on a load that fits MatchupCardLoad, whatever state it is
+ * in, and its numbers are finite. A value outside the types (no load at all, a
+ * team that is null, a model that is not a model) can still throw or print
+ * "NaN" (chaos F4): the two callers pass a validated Team and the loader's
+ * own answer.
  *
  * A plate (the band, then one sentence) when there is nothing to draw: the
  * season is not covered, too few teams have played, or neither radar can be
  * drawn. One pane that cannot be drawn is still a card: that pane carries its
  * sentence.
+ *
+ * Two checks on what it is handed, because every name and colour comes from
+ * `away` / `home` and every number from `load.model` (review should-fix 2,
+ * chaos F10): a model that is not these two teams in this order is the
+ * "unavailable" plate, never a card with one team's numbers under the other's
+ * name; and `load.game` counts as the pair's game only when it is this pair in
+ * this order, else the card says VS and prints nothing of that row.
  */
 export function buildMatchupCard(input: { away: Team; home: Team; load: MatchupCardLoad }): MatchupCardModel {
   const { away, home, load } = input;
   const model = load.model ?? null;
   const season = load.season;
-  const game = load.game ?? null;
+  const row = load.game ?? null;
+  const game = row !== null && typeof row === "object" && row.away_team === away.id && row.home_team === home.id ? row : null;
   const hasGame = game !== null;
   const colours = matchupCardColours(away, home);
   const throughWeek = compareWeek(model?.throughWeek ?? null);
@@ -429,7 +510,8 @@ export function buildMatchupCard(input: { away: Team; home: Team; load: MatchupC
       name,
       nameSize: matchupBandNameSize(name),
       color,
-      textColor: textColorForBackground(color),
+      // upper-case, like every other colour in the model (textColorForBackground answers in lower case)
+      textColor: textColorForBackground(color).toUpperCase(),
       ruleColor: side === "away" ? colours.awayRule : colours.homeRule,
       meta: record === null ? "" : hasGame ? `${formatRecord(record)} · ${side}` : formatRecord(record),
     };
@@ -447,12 +529,16 @@ export function buildMatchupCard(input: { away: Team; home: Team; load: MatchupC
     description: matchupCardDescription(away.id, home.id, throughWeek),
     alt: matchupCardAlt(away.name, home.name, season, hasGame),
   };
-  const plate = (message: string): MatchupCardModel => ({ kind: "plate", ...common, description: message, message });
+  const plate = (reason: MatchupPlateReason, message: string): MatchupCardModel => ({
+    kind: "plate", ...common, description: message, message, reason,
+  });
 
-  if (!load.gamesAvailable) return plate(MATCHUP_CARD_UNAVAILABLE);
-  if (load.state === "uncovered") return plate(matchupUncoveredHeading(season, load.firstSeason ?? null));
-  if (model === null) return plate(MATCHUP_CARD_UNAVAILABLE);
-  if (load.state === "small-pool" || model.state === "small-pool") return plate(MATCHUP_SMALL_POOL_NOTE);
+  if (!load.gamesAvailable) return plate("unavailable", MATCHUP_CARD_UNAVAILABLE);
+  // The numbers below are the model's; the names and colours above are the two teams'. They must be the same pair.
+  if (model !== null && (model.away?.id !== away.id || model.home?.id !== home.id)) return plate("unavailable", MATCHUP_CARD_UNAVAILABLE);
+  if (load.state === "uncovered") return plate("uncovered", matchupUncoveredHeading(season, load.firstSeason ?? null));
+  if (model === null) return plate("unavailable", MATCHUP_CARD_UNAVAILABLE);
+  if (load.state === "small-pool" || model.state === "small-pool") return plate("small-pool", MATCHUP_SMALL_POOL_NOTE);
 
   // A pane that cannot be drawn: a team with no games (the away team's sentence when both), else too few rates.
   const undrawn =
@@ -474,7 +560,8 @@ export function buildMatchupCard(input: { away: Team; home: Team; load: MatchupC
       def: vertices(def),
       labels: RADAR_AXES.map((axis, i) => ({
         key: axis.key,
-        name: overlay.spokes[i]?.label ?? axis.label,
+        // the overlay's own word; never the radar's axis name ("Sack rate"), which the card's fit tests never saw
+        name: overlay.spokes?.[i]?.label ?? OVERLAY_LABELS[axis.key],
         offLine: labelLine(off[i]),
         defLine: labelLine(def[i]),
         box: MATCHUP_CARD_LABEL_BOXES[i],
@@ -487,14 +574,14 @@ export function buildMatchupCard(input: { away: Team; home: Team; load: MatchupC
     pane(model.awayBall?.overlay ?? null, away, home, colours.away, colours.home),
     pane(model.homeBall?.overlay ?? null, home, away, colours.home, colours.away),
   ];
-  if (!panes[0].drawn && !panes[1].drawn) return plate(undrawn);
+  if (!panes[0].drawn && !panes[1].drawn) return plate("no-radar", undrawn);
 
   return {
     kind: "card",
     ...common,
     subLine: matchupCardSubLine({ game, season, throughWeek }),
-    // K4 beside a regular-season game or no game; a playoff round's line is too long to share the row.
-    showHowTo: game === null || normalizeGameType(game.game_type) === "REG",
+    // K4 beside every line but a playoff round's, which is too long to share the row (an unknown game type prints no name).
+    showHowTo: game === null || !PLAYOFF_ROUNDS.includes(normalizeGameType(game.game_type)),
     panes,
     legendLine: matchupCardLegendLine(model.teamsPlayed, colours.ring),
   };

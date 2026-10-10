@@ -13,7 +13,8 @@
 // NEVER re-capture it to make a test pass: a failing golden means the
 // TypeScript disagrees with the reference. The one legitimate reason to write
 // it again is a team colour changing in lib/data/teams.ts; then re-run the
-// script, look at the affected cards, and update the sha below and in the spec.
+// script, look at the affected cards, and update the sha in its three places:
+// below, in the spec (§10, §17) and in memory/MEMORY.md.
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
