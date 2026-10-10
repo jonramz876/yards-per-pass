@@ -28,6 +28,7 @@ import { matchupCardImage, matchupPlateImage } from "@/lib/og/matchup-card-image
 import { radarImageFonts } from "@/lib/og/team-radar-image";
 import {
   MATCHUP_CARD_IMAGE_UNAVAILABLE,
+  MATCHUP_CARD_UNAVAILABLE,
   buildMatchupCard,
   matchupCardDownloadFilename,
   parseMatchupImageQuery,
@@ -125,6 +126,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ away: st
   if (load.swap) return notFound(false);
 
   const model = buildMatchupCard({ away, home, load });
+  // The second lock: an "unavailable" plate (no model, or a model that is not
+  // this pair's) is an error, not a state of the season. Retryable, never
+  // stored, never drawn. The other plates (uncovered, small-pool, no radar
+  // drawable) are real answers and are kept. `reason` was added to the plate
+  // after this route was first written, so the K11 sentence is read as well.
+  if (model.kind === "plate" && ((model as { reason?: string }).reason === "unavailable" || model.message === MATCHUP_CARD_UNAVAILABLE)) {
+    console.error(`${what}: the card model is unavailable for this pair, so no image is drawn`);
+    return unavailable();
+  }
   const fonts = await radarImageFonts(undefined, "Matchup card image");
 
   if (model.kind === "plate") {

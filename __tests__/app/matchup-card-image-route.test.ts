@@ -40,6 +40,11 @@ vi.mock("@/lib/og/matchup-card-image", () => ({
   matchupCardImage: vi.fn((model: unknown) => ({ card: model })),
   matchupPlateImage: vi.fn((model: unknown) => ({ plate: model })),
 }));
+// The real builder, wrapped so one test can hand the route an "unavailable" plate.
+vi.mock("@/lib/stats/matchup-card", async (original) => {
+  const actual = await original<typeof import("@/lib/stats/matchup-card")>();
+  return { ...actual, buildMatchupCard: vi.fn(actual.buildMatchupCard) };
+});
 vi.mock("@/lib/data/queries", () => ({
   getSeasonWeeks: vi.fn(), getQBStats: vi.fn(), getAvailableSeasons: vi.fn(), fallbackSeason: () => 2026,
 }));
@@ -76,7 +81,7 @@ import { fetchAllRows } from "@/lib/data/utils";
 import { matchupCardImage, matchupPlateImage } from "@/lib/og/matchup-card-image";
 import { radarImageFonts } from "@/lib/og/team-radar-image";
 import { MATCHUP_SMALL_POOL_NOTE } from "@/lib/stats/matchup";
-import type { MatchupCardModel } from "@/lib/stats/matchup-card";
+import { MATCHUP_CARD_UNAVAILABLE, buildMatchupCard, type MatchupCardModel } from "@/lib/stats/matchup-card";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import { ROWS } from "../components/matchup/helpers";
 
@@ -131,6 +136,7 @@ beforeEach(() => {
   for (const fn of READS) vi.mocked(fn as never as () => unknown).mockReset();
   vi.mocked(matchupCardImage).mockClear();
   vi.mocked(matchupPlateImage).mockClear();
+  vi.mocked(buildMatchupCard).mockClear();
   vi.mocked(radarImageFonts).mockClear();
   vi.mocked(hasNoDatabase).mockReturnValue(false);
   vi.mocked(getSeasonWeeks).mockResolvedValue(WEEKS);
@@ -290,6 +296,36 @@ describe("row 7: the games could not be read", () => {
     breakIt();
     await expectUnavailable(await get("BUF", "LA"));
     await expectUnavailable(await get("BUF", "LA", "?season=2026&w=4&download=1"));
+  });
+});
+
+describe("rows 7 and 9: an unavailable plate is an error, not a picture", () => {
+  it("with the games unread the route answers 503 BEFORE building the card", async () => {
+    vi.mocked(getSeasonGames).mockRejectedValue(new Error("Failed to fetch games"));
+    await expectUnavailable(await get("BUF", "LA"));
+    expect(buildMatchupCard).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["by its reason", { reason: "unavailable", message: "anything" }],
+    ["by the K11 sentence (a plate with no reason field)", { message: MATCHUP_CARD_UNAVAILABLE }],
+  ])("a plate the builder marks unavailable (%s): 503 no-store, never drawn, never stored", async (_how, over) => {
+    const real = vi.mocked(buildMatchupCard).getMockImplementation()!;
+    vi.mocked(buildMatchupCard).mockImplementationOnce((input) => ({ ...real(input), kind: "plate", ...over }) as never);
+    await expectUnavailable(await get("BUF", "LA", "?season=2026&w=4&download=1"));
+    expect(errorSpy).toHaveBeenCalled();
+    // and the next request, with the builder's own answer, draws
+    expect((await get("BUF", "LA")).status).toBe(200);
+  });
+
+  it("the three real plate reasons are drawn and stored", async () => {
+    const real = vi.mocked(buildMatchupCard).getMockImplementation()!;
+    for (const reason of ["uncovered", "small-pool", "no-radar"]) {
+      vi.mocked(buildMatchupCard).mockImplementationOnce((input) => ({ ...real(input), kind: "plate", message: "A sentence.", reason }) as never);
+      const res = await get("BUF", "LA");
+      expect([res.status, res.headers.get("cache-control")], reason).toEqual([200, STORED]);
+    }
+    expect(matchupPlateImage).toHaveBeenCalledTimes(3);
   });
 });
 

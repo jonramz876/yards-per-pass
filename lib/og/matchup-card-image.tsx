@@ -57,8 +57,16 @@ const PANEL = "#F8FAFC";
 /** The defense's line: dashed. The offense's is solid. */
 const DASH = "8,5";
 const RING_DASH = "5,3";
-/** Half the side of a defense marker (a square drawn as a closed path). */
-const MARKER = 5.5;
+/**
+ * The vertex markers: an offense dot (radius, stroke width) and a defense
+ * square drawn as a closed path (half-side, stroke width). The four numbers
+ * are MATCHUP_CARD_LAYOUT.marker's (added to the layout after PR 1's chaos
+ * pass: a 1st-place square ends 1.02 px from its own label box, so none may
+ * grow without re-deriving the boxes). The literals here are the same four,
+ * used only where the layout does not carry them yet.
+ */
+type MarkerSizes = { dot: number; dotStroke: number; square: number; squareStroke: number };
+const MARKER: MarkerSizes = (L as { marker?: MarkerSizes }).marker ?? { dot: 6, dotStroke: 1.3, square: 5.5, squareStroke: 2.6 };
 
 const n1 = (v: number): number => Number(v.toFixed(1));
 const ALIGN = { start: "flex-start", center: "center", end: "flex-end" } as const;
@@ -285,10 +293,10 @@ function pane(p: MatchupCardPane, index: number, ringColor: string): JSX.Element
               <path data-outline="off" d={radarPathD(points(p.off))} fill={`${p.offColor}22`} stroke={p.offColor} strokeWidth={3.4} strokeLinejoin="round" />
             ) : null}
             {p.def.map((v) => (
-              <path key={`d-${v.key}`} data-marker="def" d={squareD(v.x, v.y, MARKER)} fill={WHITE} stroke={p.defColor} strokeWidth={2.6} />
+              <path key={`d-${v.key}`} data-marker="def" d={squareD(v.x, v.y, MARKER.square)} fill={WHITE} stroke={p.defColor} strokeWidth={MARKER.squareStroke} />
             ))}
             {p.off.map((v) => (
-              <circle key={`o-${v.key}`} data-dot="off" cx={n1(v.x)} cy={n1(v.y)} r={G.dot} fill={p.offColor} stroke={WHITE} strokeWidth={1.3} />
+              <circle key={`o-${v.key}`} data-dot="off" cx={n1(v.x)} cy={n1(v.y)} r={MARKER.dot} fill={p.offColor} stroke={WHITE} strokeWidth={MARKER.dotStroke} />
             ))}
           </svg>
           {p.labels.map((label) => spokeLabel(label, p.offColor, p.defColor))}

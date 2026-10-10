@@ -178,7 +178,7 @@ describe.each(Object.entries(CASES))("what Satori is given: %s", (_name, build) 
     expect(style(sub)).toMatchObject({ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0", padding: "0 40px", justifyContent: "space-between", alignItems: "center" });
     const line = one(els, "data-sub-line");
     expect(text(line)).toBe(m.subLine);
-    expect(style(line)).toMatchObject({ fontSize: 15, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", maxWidth: m.showHowTo ? 500 : 900 });
+    expect(style(line)).toMatchObject({ fontSize: 15, color: "#475569", whiteSpace: "nowrap", overflow: "hidden", maxWidth: m.showHowTo ? L.subLineMaxWidth : L.subLineMaxWidthAlone });
     const howTo = by(els, "data-how-to");
     expect(howTo).toHaveLength(m.showHowTo ? 1 : 0);
     if (m.showHowTo) {
