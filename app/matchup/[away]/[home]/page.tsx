@@ -17,6 +17,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { getTeam } from "@/lib/data/teams";
 import { loadMatchup, type MatchupLoad } from "@/lib/data/matchup";
+import { getSeasonWeeksCached } from "@/lib/data/compare-card";
 import { MATCHUP_SMALL_POOL_NOTE, matchupNoGamesNote, matchupUncoveredHeading } from "@/lib/stats/matchup";
 import { flipBall, matchupHref, parseBall, parseMatchupSeason, parseMatchupTeamId, type Ball } from "@/lib/stats/matchup-links";
 import type { Team } from "@/lib/types";
@@ -69,6 +70,28 @@ function parseRequest(p: RouteParams, q: SearchParams): Parsed | null {
 
 const hasGame = (load: MatchupLoad): boolean => load.game !== null;
 
+/**
+ * The season the 308 keeps: the one asked for when the site lists it, else
+ * none (chaos pass on PR 2, finding 9: `?season=2031` used to stay in the
+ * address while the page showed the newest season; the 307 already dropped
+ * it). With no season in the address nothing is read. With one, the answer
+ * comes from the memoised season list every matchup page already reads (one
+ * shared read, never one per pair). If that list cannot be read the season is
+ * dropped: the bare address is always right, and the page it leads to reports
+ * the failure itself.
+ */
+async function listedSeason(requested: number | null, what: string): Promise<number | null> {
+  if (requested === null) return null;
+  try {
+    const weeks: unknown = await getSeasonWeeksCached();
+    const listed = Array.isArray(weeks) && weeks.some((w) => w !== null && typeof w === "object" && (w as { season?: unknown }).season === requested);
+    return listed ? requested : null;
+  } catch (err) {
+    console.error(`${what}: the season list could not be read for a redirect; the season was left out of the address`, err);
+    return null;
+  }
+}
+
 // -------------------------------------------------------------------
 // Metadata
 // -------------------------------------------------------------------
@@ -114,9 +137,13 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
   if (!parsed) notFound(); // steps 1-2: no read
   const { away, home, requested, ball, canonicalCase } = parsed;
 
-  // Step 4, still no read: mixed case is a permanent redirect. The query is
-  // rebuilt from the validated values, never echoed.
-  if (!canonicalCase) permanentRedirect(matchupHref(away.id, home.id, { season: requested, ball }));
+  // Step 4: mixed case is a permanent redirect. The query is rebuilt from the
+  // validated values, never echoed, and a season the site does not list is
+  // left out (no read at all unless the address names a season).
+  if (!canonicalCase) {
+    const season = await listedSeason(requested, `Matchup (${away.id} at ${home.id})`);
+    permanentRedirect(matchupHref(away.id, home.id, { season, ball }));
+  }
 
   // Steps 5-6. A failed core read rejects: app/matchup/error.tsx, a real 500.
   const load = await loadMatchup(away.id, home.id, requested);
@@ -153,7 +180,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
         {header}
         <div data-uncovered className={MESSAGE}>
           <p className="m-0 font-semibold text-slate-900">{matchupUncoveredHeading(season, load.firstSeason)}</p>
-          <Link href={matchupHref(away.id, home.id)} className="mt-1 inline-block font-semibold text-navy underline underline-offset-2">
+          <Link href={matchupHref(away.id, home.id, { ball })} className="mt-1 inline-block font-semibold text-navy underline underline-offset-2">
             {`See ${away.id} and ${home.id} in ${defaultSeason}`}
           </Link>
         </div>
