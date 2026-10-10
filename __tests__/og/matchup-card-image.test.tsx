@@ -133,7 +133,7 @@ describe.each(Object.entries(CASES))("what Satori is given: %s", (_name, build) 
     // The blocks are the root's only children, in a column.
     const root = els[0];
     expect(style(root)).toMatchObject({ display: "flex", flexDirection: "column", width: "100%", height: "100%" });
-    expect((root.props.children as El[]).filter(Boolean)).toHaveLength(5);
+    expect((root.props.children as unknown[]).flat().filter(Boolean)).toEqual(blocks);
   });
 
   it("the band: each half 600 wide in its team's card colour, the upper-cased name in the pixel font at the model's size, the record under it", () => {
@@ -324,8 +324,10 @@ describe("the radar (spec §6.4)", () => {
 
   it("one svg of the pane's size, under the labels", () => {
     for (const n of [0, 1]) {
-      const svg = radar(n)[0];
+      // radar(n)[0] is the box itself; its first child is the svg.
+      const svg = radar(n)[1];
       expect(svg.type).toBe("svg");
+      expect(radar(n).filter((e) => e.type === "svg" && e.props["data-mark"] === undefined)).toHaveLength(1);
       expect(svg.props).toMatchObject({ width: 599, height: 363, viewBox: "0 0 599 363" });
     }
   });
@@ -352,11 +354,13 @@ describe("the radar (spec §6.4)", () => {
       for (const l of lines) {
         expect(l.props["data-spoke"]).toBeDefined();
         expect(l.props).toMatchObject({ stroke: "#EEF2F7", strokeWidth: 1.1 });
-        expect(dist(l.props.x1 as number, l.props.y1 as number)).toBeCloseTo(G.r * RADAR_HUB, 1);
-        expect(dist(l.props.x2 as number, l.props.y2 as number)).toBeCloseTo(G.r, 1);
+        // Coordinates are written to a tenth of a pixel.
+        expect(Math.abs(dist(l.props.x1 as number, l.props.y1 as number) - G.r * RADAR_HUB)).toBeLessThan(0.1);
+        expect(Math.abs(dist(l.props.x2 as number, l.props.y2 as number) - G.r)).toBeLessThan(0.1);
       }
       // Nothing else in the svg is a stroke between two points: paths are the rings, the two outlines and the square markers.
-      const paths = radar(n).filter((e) => e.type === "path");
+      // (the chart's own svg: the labels' marks are separate little svgs)
+      const paths = flatten(radar(n)[1]).filter((e) => e.type === "path");
       expect(paths.every((p) => p.props["data-ring"] || p.props["data-outline"] || p.props["data-marker"])).toBe(true);
       expect(radar(n).filter((e) => e.props["data-gap"] !== undefined)).toHaveLength(0);
     }
