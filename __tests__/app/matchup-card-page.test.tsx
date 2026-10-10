@@ -437,13 +437,16 @@ describe("the 14 lines as two readable tables (§8.1 item 4)", () => {
       expect(cls).toMatch(/\bw-full\b/);
       expect(cls).toMatch(/\btext-slate-900\b/);
       expect(cls).toMatch(/\btabular-nums\b/);
-      expect(cls).toMatch(/\btext-\[13px\]/);
-      expect(cls).toMatch(/\bsm:text-\[14px\]/);
+      // Measured in a browser in the site's own font (spec review 2, builder note 4): at 13 px the
+      // worst row (100.0% · T-32nd twice) is 316 px, 20 more than a 320 px phone has. So under 360 px
+      // the table is 12 px with 4 px cell padding (282 px), 13 px / 6 px from 360, 14 px / 8 px from sm.
+      const sizes = cls.split(/\s+/).filter((c) => /text-\[\d+px\]$/.test(c));
+      expect(sizes).toEqual(["text-[12px]", "min-[360px]:text-[13px]", "sm:text-[14px]"]);
       expect(table.querySelector("caption")!.getAttribute("class")).toMatch(/text-left.*font-semibold|font-semibold.*text-left/);
       for (const td of Array.from(table.querySelectorAll("tbody td"))) {
         expect(td.getAttribute("class")).toMatch(/\bwhitespace-nowrap\b/);
-        expect(td.getAttribute("class")).toMatch(/\bpx-1\.5\b/);
-        expect(td.getAttribute("class")).toMatch(/\bsm:px-2\b/);
+        const pads = (td.getAttribute("class") ?? "").split(/\s+/).filter((c) => /(^|:)px-/.test(c));
+        expect(pads).toEqual(["px-1", "min-[360px]:px-1.5", "sm:px-2"]);
       }
       // The name column may wrap: it is the only one without nowrap.
       for (const th of Array.from(table.querySelectorAll("tbody th"))) expect(th.getAttribute("class")).not.toMatch(/whitespace-nowrap/);
