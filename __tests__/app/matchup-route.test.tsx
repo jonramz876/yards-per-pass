@@ -5,7 +5,7 @@
 // the page over the real loader with the date fixed.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 vi.mock("next/navigation", () => ({
@@ -343,6 +343,91 @@ describe("the ready page", () => {
   });
 });
 
+// New with the matchup card (spec 2026-10-11 §8.2): the Share block.
+describe("the Share block: shown exactly when the share page is a card", () => {
+  const share = (el: HTMLElement) => el.querySelector("[data-matchup-share]");
+
+  it("a ready pair: between the header and the possession tabs, in normal flow, with its three URLs", async () => {
+    const el = await html("BUF", "LA");
+    const block = share(el)!;
+    expect(block).not.toBeNull();
+    const header = el.querySelector("[data-matchup-header]")!;
+    const toggle = el.querySelector("[data-ball-toggle]")!;
+    expect(header.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Not inside the header, the toggle or either tab's content: it does not change with the tab.
+    expect(header.contains(block)).toBe(false);
+    expect(toggle.contains(block)).toBe(false);
+    expect(el.querySelectorAll("[data-matchup-share]")).toHaveLength(1);
+    expect(block.getAttribute("data-share-url")).toBe(`${BASE}/card/matchup/BUF/LA`);
+    expect(block.getAttribute("data-download-href")).toBe("/api/matchup-card/BUF/LA?season=2026&w=3&download=1");
+    const open = block.querySelector("a")!;
+    expect([open.getAttribute("href"), open.getAttribute("data-prefetch"), open.textContent]).toEqual(["/card/matchup/BUF/LA", "false", "Open share card →"]);
+    expect(block.querySelector("[data-matchup-share-heading]")?.textContent).toBe("Share this matchup");
+    // Nothing floats: no class on it or inside it positions it out of the flow.
+    for (const node of [block, ...Array.from(block.querySelectorAll("*"))]) {
+      expect(node.getAttribute("class") ?? "").not.toMatch(/(^|\s)(\S+:)?(fixed|sticky|absolute)(\s|$)|red-\d00/);
+    }
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("the same block whichever team has the ball, and for a pair with no game", async () => {
+    const away = share(await html("BUF", "LA"))!.outerHTML;
+    expect(share(await html("BUF", "LA", { ball: "home" }))!.outerHTML).toBe(away);
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { game: null }));
+    const vs = share(await html("BUF", "DAL"))!;
+    expect(vs.getAttribute("data-share-url")).toBe(`${BASE}/card/matchup/BUF/DAL`);
+  });
+
+  it("a past season: ?season= on the share URLs and the season on the download", async () => {
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) =>
+      ready(a, h, { season: 2025, isLatestSeason: false, lineup: pairLineups(pick(a, 2025), pick(h, 2025)) }));
+    const block = share(await html("BUF", "LA", { season: "2025" }))!;
+    expect(block.getAttribute("data-share-url")).toBe(`${BASE}/card/matchup/BUF/LA?season=2025`);
+    expect(block.querySelector("a")?.getAttribute("href")).toBe("/card/matchup/BUF/LA?season=2025");
+    expect(block.getAttribute("data-download-href")).toBe("/api/matchup-card/BUF/LA?season=2025&w=3&download=1");
+  });
+
+  it("the copied address is built on the server from NEXT_PUBLIC_SITE_URL", async () => {
+    process.env.NEXT_PUBLIC_SITE_URL = "https://preview.example";
+    try {
+      expect(share(await html("BUF", "LA"))!.getAttribute("data-share-url")).toBe("https://preview.example/card/matchup/BUF/LA");
+    } finally {
+      delete process.env.NEXT_PUBLIC_SITE_URL;
+    }
+  });
+
+  it("one radar that cannot be drawn is still a card, so the block is still there", async () => {
+    const three = ROWS.map((r) => (r.team_id === "BUF" ? { ...r, pass_plays: 0, attempts: 0, sacks: 0, total_drives: 0 } : r));
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { model: model(a, h, three) }));
+    expect(share(await html("BUF", "LA"))).not.toBeNull();
+  });
+
+  it("hidden where the share page is a message page: small-pool, uncovered, a team with no games, the games read failed", async () => {
+    vi.mocked(loadMatchup).mockResolvedValue(smallPool());
+    expect(share(await html("BUF", "LA"))).toBeNull();
+    vi.mocked(loadMatchup).mockResolvedValue(uncovered());
+    expect(share(await html("BUF", "LA", { season: "2025" }))).toBeNull();
+    // A team with no games: neither radar can be drawn, so the card is a plate.
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { model: model(a, h, rowsWithout("BUF")) }));
+    const idle = await html("BUF", "LA");
+    expect(share(idle)).toBeNull();
+    expect(idle.querySelector("[data-no-games-note]")).not.toBeNull();
+    // The games read failed: the image would be a 503, so nothing is offered to share.
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { game: null, records: null, gamesAvailable: false }));
+    const degraded = await html("BUF", "LA");
+    expect(share(degraded)).toBeNull();
+    expect(degraded.querySelectorAll("[data-ladder-row]")).toHaveLength(26);
+  });
+
+  it("with a no-games note the order would be header, note, Share block, tabs; the block is keyed by its card so Copied! never carries to another pair", async () => {
+    const source = readFileSync(join(process.cwd(), "app", "matchup", "[away]", "[home]", "page.tsx"), "utf8");
+    expect(source).toMatch(/<MatchupShare\s+key=\{cardHref\}/);
+    expect(source.indexOf("data-no-games-note")).toBeLessThan(source.indexOf("<MatchupShare"));
+    expect(source.indexOf("<MatchupShare")).toBeLessThan(source.indexOf("<MatchupBallToggle"));
+  });
+});
+
 describe("small-pool and uncovered", () => {
   it("small-pool: header, M1, players; no toggle, no ladder, no panel, no rank", async () => {
     vi.mocked(loadMatchup).mockResolvedValue(smallPool());
@@ -447,11 +532,50 @@ describe("generateMetadata (§4.4)", () => {
     expect(past.title).toBe("Buffalo Bills at Los Angeles Rams: Team Matchup 2025");
   });
 
-  it("no preview image of its own", async () => {
+  // Rewritten on purpose by the matchup card spec (2026-10-11 §8.3): this test
+  // used to assert "no preview image of its own" (the team matchup spec's line
+  // 30 and 243, superseded). The page now names the matchup card's image.
+  it("the preview image is the matchup card's: the card for a ready pair, the plate's URL for small-pool, none when the games could not be read", async () => {
     const meta = await md("BUF", "LA");
-    expect(meta.openGraph?.images).toBeUndefined();
-    expect(meta.twitter?.images).toBeUndefined();
+    const image = `${BASE}/api/matchup-card/BUF/LA?season=2026&w=3`;
+    expect(meta.openGraph?.images).toEqual([{ url: image, width: 1200, height: 630, alt: "Buffalo Bills at Los Angeles Rams matchup card, 2026" }]);
+    expect(meta.twitter).toEqual({ card: "summary_large_image", title: meta.title, description: meta.description, images: [image] });
+    // og:url and the canonical stay the matchup page's own.
     expect(meta.openGraph?.url).toBe(`${BASE}/matchup/BUF/LA`);
+    expect(meta.alternates?.canonical).toBe(`${BASE}/matchup/BUF/LA`);
+    // ?ball=home previews the same card (one card per game).
+    expect((await md("BUF", "LA", { ball: "home" })).openGraph?.images).toEqual(meta.openGraph?.images);
+
+    // small-pool: the same route draws the plate there, never a broken image.
+    vi.mocked(loadMatchup).mockResolvedValue(smallPool());
+    const small = await md("BUF", "LA");
+    expect((small.openGraph?.images as { url: string }[])[0].url).toMatch(/^https:\/\/yardsperpass\.com\/api\/matchup-card\/BUF\/LA\?season=2026(&w=\d+)?$/);
+    expect(small.twitter?.images).toEqual([(small.openGraph?.images as { url: string }[])[0].url]);
+
+    // the games read failed: the image route would answer 503, so no image is named (as before this spec).
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { game: null, records: null, gamesAvailable: false }));
+    const degraded = await md("BUF", "LA");
+    expect(degraded.openGraph?.images).toBeUndefined();
+    expect(degraded.twitter?.images).toBeUndefined();
+    expect(degraded.twitter).toBeUndefined();
+    expect(degraded.openGraph?.url).toBe(`${BASE}/matchup/BUF/LA`);
+  });
+
+  it("the preview image names the season shown and the week; a past season and a pair with no game", async () => {
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { season: 2025, isLatestSeason: false }));
+    const past = await md("BUF", "LA", { season: "2025" });
+    expect((past.openGraph?.images as { url: string }[])[0].url).toBe(`${BASE}/api/matchup-card/BUF/LA?season=2025&w=3`);
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { game: null }));
+    const vs = await md("BUF", "DAL");
+    expect(vs.openGraph?.images).toEqual([
+      { url: `${BASE}/api/matchup-card/BUF/DAL?season=2026&w=3`, width: 1200, height: 630, alt: "Buffalo Bills vs Dallas Cowboys matchup card, 2026" },
+    ]);
+    // uncovered: no model, so no week; the route draws the plate
+    vi.mocked(loadMatchup).mockResolvedValue(uncovered());
+    expect(((await md("BUF", "LA", { season: "2025" })).openGraph?.images as { url: string }[])[0].url).toBe(`${BASE}/api/matchup-card/BUF/LA?season=2025`);
+    // a week outside 1-22 sends no w
+    vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h, { model: { ...model(a, h), throughWeek: 23 } }));
+    expect(((await md("BUF", "LA")).openGraph?.images as { url: string }[])[0].url).toBe(`${BASE}/api/matchup-card/BUF/LA?season=2026`);
   });
 
   it("a failed core read rejects here too (read resilience 1A)", async () => {

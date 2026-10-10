@@ -14,7 +14,12 @@ const EXPECTED = [
   "MatchupBallToggle.tsx", "MatchupBallView.tsx", "MatchupHeader.tsx", "MatchupLadder.tsx", "MatchupNotes.tsx",
   "MatchupPicker.tsx", "MatchupPlayers.tsx", "MatchupRadarChart.tsx", "MatchupSidePanel.tsx", "MatchupSlate.tsx",
 ];
-const PAGES = ["app/matchup/page.tsx", "app/matchup/[away]/[home]/page.tsx", "app/matchup/layout.tsx", "app/matchup/error.tsx"];
+// MatchupShare.tsx is the Share block (matchup card spec 2026-10-11 §8.2): a file of the page's
+// own folder, so the no-fixed, no-overflow and no-red rules below cover it too.
+const PAGES = [
+  "app/matchup/page.tsx", "app/matchup/[away]/[home]/page.tsx", "app/matchup/layout.tsx", "app/matchup/error.tsx",
+  "app/matchup/[away]/[home]/MatchupShare.tsx",
+];
 const pageCode = (rel: string) =>
   readFileSync(join(ROOT, rel), "utf8")
     .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, "")
@@ -188,7 +193,10 @@ describe("the browser bundle (§8 bundle rule)", () => {
     expect(FILES.filter((f) => isClient(source(f)))).toEqual(["MatchupBallToggle.tsx", "MatchupPicker.tsx"]);
   });
 
-  it.each(["components/matchup/MatchupBallToggle.tsx", "components/matchup/MatchupPicker.tsx", "components/team/ScheduleSection.tsx"])(
+  it.each([
+    "components/matchup/MatchupBallToggle.tsx", "components/matchup/MatchupPicker.tsx", "components/team/ScheduleSection.tsx",
+    "app/matchup/[away]/[home]/MatchupShare.tsx",
+  ])(
     "%s never reaches matchup.ts, team-stats.ts or team-radar.ts",
     (entry) => {
       const reached = reach(join(ROOT, entry));
@@ -212,5 +220,52 @@ describe("the browser bundle (§8 bundle rule)", () => {
 
   it("no matchup folder file sits beside the components that is not one of them (no stray client file)", () => {
     expect(readdirSync(join(ROOT, "components", "matchup")).sort()).toEqual(EXPECTED);
+  });
+
+  /** Every .ts / .tsx file under a folder, as paths relative to the repo root with forward slashes. */
+  const filesUnder = (rel: string): string[] => {
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.tsx?$/.test(entry.name)) out.push(full.slice(ROOT.length + 1).split("\\").join("/"));
+      }
+    };
+    walk(join(ROOT, rel));
+    return out.sort();
+  };
+  const clientFilesUnder = (rel: string): string[] => filesUnder(rel).filter((f) => isClient(readFileSync(join(ROOT, f), "utf8")));
+
+  // Matchup card spec 2026-10-11 §10: the third client file on the matchup routes.
+  it("the client files under app/matchup/ are exactly error.tsx (an error boundary has to be one) and MatchupShare.tsx", () => {
+    expect(clientFilesUnder("app/matchup")).toEqual(["app/matchup/[away]/[home]/MatchupShare.tsx", "app/matchup/error.tsx"]);
+  });
+
+  it("MatchupShare imports React, next/link and matchup-links only: its three URLs come in ready-made from the server page", () => {
+    const text = readFileSync(join(ROOT, "app/matchup/[away]/[home]/MatchupShare.tsx"), "utf8");
+    expect(specifiers(text).sort()).toEqual(["@/lib/stats/matchup-links", "next/link", "react"]);
+  });
+
+  // The bundle walk (matchup card spec §3, §10): the card's two pure modules are server-side.
+  // matchup-card.ts brings matchup.ts, team-radar.ts and the colour rule with it.
+  it("no \"use client\" file anywhere in app/ or components/ reaches matchup-card.ts or matchup-colours.ts", () => {
+    const clients = [...clientFilesUnder("app"), ...clientFilesUnder("components")];
+    expect(clients.length).toBeGreaterThan(20);
+    expect(clients).toContain("app/matchup/[away]/[home]/MatchupShare.tsx");
+    expect(clients).toContain("app/card/team/[team_id]/[side]/TeamRadarActions.tsx");
+    for (const file of clients) {
+      const reached = reach(join(ROOT, file));
+      expect(reached, file).not.toContain("lib/stats/matchup-card.ts");
+      expect(reached, file).not.toContain("lib/stats/matchup-colours.ts");
+    }
+  });
+
+  it("the walk is real: the two server files that draw the card do reach both modules", () => {
+    for (const entry of ["app/card/matchup/[away]/[home]/page.tsx", "app/api/matchup-card/[away]/[home]/route.tsx", "app/matchup/[away]/[home]/page.tsx"]) {
+      const reached = reach(join(ROOT, entry));
+      expect(reached, entry).toContain("lib/stats/matchup-card.ts");
+      expect(reached, entry).toContain("lib/stats/matchup-colours.ts");
+    }
   });
 });
