@@ -30,6 +30,7 @@ import {
   getGame,
   getTeamSchedule,
   getPlayedRegularSeasonGameIds,
+  getSeasonGames,
   hasScheduleForSeason,
 } from "@/lib/data/games";
 
@@ -361,6 +362,142 @@ describe("read deadlines (box score spec §6)", () => {
     calls.length = 0;
     const signal = AbortSignal.timeout(5000);
     await getTeamSchedule("BUF", 2025, signal);
+    expect(calls).toContainEqual(["abortSignal", signal]);
+  });
+});
+
+// Team matchup spec 2026-10-10 §6.1: the league-wide schedule of one season,
+// for /matchup (the header's game, the records, this week's slate).
+describe("getSeasonGames (team matchup spec §6.1)", () => {
+  const COLUMNS = "game_id,season,game_type,week,gameday,weekday,gametime,home_team,away_team,home_score,away_score";
+
+  it("maps a row to a GameRecord: scores parsed, game_type normalised", async () => {
+    result = {
+      data: [
+        game({ game_id: "2026_05_BUF_LA", season: 2026, week: 5, gameday: "2026-10-11", gametime: "13:00", home_team: "LA", away_team: "BUF", home_score: "20", away_score: 27 }),
+        game({ game_id: "2026_19_BUF_LA", season: 2026, week: 19, game_type: " wc ", home_team: "LA", away_team: "BUF", home_score: null, away_score: null }),
+      ],
+      error: null,
+    };
+    expect(await getSeasonGames(2026)).toEqual([
+      {
+        game_id: "2026_05_BUF_LA", season: 2026, game_type: "REG", week: 5, gameday: "2026-10-11", weekday: "Sunday",
+        gametime: "13:00", home_team: "LA", away_team: "BUF", home_score: 20, away_score: 27,
+      },
+      {
+        game_id: "2026_19_BUF_LA", season: 2026, game_type: "WC", week: 19, gameday: "2025-09-07", weekday: "Sunday",
+        gametime: "20:20", home_team: "LA", away_team: "BUF", home_score: null, away_score: null,
+      },
+    ]);
+  });
+
+  it("reads one season of `games`, the eleven columns, in game_id order, through fetchAllRows", async () => {
+    await getSeasonGames(2026);
+    expect(calls).toContainEqual(["from", "games"]);
+    expect(calls).toContainEqual(["select", COLUMNS]);
+    expect(calls).toContainEqual(["eq", "season", 2026]);
+    expect(calls).toContainEqual(["order", "game_id", { ascending: true }]);
+    expect(calls.filter((c) => c[0] === "order")).toHaveLength(1);
+    expect(calls).toContainEqual(["range", 0, 999]);
+  });
+
+  it("returns [] when the read succeeds with no rows, and logs nothing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      result = { data: [], error: null };
+      expect(await getSeasonGames(2031)).toEqual([]);
+      result = { data: null, error: null };
+      expect(await getSeasonGames(2031)).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("scores stay null until the game is played, never NaN; a missing gameday, weekday or gametime is null", async () => {
+    result = {
+      data: [
+        game({ game_id: "a", home_score: null, away_score: null, gameday: null, weekday: undefined, gametime: null }),
+        game({ game_id: "b", home_score: "NaN", away_score: 3 }),
+        game({ game_id: "c", home_score: 0, away_score: 0 }),
+      ],
+      error: null,
+    };
+    const got = await getSeasonGames(2025);
+    expect(got[0]).toMatchObject({ home_score: null, away_score: null, gameday: null, weekday: null, gametime: null });
+    expect(got[1]).toMatchObject({ home_score: null, away_score: 3 });
+    expect(got[2]).toMatchObject({ home_score: 0, away_score: 0 });
+  });
+
+  it("drops a row with a null or empty team, a same-team row and an unusable week, and logs ONCE", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      result = {
+        data: [
+          game({ game_id: "good_1" }),
+          game({ game_id: "null_home", home_team: null }),
+          game({ game_id: "empty_away", away_team: "" }),
+          game({ game_id: "number_team", home_team: 7 }),
+          game({ game_id: "same_team", home_team: "BUF", away_team: "BUF" }),
+          game({ game_id: "null_week", week: null }),
+          game({ game_id: "zero_week", week: 0 }),
+          game({ game_id: "text_week", week: "five" }),
+          game({ game_id: "half_week", week: 2.5 }),
+          game({ game_id: "good_2", week: "7" }),
+          null,
+          "row",
+        ],
+        error: null,
+      };
+      const got = await getSeasonGames(2025);
+      expect(got.map((g) => g.game_id)).toEqual(["good_1", "good_2"]);
+      expect(got[1].week).toBe(7);
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = String(warn.mock.calls[0][0]);
+      expect(message).toContain("2025");
+      expect(message).toContain("10 ");
+      for (const id of ["null_home", "empty_away", "same_team", "null_week", "zero_week"]) expect(message).toContain(id);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("one bad row does not fail the read (weekFor's throw is for the single-game page)", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      result = { data: [game({ game_id: "junk", week: null }), game({})], error: null };
+      await expect(getSeasonGames(2025)).resolves.toHaveLength(1);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("a row with no usable season of its own takes the season that was asked for", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      result = { data: [game({ season: null }), game({ game_id: "x", season: "2025" })], error: null };
+      const got = await getSeasonGames(2025);
+      expect(got.map((g) => g.season)).toEqual([2025, 2025]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("throws an Error (through queryError) when the read fails: never an empty schedule", async () => {
+    result = { data: null, error: { message: "TypeError: fetch failed" } };
+    const err = await getSeasonGames(2026).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe("Failed to fetch games for 2026: TypeError: fetch failed");
+  });
+
+  it("forwards a caller's AbortSignal, and adds none without one", async () => {
+    result = { data: [game({})], error: null };
+    await getSeasonGames(2025);
+    expect(calls.some((c) => c[0] === "abortSignal")).toBe(false);
+
+    calls.length = 0;
+    const signal = AbortSignal.timeout(5000);
+    await getSeasonGames(2025, signal);
     expect(calls).toContainEqual(["abortSignal", signal]);
   });
 });

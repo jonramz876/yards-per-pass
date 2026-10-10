@@ -287,6 +287,74 @@ export async function getGame(gameId: string, signal?: AbortSignal): Promise<Gam
   };
 }
 
+/** The `games` columns getSeasonGames reads: the eleven a GameRecord holds. */
+const SEASON_GAMES_COLUMNS =
+  "game_id,season,game_type,week,gameday,weekday,gametime,home_team,away_team,home_score,away_score";
+
+/**
+ * Every game of one season, league-wide, past and future (team matchup spec
+ * 2026-10-10 §6.1): the header's game, the records and this week's slate on
+ * /matchup all come from this one read. At most about 285 rows, so one page;
+ * ordered by game_id so the answer is stable.
+ *
+ * Throws an Error when the read fails (a failed read never looks like an empty
+ * schedule) and returns [] when it succeeds with no rows.
+ *
+ * A row that cannot be a game is DROPPED, not thrown on: a team that is not a
+ * non-empty string, a team playing itself, or a week that is not a whole
+ * number from 1 up. One bad row must not take the page down (weekFor's throw
+ * is for the single-game page, where there is nothing else to show). The drops
+ * of one read are logged together, once.
+ *
+ * `signal` is optional, never a default: with none the read gets the client's
+ * own 5 s limit (lib/supabase/timeout.ts).
+ */
+export async function getSeasonGames(season: number, signal?: AbortSignal): Promise<GameRecord[]> {
+  let rows: Record<string, unknown>[];
+  try {
+    rows = await fetchAllRows("games", SEASON_GAMES_COLUMNS, { season }, { order: ["game_id"], signal });
+  } catch (err) {
+    throw queryError(`games for ${season}`, err);
+  }
+
+  const text = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
+  const games: GameRecord[] = [];
+  const dropped: string[] = [];
+  for (const raw of rows) {
+    const row = (raw ?? {}) as Record<string, unknown>;
+    const home = text(row.home_team);
+    const away = text(row.away_team);
+    const week = row.week == null || row.week === "" ? NaN : Number(row.week);
+    if (typeof raw !== "object" || raw === null || home === null || away === null || home === away || !Number.isInteger(week) || week < 1) {
+      dropped.push(text(row.game_id) ?? "(no id)");
+      continue;
+    }
+    const stored = Number(row.season);
+    games.push({
+      game_id: String(row.game_id ?? ""),
+      // The read is filtered on the season, so a hole in the column is filled with it.
+      season: row.season != null && Number.isInteger(stored) && stored > 0 ? stored : season,
+      game_type: normalizeGameType(row.game_type as string | null | undefined),
+      week,
+      gameday: text(row.gameday),
+      weekday: text(row.weekday),
+      gametime: text(row.gametime),
+      home_team: home,
+      away_team: away,
+      home_score: score(row.home_score),
+      away_score: score(row.away_score),
+    });
+  }
+  if (dropped.length > 0) {
+    const shown = dropped.slice(0, 12).join(", ");
+    const more = dropped.length > 12 ? ` and ${dropped.length - 12} more` : "";
+    console.warn(
+      `Games for ${season}: dropped ${dropped.length} row(s) with a missing team, a team playing itself or an unusable week: ${shown}${more}`
+    );
+  }
+  return games;
+}
+
 /**
  * Ids of every played regular-season game of one season (both scores
  * present), for the sitemap's box score URLs. Read through fetchAllRows, but

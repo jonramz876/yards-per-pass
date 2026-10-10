@@ -18,6 +18,7 @@ vi.mock("@/lib/supabase/server", () => ({ hasNoDatabase: vi.fn(() => false) }));
 import rowsJson from "../stats/fixtures/compare-2026-w4-rows.json";
 import {
   loadCompareCardForImage, loadCompareCardForPage, clearCompareCardMemo, compareCardMemoKeys,
+  getSeasonWeeksCached, getPlayerSlugIndexCached, getCompareTableCached,
 } from "@/lib/data/compare-card";
 import { getSeasonWeeks, getQBStats } from "@/lib/data/queries";
 import { getReceiverStats } from "@/lib/data/receivers";
@@ -511,5 +512,77 @@ describe("the loader: the fallback team and the name chain", () => {
     const got = await page("josh-allen", "rookie-qb");
     if (got.state !== "no-stats") throw new Error(got.state);
     expect(got.nameA).toBe("J.Allen");
+  });
+});
+
+// Team matchup spec 2026-10-10 §6.2: the three memoised reads are exported so
+// /matchup shares ONE memo with the compare card (a matchup view warms the
+// compare card and the reverse). Thin wrappers: no behaviour change here.
+describe("the three exported memo reads (team matchup spec §6.2)", () => {
+  it("getSeasonWeeksCached returns what the seasons read returns, once a minute", async () => {
+    expect(await getSeasonWeeksCached()).toEqual(WEEKS);
+    expect(await getSeasonWeeksCached()).toEqual(WEEKS);
+    expect(reads()).toEqual({ ...NONE, weeks: 1 });
+  });
+
+  it("getPlayerSlugIndexCached returns the slug list, once a minute", async () => {
+    const got = await getPlayerSlugIndexCached();
+    expect(got.get("josh-allen")).toMatchObject({ player_id: "00-0034857", player_name: "Josh Allen" });
+    expect(got.size).toBe(INDEX.size);
+    await getPlayerSlugIndexCached();
+    expect(reads()).toEqual({ ...NONE, index: 1 });
+  });
+
+  it("getCompareTableCached reads the group's season table, once a minute per (group, season)", async () => {
+    expect(await getCompareTableCached("QB", 2026)).toEqual(QB);
+    expect(await getCompareTableCached("RB", 2026)).toEqual(RB);
+    expect(await getCompareTableCached("WR", 2026)).toEqual(REC);
+    expect(vi.mocked(getQBStats)).toHaveBeenCalledWith(2026);
+    expect(vi.mocked(getRBSeasonStats)).toHaveBeenCalledWith(2026);
+    expect(vi.mocked(getReceiverStats)).toHaveBeenCalledWith(2026);
+    await getCompareTableCached("QB", 2026);
+    await getCompareTableCached("RB", 2026);
+    await getCompareTableCached("WR", 2026);
+    expect(reads()).toEqual({ ...NONE, qb: 1, rb: 1, rec: 1 });
+    await getCompareTableCached("QB", 2025);
+    expect(reads()).toEqual({ ...NONE, qb: 2, rb: 1, rec: 1 });
+  });
+
+  it("they add no memo key shape: seasons, slugs and GROUP:season, as before", async () => {
+    await getSeasonWeeksCached();
+    await getPlayerSlugIndexCached();
+    await getCompareTableCached("QB", 2026);
+    await getCompareTableCached("RB", 2026);
+    await getCompareTableCached("WR", 2025);
+    expect(compareCardMemoKeys()).toEqual(["QB:2026", "RB:2026", "WR:2025", "seasons", "slugs"]);
+  });
+
+  it("they ARE the compare card's memos: reads warmed here cost the card nothing", async () => {
+    await getSeasonWeeksCached();
+    await getPlayerSlugIndexCached();
+    await getCompareTableCached("QB", 2026);
+    const before = reads();
+    expect((await page("josh-allen", "matthew-stafford")).state).toBe("ready");
+    expect((await image("josh-allen", "matthew-stafford")).state).toBe("ready");
+    expect(reads()).toEqual(before);
+  });
+
+  it("and the reverse: a card view warms all three", async () => {
+    await page("josh-allen", "matthew-stafford");
+    const before = reads();
+    await getSeasonWeeksCached();
+    await getPlayerSlugIndexCached();
+    expect(await getCompareTableCached("QB", 2026)).toEqual(QB);
+    expect(reads()).toEqual(before);
+  });
+
+  it("a failed read rejects, and is not read again inside ten seconds", async () => {
+    vi.mocked(getSeasonWeeks).mockRejectedValue(new Error("Failed to fetch season weeks: 500"));
+    vi.mocked(getQBStats).mockRejectedValue(new Error("Failed to fetch QB stats: 500"));
+    await expect(getSeasonWeeksCached()).rejects.toThrow(/season weeks/);
+    await expect(getSeasonWeeksCached()).rejects.toThrow(/season weeks/);
+    await expect(getCompareTableCached("QB", 2026)).rejects.toThrow(/QB stats/);
+    await expect(getCompareTableCached("QB", 2026)).rejects.toThrow(/QB stats/);
+    expect(reads()).toEqual({ ...NONE, weeks: 1, qb: 1 });
   });
 });
