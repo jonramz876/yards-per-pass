@@ -165,6 +165,18 @@ describe("MatchupBallToggle: after the first paint the address is the source of 
     expect(hidden(show())).toEqual({ away: false, home: true });
   });
 
+  // Found in the browser check: the server treats a repeated key as absent
+  // (searchParams hands it an array), while URLSearchParams.get() returns the
+  // first value, so ?ball=home&ball=away painted the away side and then
+  // flipped to the home side. The address rule must be the server's.
+  it.each(["?ball=home&ball=away", "?ball=away&ball=home", "?ball=home&ball=home"])(
+    "a repeated key (%s) is absent, as on the server: the away side stays",
+    (search) => {
+      setAddress(search);
+      expect(hidden(show({ initialBall: "away" }))).toEqual({ away: false, home: true });
+    },
+  );
+
   it("stops listening when it unmounts", () => {
     const remove = vi.spyOn(window, "removeEventListener");
     const { unmount } = render(element());
