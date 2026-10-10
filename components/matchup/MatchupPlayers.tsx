@@ -31,7 +31,10 @@ interface MatchupPlayersProps {
 }
 
 function Tile({ player, team }: { player: LineupPlayer; team: Team }) {
-  const name = "break-words px-[9px] pt-2 text-[15px] font-extrabold leading-tight text-slate-900";
+  // Every text box in a tile can break anywhere and has min-width 0, so a
+  // value of any length stays inside its own half of the tile (chaos pass on
+  // PR 2, finding 4: "−12,345,678" was painted over the value beside it).
+  const name = "min-w-0 px-[9px] pt-2 text-[15px] font-extrabold leading-tight text-slate-900 [overflow-wrap:anywhere]";
   return (
     <div data-tile className="min-w-0 border-2 border-solid bg-white" style={{ borderColor: INK }}>
       <div
@@ -43,7 +46,7 @@ function Tile({ player, team }: { player: LineupPlayer; team: Team }) {
         <span data-tile-team>{team.id}</span>
       </div>
       {player.href ? (
-        <Link data-tile-name href={player.href} className={`${name} block underline decoration-slate-300 underline-offset-[3px] hover:decoration-slate-900`}>
+        <Link data-tile-name href={player.href} prefetch={false} className={`${name} block underline decoration-slate-300 underline-offset-[3px] hover:decoration-slate-900`}>
           {player.name}
         </Link>
       ) : (
@@ -52,8 +55,8 @@ function Tile({ player, team }: { player: LineupPlayer; team: Team }) {
       <dl className="m-0 grid grid-cols-2 gap-x-2 gap-y-[6px] px-[9px] pb-[10px] pt-2">
         {player.stats.map((stat) => (
           <div key={stat.label} className="min-w-0">
-            <dt className="text-[11.5px] leading-tight text-slate-500">{stat.label}</dt>
-            <dd className="m-0 text-[14.5px] font-bold tabular-nums text-slate-900">{stat.value}</dd>
+            <dt className="min-w-0 text-[11.5px] leading-tight text-slate-500 [overflow-wrap:anywhere]">{stat.label}</dt>
+            <dd className="m-0 min-w-0 text-[14.5px] font-bold tabular-nums text-slate-900 [overflow-wrap:anywhere]">{stat.value}</dd>
           </div>
         ))}
       </dl>

@@ -11,13 +11,22 @@ import { formatKickoff, type MatchupGame } from "@/lib/stats/matchup";
 import { matchupHref, parseMatchupTeamId } from "@/lib/stats/matchup-links";
 
 const BARLOW = "font-[family-name:var(--font-barlow)]";
+const WRAP = "min-w-0 [overflow-wrap:anywhere]";
 const ROW = "flex min-w-0 flex-col gap-0.5 border border-slate-200 border-l-4 border-l-navy bg-white px-3 py-2.5 no-underline";
+
+const EM_DASH = "—";
 
 /** A team id that is really a team, else null (a junk row is printed, never linked). */
 const realTeam = (raw: string): string | null => {
   const id = parseMatchupTeamId(raw);
   return id !== null && id === raw && getTeam(id) ? id : null;
 };
+/**
+ * What a row prints for one side: two or three letters, upper-cased, or a
+ * dash. Never the raw text: a 300-character id once made this page about
+ * 3,000 px too wide (chaos pass on PR 2, finding 5).
+ */
+const shownId = (raw: unknown): string => parseMatchupTeamId(typeof raw === "string" ? raw : null) ?? EM_DASH;
 
 export default function MatchupSlate({ label, games }: { label: string; games: readonly MatchupGame[] }) {
   return (
@@ -30,10 +39,10 @@ export default function MatchupSlate({ label, games }: { label: string; games: r
           const when = formatKickoff(game);
           const body = (
             <>
-              <span data-slate-pair className={`${BARLOW} text-[22px] font-bold leading-none tracking-[0.02em] text-navy`}>
-                {`${game.away_team} at ${game.home_team}`}
+              <span data-slate-pair className={`${BARLOW} ${WRAP} text-[22px] font-bold leading-none tracking-[0.02em] text-navy`}>
+                {`${shownId(game.away_team)} at ${shownId(game.home_team)}`}
               </span>
-              {when && <span data-slate-when className="text-[12.5px] text-slate-500">{when}</span>}
+              {when && <span data-slate-when className={`${WRAP} text-[12.5px] text-slate-500`}>{when}</span>}
             </>
           );
           return away && home && away !== home ? (

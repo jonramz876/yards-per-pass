@@ -61,7 +61,12 @@ export default function MatchupBallToggle({ awayId, homeId, season, defaultSeaso
       setBall(next);
       // replaceState, not a router call: the choice only changes which block
       // is visible, and a router call would re-run the whole dynamic page.
-      window.history.replaceState(null, "", matchupHref(awayId, homeId, { season, defaultSeason, ball: next }));
+      try {
+        window.history.replaceState(null, "", matchupHref(awayId, homeId, { season, defaultSeason, ball: next }));
+      } catch {
+        // A browser may refuse (a sandboxed frame, its rate limit on history
+        // calls): the view has already flipped, only the address stays behind.
+      }
     },
     [ball, awayId, homeId, season, defaultSeason],
   );

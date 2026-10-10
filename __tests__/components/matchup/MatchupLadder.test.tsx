@@ -84,7 +84,7 @@ describe("MatchupLadder", () => {
       for (const part of ["[data-rank]", "[data-word]"]) expect(classes(stacked.querySelector(part))).toContain("block");
     });
 
-    it.each([["4th", "allowed"], ["26th", "made"], ["24th", "takeaways"], ["T-4th", "allowed"], ["T-32nd", "made"]])(
+    it.each([["4th", "allowed"], ["26th", "made"], ["24th", "takeaways"], ["T-4th", "allowed"], ["T-32nd", "made"], ["T-30th", "allowed"]])(
       "%s / %s fits one line from md: stacked below md, \"rank · word\" from md",
       (rank, word) => {
         const c = cell(rank, word);
@@ -96,7 +96,7 @@ describe("MatchupLadder", () => {
       },
     );
 
-    it.each([["T-14th", "takeaways"], ["14th of 29", "allowed"], ["T-3rd of 31", "made"], ["T-30th", "allowed"]])(
+    it.each([["T-14th", "takeaways"], ["14th of 29", "allowed"], ["T-3rd of 31", "made"], ["T-30th", "takeaways"]])(
       "%s / %s does not fit: stacked at every width, and no one-line form at all",
       (rank, word) => {
         const c = cell(rank, word);

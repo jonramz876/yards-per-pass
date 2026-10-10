@@ -42,11 +42,25 @@ interface MatchupHeaderProps {
 /** "Buffalo Bills" → "Bills", "San Francisco 49ers" → "49ers" (the box score page's rule). */
 const nickname = (name: string) => name.trim().split(/\s+/).pop() ?? name;
 
-function Slab({ team, side, href, record }: { team: Team; side: "away" | "home"; href: string; record: WinLossTie | null }) {
+function Slab({
+  team,
+  side,
+  href,
+  record,
+  venue,
+}: {
+  team: Team;
+  side: "away" | "home";
+  href: string;
+  record: WinLossTie | null;
+  /** Print "· away" / "· home" after the record: only when the pair has a game (a "VS" page has no venue). */
+  venue: boolean;
+}) {
   return (
     <Link
       data-slab={side}
       href={href}
+      prefetch={false}
       className={`block min-w-0 border-b-[5px] border-solid px-3 pb-[10px] pt-3 no-underline md:px-[22px] md:pb-[14px] md:pt-4 ${side === "home" ? "text-right" : ""}`}
       style={{ backgroundColor: team.primaryColor, color: textColorForBackground(team.primaryColor), borderBottomColor: team.secondaryColor }}
     >
@@ -58,7 +72,7 @@ function Slab({ team, side, href, record }: { team: Team; side: "away" | "home";
       </span>
       {record && (
         <span data-slab-record className="mt-0.5 block text-[13px] font-semibold opacity-90">
-          {`${formatRecord(record)} · ${side}`}
+          {venue ? `${formatRecord(record)} · ${side}` : formatRecord(record)}
         </span>
       )}
     </Link>
@@ -76,7 +90,7 @@ export default function MatchupHeader({ away, home, season, defaultSeason, game,
         {BACK_TEXT}
       </Link>
       <div data-matchup-header className="mt-2 grid grid-cols-2 bg-white md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-        <Slab team={away} side="away" href={teamHref(away.id)} record={records?.away ?? null} />
+        <Slab team={away} side="away" href={teamHref(away.id)} record={records?.away ?? null} venue={game !== null} />
         <div
           data-middle
           className="order-last col-span-2 flex min-w-0 flex-row flex-wrap items-center justify-center gap-x-[10px] gap-y-1 border-b border-slate-200 px-[10px] py-[9px] text-center md:order-none md:col-span-1 md:flex-col md:gap-0 md:border-t md:px-[18px] md:py-2"
@@ -92,7 +106,7 @@ export default function MatchupHeader({ away, home, season, defaultSeason, game,
             <small data-no-game className="max-w-[16ch] text-[12px] leading-snug text-slate-500 md:mt-2">{noGameText(season)}</small>
           )}
         </div>
-        <Slab team={home} side="home" href={teamHref(home.id)} record={records?.home ?? null} />
+        <Slab team={home} side="home" href={teamHref(home.id)} record={records?.home ?? null} venue={game !== null} />
       </div>
     </div>
   );

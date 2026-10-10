@@ -23,6 +23,17 @@ export const LADDER_COLUMN_SM = 70;
 export const LADDER_VALUE_MD = 30;
 export const LADDER_VALUE_SM = 23;
 
+/**
+ * The longest "rank · word" the defense cell prints on ONE line, from md up
+ * ("24th · takeaways", 16 characters, measured on one line in the 104 px
+ * column at 12.5 px). Anything longer ("T-14th · takeaways", "14th of 29 ·
+ * allowed") is stacked: the rank, then the word on its own line, with no dot.
+ * Below md the 70 px column never holds both, so the cell is always stacked
+ * there. Decided by length, not left to the browser: a browser wraps after
+ * the dot and leaves it dangling.
+ */
+export const DEF_RANK_ONE_LINE_MAX = 16;
+
 const ROW_GRID = "grid grid-cols-[70px_minmax(0,1fr)_70px] gap-[6px] md:grid-cols-[104px_minmax(0,1fr)_104px] md:gap-[10px]";
 const VALUE = `${BARLOW} text-[23px] md:text-[30px] font-bold leading-none tabular-nums text-slate-900`;
 const RANK = "mt-[3px] text-[12.5px] font-semibold text-slate-500";
@@ -68,6 +79,21 @@ function Tug({ row }: { row: LadderRow }) {
   );
 }
 
+function DefRank({ row }: { row: LadderRow }) {
+  if (row.defRank === EM_DASH) return <>{EM_DASH}</>;
+  const inline = `${row.defRank} · ${row.defWord}`;
+  const fits = inline.length <= DEF_RANK_ONE_LINE_MAX;
+  return (
+    <>
+      <span data-def-rank-stacked className={fits ? "md:hidden" : undefined}>
+        <span data-rank className="block">{row.defRank}</span>
+        <span data-word className="block">{row.defWord}</span>
+      </span>
+      {fits && <span data-def-rank-inline className="hidden md:inline">{inline}</span>}
+    </>
+  );
+}
+
 function Row({ row }: { row: LadderRow }) {
   return (
     <div data-ladder-row={row.key} className={`${ROW_GRID} items-center border-b border-[#eef2f7] pb-[9px] pt-[10px]`}>
@@ -85,7 +111,7 @@ function Row({ row }: { row: LadderRow }) {
       </div>
       <div className="min-w-0 text-right">
         <div data-def-value className={VALUE}>{row.defValue}</div>
-        <div data-def-rank className={RANK}>{row.defRank === EM_DASH ? EM_DASH : `${row.defRank} · ${row.defWord}`}</div>
+        <div data-def-rank className={RANK}><DefRank row={row} /></div>
       </div>
     </div>
   );
