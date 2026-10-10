@@ -35,6 +35,7 @@ import {
   MATCHUP_COLUMNS,
   MATCHUP_NUMERIC,
   clearMatchupMemo,
+  easternToday,
   getMatchupRows,
   getMatchupRowsCached,
   getSeasonGamesCached,
@@ -63,6 +64,7 @@ const QB = playerRowsJson.qb as unknown as Row[];
 const REC = playerRowsJson.receivers as unknown as Row[];
 const RB = playerRowsJson.rb as unknown as Row[];
 const WEEKS = [{ season: 2026, through_week: 4 }, { season: 2025, through_week: 22 }, { season: 2024, through_week: 22 }];
+const NOW = "2026-10-08T16:00:00Z";
 
 const game = (over: Partial<GameRecord>): GameRecord => ({
   game_id: "2026_05_BUF_LA", season: 2026, game_type: "REG", week: 5, gameday: "2026-10-11", weekday: "Sunday",
@@ -118,6 +120,11 @@ beforeEach(() => {
   vi.mocked(getSeasonGames).mockResolvedValue(GAMES);
   vi.mocked(getBoxScoreSeasonsCached).mockResolvedValue([2026]);
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  // The loader hands the schedule rules today's date (US Eastern), so the
+  // clock is pinned: Thursday of week 5, before any of GAMES' unplayed games.
+  // Only Date is faked; setTimeout stays real.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(NOW));
 });
 
 afterEach(() => {
@@ -616,5 +623,195 @@ describe("loadMatchupIndex (§6.1): /matchup", () => {
     vi.mocked(getSeasonWeeks).mockResolvedValue([]);
     vi.mocked(getSeasonGames).mockRejectedValue(new Error("no database"));
     expect(await loadMatchupIndex()).toEqual({ season: 2026, slate: null, gamesAvailable: false });
+  });
+});
+
+/* ─── Chaos pass, PR 1 (spec §17, findings F1-F3, F5, F6) ─── */
+
+describe("chaos F1: the loader supplies the date, US Eastern, per call", () => {
+  it("easternToday reads the calendar day in New York, not UTC and not the machine's zone", () => {
+    expect(easternToday(new Date("2026-10-15T03:59:00Z"))).toBe("2026-10-14"); // 11:59 PM EDT
+    expect(easternToday(new Date("2026-10-15T04:00:00Z"))).toBe("2026-10-15"); // midnight EDT
+    expect(easternToday(new Date("2027-01-01T04:59:00Z"))).toBe("2026-12-31"); // 11:59 PM EST
+    expect(easternToday(new Date("2027-01-01T05:00:00Z"))).toBe("2027-01-01");
+    expect(easternToday()).toBe("2026-10-08");
+  });
+
+  it("a never-played row more than two days old is not the pair's game, and the answer follows the clock across midnight with the games still memoised", async () => {
+    const old = game({ game_id: "2026_05_KC_DEN", week: 5, gameday: "2026-10-11", away_team: "KC", home_team: "DEN" });
+    vi.mocked(getSeasonGames).mockResolvedValue([GAMES[0], old]);
+    vi.setSystemTime(new Date("2026-10-14T03:59:40Z")); // Oct 13, 11:59:40 PM Eastern: two days after
+    expect((await loadMatchup("KC", "DEN", null)).game).toEqual(old);
+    vi.setSystemTime(new Date("2026-10-14T04:00:10Z")); // thirty seconds later, Oct 14 Eastern: three days after
+    const got = await loadMatchup("KC", "DEN", null);
+    expect(got).toMatchObject({ game: null, swap: false, gamesAvailable: true });
+    expect(reads().games).toBe(1);
+  });
+
+  it("/matchup's slate moves on from a week that only holds a never-played row", async () => {
+    const list = [
+      game({ game_id: "p5", week: 5, gameday: "2026-10-11", away_team: "NYJ", home_team: "NE", away_score: 10, home_score: 20 }),
+      game({ game_id: "stale5", week: 5, gameday: "2026-10-11", away_team: "SF", home_team: "SEA" }),
+      game({ game_id: "u6", week: 6, gameday: "2026-10-18", away_team: "KC", home_team: "DEN" }),
+    ];
+    vi.mocked(getSeasonGames).mockResolvedValue(list);
+    vi.setSystemTime(new Date("2026-10-12T16:00:00Z"));
+    expect((await loadMatchupIndex()).slate!.label).toBe("Week 5");
+    vi.setSystemTime(new Date("2026-10-12T16:00:30Z"));
+    expect((await loadMatchupIndex()).slate!.label).toBe("Week 5");
+    clearMatchupMemo();
+    clearCompareCardMemo();
+    vi.setSystemTime(new Date("2026-10-14T16:00:00Z"));
+    const got = await loadMatchupIndex();
+    expect(got.slate!.label).toBe("Week 6");
+    expect(got.slate!.games.map((g) => g.game_id)).toEqual(["u6"]);
+  });
+});
+
+describe("chaos F2: an empty games answer for a season that has stats is a failed read", () => {
+  it.each([
+    ["an empty list", []],
+    ["rows that are not games", [null, {}, 5, { home_team: "BUF", away_team: "BUF" }]],
+    ["not a list at all", null],
+  ])("%s: gamesAvailable false, no records, one log line; the page still loads", async (_name, value) => {
+    vi.mocked(getSeasonGames).mockResolvedValue(value as never);
+    const got = await loadMatchup("BUF", "HOU", null);
+    expect(got).toMatchObject({ state: "ready", gamesAvailable: false, game: null, swap: false, records: null, playersAvailable: true });
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(String(errorSpy.mock.calls[0][0])).toMatch(/games/i);
+  });
+
+  it("/matchup: no slate and gamesAvailable false (M16, never M14), one log line", async () => {
+    vi.mocked(getSeasonGames).mockResolvedValue([]);
+    expect(await loadMatchupIndex()).toEqual({ season: 2026, slate: null, gamesAvailable: false });
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("a past season with no stats may really have no schedule rows: not a failure there", async () => {
+    vi.mocked(getSeasonGames).mockResolvedValue([]);
+    const got = await loadMatchup("BUF", "HOU", 2025);
+    expect(got).toMatchObject({ state: "uncovered", gamesAvailable: true, game: null, swap: false });
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("F5: the empty answer is kept ten seconds, not a minute", async () => {
+    vi.mocked(getSeasonGames).mockResolvedValueOnce([]).mockResolvedValue(GAMES);
+    expect((await loadMatchup("BUF", "HOU", null)).gamesAvailable).toBe(false);
+    vi.setSystemTime(Date.now() + 5_000);
+    expect((await loadMatchup("BUF", "HOU", null)).gamesAvailable).toBe(false);
+    expect((await loadMatchupIndex()).gamesAvailable).toBe(false);
+    expect(reads().games).toBe(1);
+    vi.setSystemTime(Date.now() + 5_001);
+    expect(await loadMatchup("BUF", "HOU", null)).toMatchObject({ gamesAvailable: true, game: { game_id: "2026_01_BUF_HOU" } });
+    expect(reads().games).toBe(2);
+  });
+});
+
+describe("chaos F3: rows that come back but cannot be used are a failed read, never the early-season page", () => {
+  it.each([
+    ["every row is another season's", ROWS.map((r) => ({ ...r, season: 2025 }))],
+    ["every row is empty", ROWS.map(() => ({}))],
+    ["no row names a team", ROWS.map((r) => ({ ...r, team_id: null }))],
+    ["the rows are not objects", [null, 5, "row"]],
+  ])("%s: throws", async (_name, rows) => {
+    vi.mocked(fetchAllRows).mockResolvedValue(rows as never);
+    await expect(loadMatchup("BUF", "HOU", null)).rejects.toThrow(/none of them is usable|no team_game_stats rows/);
+  });
+
+  it("a real early season (rows for 7 teams) is still the small-pool page", async () => {
+    const ids = Array.from(new Set(ROWS.map((r) => r.team_id as string))).sort().slice(0, 7);
+    vi.mocked(fetchAllRows).mockResolvedValue(ROWS.filter((r) => ids.includes(r.team_id as string)));
+    expect((await loadMatchup("BUF", "HOU", null)).state).toBe("small-pool");
+  });
+
+  it("junk rows among good ones are dropped, not fatal", async () => {
+    vi.mocked(fetchAllRows).mockResolvedValue([null, {}, 7, ...ROWS] as never);
+    const got = await loadMatchup("BUF", "HOU", null);
+    expect(got.state).toBe("ready");
+    expect(got.model!.teamsPlayed).toBe(32);
+  });
+});
+
+describe("chaos F5: a resolved-but-unusable answer is not kept for the success window", () => {
+  it("empty rows for the newest season: ten seconds of the same error with no new read, then recovery", async () => {
+    vi.mocked(fetchAllRows).mockResolvedValueOnce([]).mockResolvedValue(ROWS);
+    await expect(loadMatchup("BUF", "HOU", null)).rejects.toThrow(/newest season/);
+    vi.setSystemTime(Date.now() + 9_000);
+    await expect(loadMatchup("DET", "NO", null)).rejects.toThrow(/newest season/);
+    expect(reads().rows).toBe(1);
+    vi.setSystemTime(Date.now() + 1_001);
+    expect((await loadMatchup("BUF", "HOU", null)).state).toBe("ready");
+    expect(reads().rows).toBe(2);
+  });
+
+  it("unusable rows: the same", async () => {
+    vi.mocked(fetchAllRows).mockResolvedValueOnce(ROWS.map(() => ({}))).mockResolvedValue(ROWS);
+    await expect(loadMatchup("BUF", "HOU", null)).rejects.toThrow(/usable/);
+    await expect(loadMatchup("BUF", "HOU", null)).rejects.toThrow(/usable/);
+    expect(reads().rows).toBe(1);
+    vi.setSystemTime(Date.now() + 10_001);
+    expect((await loadMatchup("BUF", "HOU", null)).state).toBe("ready");
+  });
+
+  it("a legitimately empty past season (uncovered) is still kept for the minute", async () => {
+    await loadMatchup("BUF", "HOU", 2025);
+    vi.setSystemTime(Date.now() + 30_000);
+    expect((await loadMatchup("BUF", "HOU", 2025)).state).toBe("uncovered");
+    expect(reads().rows).toBe(1);
+  });
+
+  it("an empty player table: unavailable for ten seconds with no new read, then back", async () => {
+    vi.mocked(getRBSeasonStats).mockResolvedValueOnce([]).mockResolvedValue(RB as never);
+    expect((await loadMatchup("BUF", "HOU", null)).playersAvailable).toBe(false);
+    vi.setSystemTime(Date.now() + 5_000);
+    expect((await loadMatchup("BUF", "HOU", null)).playersAvailable).toBe(false);
+    expect(reads().rb).toBe(1);
+    vi.setSystemTime(Date.now() + 5_001);
+    const got = await loadMatchup("BUF", "HOU", null);
+    expect(got.playersAvailable).toBe(true);
+    expect(got.lineup).toHaveLength(7);
+    expect(reads()).toMatchObject({ rb: 2, qb: 1, rec: 1 });
+  });
+});
+
+describe("chaos F6: a may-degrade read that resolves with the wrong kind of thing degrades", () => {
+  it.each([
+    ["QB", getQBStats], ["RB", getRBSeasonStats], ["receiver", getReceiverStats],
+  ] as const)("the %s table resolves null, a string, or only junk rows: no lineup, one log line, the page loads", async (_name, fn) => {
+    for (const value of [null, "rows", { length: 3 }, [null], [{}], [{ player_id: "" }, 7]]) {
+      clearCompareCardMemo();
+      errorSpy.mockClear();
+      vi.mocked(fn).mockResolvedValue(value as never);
+      const got = await loadMatchup("BUF", "HOU", null);
+      expect(got, JSON.stringify(value)).toMatchObject({ state: "ready", playersAvailable: false, lineup: null, gamesAvailable: true });
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("junk rows among real ones are dropped before the lineup is built", async () => {
+    vi.mocked(getQBStats).mockResolvedValue([null, {}, 7, ...QB] as never);
+    vi.mocked(getReceiverStats).mockResolvedValue([undefined, "x", ...REC] as never);
+    const got = await loadMatchup("BUF", "DET", null);
+    expect(got.playersAvailable).toBe(true);
+    expect(got.lineup![0].away).toMatchObject({ name: "Josh Allen" });
+    expect(got.lineup!.map((r) => r.pos)).toEqual(["QB", "RB", "RB", "WR", "WR/TE", "TE/WR", "WR"]);
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([[null], ["slugs"], [{}], [[]]])("the slug list resolves %j (not a Map): names unlinked, one log line", async (value) => {
+    vi.mocked(getPlayerSlugIndex).mockResolvedValue(value as never);
+    const got = await loadMatchup("BUF", "HOU", null);
+    expect(got).toMatchObject({ state: "ready", playersAvailable: true });
+    expect(got.lineup![0].away).toMatchObject({ name: "J.Allen", href: null });
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(String(errorSpy.mock.calls[0][0])).toMatch(/slug/i);
+  });
+
+  it("a slug list with junk entries: the good ones still link", async () => {
+    const index = new Map<string, unknown>([...Array.from(INDEX.entries()), ["x", null], ["y", 5], ["z", { player_id: 7 }]]);
+    vi.mocked(getPlayerSlugIndex).mockResolvedValue(index as never);
+    const got = await loadMatchup("BUF", "HOU", null);
+    expect(got.lineup![0].away).toMatchObject({ name: "Josh Allen", href: "/player/josh-allen" });
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });

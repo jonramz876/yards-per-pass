@@ -1704,6 +1704,257 @@ describe("formatKickoff (§6.4: dates parsed by hand)", () => {
   });
 });
 
+/* ─── Chaos pass, PR 1 (spec §17, findings F1, F4, F7, F9, F10, F11) ─── */
+
+describe("chaos F1 / F7: `today` makes a never-played row stale (findPairGame)", () => {
+  // An unplayed row whose gameday is MORE than 2 days before today is stale.
+  const old = game({ game_id: "2026_05_BUF_LA", week: 5, gameday: "2026-10-11" });
+
+  it("a stale row that is the only row for the pair: the pair has no game", () => {
+    expect(M.findPairGame([old], "BUF", "LA", "2026-10-14")).toEqual({ game: null, swap: false });
+    expect(M.findPairGame([old], "BUF", "LA", "2026-11-30")).toEqual({ game: null, swap: false });
+  });
+
+  it("two days after its date it is still a game (scores land the morning after)", () => {
+    expect(M.findPairGame([old], "BUF", "LA", "2026-10-13").game).toBe(old);
+    expect(M.findPairGame([old], "BUF", "LA", "2026-10-11").game).toBe(old);
+    expect(M.findPairGame([old], "BUF", "LA", "2026-10-01").game).toBe(old);
+  });
+
+  it("a stale row is never chosen over anything else", () => {
+    const real = game({ game_id: "2026_12_BUF_LA", week: 12, gameday: "2026-11-29" });
+    const done = played({ game_id: "2026_02_BUF_LA", week: 2, gameday: "2026-09-20" });
+    expect(M.findPairGame([old, real], "BUF", "LA", "2026-10-20").game).toBe(real);
+    // a played game that is EARLIER than the stale row (the case rule 1 cannot see)
+    expect(M.findPairGame([old, done], "BUF", "LA", "2026-10-20").game).toBe(done);
+    expect(M.findPairGame([done, old], "BUF", "LA", "2026-10-20").game).toBe(done);
+  });
+
+  it("a stale row does not count as a game in its order: the other order's game swaps", () => {
+    const other = game({ game_id: "2026_12_LA_BUF", week: 12, gameday: "2026-11-29", away_team: "LA", home_team: "BUF" });
+    expect(M.findPairGame([old, other], "BUF", "LA", "2026-10-20")).toEqual({ game: null, swap: true });
+    // and a stale row in the OTHER order does not cause a swap
+    expect(M.findPairGame([old], "LA", "BUF", "2026-10-20")).toEqual({ game: null, swap: false });
+  });
+
+  it("a played game is never stale, however old", () => {
+    const done = played({ gameday: "2026-09-13", week: 1 });
+    expect(M.findPairGame([done], "BUF", "LA", "2027-02-01").game).toBe(done);
+  });
+
+  it("the day count is right across a month, a year and a leap day (no Date object)", () => {
+    const at = (gameday: string, today: string) => M.findPairGame([game({ gameday })], "BUF", "LA", today).game !== null;
+    expect(at("2026-12-30", "2027-01-01")).toBe(true); // 2 days
+    expect(at("2026-12-30", "2027-01-02")).toBe(false); // 3 days
+    expect(at("2026-09-29", "2026-10-01")).toBe(true);
+    expect(at("2026-09-29", "2026-10-02")).toBe(false);
+    expect(at("2027-02-27", "2027-03-01")).toBe(true); // 2 days in a common year
+    expect(at("2028-02-27", "2028-03-01")).toBe(false); // 3 days in a leap year
+  });
+
+  it("no `today`, or one that is not a date: the rules without a date, as before", () => {
+    for (const today of [undefined, null, "", "today", "2026-13-40", 20261020 as never]) {
+      expect(M.findPairGame([old], "BUF", "LA", today as never).game).toBe(old);
+    }
+  });
+
+  it("F7: an undated unplayed row loses to a played game of the same pair and order in the same or a later week", () => {
+    const undated = game({ game_id: "stale", week: 5, gameday: null });
+    const sameWeek = played({ game_id: "real", week: 5, gameday: "2026-10-12" });
+    expect(M.findPairGame([undated, sameWeek], "BUF", "LA").game).toBe(sameWeek);
+    expect(M.findPairGame([sameWeek, undated], "BUF", "LA").game).toBe(sameWeek);
+    const undatedPlayed = played({ game_id: "real2", week: 5, gameday: null });
+    expect(M.findPairGame([undated, undatedPlayed], "BUF", "LA").game).toBe(undatedPlayed);
+    // an undated row in a LATER week than the played game is a game still to come
+    const later = game({ game_id: "later", week: 19, gameday: null, game_type: "WC" });
+    expect(M.findPairGame([later, sameWeek], "BUF", "LA").game).toBe(later);
+  });
+});
+
+describe("chaos F1: `today` and undated rows in currentSlate", () => {
+  const wk = (w: number, done: boolean, gameday: string, n = 2): Game[] =>
+    Array.from({ length: n }, (_, i) =>
+      (done ? played : game)({ game_id: `2026_${String(w).padStart(2, "0")}_A${i}_H${i}`, week: w, away_team: `A${i}`, home_team: `H${i}`, gameday }),
+    );
+  const stale5 = game({ game_id: "stale5", week: 5, gameday: "2026-10-11", away_team: "SF", home_team: "SEA" });
+  const LIST = [...wk(5, true, "2026-10-11"), stale5, ...wk(6, false, "2026-10-18")];
+
+  it("the report's case: week 5 is over but holds a never-played row. Three days on, the slate is week 6", () => {
+    expect(M.currentSlate(LIST, "2026-10-14")!.label).toBe("Week 6");
+    expect(M.currentSlate(LIST, "2026-10-14")!.games.map((g) => g.game_id)).toEqual(["2026_06_A0_H0", "2026_06_A1_H1"]);
+  });
+
+  it("within two days of its date the row is still Sunday's or Monday's game: week 5, the whole week", () => {
+    for (const today of ["2026-10-11", "2026-10-12", "2026-10-13"]) {
+      const got = M.currentSlate(LIST, today)!;
+      expect(got.label, today).toBe("Week 5");
+      expect(got.games.map((g) => g.game_id)).toContain("stale5");
+    }
+  });
+
+  it("without `today` the date rule is off (the rule as first built)", () => {
+    expect(M.currentSlate(LIST)!.label).toBe("Week 5");
+    expect(M.currentSlate(LIST, "soon" as never)!.label).toBe("Week 5");
+  });
+
+  it("a stale row is not listed in the slate it used to belong to", () => {
+    const mixed = [...wk(5, true, "2026-10-11"), stale5, game({ game_id: "moved", week: 5, gameday: "2026-10-27", away_team: "KC", home_team: "DEN" })];
+    const got = M.currentSlate(mixed, "2026-10-20")!;
+    expect(got.label).toBe("Week 5");
+    expect(got.games.map((g) => g.game_id)).not.toContain("stale5");
+    expect(got.games.map((g) => g.game_id)).toContain("moved");
+  });
+
+  it("only stale rows are left: no slate", () => {
+    expect(M.currentSlate([...wk(5, true, "2026-10-11"), stale5], "2026-10-20")).toBeNull();
+    expect(M.currentSlate([stale5], "2026-10-20")).toBeNull();
+  });
+
+  it("before the season, every game is in the future: week 1", () => {
+    expect(M.currentSlate([...wk(1, false, "2026-09-13"), ...wk(2, false, "2026-09-20")], "2026-08-01")!.label).toBe("Week 1");
+  });
+
+  it("an undated unplayed row is ignored when its week already has a played game, or is below the last played week (no `today` needed)", () => {
+    const undated5 = game({ game_id: "undated5", week: 5, gameday: null, away_team: "SF", home_team: "SEA" });
+    const undated3 = game({ game_id: "undated3", week: 3, gameday: null, away_team: "SF", home_team: "SEA" });
+    const list = [...wk(5, true, "2026-10-11"), undated5, undated3, ...wk(6, false, "2026-10-18")];
+    const got = M.currentSlate(list)!;
+    expect(got.label).toBe("Week 6");
+    expect(M.currentSlate([...wk(5, true, "2026-10-11"), undated5])).toBeNull();
+  });
+
+  it("an undated unplayed row in a week with no result yet is a real game", () => {
+    const undated6 = game({ game_id: "undated6", week: 6, gameday: null, away_team: "SF", home_team: "SEA" });
+    const got = M.currentSlate([...wk(5, true, "2026-10-11"), undated6])!;
+    expect(got.label).toBe("Week 6");
+    expect(got.games.map((g) => g.game_id)).toEqual(["undated6"]);
+    expect(M.currentSlate([undated6])!.label).toBe("Week 6");
+  });
+});
+
+describe("chaos F4: an impossible Team Stats number is dropped before ranking, like a radar rate", () => {
+  const withBuf = (over: Row) => ROWS.map((r) => (r.team_id === "BUF" ? { ...r, ...over } : r));
+  const row = (m: MatchupModel, key: string) => m.awayBall!.ladder.rows.find((r) => r.key === key)!;
+  /** Every value string of both ladders. */
+  const printed = (m: MatchupModel) =>
+    [...m.awayBall!.ladder.rows, ...m.homeBall!.ladder.rows].map((r) => `${r.offValue} ${r.defValue}`).join(" | ");
+
+  it("the bounds are one place", () => {
+    expect(M.MATCHUP_MAX_EPA_PER_PLAY).toBe(5);
+  });
+
+  it("a success rate of 12: a dash, the row na, listed in rejected, and not ranked 1st", () => {
+    const m = build(withBuf({ success_rate: 12 }));
+    expect(row(m, "sr")).toMatchObject({ offValue: DASH, offRank: DASH, verdict: "Not enough data" });
+    expect(row(m, "sr").edge.side).toBe("na");
+    expect(m.rejected).toContain("BUF off sr");
+    expect(printed(m)).not.toMatch(/1200|\d{3}\.\d%/);
+    // the other lines of the same team still print
+    expect(row(m, "epa").edge.side).not.toBe("na");
+  });
+
+  it("a negative success rate and an EPA per play of 900 are dropped the same way", () => {
+    const neg = build(withBuf({ success_rate: -0.5 }));
+    expect(row(neg, "sr").offValue).toBe(DASH);
+    expect(neg.rejected).toContain("BUF off sr");
+    const epa = build(withBuf({ epa_per_play: 900, pass_epa_per_play: -900, late_epa_per_play: 1e308 }));
+    for (const key of ["epa", "pass_epa", "late_epa"]) {
+      expect(row(epa, key).offValue, key).toBe(DASH);
+      expect(row(epa, key).edge.side, key).toBe("na");
+      expect(epa.rejected, key).toContain(`BUF off ${key}`);
+    }
+    expect(printed(epa)).not.toMatch(/900|Infinity|e\+/);
+    assertFinite(epa);
+  });
+
+  it("the team is out of that line's pool, so nobody else's rank moves because of it", () => {
+    const clean = buildTeamStats(ROWS);
+    const bad = buildTeamStats(withBuf({ early_epa_per_play: 900 }));
+    const before = M.rankTeamStat(clean, "early_epa", "off", true);
+    const after = M.rankTeamStat(bad, "early_epa", "off", true);
+    expect(after.get("BUF")).toEqual({ value: null, rank: null, tied: false, pool: 31 });
+    const bufRank = before.get("BUF")!.rank!;
+    for (const [team, cell] of Array.from(before.entries())) {
+      if (team === "BUF") continue;
+      // everyone below BUF moves up one place; nobody is pushed down by a made-up 1st
+      expect(after.get(team)!.rank, team).toBe(cell.rank! > bufRank ? cell.rank! - 1 : cell.rank);
+    }
+  });
+
+  it("the edges of the range are kept: a rate of 0 or 1, an EPA per play of exactly ±5", () => {
+    const one = (epa: number, sr: number) => {
+      const r = (team: string, opp: string, e: number, s: number) => ({
+        game_id: `2026_01_${team}_${opp}`, team_id: team, opponent_id: opp, season: 2026, week: 1, plays: 10, epa_per_play: e, success_rate: s,
+      });
+      const stats = buildTeamStats([r("AAA", "BBB", epa, sr), r("BBB", "AAA", 0.1, 0.5)]);
+      return { epa: M.rankTeamStat(stats, "epa", "off", true).get("AAA")!.rank, sr: M.rankTeamStat(stats, "sr", "off", true).get("AAA")!.rank };
+    };
+    expect(one(5, 1)).toEqual({ epa: 1, sr: 1 });
+    expect(one(-5, 0)).toEqual({ epa: 2, sr: 2 });
+    expect(one(5.01, 1.0001)).toEqual({ epa: null, sr: null });
+    expect(one(-5.01, -0.0001)).toEqual({ epa: null, sr: null });
+  });
+
+  it("the fixture has nothing to reject, and the golden is untouched", () => {
+    expect(build(ROWS).rejected).toEqual([]);
+  });
+});
+
+describe("chaos F9 / F10 / F11: small print", () => {
+  it("F9: one ranked spoke is \"spoke\"", () => {
+    expect(M.overlayCountLine({ off: 0, def: 1, even: 0, ranked: 1 })).toBe(
+      "Of the 1 spoke ranked: offense is 5+ places higher on 0, defense on 1, 0 within 4 places.",
+    );
+    expect(M.overlayCountLine({ off: 0, def: 0, even: 0, ranked: 0 })).toMatch(/^Of the 0 spokes ranked:/);
+  });
+
+  it("F10: a whitespace-only name falls back to the season row's name, then a dash; a blank slug is no link", () => {
+    const blank = new Map<string, Slug>([["q1", { slug: "q-one", player_name: "   " }]]);
+    expect(pick({ qbs: [qbRow()], slugs: blank })[0]).toMatchObject({ name: "Q.One", href: "/player/q-one" });
+    expect(pick({ qbs: [qbRow({ player_name: " \t " })], slugs: blank })[0].name).toBe(DASH);
+    expect(pick({ qbs: [qbRow({ player_name: "\n" })] })[0].name).toBe(DASH);
+    const noSlug = new Map<string, Slug>([["q1", { slug: "  ", player_name: "Quentin One" }]]);
+    expect(pick({ qbs: [qbRow()], slugs: noSlug })[0]).toMatchObject({ name: "Quentin One", href: null });
+  });
+
+  it("F11: a 12-hour kickoff string keeps its AM or PM", () => {
+    expect(M.formatKickoff(game({ gametime: "1:00 PM" }))).toBe(`Sun Oct 11 ${DOT} 1:00 PM ET`);
+    expect(M.formatKickoff(game({ gametime: "8:15pm" }))).toBe(`Sun Oct 11 ${DOT} 8:15 PM ET`);
+    expect(M.formatKickoff(game({ gametime: "12:30 AM" }))).toBe(`Sun Oct 11 ${DOT} 12:30 AM ET`);
+    expect(M.formatKickoff(game({ gametime: "12:00 p.m." }))).toBe(`Sun Oct 11 ${DOT} 12:00 PM ET`);
+    expect(M.formatKickoff(game({ gametime: "9:30 am" }))).toBe(`Sun Oct 11 ${DOT} 9:30 AM ET`);
+  });
+
+  it("F11: a kickoff string of an unknown shape prints no time", () => {
+    for (const gametime of ["13:00 PM", "0:30 AM", "13:00 junk", "1:00 XM", "1pm", "13", "13:0", "noon", "13:00:99x"]) {
+      expect(M.formatKickoff(game({ gametime })), gametime).toBe("Sun Oct 11");
+    }
+  });
+
+  it("F11: a date that does not exist is no date", () => {
+    for (const gameday of ["2026-02-31", "2026-02-29", "2026-04-31", "2026-06-31", "2026-11-31"]) {
+      expect(M.formatKickoff(game({ gameday })), gameday).toBe("1:00 PM ET");
+    }
+    expect(M.formatKickoff(game({ gameday: "2028-02-29", weekday: "Tuesday" }))).toBe(`Tue Feb 29 ${DOT} 1:00 PM ET`);
+    expect(M.formatKickoff(game({ gameday: "2026-01-31", weekday: "Saturday" }))).toBe(`Sat Jan 31 ${DOT} 1:00 PM ET`);
+    // and it is not a date for the stale rule or the sort either
+    expect(M.findPairGame([game({ gameday: "2026-02-31" })], "BUF", "LA", "2026-12-01").game).not.toBeNull();
+  });
+
+  it("F11: a negative rate prints the true minus; a non-finite or absurd number prints a dash", () => {
+    expect(statLine(pick({ rbs: [rbRow({ success_rate: -0.4 })] })[0])[3]).toBe("Success: −40.0%");
+    expect(statLine(pick({ rbs: [rbRow({ success_rate: 1e308, rushing_yards: 1e21, epa_per_carry: -1e12 })] })[0])).toEqual([
+      "Carries: 50", `Rush yards: ${DASH}`, `EPA / carry: ${DASH}`, `Success: ${DASH}`,
+    ]);
+    expect(statLine(pick({ qbs: [qbRow({ passing_yards: 2e9, cpoe: 1e10, touchdowns: 1e21 })] })[0])).toEqual([
+      "EPA / dropback: +0.12", `CPOE: ${DASH}`, `Pass yards: ${DASH}`, `TD–INT: ${DASH}`,
+    ]);
+    expect(statLine(pick({ receivers: [recRow({ receiving_yards: 999_999_999 })] })[0])[1]).toBe("Rec yards: 999,999,999");
+    const all = JSON.stringify(pick({ qbs: [qbRow({ epa_per_db: 1e308 })], rbs: [rbRow({ success_rate: 1e308 })] }));
+    expect(all).not.toMatch(/Infinity|e\+/);
+  });
+});
+
 /* ─── the module's place in the graph ─── */
 
 describe("lib/stats/matchup.ts is pure (§7.2)", () => {

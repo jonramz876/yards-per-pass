@@ -109,6 +109,45 @@ describe("matchupHref (§7.1: the playerHref rule for the season; season before 
   });
 });
 
+// Chaos pass, PR 1 (spec §17, finding F8): the helper no longer trusts its caller.
+describe("chaos F8: matchupHref encodes its segments and only emits a season the route would accept", () => {
+  it("a season the route's own rule rejects is left out", () => {
+    for (const season of [5, 1998, 2101, 1e21, Number.MAX_SAFE_INTEGER, 20260]) {
+      expect(matchupHref("BUF", "LA", { season, defaultSeason: 2026 }), String(season)).toBe("/matchup/BUF/LA");
+    }
+    expect(matchupHref("BUF", "LA", { season: 1999, defaultSeason: 2026 })).toBe("/matchup/BUF/LA?season=1999");
+    expect(matchupHref("BUF", "LA", { season: 2100, defaultSeason: 2026 })).toBe("/matchup/BUF/LA?season=2100");
+  });
+
+  it("every season it emits is one parseMatchupSeason reads back", () => {
+    for (const season of [1999, 2000, 2025, 2026, 2100]) {
+      const href = matchupHref("BUF", "LA", { season });
+      expect(parseMatchupSeason(new URLSearchParams(href.split("?")[1]).get("season") ?? undefined)).toBe(season);
+    }
+  });
+
+  it("a segment cannot add a query, a hash or a path of its own", () => {
+    expect(matchupHref("BUF?season=1999#", "LA")).toBe("/matchup/BUF%3Fseason%3D1999%23/LA");
+    expect(matchupHref("//evil.com", "LA")).toBe("/matchup/%2F%2Fevil.com/LA");
+    expect(matchupHref("BUF", "LA/../../x")).toBe("/matchup/BUF/LA%2F..%2F..%2Fx");
+    expect(matchupHref("B F", "L&A=1")).toBe("/matchup/B%20F/L%26A%3D1");
+    for (const [a, b] of [["BUF?x=1", "LA"], ["BUF#h", "LA"], ["a/b", "c/d"], ["%00", "\n"]]) {
+      const href = matchupHref(a, b, { ball: "home" });
+      expect(href.split("?")).toHaveLength(2);
+      expect(href).not.toContain("#");
+      expect(href.split("?")[0].split("/")).toHaveLength(4);
+      expect(href.endsWith("?ball=home")).toBe(true);
+    }
+  });
+
+  it("real team ids are unchanged, and a value that is not a string does not throw", () => {
+    expect(matchupHref("BUF", "LA")).toBe("/matchup/BUF/LA");
+    expect(matchupHref("NE", "NYJ", { season: 2025, defaultSeason: 2026, ball: "home" })).toBe("/matchup/NE/NYJ?season=2025&ball=home");
+    expect(() => matchupHref(null as never, undefined as never)).not.toThrow();
+    expect(() => matchupHref("\ud800", "LA")).not.toThrow();
+  });
+});
+
 describe("parseMatchupTeamId (§7.1: two or three ASCII letters, tested BEFORE upper-casing)", () => {
   const TABLE: (string | null | undefined)[] = [
     "ſf", // long s: upper-cases to SF

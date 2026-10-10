@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Team matchup spec 2026-10-10 §6.5: the PostgREST request count of one
 // matchup page, measured at the Supabase client itself (every real loader
@@ -53,7 +53,14 @@ const count = () => {
   return by;
 };
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
+  // The loader hands the schedule rules the date (US Eastern): pin it before the week-5 game below.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-08T16:00:00Z"));
   requests.length = 0;
   clearMatchupMemo();
   clearCompareCardMemo();
