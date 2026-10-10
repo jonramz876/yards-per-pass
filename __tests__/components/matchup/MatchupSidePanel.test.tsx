@@ -89,6 +89,17 @@ describe("the sticky rule (§8.3): the one sticky element, behind both variants"
     expect(height % 20).toBe(0);
   });
 
+  // Measured in headless Chrome on 2026-10-10 over the 15 pairs of week 5,
+  // both tabs: the panel is 642 px tall at 1280 px wide and 586 px at 1024 px
+  // (the same for every pair). The rule: tallest + 80 (the sticky offset) + 16,
+  // rounded up to the next 20.
+  it("the min-height is the measured one: (642 + 80 + 16) rounded up to the next 20 = 740", () => {
+    const TALLEST_MEASURED = 642;
+    const expected = Math.ceil((TALLEST_MEASURED + 80 + 16) / 20) * 20;
+    expect(expected).toBe(740);
+    expect(PANEL_STICKY).toBe(`lg:[@media(min-height:${expected}px)]:sticky lg:[@media(min-height:${expected}px)]:top-20`);
+  });
+
   it("the outer element carries them, plus self-start, and no bare sticky / z-index / overflow class", () => {
     const outer = show().firstElementChild!;
     const cls = classes(outer);
