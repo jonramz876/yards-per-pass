@@ -281,15 +281,22 @@ export default async function MatchupCardPage({ params, searchParams }: PageProp
         <h1 className="sr-only">{heading}</h1>
 
         {/* The picture itself. Under `next dev` on Windows it is a broken image (next/og's
-            loader fails there); the tables below carry the same strings. */}
-        <div data-matchup-card-image className="border border-slate-200 bg-white">
+            loader fails there); the tables below carry the same strings.
+            When it fails the visitor must read its alt text, not a blank box (PR 2 chaos
+            F2): next/image paints an image's own text transparent, so the colour is set
+            back here (a caller's style wins over next/image's), and the box has a quiet
+            ground the loaded picture covers completely. `priority`: the page's one
+            picture, above the fold. */}
+        <div data-matchup-card-image className="border border-slate-200 bg-slate-100">
           <Image
             src={matchupCardImageHref(away.id, home.id, season, { week: model.throughWeek })}
             alt={model.alt}
             width={1200}
             height={630}
             unoptimized
-            className="h-auto w-full"
+            priority
+            className="h-auto w-full text-[15px] leading-relaxed"
+            style={{ color: "#475569" }}
           />
         </div>
 

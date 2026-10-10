@@ -75,6 +75,7 @@ describe("the Share block on the matchup page", () => {
     const button = await screen.findByText(FAILED);
     expect(screen.queryByText("Copied!")).toBeNull();
     expect(classesOf(button)).toContain("bg-slate-600");
+    expect(button.getAttribute("class")).not.toMatch(/red/);
     // The long sentence takes the whole row on a phone (two lines at 320 px, measured), not a quarter of it.
     expect(classesOf(button)).toContain("basis-full");
     // Chaos F6 (PR 2): from md the sentence gets a row of its own with Download beside it, under the
@@ -105,7 +106,6 @@ describe("the Share block on the matchup page", () => {
     fireEvent.click(screen.getByText("Copy Link"));
     await screen.findByText("Copied!");
     check();
-    expect(button.getAttribute("class")).not.toMatch(/red/);
   });
 
   it("a browser with no clipboard API at all: the old copy command is used, and Copied! only because it said so", async () => {

@@ -42,7 +42,9 @@ interface MatchupShareProps {
 }
 
 const BARLOW = "font-[family-name:var(--font-barlow)]";
-const BUTTON = "min-w-0 flex-1 cursor-pointer border px-2 py-2 text-[13px] font-semibold leading-snug transition-colors md:flex-none md:px-4";
+const BUTTON = "min-w-0 flex-1 cursor-pointer border px-2 py-2 text-[13px] font-semibold leading-snug transition-colors md:px-4";
+/** From md a button is as wide as its words (all but the failed-copy one, which fills its row). */
+const OWN_WIDTH = "md:flex-none";
 
 export default function MatchupShare({ shareUrl, cardHref, downloadHref }: MatchupShareProps) {
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
@@ -82,28 +84,33 @@ export default function MatchupShare({ shareUrl, cardHref, downloadHref }: Match
   }
 
   // Navy at rest (the selected tab's colour), green once copied, slate when the copy did not happen.
-  // The failure sentence is long: on a phone its button takes the whole row (two lines at 320 px,
-  // measured; four when it shared the row), and Download drops under it for those four seconds.
+  // The failure sentence is long, so for its four seconds the layout gives it room:
+  // - on a phone its button takes the whole row (two lines at 320 px, measured; four when it
+  //   shared the row) and Download drops under it;
+  // - from md the two buttons move to a row of their own under the heading and the link, the
+  //   sentence filling it and Download beside it, so the heading never wraps and Download never
+  //   drops (at 768 px both happened when everything stayed on one row: PR 2 chaos F6).
+  const failed = copy === "failed";
   const tone =
-    copy === "copied" ? "border-green-700 bg-green-700"
-    : copy === "failed" ? "basis-full border-slate-600 bg-slate-600 md:basis-auto"
-    : "border-navy bg-navy";
+    copy === "copied" ? `border-green-700 bg-green-700 ${OWN_WIDTH}`
+    : failed ? "basis-full border-slate-600 bg-slate-600 md:basis-0"
+    : `border-navy bg-navy ${OWN_WIDTH}`;
 
   return (
     <div
       data-matchup-share
       data-share-url={shareUrl}
       data-download-href={downloadHref}
-      className="mt-4 flex min-w-0 flex-col gap-x-4 gap-y-2 border border-slate-200 bg-white px-3 py-[10px] md:flex-row md:items-center"
+      className={`mt-4 flex min-w-0 flex-col gap-x-4 gap-y-2 border border-slate-200 bg-white px-3 py-[10px] md:flex-row md:items-center${failed ? " md:flex-wrap" : ""}`}
     >
       <span data-matchup-share-heading className={`${BARLOW} text-[17px] font-semibold uppercase leading-tight tracking-[0.04em] text-navy md:text-[19px]`}>
         {MATCHUP_SHARE_HEADING}
       </span>
-      <div className="flex min-w-0 flex-wrap gap-2 md:ml-auto">
+      <div className={`flex min-w-0 flex-wrap gap-2 ${failed ? "md:order-last md:basis-full" : "md:ml-auto"}`}>
         <button type="button" onClick={handleCopyLink} className={`${BUTTON} text-white ${tone}`}>
-          {copy === "copied" ? MATCHUP_COPIED_TEXT : copy === "failed" ? MATCHUP_COPY_FAILED_TEXT : MATCHUP_COPY_LINK_TEXT}
+          {copy === "copied" ? MATCHUP_COPIED_TEXT : failed ? MATCHUP_COPY_FAILED_TEXT : MATCHUP_COPY_LINK_TEXT}
         </button>
-        <button type="button" onClick={handleDownload} className={`${BUTTON} border-slate-300 bg-white text-slate-900`}>
+        <button type="button" onClick={handleDownload} className={`${BUTTON} ${OWN_WIDTH} border-slate-300 bg-white text-slate-900`}>
           {MATCHUP_DOWNLOAD_TEXT}
         </button>
       </div>
@@ -111,7 +118,11 @@ export default function MatchupShare({ shareUrl, cardHref, downloadHref }: Match
           page's route tree as soon as this is on screen, one function run per
           matchup looked at. The share route has no loading file, so that
           request reads nothing today; revisit this before ever adding one. */}
-      <Link href={cardHref} prefetch={false} className="text-[13px] font-semibold text-slate-600 underline underline-offset-2 hover:text-slate-900">
+      <Link
+        href={cardHref}
+        prefetch={false}
+        className={`text-[13px] font-semibold text-slate-600 underline underline-offset-2 hover:text-slate-900${failed ? " md:ml-auto" : ""}`}
+      >
         {MATCHUP_OPEN_CARD_TEXT}
       </Link>
     </div>

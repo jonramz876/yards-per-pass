@@ -28,7 +28,6 @@ import { matchupCardImage, matchupPlateImage } from "@/lib/og/matchup-card-image
 import { radarImageFonts } from "@/lib/og/team-radar-image";
 import {
   MATCHUP_CARD_IMAGE_UNAVAILABLE,
-  MATCHUP_CARD_UNAVAILABLE,
   buildMatchupCard,
   matchupCardDownloadFilename,
   parseMatchupImageQuery,
@@ -80,11 +79,28 @@ function teamOf(segment: unknown): Team | null {
   return getTeam(id) ?? null;
 }
 
+/**
+ * The request's path exactly as it was sent: no query, no fragment, nothing
+ * decoded. "" for a URL that cannot be read.
+ */
+function rawPathOf(url: unknown): string {
+  if (typeof url !== "string") return "";
+  const end = url.search(/[?#]/);
+  return end === -1 ? url : url.slice(0, end);
+}
+
 export async function GET(req: Request, { params }: { params: Promise<{ away: string; home: string }> }) {
   const raw = await params;
   const away = teamOf(raw?.away);
   const home = teamOf(raw?.home);
   if (!away || !home || away.id === home.id) return notFound(true);
+
+  // Next decodes a path segment before it reaches `params`, so `%42UF` arrives
+  // as "BUF" (PR 2 chaos F1): dozens of spellings per card, each its own CDN
+  // entry and its own render. The RAW path must end in the one canonical
+  // spelling; anything else (an encoded letter, a doubled or trailing slash)
+  // is the stored 404, with no read.
+  if (!rawPathOf(req?.url).endsWith(`/api/matchup-card/${away.id}/${home.id}`)) return notFound(true);
 
   const query = parseMatchupImageQuery(rawQueryOf(req.url));
   if (!query) return notFound(true);
@@ -118,20 +134,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ away: st
     console.error(`${what}: data unavailable`, err);
     return unavailable();
   }
-  if (!load.gamesAvailable) {
-    // Without the schedule the card would say "VS" for a game that may be scheduled, for an hour.
-    console.error(`${what}: the games could not be read, so no image is drawn`);
-    return unavailable();
-  }
+  // Without the schedule the card would say "VS" for a game that may be
+  // scheduled, for an hour. Not logged here: the loader has already logged the
+  // failed games read for this request, once.
+  if (!load.gamesAvailable) return unavailable();
   if (load.swap) return notFound(false);
 
   const model = buildMatchupCard({ away, home, load });
   // The second lock: an "unavailable" plate (no model, or a model that is not
   // this pair's) is an error, not a state of the season. Retryable, never
   // stored, never drawn. The other plates (uncovered, small-pool, no radar
-  // drawable) are real answers and are kept. `reason` was added to the plate
-  // after this route was first written, so the K11 sentence is read as well.
-  if (model.kind === "plate" && ((model as { reason?: string }).reason === "unavailable" || model.message === MATCHUP_CARD_UNAVAILABLE)) {
+  // drawable) are real answers and are kept. The reason decides, never the sentence.
+  if (model.kind === "plate" && model.reason === "unavailable") {
     console.error(`${what}: the card model is unavailable for this pair, so no image is drawn`);
     return unavailable();
   }

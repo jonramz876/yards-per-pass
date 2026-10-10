@@ -62,11 +62,9 @@ const RING_DASH = "5,3";
  * square drawn as a closed path (half-side, stroke width). The four numbers
  * are MATCHUP_CARD_LAYOUT.marker's (added to the layout after PR 1's chaos
  * pass: a 1st-place square ends 1.02 px from its own label box, so none may
- * grow without re-deriving the boxes). The literals here are the same four,
- * used only where the layout does not carry them yet.
+ * grow without re-deriving the boxes).
  */
-type MarkerSizes = { dot: number; dotStroke: number; square: number; squareStroke: number };
-const MARKER: MarkerSizes = (L as { marker?: MarkerSizes }).marker ?? { dot: 6, dotStroke: 1.3, square: 5.5, squareStroke: 2.6 };
+const MARKER = L.marker;
 
 const n1 = (v: number): number => Number(v.toFixed(1));
 const ALIGN = { start: "flex-start", center: "center", end: "flex-end" } as const;
