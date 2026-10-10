@@ -1,0 +1,4486 @@
+{
+ "source": "make_matchup_expected.py over the two frozen fixtures team-game-stats-2026-w1-3.json and team-radar-2026-w1-3.json (94 rows, 2026 weeks 1-3), joined by (game_id, team_id) into the 35-column matchup rows. No database. Pairs are (away, home): BUF at HOU, DET at NO, and CHI at PHI (CHI and PHI have two games in the fixture, every other team three).",
+ "teamsPlayed": 32,
+ "throughWeek": 3,
+ "rowCount": 94,
+ "teamStats": {
+  "ARI": {
+   "off": {
+    "epa": {
+     "value": 0.041135043502506276,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.463768115942029,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.12667185204463893,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.10940973953164719,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.02015977836560294,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.10876957190313334,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.14134109061259703,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.48314606741573035,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.40409829259521934,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1879369219985372,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.07621655579785304,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.3895183719336485,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "ATL": {
+   "off": {
+    "epa": {
+     "value": -0.1619898782504119,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.45454545454545453,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.35325744517520946,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.025452337335889794,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.1492335029146074,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.24482313930957908,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.06237928847645409,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.37755102040816324,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.029979288965936615,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.3115731861040365,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.09717800425308157,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.03923296159129816,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "BAL": {
+   "off": {
+    "epa": {
+     "value": 0.17059855418681724,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5243243243243243,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.30786251629127753,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.012585388508426894,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.26348092402820844,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.24190844128524364,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.02854428624233187,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4512820512820513,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.03327737423710569,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.02009234339452149,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.04083680632040486,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.21599961710624171,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "BUF": {
+   "off": {
+    "epa": {
+     "value": 0.2214754323076502,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.32748850642197963,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.07305712854758895,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.15483814723425424,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.5408436161599841,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.09132453685319006,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4835680751173709,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.16622210358767373,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.040962074522001894,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.12666136334466016,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.02092185317853848,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "CAR": {
+   "off": {
+    "epa": {
+     "value": 0.016271924551091294,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.41148325358851673,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.12951018855987093,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.20382498295893103,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.10591336350253408,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.29595362234630707,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.029623925678460186,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.42452830188679247,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.012470781778378395,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.09010482719690646,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.01373066206683943,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.10245271302144823,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "CHI": {
+   "off": {
+    "epa": {
+     "value": 0.1147454724285278,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.42567567567567566,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.24946779160395924,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.0620775714892261,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.06425658354522305,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.2777524565374831,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.04198698078904264,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4166666666666667,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.1614898515173477,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1311702400621749,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.10416749874881741,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.20673509105005647,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "CIN": {
+   "off": {
+    "epa": {
+     "value": 0.048210351101911,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.441340782122905,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.10905240618231621,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.06111521662069208,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.0038697954299601,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.18425523782266942,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.06263017402492903,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4381443298969072,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.034534410645517544,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.13935322017639887,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.013075846311875392,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.22206583710171038,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "CLE": {
+   "off": {
+    "epa": {
+     "value": -0.05353844587483864,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.41714285714285715,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.10633703067497642,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.3377615152967321,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.03847195531698438,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.127236426815591,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.020252923090295756,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4307692307692308,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.006690608757830008,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.06336257404729698,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.09107787023822311,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.35830097386662374,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "DAL": {
+   "off": {
+    "epa": {
+     "value": 0.1980891224135267,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5026737967914439,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.3437856842973729,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.10285787426458183,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.1542153853028544,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.3281583430409159,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.19258917089953703,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.527363184079602,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.4084819653646044,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.05316113769367803,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.1984296324680339,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.16753666469782666,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "DEN": {
+   "off": {
+    "epa": {
+     "value": -0.05033351337250369,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4147727272727273,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.027671996031256273,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.08720075800229427,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.03523626190101769,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.4146534203183962,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.02306559253064207,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.41904761904761906,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.02760604200317978,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.10709070802343526,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.004700672983677545,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.08183333508092858,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "DET": {
+   "off": {
+    "epa": {
+     "value": 0.14065424409742208,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5121951219512195,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.28611466065550056,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.08202589976926591,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.13621005901664432,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.15898650755563035,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.17679899260885032,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4911504424778761,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.23493282629177903,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.04452345799696902,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.09019667119335657,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.5302757063738174,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "GB": {
+   "off": {
+    "epa": {
+     "value": -0.0993107996847344,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.36787564766839376,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.032838375585794846,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.4483840928521701,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.029541860587394785,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.34269081979173316,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.10170240725134676,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.47058823529411764,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.2305365729598947,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.05513918578514637,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.10248849731692349,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.7171774930433532,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "HOU": {
+   "off": {
+    "epa": {
+     "value": -0.08341542990769002,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.41509433962264153,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.013466176086827385,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.23479814340060168,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.014605517420310622,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.3702174609785068,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.006480762497022674,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.3763440860215054,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.12884289372290858,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.18725927861063005,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.0479198345459405,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.21440376582180254,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "IND": {
+   "off": {
+    "epa": {
+     "value": -0.035563143092517374,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4421052631578947,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.10650747347854428,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.06411813124734318,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.093910119052601,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.163902100305908,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.12433025188031363,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.48484848484848486,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.2006260067447449,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.01412527263169073,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.1440073323584963,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.044108308392338196,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "JAX": {
+   "off": {
+    "epa": {
+     "value": 0.1464603955514275,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5085714285714286,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.21278709061896392,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.07123621699922152,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.10918590845429321,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.3010398861601315,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.10871719890394262,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.42196531791907516,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.10403878710160185,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1159412171281453,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.013498495821756702,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.48415094248513285,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "KC": {
+   "off": {
+    "epa": {
+     "value": 0.16565269388899423,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.494949494949495,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.2408928315491215,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.06354107849310725,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.03837702461994092,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.6244370831146516,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.07709940429943318,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.3882978723404255,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.06553863422042415,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.09615025076765935,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.06883972407584744,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.10119013828489161,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "LA": {
+   "off": {
+    "epa": {
+     "value": 0.0024068725144880065,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4504950495049505,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.0710522501031747,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.11383263353568812,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.05222385489600219,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.1932159119592628,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.039344020129076056,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4263157894736842,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.04646736577197081,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.02889027912067205,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.012266107133149897,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.1776146453943378,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "LAC": {
+   "off": {
+    "epa": {
+     "value": -0.1771179036701525,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4083769633507853,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.09451212801973331,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.30211348524644466,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.07902518749895705,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.5251134919917744,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.00031713103944027544,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4416243654822335,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.12461575860031175,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1519210870067798,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.03706380107651729,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.131287222116603,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "LV": {
+   "off": {
+    "epa": {
+     "value": 0.011342111202517956,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.41450777202072536,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.1988846072855124,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.22694717793822794,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.08038103579912736,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.3613418119217657,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.1977821638817648,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.41836734693877553,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.12650548070146797,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.3127752127459771,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.08541733687338836,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.6097865295791451,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "MIA": {
+   "off": {
+    "epa": {
+     "value": -0.12389334800731325,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.35106382978723405,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.025364319731348416,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.289985138529654,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.1736584761692433,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.013458405719613716,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.15822129209170985,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.49700598802395207,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.46409078670849624,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1744117833040454,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.04543160498381921,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.6530405645650365,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "MIN": {
+   "off": {
+    "epa": {
+     "value": -0.09680222868286124,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.3236994219653179,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.037262421486569976,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1710336766158997,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.18525231198753106,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.09050478800698564,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.20372209262336893,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.3142857142857143,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.1262865566572224,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.3585931645556619,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.1036546023688294,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.49280595335870536,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "NE": {
+   "off": {
+    "epa": {
+     "value": -0.13047089110479698,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.40106951871657753,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.08154840067220627,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.20517685622483417,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.15773323136361017,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.04926392012109819,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.04986068019973486,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4222222222222222,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.08461341900076355,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.003492115987759923,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.0843754734678742,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.06354506910986588,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "NO": {
+   "off": {
+    "epa": {
+     "value": 0.023802314458617378,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.47391304347826085,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.04815078695729346,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.026517862038646516,
+     "rank": 8,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.01814456045905335,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.15754706083144865,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.0667767766397334,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.134081739312061,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.03801449435642225,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.07315730974920794,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.09346668627311497,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "NYG": {
+   "off": {
+    "epa": {
+     "value": -0.040120393511297196,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.42780748663101603,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.024464556624945153,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.10681137463024308,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.02499942599232299,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.09396579004227845,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.12011149156622652,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4715909090909091,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.2416888863844039,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.09795589913939318,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.04355570053864669,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.41782845667348145,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "NYJ": {
+   "off": {
+    "epa": {
+     "value": 0.04268609699784691,
+     "rank": 11,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.43842364532019706,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.21969768135312168,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.24696922285623907,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.024176100486953397,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.25537960552222483,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.017837965180275136,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.45930232558139533,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.06924660895722802,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1935349130015534,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.032712060259013076,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.21570520761406037,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "PHI": {
+   "off": {
+    "epa": {
+     "value": 0.035255990978460515,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.37209302325581395,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.15510164023849346,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1422077588873575,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.15090819789880985,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.5554206363708336,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.052025878347491894,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.42276422764227645,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.0968569370043102,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": 0.00011623148170229869,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.0852544882068037,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.4872368214051819,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "PIT": {
+   "off": {
+    "epa": {
+     "value": -0.1406627382967292,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4020618556701031,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.17683326034401403,
+     "rank": 30,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.0578996793749758,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.10711512703069313,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.2550295948854885,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.05021237038811041,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4470588235294118,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.05583033661029726,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.04256569414124488,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.06323905328843886,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.007875650962042924,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "SEA": {
+   "off": {
+    "epa": {
+     "value": 0.05325335606822336,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.46774193548387094,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.28698126482976144,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.26331482415310037,
+     "rank": 28,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.0527941050950425,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.054929622120333456,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.11795843439610411,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.3617021276595745,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.039241912102356766,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.3712256593102911,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.12174172759509279,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.10692382923238712,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "SF": {
+   "off": {
+    "epa": {
+     "value": 0.3302627164391694,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.5595238095238095,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.6222323602847302,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.04969777897628637,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.2361383165228043,
+     "rank": 2,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.7632349560544488,
+     "rank": 1,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.00933881991960913,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4585365853658537,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.07051356111425323,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.12207159314388542,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.09914635674159092,
+     "rank": 4,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.24178966267519175,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "TB": {
+   "off": {
+    "epa": {
+     "value": -0.1995355802379023,
+     "rank": 32,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.3684210526315789,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.2556903964296747,
+     "rank": 31,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.07173496407731678,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.14518229606588162,
+     "rank": 27,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.34767492337340955,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": -0.09185273265939005,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.38764044943820225,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.005988888651981845,
+     "rank": 10,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.23410477273136482,
+     "rank": 6,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.03257705411681225,
+     "rank": 14,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": -0.25239102871220487,
+     "rank": 5,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "TEN": {
+   "off": {
+    "epa": {
+     "value": -0.0820975708433342,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4171779141104294,
+     "rank": 19,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": -0.11445695403494403,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.025057302166598235,
+     "rank": 7,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.12994292361460194,
+     "rank": 26,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.0650268889283141,
+     "rank": 17,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.009829621790029844,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4187192118226601,
+     "rank": 9,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.13192259906932902,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1041238236706494,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.03154104374269766,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.143422395906129,
+     "rank": 21,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  },
+  "WAS": {
+   "off": {
+    "epa": {
+     "value": 0.022791471503561422,
+     "rank": 15,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4182692307692308,
+     "rank": 18,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.13048187331373406,
+     "rank": 13,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.1393928685719998,
+     "rank": 20,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": -0.012422810195675994,
+     "rank": 16,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.16330373838401988,
+     "rank": 12,
+     "tied": false,
+     "pool": 32
+    }
+   },
+   "def": {
+    "epa": {
+     "value": 0.07097840264127551,
+     "rank": 24,
+     "tied": false,
+     "pool": 32
+    },
+    "sr": {
+     "value": 0.4742857142857143,
+     "rank": 25,
+     "tied": false,
+     "pool": 32
+    },
+    "pass_epa": {
+     "value": 0.24435948578657118,
+     "rank": 29,
+     "tied": false,
+     "pool": 32
+    },
+    "rush_epa": {
+     "value": -0.3175236540361463,
+     "rank": 3,
+     "tied": false,
+     "pool": 32
+    },
+    "early_epa": {
+     "value": 0.034108317361034035,
+     "rank": 22,
+     "tied": false,
+     "pool": 32
+    },
+    "late_epa": {
+     "value": 0.2133378985844301,
+     "rank": 23,
+     "tied": false,
+     "pool": 32
+    }
+   }
+  }
+ },
+ "pairs": [
+  {
+   "away": "BUF",
+   "home": "HOU",
+   "awayGames": 3,
+   "homeGames": 3,
+   "awayBall": [
+    {
+     "key": "epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.2214754323076502,
+      "rank": 2,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.006480762497022674,
+      "rank": 17,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 15,
+      "places": 15,
+      "tag": "Clear edge",
+      "tug": 25.806451612903224,
+      "verdict": "BUF offense by 15 places · clear edge"
+     }
+    },
+    {
+     "key": "sr",
+     "source": "team-stats",
+     "off": {
+      "value": 0.5,
+      "rank": 6,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.3763440860215054,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -3,
+      "places": 3,
+      "tag": "Strength on strength",
+      "tug": 54.83870967741935,
+      "verdict": "Strength on strength · 3 places apart"
+     }
+    },
+    {
+     "key": "pass_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.32748850642197963,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.12884289372290858,
+      "rank": 20,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 17,
+      "places": 17,
+      "tag": "Clear edge",
+      "tug": 22.580645161290324,
+      "verdict": "BUF offense by 17 places · clear edge"
+     }
+    },
+    {
+     "key": "pass_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.48214285714285715,
+      "rank": 11,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.39473684210526316,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 62.903225806451616,
+      "verdict": "HOU defense by 8 places"
+     }
+    },
+    {
+     "key": "expl_pass",
+     "source": "radar",
+     "off": {
+      "value": 0.10714285714285714,
+      "rank": 2,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.11403508771929824,
+      "rank": 31,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 29,
+      "places": 29,
+      "tag": "Clear edge",
+      "tug": 3.225806451612904,
+      "verdict": "BUF offense by 29 places · clear edge"
+     }
+    },
+    {
+     "key": "sack",
+     "source": "radar",
+     "off": {
+      "value": 0.0851063829787234,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.102803738317757,
+      "rank": 2,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -23,
+      "places": 23,
+      "tag": "Clear edge",
+      "tug": 87.09677419354838,
+      "verdict": "HOU defense by 23 places · clear edge"
+     }
+    },
+    {
+     "key": "rush_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.07305712854758895,
+      "rank": 1,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.18725927861063005,
+      "rank": 9,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 37.096774193548384,
+      "verdict": "BUF offense by 8 places"
+     }
+    },
+    {
+     "key": "rush_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.525,
+      "rank": 1,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.3472222222222222,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 7,
+      "places": 7,
+      "tag": "Lean",
+      "tug": 38.70967741935484,
+      "verdict": "BUF offense by 7 places"
+     }
+    },
+    {
+     "key": "expl_rush",
+     "source": "radar",
+     "off": {
+      "value": 0.2,
+      "rank": 1,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.08333333333333333,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 6,
+      "places": 6,
+      "tag": "Lean",
+      "tug": 40.32258064516129,
+      "verdict": "BUF offense by 6 places"
+     }
+    },
+    {
+     "key": "stuff",
+     "source": "radar",
+     "off": {
+      "value": 0.07692307692307693,
+      "rank": 1,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.14084507042253522,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 23,
+      "places": 23,
+      "tag": "Clear edge",
+      "tug": 12.903225806451616,
+      "verdict": "BUF offense by 23 places · clear edge"
+     }
+    },
+    {
+     "key": "to",
+     "source": "radar",
+     "off": {
+      "value": 0.15625,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.08571428571428572,
+      "rank": 22,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -3,
+      "places": 3,
+      "tag": "Even",
+      "tug": 54.83870967741935,
+      "verdict": "Even · 3 places apart"
+     }
+    },
+    {
+     "key": "early_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.15483814723425424,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.0479198345459405,
+      "rank": 11,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 37.096774193548384,
+      "verdict": "BUF offense by 8 places"
+     }
+    },
+    {
+     "key": "late_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.5408436161599841,
+      "rank": 4,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.21440376582180254,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 20,
+      "places": 20,
+      "tag": "Clear edge",
+      "tug": 17.741935483870968,
+      "verdict": "BUF offense by 20 places · clear edge"
+     }
+    }
+   ],
+   "homeBall": [
+    {
+     "key": "epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.08341542990769002,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.09132453685319006,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 1,
+      "places": 1,
+      "tag": "Even",
+      "tug": 48.38709677419355,
+      "verdict": "Even · 1 place apart"
+     }
+    },
+    {
+     "key": "sr",
+     "source": "team-stats",
+     "off": {
+      "value": 0.41509433962264153,
+      "rank": 21,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4835680751173709,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 6,
+      "places": 6,
+      "tag": "Lean",
+      "tug": 40.32258064516129,
+      "verdict": "HOU offense by 6 places"
+     }
+    },
+    {
+     "key": "pass_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.013466176086827385,
+      "rank": 22,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.16622210358767373,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 2,
+      "places": 2,
+      "tag": "Even",
+      "tug": 46.774193548387096,
+      "verdict": "Even · 2 places apart"
+     }
+    },
+    {
+     "key": "pass_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.46206896551724136,
+      "rank": 17,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.5,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 7,
+      "places": 7,
+      "tag": "Lean",
+      "tug": 38.70967741935484,
+      "verdict": "HOU offense by 7 places"
+     }
+    },
+    {
+     "key": "expl_pass",
+     "source": "radar",
+     "off": {
+      "value": 0.07586206896551724,
+      "rank": 16,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.10294117647058823,
+      "rank": 28,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 12,
+      "places": 12,
+      "tag": "Lean",
+      "tug": 30.64516129032258,
+      "verdict": "HOU offense by 12 places"
+     }
+    },
+    {
+     "key": "sack",
+     "source": "radar",
+     "off": {
+      "value": 0.07633587786259542,
+      "rank": 20,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.07563025210084033,
+      "rank": 10,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -10,
+      "places": 10,
+      "tag": "Lean",
+      "tug": 66.12903225806451,
+      "verdict": "BUF defense by 10 places"
+     }
+    },
+    {
+     "key": "rush_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.23479814340060168,
+      "rank": 26,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.040962074522001894,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -2,
+      "places": 2,
+      "tag": "Even",
+      "tug": 53.225806451612904,
+      "verdict": "Even · 2 places apart"
+     }
+    },
+    {
+     "key": "rush_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.31343283582089554,
+      "rank": 26,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.45454545454545453,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 1,
+      "places": 1,
+      "tag": "Weakness on weakness",
+      "tug": 48.38709677419355,
+      "verdict": "Weakness on weakness · 1 place apart"
+     }
+    },
+    {
+     "key": "expl_rush",
+     "source": "radar",
+     "off": {
+      "value": 0.1044776119402985,
+      "rank": 17,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.11688311688311688,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 2,
+      "places": 2,
+      "tag": "Even",
+      "tug": 46.774193548387096,
+      "verdict": "Even · 2 places apart"
+     }
+    },
+    {
+     "key": "stuff",
+     "source": "radar",
+     "off": {
+      "value": 0.2727272727272727,
+      "rank": 32,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.24,
+      "rank": 5,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -27,
+      "places": 27,
+      "tag": "Clear edge",
+      "tug": 93.54838709677419,
+      "verdict": "BUF defense by 27 places · clear edge"
+     }
+    },
+    {
+     "key": "to",
+     "source": "radar",
+     "off": {
+      "value": 0.058823529411764705,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.0967741935483871,
+      "rank": 16,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 9,
+      "places": 9,
+      "tag": "Lean",
+      "tug": 35.483870967741936,
+      "verdict": "HOU offense by 9 places"
+     }
+    },
+    {
+     "key": "early_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.014605517420310622,
+      "rank": 14,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.12666136334466016,
+      "rank": 30,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 16,
+      "places": 16,
+      "tag": "Clear edge",
+      "tug": 24.193548387096776,
+      "verdict": "HOU offense by 16 places · clear edge"
+     }
+    },
+    {
+     "key": "late_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.3702174609785068,
+      "rank": 30,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.02092185317853848,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -17,
+      "places": 17,
+      "tag": "Clear edge",
+      "tug": 77.41935483870968,
+      "verdict": "BUF defense by 17 places · clear edge"
+     }
+    }
+   ]
+  },
+  {
+   "away": "DET",
+   "home": "NO",
+   "awayGames": 3,
+   "homeGames": 3,
+   "awayBall": [
+    {
+     "key": "epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.14065424409742208,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.0667767766397334,
+      "rank": 23,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 16,
+      "places": 16,
+      "tag": "Clear edge",
+      "tug": 24.193548387096776,
+      "verdict": "DET offense by 16 places · clear edge"
+     }
+    },
+    {
+     "key": "sr",
+     "source": "team-stats",
+     "off": {
+      "value": 0.5121951219512195,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.5,
+      "rank": 31,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 28,
+      "places": 28,
+      "tag": "Clear edge",
+      "tug": 4.838709677419359,
+      "verdict": "DET offense by 28 places · clear edge"
+     }
+    },
+    {
+     "key": "pass_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.28611466065550056,
+      "rank": 6,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.134081739312061,
+      "rank": 22,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 16,
+      "places": 16,
+      "tag": "Clear edge",
+      "tug": 24.193548387096776,
+      "verdict": "DET offense by 16 places · clear edge"
+     }
+    },
+    {
+     "key": "pass_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.532258064516129,
+      "rank": 5,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.5040650406504065,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 20,
+      "places": 20,
+      "tag": "Clear edge",
+      "tug": 17.741935483870968,
+      "verdict": "DET offense by 20 places · clear edge"
+     }
+    },
+    {
+     "key": "expl_pass",
+     "source": "radar",
+     "off": {
+      "value": 0.07258064516129033,
+      "rank": 18,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.04878048780487805,
+      "rank": 9,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -9,
+      "places": 9,
+      "tag": "Lean",
+      "tug": 64.51612903225806,
+      "verdict": "NO defense by 9 places"
+     }
+    },
+    {
+     "key": "sack",
+     "source": "radar",
+     "off": {
+      "value": 0.0603448275862069,
+      "rank": 14,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.06363636363636363,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 5,
+      "places": 5,
+      "tag": "Lean",
+      "tug": 41.935483870967744,
+      "verdict": "DET offense by 5 places"
+     }
+    },
+    {
+     "key": "rush_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.08202589976926591,
+      "rank": 14,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.03801449435642225,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 11,
+      "places": 11,
+      "tag": "Lean",
+      "tug": 32.25806451612903,
+      "verdict": "DET offense by 11 places"
+     }
+    },
+    {
+     "key": "rush_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.48148148148148145,
+      "rank": 5,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4936708860759494,
+      "rank": 31,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 26,
+      "places": 26,
+      "tag": "Clear edge",
+      "tug": 8.064516129032256,
+      "verdict": "DET offense by 26 places · clear edge"
+     }
+    },
+    {
+     "key": "expl_rush",
+     "source": "radar",
+     "off": {
+      "value": 0.13580246913580246,
+      "rank": 6,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.13924050632911392,
+      "rank": 24,
+      "tied": true,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 18,
+      "places": 18,
+      "tag": "Clear edge",
+      "tug": 20.96774193548387,
+      "verdict": "DET offense by 18 places · clear edge"
+     }
+    },
+    {
+     "key": "stuff",
+     "source": "radar",
+     "off": {
+      "value": 0.21052631578947367,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.14864864864864866,
+      "rank": 23,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -2,
+      "places": 2,
+      "tag": "Even",
+      "tug": 53.225806451612904,
+      "verdict": "Even · 2 places apart"
+     }
+    },
+    {
+     "key": "to",
+     "source": "radar",
+     "off": {
+      "value": 0.03125,
+      "rank": 2,
+      "tied": true,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.08823529411764706,
+      "rank": 21,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 19,
+      "places": 19,
+      "tag": "Clear edge",
+      "tug": 19.35483870967742,
+      "verdict": "DET offense by 19 places · clear edge"
+     }
+    },
+    {
+     "key": "early_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.13621005901664432,
+      "rank": 5,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.07315730974920794,
+      "rank": 25,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 20,
+      "places": 20,
+      "tag": "Clear edge",
+      "tug": 17.741935483870968,
+      "verdict": "DET offense by 20 places · clear edge"
+     }
+    },
+    {
+     "key": "late_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.15898650755563035,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.09346668627311497,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 6,
+      "places": 6,
+      "tag": "Lean",
+      "tug": 40.32258064516129,
+      "verdict": "DET offense by 6 places"
+     }
+    }
+   ],
+   "homeBall": [
+    {
+     "key": "epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.023802314458617378,
+      "rank": 14,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.17679899260885032,
+      "rank": 31,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 17,
+      "places": 17,
+      "tag": "Clear edge",
+      "tug": 22.580645161290324,
+      "verdict": "NO offense by 17 places · clear edge"
+     }
+    },
+    {
+     "key": "sr",
+     "source": "team-stats",
+     "off": {
+      "value": 0.47391304347826085,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4911504424778761,
+      "rank": 29,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 21,
+      "places": 21,
+      "tag": "Clear edge",
+      "tug": 16.12903225806452,
+      "verdict": "NO offense by 21 places · clear edge"
+     }
+    },
+    {
+     "key": "pass_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.04815078695729346,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.23493282629177903,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 37.096774193548384,
+      "verdict": "NO offense by 8 places"
+     }
+    },
+    {
+     "key": "pass_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.5032258064516129,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.5286624203821656,
+      "rank": 29,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 21,
+      "places": 21,
+      "tag": "Clear edge",
+      "tug": 16.12903225806452,
+      "verdict": "NO offense by 21 places · clear edge"
+     }
+    },
+    {
+     "key": "expl_pass",
+     "source": "radar",
+     "off": {
+      "value": 0.07741935483870968,
+      "rank": 15,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.10191082802547771,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 12,
+      "places": 12,
+      "tag": "Lean",
+      "tug": 30.64516129032258,
+      "verdict": "NO offense by 12 places"
+     }
+    },
+    {
+     "key": "sack",
+     "source": "radar",
+     "off": {
+      "value": 0.07042253521126761,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.08823529411764706,
+      "rank": 5,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -14,
+      "places": 14,
+      "tag": "Clear edge",
+      "tug": 72.58064516129032,
+      "verdict": "DET defense by 14 places · clear edge"
+     }
+    },
+    {
+     "key": "rush_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.026517862038646516,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.04452345799696902,
+      "rank": 31,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 23,
+      "places": 23,
+      "tag": "Clear edge",
+      "tug": 12.903225806451616,
+      "verdict": "NO offense by 23 places · clear edge"
+     }
+    },
+    {
+     "key": "rush_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.41333333333333333,
+      "rank": 12,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4057971014492754,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 7,
+      "places": 7,
+      "tag": "Lean",
+      "tug": 38.70967741935484,
+      "verdict": "NO offense by 7 places"
+     }
+    },
+    {
+     "key": "expl_rush",
+     "source": "radar",
+     "off": {
+      "value": 0.08,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.17391304347826086,
+      "rank": 32,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 5,
+      "places": 5,
+      "tag": "Lean",
+      "tug": 41.935483870967744,
+      "verdict": "NO offense by 5 places"
+     }
+    },
+    {
+     "key": "stuff",
+     "source": "radar",
+     "off": {
+      "value": 0.17567567567567569,
+      "rank": 15,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.16176470588235295,
+      "rank": 19,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 4,
+      "places": 4,
+      "tag": "Even",
+      "tug": 43.54838709677419,
+      "verdict": "Even · 4 places apart"
+     }
+    },
+    {
+     "key": "to",
+     "source": "radar",
+     "off": {
+      "value": 0.20588235294117646,
+      "rank": 30,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.125,
+      "rank": 10,
+      "tied": true,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -20,
+      "places": 20,
+      "tag": "Clear edge",
+      "tug": 82.25806451612902,
+      "verdict": "DET defense by 20 places · clear edge"
+     }
+    },
+    {
+     "key": "early_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.01814456045905335,
+      "rank": 17,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.09019667119335657,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 10,
+      "places": 10,
+      "tag": "Lean",
+      "tug": 33.87096774193549,
+      "verdict": "NO offense by 10 places"
+     }
+    },
+    {
+     "key": "late_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.15754706083144865,
+      "rank": 14,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.5302757063738174,
+      "rank": 30,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 16,
+      "places": 16,
+      "tag": "Clear edge",
+      "tug": 24.193548387096776,
+      "verdict": "NO offense by 16 places · clear edge"
+     }
+    }
+   ]
+  },
+  {
+   "away": "CHI",
+   "home": "PHI",
+   "awayGames": 2,
+   "homeGames": 2,
+   "awayBall": [
+    {
+     "key": "epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.1147454724285278,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.052025878347491894,
+      "rank": 22,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 14,
+      "places": 14,
+      "tag": "Clear edge",
+      "tug": 27.41935483870968,
+      "verdict": "CHI offense by 14 places · clear edge"
+     }
+    },
+    {
+     "key": "sr",
+     "source": "team-stats",
+     "off": {
+      "value": 0.42567567567567566,
+      "rank": 17,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.42276422764227645,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -4,
+      "places": 4,
+      "tag": "Even",
+      "tug": 56.45161290322581,
+      "verdict": "Even · 4 places apart"
+     }
+    },
+    {
+     "key": "pass_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.24946779160395924,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.0968569370043102,
+      "rank": 18,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 11,
+      "places": 11,
+      "tag": "Lean",
+      "tug": 32.25806451612903,
+      "verdict": "CHI offense by 11 places"
+     }
+    },
+    {
+     "key": "pass_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.47619047619047616,
+      "rank": 14,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.3939393939393939,
+      "rank": 2,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -12,
+      "places": 12,
+      "tag": "Lean",
+      "tug": 69.35483870967742,
+      "verdict": "PHI defense by 12 places"
+     }
+    },
+    {
+     "key": "expl_pass",
+     "source": "radar",
+     "off": {
+      "value": 0.07142857142857142,
+      "rank": 20,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.07575757575757576,
+      "rank": 15,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -5,
+      "places": 5,
+      "tag": "Lean",
+      "tug": 58.064516129032256,
+      "verdict": "PHI defense by 5 places"
+     }
+    },
+    {
+     "key": "sack",
+     "source": "radar",
+     "off": {
+      "value": 0.08571428571428572,
+      "rank": 26,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.05263157894736842,
+      "rank": 24,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -2,
+      "places": 2,
+      "tag": "Even",
+      "tug": 53.225806451612904,
+      "verdict": "Even · 2 places apart"
+     }
+    },
+    {
+     "key": "rush_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.0620775714892261,
+      "rank": 12,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.00011623148170229869,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 15,
+      "places": 15,
+      "tag": "Clear edge",
+      "tug": 25.806451612903224,
+      "verdict": "CHI offense by 15 places · clear edge"
+     }
+    },
+    {
+     "key": "rush_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.359375,
+      "rank": 20,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.45614035087719296,
+      "rank": 28,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 37.096774193548384,
+      "verdict": "CHI offense by 8 places"
+     }
+    },
+    {
+     "key": "expl_rush",
+     "source": "radar",
+     "off": {
+      "value": 0.171875,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.12280701754385964,
+      "rank": 20,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 17,
+      "places": 17,
+      "tag": "Clear edge",
+      "tug": 22.580645161290324,
+      "verdict": "CHI offense by 17 places · clear edge"
+     }
+    },
+    {
+     "key": "stuff",
+     "source": "radar",
+     "off": {
+      "value": 0.16666666666666666,
+      "rank": 12,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.17857142857142858,
+      "rank": 15,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 3,
+      "places": 3,
+      "tag": "Even",
+      "tug": 45.16129032258065,
+      "verdict": "Even · 3 places apart"
+     }
+    },
+    {
+     "key": "to",
+     "source": "radar",
+     "off": {
+      "value": 0.125,
+      "rank": 22,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.0,
+      "rank": 32,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 10,
+      "places": 10,
+      "tag": "Lean",
+      "tug": 33.87096774193549,
+      "verdict": "CHI offense by 10 places"
+     }
+    },
+    {
+     "key": "early_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.06425658354522305,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.0852544882068037,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": -1,
+      "places": 1,
+      "tag": "Strength on strength",
+      "tug": 51.61290322580645,
+      "verdict": "Strength on strength · 1 place apart"
+     }
+    },
+    {
+     "key": "late_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.2777524565374831,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4872368214051819,
+      "rank": 29,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 21,
+      "places": 21,
+      "tag": "Clear edge",
+      "tug": 16.12903225806452,
+      "verdict": "CHI offense by 21 places · clear edge"
+     }
+    }
+   ],
+   "homeBall": [
+    {
+     "key": "epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.035255990978460515,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.04198698078904264,
+      "rank": 21,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 37.096774193548384,
+      "verdict": "PHI offense by 8 places"
+     }
+    },
+    {
+     "key": "sr",
+     "source": "team-stats",
+     "off": {
+      "value": 0.37209302325581395,
+      "rank": 28,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4166666666666667,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -21,
+      "places": 21,
+      "tag": "Clear edge",
+      "tug": 83.87096774193549,
+      "verdict": "CHI defense by 21 places · clear edge"
+     }
+    },
+    {
+     "key": "pass_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.15510164023849346,
+      "rank": 12,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.1614898515173477,
+      "rank": 23,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 11,
+      "places": 11,
+      "tag": "Lean",
+      "tug": 32.25806451612903,
+      "verdict": "PHI offense by 11 places"
+     }
+    },
+    {
+     "key": "pass_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.4155844155844156,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.4507042253521127,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -14,
+      "places": 14,
+      "tag": "Clear edge",
+      "tug": 72.58064516129032,
+      "verdict": "CHI defense by 14 places · clear edge"
+     }
+    },
+    {
+     "key": "expl_pass",
+     "source": "radar",
+     "off": {
+      "value": 0.09090909090909091,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.09859154929577464,
+      "rank": 26,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 2,
+      "gap": 19,
+      "places": 19,
+      "tag": "Clear edge",
+      "tug": 19.35483870967742,
+      "verdict": "PHI offense by 19 places · clear edge"
+     }
+    },
+    {
+     "key": "sack",
+     "source": "radar",
+     "off": {
+      "value": 0.08823529411764706,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.07936507936507936,
+      "rank": 7,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -20,
+      "places": 20,
+      "tag": "Clear edge",
+      "tug": 82.25806451612902,
+      "verdict": "CHI defense by 20 places · clear edge"
+     }
+    },
+    {
+     "key": "rush_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.1422077588873575,
+      "rank": 21,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.1311702400621749,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -8,
+      "places": 8,
+      "tag": "Lean",
+      "tug": 62.903225806451616,
+      "verdict": "CHI defense by 8 places"
+     }
+    },
+    {
+     "key": "rush_sr",
+     "source": "radar",
+     "off": {
+      "value": 0.3076923076923077,
+      "rank": 27,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.3673469387755102,
+      "rank": 11,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -16,
+      "places": 16,
+      "tag": "Clear edge",
+      "tug": 75.80645161290323,
+      "verdict": "CHI defense by 16 places · clear edge"
+     }
+    },
+    {
+     "key": "expl_rush",
+     "source": "radar",
+     "off": {
+      "value": 0.057692307692307696,
+      "rank": 31,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.10204081632653061,
+      "rank": 13,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 2,
+      "gap": -18,
+      "places": 18,
+      "tag": "Clear edge",
+      "tug": 79.03225806451613,
+      "verdict": "CHI defense by 18 places · clear edge"
+     }
+    },
+    {
+     "key": "stuff",
+     "source": "radar",
+     "off": {
+      "value": 0.22916666666666666,
+      "rank": 29,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.15217391304347827,
+      "rank": 20,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "def",
+      "level": 1,
+      "gap": -9,
+      "places": 9,
+      "tag": "Lean",
+      "tug": 64.51612903225806,
+      "verdict": "CHI defense by 9 places"
+     }
+    },
+    {
+     "key": "to",
+     "source": "radar",
+     "off": {
+      "value": 0.1,
+      "rank": 16,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.09090909090909091,
+      "rank": 19,
+      "tied": true,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 3,
+      "places": 3,
+      "tag": "Even",
+      "tug": 45.16129032258065,
+      "verdict": "Even · 3 places apart"
+     }
+    },
+    {
+     "key": "early_epa",
+     "source": "team-stats",
+     "off": {
+      "value": -0.15090819789880985,
+      "rank": 29,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": 0.10416749874881741,
+      "rank": 29,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "even",
+      "level": 0,
+      "gap": 0,
+      "places": 0,
+      "tag": "Weakness on weakness",
+      "tug": 50.0,
+      "verdict": "Weakness on weakness · same rank"
+     }
+    },
+    {
+     "key": "late_epa",
+     "source": "team-stats",
+     "off": {
+      "value": 0.5554206363708336,
+      "rank": 3,
+      "tied": false,
+      "pool": 32
+     },
+     "def": {
+      "value": -0.20673509105005647,
+      "rank": 8,
+      "tied": false,
+      "pool": 32
+     },
+     "edge": {
+      "side": "off",
+      "level": 1,
+      "gap": 5,
+      "places": 5,
+      "tag": "Lean",
+      "tug": 41.935483870967744,
+      "verdict": "PHI offense by 5 places"
+     }
+    }
+   ]
+  }
+ ]
+}
