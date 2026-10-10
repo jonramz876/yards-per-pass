@@ -28,11 +28,15 @@ vi.mock("next/link", () => ({
   ),
 }));
 vi.mock("@/lib/data/matchup", () => ({ loadMatchup: vi.fn(), loadMatchupIndex: vi.fn() }));
+// The 308 looks a requested season up in the memoised season list (one shared
+// read, never per pair) so it can drop a season the site does not have.
+vi.mock("@/lib/data/compare-card", () => ({ getSeasonWeeksCached: vi.fn() }));
 
 import MatchupPage, * as pageModule from "@/app/matchup/[away]/[home]/page";
 import { generateMetadata } from "@/app/matchup/[away]/[home]/page";
 import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { loadMatchup, type MatchupLoad } from "@/lib/data/matchup";
+import { getSeasonWeeksCached } from "@/lib/data/compare-card";
 import playerRowsJson from "../stats/fixtures/compare-2026-w4-rows.json";
 import {
   MATCHUP_NO_OVERLAY_NOTE, MATCHUP_PLAYERS_UNAVAILABLE, MATCHUP_SMALL_POOL_NOTE, matchupNoGamesNote, matchupUncoveredHeading,
@@ -88,6 +92,8 @@ let errorSpy: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.mocked(loadMatchup).mockReset();
   vi.mocked(loadMatchup).mockImplementation(async (a, h) => ready(a, h));
+  vi.mocked(getSeasonWeeksCached).mockReset();
+  vi.mocked(getSeasonWeeksCached).mockResolvedValue([{ season: 2026, through_week: 4 }, { season: 2025, through_week: 22 }]);
   for (const fn of [notFound, redirect, permanentRedirect]) vi.mocked(fn).mockClear();
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -118,6 +124,7 @@ describe("steps 1-4: decided with no read", () => {
   ])("/matchup/%s/%s is a 404, with no redirect first", async (away, home) => {
     expect(await outcome(away, home)).toBe("NEXT_NOT_FOUND");
     expect(loadMatchup).not.toHaveBeenCalled();
+    expect(getSeasonWeeksCached).not.toHaveBeenCalled();
     expect(redirect).not.toHaveBeenCalled();
     expect(permanentRedirect).not.toHaveBeenCalled();
   });
@@ -134,7 +141,13 @@ describe("steps 1-4: decided with no read", () => {
     [{ ball: "home" }, "/matchup/BUF/LA?ball=home"],
     [{ ball: "HOME" }, "/matchup/BUF/LA"],
     [{ ball: ["home", "away"] }, "/matchup/BUF/LA"],
-    [{ season: "2031", ball: "home" }, "/matchup/BUF/LA?season=2031&ball=home"],
+    // chaos 9: a season the site does not list is dropped here too, as the 307 drops it
+    [{ season: "2031", ball: "home" }, "/matchup/BUF/LA?ball=home"],
+    [{ season: "2031" }, "/matchup/BUF/LA"],
+    [{ season: "1999" }, "/matchup/BUF/LA"],
+    [{ season: "2100" }, "/matchup/BUF/LA"],
+    [{ season: "2025", ball: "home" }, "/matchup/BUF/LA?season=2025&ball=home"],
+    [{ season: "2026" }, "/matchup/BUF/LA?season=2026"],
     [{ season: "2025abc" }, "/matchup/BUF/LA"],
     [{ season: "1998" }, "/matchup/BUF/LA"],
     [{ season: ["2026", "2025"] }, "/matchup/BUF/LA"],
@@ -142,6 +155,40 @@ describe("steps 1-4: decided with no read", () => {
     [{ utm_source: "x", season: "2025" }, "/matchup/BUF/LA?season=2025"],
   ] as [Search, string][])("the 308's query is rebuilt from validated values: %j → %s", async (search, target) => {
     expect(await outcome("buf", "la", search)).toBe(`NEXT_REDIRECT 308 ${target}`);
+    expect(loadMatchup).not.toHaveBeenCalled();
+  });
+});
+
+describe("the 308 and the season list (chaos 9)", () => {
+  it("with no season in the address the 308 reads nothing at all", async () => {
+    expect(await outcome("buf", "la")).toBe("NEXT_REDIRECT 308 /matchup/BUF/LA");
+    expect(await outcome("buf", "la", { ball: "home", season: "abc" })).toBe("NEXT_REDIRECT 308 /matchup/BUF/LA?ball=home");
+    expect(getSeasonWeeksCached).not.toHaveBeenCalled();
+    expect(loadMatchup).not.toHaveBeenCalled();
+  });
+
+  it("with a plausible season it asks the memoised season list once, and never loads the pair", async () => {
+    expect(await outcome("buf", "la", { season: "2025" })).toBe("NEXT_REDIRECT 308 /matchup/BUF/LA?season=2025");
+    expect(getSeasonWeeksCached).toHaveBeenCalledTimes(1);
+    expect(loadMatchup).not.toHaveBeenCalled();
+  });
+
+  it("when the season list cannot be read the season is dropped (the bare address is always right) and one line is logged", async () => {
+    vi.mocked(getSeasonWeeksCached).mockRejectedValue(new Error("Failed to fetch season weeks"));
+    expect(await outcome("buf", "la", { season: "2025", ball: "home" })).toBe("NEXT_REDIRECT 308 /matchup/BUF/LA?ball=home");
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("an empty or junk season list drops the season too", async () => {
+    for (const answer of [[], null, "x", [null, { season: "2025" }]]) {
+      vi.mocked(getSeasonWeeksCached).mockResolvedValue(answer as never);
+      expect(await outcome("buf", "la", { season: "2025" })).toBe("NEXT_REDIRECT 308 /matchup/BUF/LA");
+    }
+  });
+
+  it("the metadata of a URL about to 308 still reads nothing", async () => {
+    await md("buf", "la", { season: "2025" });
+    expect(getSeasonWeeksCached).not.toHaveBeenCalled();
     expect(loadMatchup).not.toHaveBeenCalled();
   });
 });
@@ -314,6 +361,9 @@ describe("small-pool and uncovered", () => {
     expect(el.querySelectorAll("[data-slab-record]")).toHaveLength(2);
     expect(el.querySelector("[data-uncovered]")?.textContent).toContain(matchupUncoveredHeading(2025, 2026));
     expect(el.querySelector("[data-uncovered] a")?.getAttribute("href")).toBe("/matchup/BUF/LA");
+    // chaos 9: the link keeps the side the visitor was looking at
+    const home = await html("BUF", "LA", { season: "2025", ball: "home" });
+    expect(home.querySelector("[data-uncovered] a")?.getAttribute("href")).toBe("/matchup/BUF/LA?ball=home");
     for (const s of ["[data-ball-toggle]", "[data-ladder]", "[data-matchup-panel]", "[data-tile]", "[data-matchup-players]", "[data-matchup-notes]"]) {
       expect(el.querySelector(s), s).toBeNull();
     }
