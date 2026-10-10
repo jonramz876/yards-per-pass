@@ -61,12 +61,14 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop links + search */}
-          <div className="hidden md:flex items-center gap-3 xl:gap-6">
+          {/* Spacing and link size measured for ten labels (2026-10-10): one line
+              at 1024 and at 1280, and no worse than the nine-label row from 768 to 1023. */}
+          <div className="hidden md:flex items-center gap-2 xl:gap-5">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={"noSeason" in link ? link.href : linkHref(link.href)}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-[13px] xl:text-sm font-medium transition-colors ${
                   isActive(link.href)
                     ? "text-navy font-semibold"
                     : "text-gray-500 hover:text-navy"
