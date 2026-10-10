@@ -165,6 +165,29 @@ function readTableCached(group: CompareGroup, season: number): Promise<ComparePl
   return memoised(tableMemo, `${group}:${season}`, () => readTable(group, season));
 }
 
+/*
+ * The three memoised reads, exported for /matchup (team matchup spec
+ * 2026-10-10 §6.2) so both features share ONE memo: a matchup view warms the
+ * compare card and the reverse. Each is the same memo call the loader below
+ * makes, with the same key; no new key shape. What they return is shared
+ * between callers: treat it as read-only.
+ */
+
+/** data_freshness (season + through_week, newest first) behind the `seasons` memo. */
+export function getSeasonWeeksCached(): Promise<SeasonWeek[]> {
+  return memoised(weeksMemo, "seasons", () => getSeasonWeeks());
+}
+
+/** Every player slug, by slug, behind the `slugs` memo. */
+export function getPlayerSlugIndexCached(): Promise<Map<string, PlayerSlugEntry>> {
+  return memoised(slugsMemo, "slugs", () => getPlayerSlugIndex());
+}
+
+/** One group's season table behind the `GROUP:season` memo. Only with a season already checked against data_freshness: the keys must stay bounded. */
+export function getCompareTableCached(group: CompareGroup, season: number): Promise<ComparePlayerRow[]> {
+  return readTableCached(group, season);
+}
+
 /**
  * The card for two slugs that have passed parseCompareSlugs and a season that
  * is plausible or null (none asked for: the newest). The seasons and the slug
