@@ -84,7 +84,7 @@ describe("MatchupLadder", () => {
       for (const part of ["[data-rank]", "[data-word]"]) expect(classes(stacked.querySelector(part))).toContain("block");
     });
 
-    it.each([["4th", "allowed"], ["26th", "made"], ["24th", "takeaways"], ["T-4th", "allowed"], ["T-32nd", "made"], ["T-30th", "allowed"]])(
+    it.each([["4th", "allowed"], ["26th", "made"], ["3rd", "takeaways"], ["T-4th", "allowed"], ["T-32nd", "made"], ["32nd", "allowed"]])(
       "%s / %s fits one line from md: stacked below md, \"rank · word\" from md",
       (rank, word) => {
         const c = cell(rank, word);
@@ -96,7 +96,7 @@ describe("MatchupLadder", () => {
       },
     );
 
-    it.each([["T-14th", "takeaways"], ["14th of 29", "allowed"], ["T-3rd of 31", "made"], ["T-30th", "takeaways"]])(
+    it.each([["T-14th", "takeaways"], ["14th of 29", "allowed"], ["T-3rd of 31", "made"], ["22nd", "takeaways"], ["32nd", "takeaways"], ["T-30th", "allowed"]])(
       "%s / %s does not fit: stacked at every width, and no one-line form at all",
       (rank, word) => {
         const c = cell(rank, word);
@@ -107,9 +107,14 @@ describe("MatchupLadder", () => {
       },
     );
 
-    it("the limit is 16 characters (\"24th · takeaways\", measured on one line in the 104 px column)", () => {
-      expect(DEF_RANK_ONE_LINE_MAX).toBe(16);
-      expect("24th · takeaways").toHaveLength(16);
+    // Measured in a browser on 2026-10-10 (week 5's 15 pairs, both tabs, 768
+    // and 1280 px): at 16 characters "22nd · takeaways" and "32nd · takeaways"
+    // wrapped in the 104 px column ("24th · takeaways" did not), so 16 is
+    // stacked and the one-line limit is 15.
+    it("the limit is 15 characters: a 16-character line (\"22nd · takeaways\") was measured wrapping", () => {
+      expect(DEF_RANK_ONE_LINE_MAX).toBe(15);
+      expect("22nd · takeaways").toHaveLength(16);
+      expect("3rd · takeaways").toHaveLength(15);
     });
 
     it("no rank: a dash alone, no word and no dot", () => {
