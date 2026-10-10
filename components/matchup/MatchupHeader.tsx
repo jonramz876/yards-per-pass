@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { formatRecord, type WinLossTie } from "@/lib/stats/box-score";
 import { textColorForBackground } from "@/lib/stats/formatters";
-import { formatKickoff, gameWeekLabel, type MatchupGame } from "@/lib/stats/matchup";
+import { formatKickoff, gameWeekLabel, matchupNoGameText, type MatchupGame } from "@/lib/stats/matchup";
 import type { Team } from "@/lib/types";
 
 const BARLOW = "font-[family-name:var(--font-barlow)]";
@@ -25,7 +25,6 @@ export const HEADER_ID_SM = 50;
 export const HEADER_ID_MD = 72;
 
 const BACK_TEXT = "← This week’s matchups";
-const noGameText = (season: number) => `No ${season} game between these teams`;
 
 interface MatchupHeaderProps {
   away: Team;
@@ -103,7 +102,7 @@ export default function MatchupHeader({ away, home, season, defaultSeason, game,
             <small data-kickoff className="text-[12px] text-slate-500 md:mt-0.5 md:whitespace-nowrap">{kickoff}</small>
           )}
           {!game && gamesAvailable && (
-            <small data-no-game className="max-w-[16ch] text-[12px] leading-snug text-slate-500 md:mt-2">{noGameText(season)}</small>
+            <small data-no-game className="max-w-[16ch] text-[12px] leading-snug text-slate-500 md:mt-2">{matchupNoGameText(season)}</small>
           )}
         </div>
         <Slab team={home} side="home" href={teamHref(home.id)} record={records?.home ?? null} venue={game !== null} />

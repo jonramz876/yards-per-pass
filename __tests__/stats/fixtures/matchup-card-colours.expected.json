@@ -1,0 +1,9922 @@
+{
+"ARI-ATL": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"ARI-BAL": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"ARI-BUF": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"ARI-CAR": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"ARI-CHI": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"ARI-CIN": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"ARI-CLE": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"ARI-DAL": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"ARI-DEN": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"ARI-DET": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"ARI-GB": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"ARI-HOU": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"ARI-IND": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"ARI-JAX": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"ARI-KC": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"ARI-LA": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"ARI-LAC": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"ARI-LV": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"ARI-MIA": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"ARI-MIN": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"ARI-NE": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"ARI-NO": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"ARI-NYG": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"ARI-NYJ": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"ARI-PHI": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"ARI-PIT": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"ARI-SEA": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"ARI-SF": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"ARI-TB": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#E66D00",
+"homeFrom": "secondary-darkened",
+"homeRule": "#D50A0A",
+"ring": "#94A3B8"
+},
+"ARI-TEN": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"ARI-WAS": {
+"away": "#97233F",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"ATL-ARI": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#97233F",
+"ring": "#F59E0B"
+},
+"ATL-BAL": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"ATL-BUF": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"ATL-CAR": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"ATL-CHI": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"ATL-CIN": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"ATL-CLE": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"ATL-DAL": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"ATL-DEN": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"ATL-DET": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"ATL-GB": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"ATL-HOU": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"ATL-IND": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"ATL-JAX": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"ATL-KC": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"ATL-LA": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"ATL-LAC": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"ATL-LV": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"ATL-MIA": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"ATL-MIN": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"ATL-NE": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"ATL-NO": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"ATL-NYG": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"ATL-NYJ": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"ATL-PHI": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"ATL-PIT": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"ATL-SEA": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"ATL-SF": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"ATL-TB": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#E66D00",
+"homeFrom": "secondary-darkened",
+"homeRule": "#D50A0A",
+"ring": "#94A3B8"
+},
+"ATL-TEN": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"ATL-WAS": {
+"away": "#A71930",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"BAL-ARI": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BAL-ATL": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BAL-BUF": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"BAL-CAR": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"BAL-CHI": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"BAL-CIN": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"BAL-CLE": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"BAL-DAL": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"BAL-DEN": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"BAL-DET": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"BAL-GB": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"BAL-HOU": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"BAL-IND": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"BAL-JAX": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"BAL-KC": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"BAL-LA": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"BAL-LAC": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"BAL-LV": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BAL-MIA": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"BAL-MIN": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#B38B21",
+"homeFrom": "secondary-darkened",
+"homeRule": "#4F2683",
+"ring": "#94A3B8"
+},
+"BAL-NE": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"BAL-NO": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"BAL-NYG": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"BAL-NYJ": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BAL-PHI": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"BAL-PIT": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"BAL-SEA": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"BAL-SF": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"BAL-TB": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"BAL-TEN": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"BAL-WAS": {
+"away": "#241773",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"BUF-ARI": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BUF-ATL": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BUF-BAL": {
+"away": "#C60C30",
+"awayFrom": "secondary",
+"awayRule": "#00338D",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BUF-CAR": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"BUF-CHI": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"BUF-CIN": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"BUF-CLE": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"BUF-DAL": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"BUF-DEN": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"BUF-DET": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"BUF-GB": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"BUF-HOU": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"BUF-IND": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"BUF-JAX": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"BUF-KC": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"BUF-LA": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"BUF-LAC": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"BUF-LV": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BUF-MIA": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"BUF-MIN": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#B38B21",
+"homeFrom": "secondary-darkened",
+"homeRule": "#4F2683",
+"ring": "#94A3B8"
+},
+"BUF-NE": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"BUF-NO": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"BUF-NYG": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"BUF-NYJ": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"BUF-PHI": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"BUF-PIT": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"BUF-SEA": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"BUF-SF": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"BUF-TB": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"BUF-TEN": {
+"away": "#C60C30",
+"awayFrom": "secondary",
+"awayRule": "#00338D",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"BUF-WAS": {
+"away": "#00338D",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"CAR-ARI": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CAR-ATL": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CAR-BAL": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CAR-BUF": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"CAR-CHI": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"CAR-CIN": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CAR-CLE": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"CAR-DAL": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"CAR-DEN": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"CAR-DET": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"CAR-GB": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"CAR-HOU": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"CAR-IND": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"CAR-JAX": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"CAR-KC": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"CAR-LA": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"CAR-LAC": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"CAR-LV": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"CAR-MIA": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"CAR-MIN": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"CAR-NE": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"CAR-NO": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"CAR-NYG": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"CAR-NYJ": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CAR-PHI": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"CAR-PIT": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"CAR-SEA": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"CAR-SF": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"CAR-TB": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"CAR-TEN": {
+"away": "#101820",
+"awayFrom": "secondary",
+"awayRule": "#0085CA",
+"awaySwitched": true,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"CAR-WAS": {
+"away": "#0085CA",
+"awayFrom": "primary",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"CHI-ARI": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CHI-ATL": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CHI-BAL": {
+"away": "#C83803",
+"awayFrom": "secondary",
+"awayRule": "#0B162A",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CHI-BUF": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"CHI-CAR": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"CHI-CIN": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CHI-CLE": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"CHI-DAL": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"CHI-DEN": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"CHI-DET": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"CHI-GB": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"CHI-HOU": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"CHI-IND": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"CHI-JAX": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"CHI-KC": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"CHI-LA": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"CHI-LAC": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"CHI-LV": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CHI-MIA": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"CHI-MIN": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"CHI-NE": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"CHI-NO": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"CHI-NYG": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"CHI-NYJ": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CHI-PHI": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"CHI-PIT": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"CHI-SEA": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"CHI-SF": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"CHI-TB": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"CHI-TEN": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"CHI-WAS": {
+"away": "#0B162A",
+"awayFrom": "primary",
+"awayRule": "#C83803",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"CIN-ARI": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CIN-ATL": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"CIN-BAL": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CIN-BUF": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"CIN-CAR": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"CIN-CHI": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#94A3B8"
+},
+"CIN-CLE": {
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#FB4F14",
+"awaySwitched": true,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"CIN-DAL": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#94A3B8"
+},
+"CIN-DEN": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#94A3B8"
+},
+"CIN-DET": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#94A3B8"
+},
+"CIN-GB": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"CIN-HOU": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"CIN-IND": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#94A3B8"
+},
+"CIN-JAX": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#94A3B8"
+},
+"CIN-KC": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"CIN-LA": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#94A3B8"
+},
+"CIN-LAC": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#94A3B8"
+},
+"CIN-LV": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"CIN-MIA": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#94A3B8"
+},
+"CIN-MIN": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#94A3B8"
+},
+"CIN-NE": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"CIN-NO": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#94A3B8"
+},
+"CIN-NYG": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"CIN-NYJ": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CIN-PHI": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"CIN-PIT": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"CIN-SEA": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#94A3B8"
+},
+"CIN-SF": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"CIN-TB": {
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#FB4F14",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"CIN-TEN": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"CIN-WAS": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"CLE-ARI": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CLE-ATL": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CLE-BAL": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"CLE-BUF": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"CLE-CAR": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"CLE-CHI": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#94A3B8"
+},
+"CLE-CIN": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#94A3B8"
+},
+"CLE-DAL": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"CLE-DEN": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#94A3B8"
+},
+"CLE-DET": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"CLE-GB": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"CLE-HOU": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"CLE-IND": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"CLE-JAX": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"CLE-KC": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"CLE-LA": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"CLE-LAC": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"CLE-LV": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CLE-MIA": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"CLE-MIN": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"CLE-NE": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"CLE-NO": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#94A3B8"
+},
+"CLE-NYG": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"CLE-NYJ": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"CLE-PHI": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"CLE-PIT": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"CLE-SEA": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"CLE-SF": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"CLE-TB": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"CLE-TEN": {
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"CLE-WAS": {
+"away": "#FF3C00",
+"awayFrom": "secondary",
+"awayRule": "#311D00",
+"awaySwitched": true,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"DAL-ARI": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DAL-ATL": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DAL-BAL": {
+"away": "#869397",
+"awayFrom": "secondary",
+"awayRule": "#041E42",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DAL-BUF": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"DAL-CAR": {
+"away": "#869397",
+"awayFrom": "secondary",
+"awayRule": "#041E42",
+"awaySwitched": true,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"DAL-CHI": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"DAL-CIN": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"DAL-CLE": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"DAL-DEN": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"DAL-DET": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"DAL-GB": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"DAL-HOU": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"DAL-IND": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"DAL-JAX": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"DAL-KC": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"DAL-LA": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"DAL-LAC": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"DAL-LV": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DAL-MIA": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"DAL-MIN": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#B38B21",
+"homeFrom": "secondary-darkened",
+"homeRule": "#4F2683",
+"ring": "#94A3B8"
+},
+"DAL-NE": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"DAL-NO": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"DAL-NYG": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"DAL-NYJ": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DAL-PHI": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"DAL-PIT": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"DAL-SEA": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"DAL-SF": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"DAL-TB": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"DAL-TEN": {
+"away": "#869397",
+"awayFrom": "secondary",
+"awayRule": "#041E42",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"DAL-WAS": {
+"away": "#041E42",
+"awayFrom": "primary",
+"awayRule": "#869397",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"DEN-ARI": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"DEN-ATL": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"DEN-BAL": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"DEN-BUF": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"DEN-CAR": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"DEN-CHI": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#94A3B8"
+},
+"DEN-CIN": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#94A3B8"
+},
+"DEN-CLE": {
+"away": "#002244",
+"awayFrom": "secondary",
+"awayRule": "#FB4F14",
+"awaySwitched": true,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"DEN-DAL": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#94A3B8"
+},
+"DEN-DET": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#94A3B8"
+},
+"DEN-GB": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"DEN-HOU": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"DEN-IND": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#94A3B8"
+},
+"DEN-JAX": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#94A3B8"
+},
+"DEN-KC": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"DEN-LA": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#94A3B8"
+},
+"DEN-LAC": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#94A3B8"
+},
+"DEN-LV": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"DEN-MIA": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#94A3B8"
+},
+"DEN-MIN": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#94A3B8"
+},
+"DEN-NE": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"DEN-NO": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#94A3B8"
+},
+"DEN-NYG": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"DEN-NYJ": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"DEN-PHI": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"DEN-PIT": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"DEN-SEA": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#94A3B8"
+},
+"DEN-SF": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"DEN-TB": {
+"away": "#002244",
+"awayFrom": "secondary",
+"awayRule": "#FB4F14",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"DEN-TEN": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"DEN-WAS": {
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"DET-ARI": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DET-ATL": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DET-BAL": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DET-BUF": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"DET-CAR": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#0085CA",
+"ring": "#F59E0B"
+},
+"DET-CHI": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"DET-CIN": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"DET-CLE": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"DET-DAL": {
+"away": "#8D9296",
+"awayFrom": "secondary-darkened",
+"awayRule": "#0076B6",
+"awaySwitched": true,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"DET-DEN": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"DET-GB": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"DET-HOU": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"DET-IND": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"DET-JAX": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"DET-KC": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"DET-LA": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"DET-LAC": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"DET-LV": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"DET-MIA": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"DET-MIN": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"DET-NE": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"DET-NO": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"DET-NYG": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"DET-NYJ": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"DET-PHI": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"DET-PIT": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"DET-SEA": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"DET-SF": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"DET-TB": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"DET-TEN": {
+"away": "#8D9296",
+"awayFrom": "secondary-darkened",
+"awayRule": "#0076B6",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"DET-WAS": {
+"away": "#0076B6",
+"awayFrom": "primary",
+"awayRule": "#B0B7BC",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"GB-ARI": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"GB-ATL": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"GB-BAL": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#203731",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"GB-BUF": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"GB-CAR": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"GB-CHI": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"GB-CIN": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"GB-CLE": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"GB-DAL": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#203731",
+"awaySwitched": true,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#94A3B8"
+},
+"GB-DEN": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"GB-DET": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"GB-HOU": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"GB-IND": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#203731",
+"awaySwitched": true,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#94A3B8"
+},
+"GB-JAX": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"GB-KC": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"GB-LA": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"GB-LAC": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"GB-LV": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"GB-MIA": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"GB-MIN": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"GB-NE": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"GB-NO": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"GB-NYG": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"GB-NYJ": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#203731",
+"awaySwitched": true,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"GB-PHI": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"GB-PIT": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"GB-SEA": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"GB-SF": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"GB-TB": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"GB-TEN": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"GB-WAS": {
+"away": "#203731",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"HOU-ARI": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"HOU-ATL": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"HOU-BAL": {
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#03202F",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"HOU-BUF": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"HOU-CAR": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"HOU-CHI": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"HOU-CIN": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"HOU-CLE": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"HOU-DAL": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"HOU-DEN": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"HOU-DET": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"HOU-GB": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"HOU-IND": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"HOU-JAX": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"HOU-KC": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"HOU-LA": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"HOU-LAC": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"HOU-LV": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"HOU-MIA": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"HOU-MIN": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"HOU-NE": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"HOU-NO": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"HOU-NYG": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"HOU-NYJ": {
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#03202F",
+"awaySwitched": true,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"HOU-PHI": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"HOU-PIT": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"HOU-SEA": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"HOU-SF": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"HOU-TB": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"HOU-TEN": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"HOU-WAS": {
+"away": "#03202F",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"IND-ARI": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"IND-ATL": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"IND-BAL": {
+"away": "#8A9193",
+"awayFrom": "secondary-darkened",
+"awayRule": "#002C5F",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"IND-BUF": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"IND-CAR": {
+"away": "#8A9193",
+"awayFrom": "secondary-darkened",
+"awayRule": "#002C5F",
+"awaySwitched": true,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"IND-CHI": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"IND-CIN": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"IND-CLE": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"IND-DAL": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"IND-DEN": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"IND-DET": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"IND-GB": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"IND-HOU": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"IND-JAX": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"IND-KC": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"IND-LA": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"IND-LAC": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"IND-LV": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"IND-MIA": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"IND-MIN": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#B38B21",
+"homeFrom": "secondary-darkened",
+"homeRule": "#4F2683",
+"ring": "#94A3B8"
+},
+"IND-NE": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"IND-NO": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"IND-NYG": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"IND-NYJ": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"IND-PHI": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"IND-PIT": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"IND-SEA": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"IND-SF": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"IND-TB": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"IND-TEN": {
+"away": "#8A9193",
+"awayFrom": "secondary-darkened",
+"awayRule": "#002C5F",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"IND-WAS": {
+"away": "#002C5F",
+"awayFrom": "primary",
+"awayRule": "#A2AAAD",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"JAX-ARI": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"JAX-ATL": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"JAX-BAL": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"JAX-BUF": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"JAX-CAR": {
+"away": "#9F792C",
+"awayFrom": "secondary",
+"awayRule": "#006778",
+"awaySwitched": true,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"JAX-CHI": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"JAX-CIN": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"JAX-CLE": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"JAX-DAL": {
+"away": "#9F792C",
+"awayFrom": "secondary",
+"awayRule": "#006778",
+"awaySwitched": true,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#94A3B8"
+},
+"JAX-DEN": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"JAX-DET": {
+"away": "#9F792C",
+"awayFrom": "secondary",
+"awayRule": "#006778",
+"awaySwitched": true,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#94A3B8"
+},
+"JAX-GB": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"JAX-HOU": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"JAX-IND": {
+"away": "#9F792C",
+"awayFrom": "secondary",
+"awayRule": "#006778",
+"awaySwitched": true,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#94A3B8"
+},
+"JAX-KC": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"JAX-LA": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"JAX-LAC": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"JAX-LV": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"JAX-MIA": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"JAX-MIN": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"JAX-NE": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"JAX-NO": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"JAX-NYG": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"JAX-NYJ": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#125740",
+"ring": "#F59E0B"
+},
+"JAX-PHI": {
+"away": "#9F792C",
+"awayFrom": "secondary",
+"awayRule": "#006778",
+"awaySwitched": true,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"JAX-PIT": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"JAX-SEA": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"JAX-SF": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"JAX-TB": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"JAX-TEN": {
+"away": "#9F792C",
+"awayFrom": "secondary",
+"awayRule": "#006778",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"JAX-WAS": {
+"away": "#006778",
+"awayFrom": "primary",
+"awayRule": "#9F792C",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"KC-ARI": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#97233F",
+"ring": "#F59E0B"
+},
+"KC-ATL": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"KC-BAL": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"KC-BUF": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"KC-CAR": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"KC-CHI": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"KC-CIN": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"KC-CLE": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"KC-DAL": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"KC-DEN": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"KC-DET": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"KC-GB": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"KC-HOU": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"KC-IND": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"KC-JAX": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"KC-LA": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"KC-LAC": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"KC-LV": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"KC-MIA": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"KC-MIN": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"KC-NE": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"KC-NO": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"KC-NYG": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"KC-NYJ": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"KC-PHI": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"KC-PIT": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"KC-SEA": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"KC-SF": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"KC-TB": {
+"away": "#BF8A15",
+"awayFrom": "secondary-darkened",
+"awayRule": "#E31837",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#94A3B8"
+},
+"KC-TEN": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"KC-WAS": {
+"away": "#E31837",
+"awayFrom": "primary",
+"awayRule": "#FFB81C",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"LA-ARI": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LA-ATL": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LA-BAL": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#241773",
+"ring": "#F59E0B"
+},
+"LA-BUF": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"LA-CAR": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"LA-CHI": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"LA-CIN": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"LA-CLE": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"LA-DAL": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"LA-DEN": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"LA-DET": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"LA-GB": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"LA-HOU": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"LA-IND": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"LA-JAX": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"LA-KC": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"LA-LAC": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"LA-LV": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"LA-MIA": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"LA-MIN": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#B38B21",
+"homeFrom": "secondary-darkened",
+"homeRule": "#4F2683",
+"ring": "#94A3B8"
+},
+"LA-NE": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"LA-NO": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"LA-NYG": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"LA-NYJ": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LA-PHI": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"LA-PIT": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"LA-SEA": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"LA-SF": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"LA-TB": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"LA-TEN": {
+"away": "#CC8200",
+"awayFrom": "secondary-darkened",
+"awayRule": "#003594",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"LA-WAS": {
+"away": "#003594",
+"awayFrom": "primary",
+"awayRule": "#FFA300",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"LAC-ARI": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LAC-ATL": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LAC-BAL": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LAC-BUF": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"LAC-CAR": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#0085CA",
+"ring": "#F59E0B"
+},
+"LAC-CHI": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"LAC-CIN": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"LAC-CLE": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"LAC-DAL": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"LAC-DEN": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"LAC-DET": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"LAC-GB": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"LAC-HOU": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"LAC-IND": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"LAC-JAX": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"LAC-KC": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"LAC-LA": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"LAC-LV": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"LAC-MIA": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"LAC-MIN": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"LAC-NE": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"LAC-NO": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"LAC-NYG": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"LAC-NYJ": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LAC-PHI": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"LAC-PIT": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"LAC-SEA": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"LAC-SF": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"LAC-TB": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"LAC-TEN": {
+"away": "#B3880A",
+"awayFrom": "secondary-darkened",
+"awayRule": "#0080C6",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"LAC-WAS": {
+"away": "#0080C6",
+"awayFrom": "primary",
+"awayRule": "#FFC20E",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"LV-ARI": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LV-ATL": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LV-BAL": {
+"away": "#8C9295",
+"awayFrom": "secondary-darkened",
+"awayRule": "#000000",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LV-BUF": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"LV-CAR": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"LV-CHI": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"LV-CIN": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"LV-CLE": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"LV-DAL": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"LV-DEN": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"LV-DET": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"LV-GB": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"LV-HOU": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"LV-IND": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"LV-JAX": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"LV-KC": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"LV-LA": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"LV-LAC": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"LV-MIA": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"LV-MIN": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"LV-NE": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"LV-NO": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"LV-NYG": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"LV-NYJ": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"LV-PHI": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"LV-PIT": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"LV-SEA": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"LV-SF": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"LV-TB": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"LV-TEN": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"LV-WAS": {
+"away": "#000000",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"MIA-ARI": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"MIA-ATL": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"MIA-BAL": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"MIA-BUF": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"MIA-CAR": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#0085CA",
+"ring": "#F59E0B"
+},
+"MIA-CHI": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"MIA-CIN": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"MIA-CLE": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"MIA-DAL": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"MIA-DEN": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"MIA-DET": {
+"away": "#FC4C02",
+"awayFrom": "secondary",
+"awayRule": "#008E97",
+"awaySwitched": true,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#94A3B8"
+},
+"MIA-GB": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"MIA-HOU": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"MIA-IND": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"MIA-JAX": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"MIA-KC": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"MIA-LA": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"MIA-LAC": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"MIA-LV": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"MIA-MIN": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"MIA-NE": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"MIA-NO": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"MIA-NYG": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"MIA-NYJ": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#125740",
+"ring": "#F59E0B"
+},
+"MIA-PHI": {
+"away": "#FC4C02",
+"awayFrom": "secondary",
+"awayRule": "#008E97",
+"awaySwitched": true,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"MIA-PIT": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"MIA-SEA": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"MIA-SF": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"MIA-TB": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"MIA-TEN": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"MIA-WAS": {
+"away": "#008E97",
+"awayFrom": "primary",
+"awayRule": "#FC4C02",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"MIN-ARI": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"MIN-ATL": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"MIN-BAL": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#241773",
+"ring": "#F59E0B"
+},
+"MIN-BUF": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"MIN-CAR": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"MIN-CHI": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"MIN-CIN": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"MIN-CLE": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"MIN-DAL": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"MIN-DEN": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"MIN-DET": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"MIN-GB": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"MIN-HOU": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"MIN-IND": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"MIN-JAX": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"MIN-KC": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"MIN-LA": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"MIN-LAC": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"MIN-LV": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"MIN-MIA": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"MIN-NE": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"MIN-NO": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"MIN-NYG": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"MIN-NYJ": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"MIN-PHI": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"MIN-PIT": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"MIN-SEA": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"MIN-SF": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"MIN-TB": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"MIN-TEN": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"MIN-WAS": {
+"away": "#4F2683",
+"awayFrom": "primary",
+"awayRule": "#FFC62F",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"NE-ARI": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NE-ATL": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NE-BAL": {
+"away": "#C60C30",
+"awayFrom": "secondary",
+"awayRule": "#002244",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NE-BUF": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"NE-CAR": {
+"away": "#C60C30",
+"awayFrom": "secondary",
+"awayRule": "#002244",
+"awaySwitched": true,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"NE-CHI": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"NE-CIN": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NE-CLE": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"NE-DAL": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"NE-DEN": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"NE-DET": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"NE-GB": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"NE-HOU": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"NE-IND": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"NE-JAX": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"NE-KC": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"NE-LA": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"NE-LAC": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"NE-LV": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NE-MIA": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"NE-MIN": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"NE-NO": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NE-NYG": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"NE-NYJ": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NE-PHI": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"NE-PIT": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NE-SEA": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"NE-SF": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"NE-TB": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"NE-TEN": {
+"away": "#C60C30",
+"awayFrom": "secondary",
+"awayRule": "#002244",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"NE-WAS": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#C60C30",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"NO-ARI": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NO-ATL": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NO-BAL": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NO-BUF": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"NO-CAR": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NO-CHI": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#94A3B8"
+},
+"NO-CIN": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NO-CLE": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"NO-DAL": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#94A3B8"
+},
+"NO-DEN": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"NO-DET": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#94A3B8"
+},
+"NO-GB": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"NO-HOU": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"NO-IND": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#94A3B8"
+},
+"NO-JAX": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#94A3B8"
+},
+"NO-KC": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#94A3B8"
+},
+"NO-LA": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#94A3B8"
+},
+"NO-LAC": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#94A3B8"
+},
+"NO-LV": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"NO-MIA": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#94A3B8"
+},
+"NO-MIN": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#94A3B8"
+},
+"NO-NE": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"NO-NYG": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"NO-NYJ": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NO-PHI": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"NO-PIT": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"NO-SEA": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#94A3B8"
+},
+"NO-SF": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#94A3B8"
+},
+"NO-TB": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#94A3B8"
+},
+"NO-TEN": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"NO-WAS": {
+"away": "#9E8D6A",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"NYG-ARI": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYG-ATL": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYG-BAL": {
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#0B2265",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYG-BUF": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"NYG-CAR": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"NYG-CHI": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"NYG-CIN": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NYG-CLE": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"NYG-DAL": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"NYG-DEN": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"NYG-DET": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"NYG-GB": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"NYG-HOU": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"NYG-IND": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"NYG-JAX": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"NYG-KC": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"NYG-LA": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"NYG-LAC": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"NYG-LV": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYG-MIA": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"NYG-MIN": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#B38B21",
+"homeFrom": "secondary-darkened",
+"homeRule": "#4F2683",
+"ring": "#94A3B8"
+},
+"NYG-NE": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"NYG-NO": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NYG-NYJ": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYG-PHI": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"NYG-PIT": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NYG-SEA": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"NYG-SF": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"NYG-TB": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"NYG-TEN": {
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#0B2265",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"NYG-WAS": {
+"away": "#0B2265",
+"awayFrom": "primary",
+"awayRule": "#A71930",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"NYJ-ARI": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYJ-ATL": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYJ-BAL": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"NYJ-BUF": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"NYJ-CAR": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"NYJ-CHI": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"NYJ-CIN": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"NYJ-CLE": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"NYJ-DAL": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"NYJ-DEN": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"NYJ-DET": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"NYJ-GB": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"NYJ-HOU": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"NYJ-IND": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"NYJ-JAX": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"NYJ-KC": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"NYJ-LA": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"NYJ-LAC": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"NYJ-LV": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"NYJ-MIA": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"NYJ-MIN": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"NYJ-NE": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"NYJ-NO": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NYJ-NYG": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"NYJ-PHI": {
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#125740",
+"awaySwitched": true,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"NYJ-PIT": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"NYJ-SEA": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"NYJ-SF": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"NYJ-TB": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"NYJ-TEN": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"NYJ-WAS": {
+"away": "#125740",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"PHI-ARI": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"PHI-ATL": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"PHI-BAL": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"PHI-BUF": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"PHI-CAR": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"PHI-CHI": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"PHI-CIN": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"PHI-CLE": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"PHI-DAL": {
+"away": "#8C9295",
+"awayFrom": "secondary-darkened",
+"awayRule": "#004C54",
+"awaySwitched": true,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"PHI-DEN": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"PHI-DET": {
+"away": "#8C9295",
+"awayFrom": "secondary-darkened",
+"awayRule": "#004C54",
+"awaySwitched": true,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"PHI-GB": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"PHI-HOU": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"PHI-IND": {
+"away": "#8C9295",
+"awayFrom": "secondary-darkened",
+"awayRule": "#004C54",
+"awaySwitched": true,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"PHI-JAX": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"PHI-KC": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"PHI-LA": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"PHI-LAC": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"PHI-LV": {
+"away": "#8C9295",
+"awayFrom": "secondary-darkened",
+"awayRule": "#004C54",
+"awaySwitched": true,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"PHI-MIA": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#FC4C02",
+"homeFrom": "secondary",
+"homeRule": "#008E97",
+"ring": "#94A3B8"
+},
+"PHI-MIN": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"PHI-NE": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"PHI-NO": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"PHI-NYG": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"PHI-NYJ": {
+"away": "#8C9295",
+"awayFrom": "secondary-darkened",
+"awayRule": "#004C54",
+"awaySwitched": true,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#125740",
+"ring": "#F59E0B"
+},
+"PHI-PIT": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"PHI-SEA": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"PHI-SF": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"PHI-TB": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"PHI-TEN": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+},
+"PHI-WAS": {
+"away": "#004C54",
+"awayFrom": "primary",
+"awayRule": "#A5ACAF",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"PIT-ARI": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"PIT-ATL": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"PIT-BAL": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"PIT-BUF": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"PIT-CAR": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"PIT-CHI": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#94A3B8"
+},
+"PIT-CIN": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"PIT-CLE": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"PIT-DAL": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#94A3B8"
+},
+"PIT-DEN": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"PIT-DET": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#94A3B8"
+},
+"PIT-GB": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"PIT-HOU": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"PIT-IND": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#94A3B8"
+},
+"PIT-JAX": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#94A3B8"
+},
+"PIT-KC": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#94A3B8"
+},
+"PIT-LA": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#94A3B8"
+},
+"PIT-LAC": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#94A3B8"
+},
+"PIT-LV": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"PIT-MIA": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#94A3B8"
+},
+"PIT-MIN": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#94A3B8"
+},
+"PIT-NE": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"PIT-NO": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#94A3B8"
+},
+"PIT-NYG": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"PIT-NYJ": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"PIT-PHI": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#94A3B8"
+},
+"PIT-SEA": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#94A3B8"
+},
+"PIT-SF": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#94A3B8"
+},
+"PIT-TB": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#94A3B8"
+},
+"PIT-TEN": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
+},
+"PIT-WAS": {
+"away": "#BF890E",
+"awayFrom": "primary-darkened",
+"awayRule": "#101820",
+"awaySwitched": false,
+"home": "#5A1414",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#94A3B8"
+},
+"SEA-ARI": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SEA-ATL": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SEA-BAL": {
+"away": "#59A222",
+"awayFrom": "secondary-darkened",
+"awayRule": "#002244",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SEA-BUF": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"SEA-CAR": {
+"away": "#59A222",
+"awayFrom": "secondary-darkened",
+"awayRule": "#002244",
+"awaySwitched": true,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"SEA-CHI": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"SEA-CIN": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"SEA-CLE": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"SEA-DAL": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"SEA-DEN": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"SEA-DET": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"SEA-GB": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"SEA-HOU": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"SEA-IND": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"SEA-JAX": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"SEA-KC": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"SEA-LA": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"SEA-LAC": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"SEA-LV": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SEA-MIA": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"SEA-MIN": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"SEA-NE": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"SEA-NO": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"SEA-NYG": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"SEA-NYJ": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SEA-PHI": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"SEA-PIT": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"SEA-SF": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"SEA-TB": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"SEA-TEN": {
+"away": "#59A222",
+"awayFrom": "secondary-darkened",
+"awayRule": "#002244",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"SEA-WAS": {
+"away": "#002244",
+"awayFrom": "primary",
+"awayRule": "#69BE28",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"SF-ARI": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#97233F",
+"ring": "#F59E0B"
+},
+"SF-ATL": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"SF-BAL": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SF-BUF": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"SF-CAR": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"SF-CHI": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"SF-CIN": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"SF-CLE": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"SF-DAL": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"SF-DEN": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"SF-DET": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"SF-GB": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"SF-HOU": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"SF-IND": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"SF-JAX": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"SF-KC": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"SF-LA": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"SF-LAC": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"SF-LV": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"SF-MIA": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"SF-MIN": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"SF-NE": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"SF-NO": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"SF-NYG": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"SF-NYJ": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"SF-PHI": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"SF-PIT": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"SF-SEA": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"SF-TB": {
+"away": "#AA9158",
+"awayFrom": "secondary-darkened",
+"awayRule": "#AA0000",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#94A3B8"
+},
+"SF-TEN": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"SF-WAS": {
+"away": "#AA0000",
+"awayFrom": "primary",
+"awayRule": "#B3995D",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"TB-ARI": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#97233F",
+"ring": "#F59E0B"
+},
+"TB-ATL": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"TB-BAL": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TB-BUF": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"TB-CAR": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"TB-CHI": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#F59E0B"
+},
+"TB-CIN": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"TB-CLE": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
+"ring": "#F59E0B"
+},
+"TB-DAL": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
+"ring": "#F59E0B"
+},
+"TB-DEN": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
+},
+"TB-DET": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"TB-GB": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#203731",
+"homeFrom": "primary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"TB-HOU": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"TB-IND": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#002C5F",
+"homeFrom": "primary",
+"homeRule": "#A2AAAD",
+"ring": "#F59E0B"
+},
+"TB-JAX": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"TB-KC": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"TB-LA": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"TB-LAC": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"TB-LV": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#000000",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"TB-MIA": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"TB-MIN": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"TB-NE": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#F59E0B"
+},
+"TB-NO": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#D3BC8D",
+"ring": "#F59E0B"
+},
+"TB-NYG": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#F59E0B"
+},
+"TB-NYJ": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TB-PHI": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"TB-PIT": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#FFB612",
+"ring": "#F59E0B"
+},
+"TB-SEA": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#F59E0B"
+},
+"TB-SF": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"TB-TEN": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#F59E0B"
+},
+"TB-WAS": {
+"away": "#D50A0A",
+"awayFrom": "primary",
+"awayRule": "#FF7900",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"TEN-ARI": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TEN-ATL": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TEN-BAL": {
+"away": "#4B92DB",
+"awayFrom": "secondary",
+"awayRule": "#0C2340",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TEN-BUF": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
+"ring": "#F59E0B"
+},
+"TEN-CAR": {
+"away": "#4B92DB",
+"awayFrom": "secondary",
+"awayRule": "#0C2340",
+"awaySwitched": true,
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#0085CA",
+"ring": "#F59E0B"
+},
+"TEN-CHI": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
+},
+"TEN-CIN": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"TEN-CLE": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"TEN-DAL": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"TEN-DEN": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"TEN-DET": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
+"ring": "#F59E0B"
+},
+"TEN-GB": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"TEN-HOU": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
+"ring": "#F59E0B"
+},
+"TEN-IND": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"TEN-JAX": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#9F792C",
+"homeFrom": "secondary",
+"homeRule": "#006778",
+"ring": "#94A3B8"
+},
+"TEN-KC": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#E31837",
+"homeFrom": "primary",
+"homeRule": "#FFB81C",
+"ring": "#F59E0B"
+},
+"TEN-LA": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
+},
+"TEN-LAC": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
+},
+"TEN-LV": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TEN-MIA": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"TEN-MIN": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"TEN-NE": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"TEN-NO": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"TEN-NYG": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
+"ring": "#F59E0B"
+},
+"TEN-NYJ": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"TEN-PHI": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#004C54",
+"ring": "#F59E0B"
+},
+"TEN-PIT": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"TEN-SEA": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"TEN-SF": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#AA0000",
+"homeFrom": "primary",
+"homeRule": "#B3995D",
+"ring": "#F59E0B"
+},
+"TEN-TB": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
+},
+"TEN-WAS": {
+"away": "#0C2340",
+"awayFrom": "primary",
+"awayRule": "#4B92DB",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#5A1414",
+"ring": "#94A3B8"
+},
+"WAS-ARI": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#97233F",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"WAS-ATL": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#A71930",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"WAS-BAL": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#241773",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"WAS-BUF": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#00338D",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"WAS-CAR": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#0085CA",
+"homeFrom": "primary",
+"homeRule": "#101820",
+"ring": "#F59E0B"
+},
+"WAS-CHI": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#0B162A",
+"homeFrom": "primary",
+"homeRule": "#C83803",
+"ring": "#94A3B8"
+},
+"WAS-CIN": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#94A3B8"
+},
+"WAS-CLE": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#FF3C00",
+"homeFrom": "secondary",
+"homeRule": "#311D00",
+"ring": "#94A3B8"
+},
+"WAS-DAL": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#869397",
+"homeFrom": "secondary",
+"homeRule": "#041E42",
+"ring": "#F59E0B"
+},
+"WAS-DEN": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
+"ring": "#94A3B8"
+},
+"WAS-DET": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#0076B6",
+"homeFrom": "primary",
+"homeRule": "#B0B7BC",
+"ring": "#F59E0B"
+},
+"WAS-GB": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
+"ring": "#94A3B8"
+},
+"WAS-HOU": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#03202F",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"WAS-IND": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#8A9193",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002C5F",
+"ring": "#F59E0B"
+},
+"WAS-JAX": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#006778",
+"homeFrom": "primary",
+"homeRule": "#9F792C",
+"ring": "#F59E0B"
+},
+"WAS-KC": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#BF8A15",
+"homeFrom": "secondary-darkened",
+"homeRule": "#E31837",
+"ring": "#94A3B8"
+},
+"WAS-LA": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#003594",
+"homeFrom": "primary",
+"homeRule": "#FFA300",
+"ring": "#F59E0B"
+},
+"WAS-LAC": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#0080C6",
+"homeFrom": "primary",
+"homeRule": "#FFC20E",
+"ring": "#F59E0B"
+},
+"WAS-LV": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#8C9295",
+"homeFrom": "secondary-darkened",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"WAS-MIA": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#008E97",
+"homeFrom": "primary",
+"homeRule": "#FC4C02",
+"ring": "#F59E0B"
+},
+"WAS-MIN": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
+},
+"WAS-NE": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#C60C30",
+"ring": "#94A3B8"
+},
+"WAS-NO": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"WAS-NYG": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#0B2265",
+"homeFrom": "primary",
+"homeRule": "#A71930",
+"ring": "#94A3B8"
+},
+"WAS-NYJ": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#125740",
+"homeFrom": "primary",
+"homeRule": "#000000",
+"ring": "#F59E0B"
+},
+"WAS-PHI": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#004C54",
+"homeFrom": "primary",
+"homeRule": "#A5ACAF",
+"ring": "#F59E0B"
+},
+"WAS-PIT": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
+"ring": "#94A3B8"
+},
+"WAS-SEA": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#59A222",
+"homeFrom": "secondary-darkened",
+"homeRule": "#002244",
+"ring": "#F59E0B"
+},
+"WAS-SF": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#AA9158",
+"homeFrom": "secondary-darkened",
+"homeRule": "#AA0000",
+"ring": "#94A3B8"
+},
+"WAS-TB": {
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#5A1414",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#94A3B8"
+},
+"WAS-TEN": {
+"away": "#5A1414",
+"awayFrom": "primary",
+"awayRule": "#FFB612",
+"awaySwitched": false,
+"home": "#4B92DB",
+"homeFrom": "secondary",
+"homeRule": "#0C2340",
+"ring": "#F59E0B"
+}
+}

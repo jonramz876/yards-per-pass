@@ -13,6 +13,7 @@ import {
   parseMatchupSeason,
   parseMatchupTeamId,
 } from "@/lib/stats/matchup-links";
+import * as LINKS from "@/lib/stats/matchup-links";
 import { parseRadarTeamId } from "@/lib/stats/team-radar";
 import { SEASON_PARAM_MAX, SEASON_PARAM_MIN } from "@/lib/stats/team-stats";
 
@@ -186,5 +187,64 @@ describe("the module imports nothing (§7.1: it is in the browser bundle of the 
     expect(source).not.toMatch(/\bfrom\s+["']/);
     expect(source).not.toMatch(/\brequire\(|\bimport\(/);
     expect(source).not.toContain("use client");
+  });
+});
+
+/* ─── Matchup card PR 1 (matchup card spec 2026-10-11 §4.3, §9 K12): the share page's path and the Share block's words ─── */
+
+describe("matchupCardPath / matchupCardHref (card spec §4.3: the matchupHref rule without ball)", () => {
+  it("the path, away first", () => {
+    expect(LINKS.matchupCardPath("BUF", "LA")).toBe("/card/matchup/BUF/LA");
+    expect(LINKS.matchupCardPath("LA", "BUF")).toBe("/card/matchup/LA/BUF");
+  });
+
+  it("bare for the default season, ?season= for another", () => {
+    expect(LINKS.matchupCardHref("BUF", "LA")).toBe("/card/matchup/BUF/LA");
+    expect(LINKS.matchupCardHref("BUF", "LA", {})).toBe("/card/matchup/BUF/LA");
+    expect(LINKS.matchupCardHref("BUF", "LA", { season: 2026, defaultSeason: 2026 })).toBe("/card/matchup/BUF/LA");
+    expect(LINKS.matchupCardHref("BUF", "LA", { season: 2025, defaultSeason: 2026 })).toBe("/card/matchup/BUF/LA?season=2025");
+  });
+
+  it("an unknown default still carries the season (the 308's target names the listed season)", () => {
+    expect(LINKS.matchupCardHref("BUF", "LA", { season: 2025 })).toBe("/card/matchup/BUF/LA?season=2025");
+    expect(LINKS.matchupCardHref("BUF", "LA", { season: 2025, defaultSeason: null })).toBe("/card/matchup/BUF/LA?season=2025");
+    expect(LINKS.matchupCardHref("BUF", "LA", { season: null })).toBe("/card/matchup/BUF/LA");
+  });
+
+  it("never a ball, whatever it is handed", () => {
+    expect(LINKS.matchupCardHref("BUF", "LA", { season: 2025, defaultSeason: 2026, ball: "home" } as never)).toBe(
+      "/card/matchup/BUF/LA?season=2025",
+    );
+  });
+
+  it("only a season the route's own rule reads back; segments are encoded; never a throw", () => {
+    for (const season of [5, 1998, 2101, 2025.5, NaN, Infinity, -2025, 1e21, "2025" as never, undefined]) {
+      expect(LINKS.matchupCardHref("BUF", "LA", { season, defaultSeason: 2026 }), String(season)).toBe("/card/matchup/BUF/LA");
+    }
+    for (const season of [1999, 2025, 2100]) {
+      const href = LINKS.matchupCardHref("BUF", "LA", { season });
+      expect(parseMatchupSeason(new URLSearchParams(href.split("?")[1]).get("season") ?? undefined)).toBe(season);
+    }
+    expect(LINKS.matchupCardHref("BUF?season=1999#", "LA/../x")).toBe("/card/matchup/BUF%3Fseason%3D1999%23/LA%2F..%2Fx");
+    expect(LINKS.matchupCardPath("//evil.com", "L&A")).toBe("/card/matchup/%2F%2Fevil.com/L%26A");
+    expect(() => LINKS.matchupCardHref(null as never, undefined as never)).not.toThrow();
+    expect(() => LINKS.matchupCardPath("\ud800", "LA")).not.toThrow();
+  });
+
+  it("the same query as matchupHref without ball, for every case above", () => {
+    for (const opts of [{}, { season: 2025, defaultSeason: 2026 }, { season: 2026, defaultSeason: 2026 }, { season: 2026 }, { season: 1998 }]) {
+      expect(LINKS.matchupCardHref("NE", "NYJ", opts)).toBe(matchupHref("NE", "NYJ", opts).replace("/matchup/", "/card/matchup/"));
+    }
+  });
+});
+
+describe("the Share block's words (card spec §9 K12)", () => {
+  it("are these six strings", () => {
+    expect(LINKS.MATCHUP_SHARE_HEADING).toBe("Share this matchup");
+    expect(LINKS.MATCHUP_COPY_LINK_TEXT).toBe("Copy Link");
+    expect(LINKS.MATCHUP_COPIED_TEXT).toBe("Copied!");
+    expect(LINKS.MATCHUP_DOWNLOAD_TEXT).toBe("Download Image");
+    expect(LINKS.MATCHUP_OPEN_CARD_TEXT).toBe("Open share card →");
+    expect(LINKS.MATCHUP_COPY_FAILED_TEXT).toBe("Copy failed: open the share card and copy its address");
   });
 });

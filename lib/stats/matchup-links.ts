@@ -65,6 +65,39 @@ export function matchupHref(
   return `/matchup/${pathSegment(awayId)}/${pathSegment(homeId)}${query.length > 0 ? `?${query.join("&")}` : ""}`;
 }
 
+/* ─── The matchup share card (matchup card spec 2026-10-11 §4.3, §9 K12) ─── */
+
+/** The share page's path, away first: "/card/matchup/BUF/LA". Each id is percent-encoded, as in matchupHref. */
+export function matchupCardPath(awayId: string, homeId: string): string {
+  return `/card/matchup/${pathSegment(awayId)}/${pathSegment(homeId)}`;
+}
+
+/**
+ * The share page for a season: matchupHref's season rule, and no `ball` (one
+ * card per game). Bare for the default season; `?season=` for another season
+ * the route's own rule reads back; an unknown default still carries the season.
+ */
+export function matchupCardHref(
+  awayId: string,
+  homeId: string,
+  opts: { season?: number | null; defaultSeason?: number | null } = {},
+): string {
+  const season = opts.season;
+  const named =
+    typeof season === "number" && Number.isSafeInteger(season) && season !== opts.defaultSeason &&
+    parseMatchupSeason(String(season)) === season;
+  return `${matchupCardPath(awayId, homeId)}${named ? `?season=${season}` : ""}`;
+}
+
+/** K12: the Share block on the matchup page (its client component imports them from here, never from matchup-card.ts). */
+export const MATCHUP_SHARE_HEADING = "Share this matchup";
+export const MATCHUP_COPY_LINK_TEXT = "Copy Link";
+export const MATCHUP_COPIED_TEXT = "Copied!";
+export const MATCHUP_DOWNLOAD_TEXT = "Download Image";
+export const MATCHUP_OPEN_CARD_TEXT = "Open share card →";
+/** On the matchup page the address bar holds the matchup, not the card, so the advice is the Compare page's. */
+export const MATCHUP_COPY_FAILED_TEXT = "Copy failed: open the share card and copy its address";
+
 /**
  * One path segment, percent-encoded, so an id can never add a "/", a "?" or a
  * "#" of its own (chaos F8). A real team id is letters only and comes out
