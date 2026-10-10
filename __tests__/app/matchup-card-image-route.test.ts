@@ -81,7 +81,7 @@ import { fetchAllRows } from "@/lib/data/utils";
 import { matchupCardImage, matchupPlateImage } from "@/lib/og/matchup-card-image";
 import { radarImageFonts } from "@/lib/og/team-radar-image";
 import { MATCHUP_SMALL_POOL_NOTE } from "@/lib/stats/matchup";
-import { MATCHUP_CARD_UNAVAILABLE, buildMatchupCard, type MatchupCardModel } from "@/lib/stats/matchup-card";
+import { buildMatchupCard, type MatchupCardModel } from "@/lib/stats/matchup-card";
 import { NFL_TEAMS } from "@/lib/data/teams";
 import { ROWS } from "../components/matchup/helpers";
 
@@ -188,6 +188,45 @@ describe("rows 1-3: junk is a 404 before any read and before any render, kept by
       expect(res.status).toBe(404);
       expect(res.headers.get("cache-control")).toBe(STORED);
     }
+    expect(readCount()).toBe(0);
+  });
+
+  // Chaos F1 (PR 2): Next decodes a path segment before the route sees it, so `%42UF` arrives in
+  // `params` as "BUF". The route therefore reads the RAW path of the request URL as well: each
+  // card is one stored object, and every other spelling of its address is the stored 404.
+  it.each([
+    ["/api/matchup-card/%42UF/LA", "BUF", "LA"],
+    ["/api/matchup-card/BUF/%4CA", "BUF", "LA"],
+    ["/api/matchup-card/%42%55%46/%4C%41", "BUF", "LA"],
+    ["/api/matchup-card/%42uf/LA", "BUF", "LA"],
+    ["/api/matchup-card/BUF/L%41?season=2026&w=4", "BUF", "LA"],
+    ["/api/matchup-card/BUF/LA/", "BUF", "LA"],
+    ["/api/matchup-card/BUF//LA", "BUF", "LA"],
+    ["/api/matchup-card/BUF/LA%20", "BUF", "LA"],
+    ["/api/matchup-card/KC/BUF/LA/../LA", "BUF", "LA"],
+    ["/api/matchup-card/LA/BUF", "BUF", "LA"],
+  ])("row 1, the raw path is not the canonical one: %s (decoded params %s / %s) is the stored 404 with no read", async (path, away, home) => {
+    const res = await GET(new Request(`https://yardsperpass.com${path}`), { params: Promise.resolve({ away, home }) });
+    await expectNotFound(res, STORED);
+    expect(readCount()).toBe(0);
+  });
+
+  it("row 1: the canonical raw path is drawn, with or without its query, on any host", async () => {
+    for (const url of [
+      "https://yardsperpass.com/api/matchup-card/BUF/LA",
+      "https://yardsperpass.com/api/matchup-card/BUF/LA?season=2026&w=4&download=1",
+      "http://localhost:3100/api/matchup-card/BUF/LA?season=2026",
+      "https://yardsperpass.com/api/matchup-card/BUF/LA#x",
+    ]) {
+      const res = await GET(new Request(url), { params: Promise.resolve({ away: "BUF", home: "LA" }) });
+      expect(res.status, url).toBe(200);
+    }
+  });
+
+  it("row 1: a request URL that is no URL at all is the stored 404, not a crash", async () => {
+    const res = await GET({ url: undefined } as never, { params: Promise.resolve({ away: "BUF", home: "LA" }) });
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBe(STORED);
     expect(readCount()).toBe(0);
   });
 
@@ -306,16 +345,31 @@ describe("rows 7 and 9: an unavailable plate is an error, not a picture", () => 
     expect(buildMatchupCard).not.toHaveBeenCalled();
   });
 
-  it.each([
-    ["by its reason", { reason: "unavailable", message: "anything" }],
-    ["by the K11 sentence (a plate with no reason field)", { message: MATCHUP_CARD_UNAVAILABLE }],
-  ])("a plate the builder marks unavailable (%s): 503 no-store, never drawn, never stored", async (_how, over) => {
+  it("a plate the builder marks unavailable by its reason: 503 no-store, never drawn, never stored", async () => {
     const real = vi.mocked(buildMatchupCard).getMockImplementation()!;
-    vi.mocked(buildMatchupCard).mockImplementationOnce((input) => ({ ...real(input), kind: "plate", ...over }) as never);
+    vi.mocked(buildMatchupCard).mockImplementationOnce((input) => ({ ...real(input), kind: "plate", reason: "unavailable", message: "anything" }) as never);
     await expectUnavailable(await get("BUF", "LA", "?season=2026&w=4&download=1"));
     expect(errorSpy).toHaveBeenCalled();
     // and the next request, with the builder's own answer, draws
     expect((await get("BUF", "LA")).status).toBe(200);
+  });
+
+  // The reason decides, never the sentence: a real plate that happened to carry K11's words is still drawn.
+  it("the K11 sentence alone decides nothing", async () => {
+    const real = vi.mocked(buildMatchupCard).getMockImplementation()!;
+    vi.mocked(buildMatchupCard).mockImplementationOnce((input) => ({
+      ...real(input), kind: "plate", reason: "small-pool", message: "The matchup card is unavailable right now. Try again in a few minutes.",
+    }) as never);
+    const res = await get("BUF", "LA");
+    expect([res.status, res.headers.get("cache-control")]).toEqual([200, STORED]);
+  });
+
+  // Code review nit 5: the loader has already logged the failed games read; the route adds no second line.
+  it("a failed games read is logged once per image request, by the loader", async () => {
+    vi.mocked(getSeasonGames).mockRejectedValue(new Error("Failed to fetch games"));
+    await expectUnavailable(await get("BUF", "LA"));
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(String(errorSpy.mock.calls[0][0])).toMatch(/^Matchup \(BUF at LA\): the games read failed for 2026/);
   });
 
   it("the three real plate reasons are drawn and stored", async () => {

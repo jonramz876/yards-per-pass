@@ -29,9 +29,14 @@ vi.mock("next/link", () => ({
   ),
 }));
 vi.mock("next/image", () => ({
-  default: ({ unoptimized, alt, ...rest }: { unoptimized?: boolean; alt: string }) => (
+  default: ({ unoptimized, priority, alt, ...rest }: { unoptimized?: boolean; priority?: boolean; alt: string }) => (
     // eslint-disable-next-line @next/next/no-img-element -- the test's stand-in for next/image
-    <img alt={alt} data-unoptimized={unoptimized === undefined ? undefined : String(unoptimized)} {...rest} />
+    <img
+      alt={alt}
+      data-unoptimized={unoptimized === undefined ? undefined : String(unoptimized)}
+      data-priority={priority === undefined ? undefined : String(priority)}
+      {...rest}
+    />
   ),
 }));
 vi.mock("@/lib/data/matchup", () => ({ loadMatchup: vi.fn(), loadMatchupIndex: vi.fn() }));
@@ -247,10 +252,29 @@ describe("the card page (§8.1)", () => {
     expect(img.getAttribute("alt")).toBe("Buffalo Bills at Los Angeles Rams matchup card, 2026");
     expect(img.getAttribute("alt")).toBe(ogImage(meta)!.alt);
     expect(img.getAttribute("data-unoptimized")).toBe("true");
-    expect(img.getAttribute("class")).toBe("h-auto w-full");
+    expect(img.getAttribute("class")?.split(/\s+/)).toEqual(expect.arrayContaining(["h-auto", "w-full"]));
+    // The page's one picture, above the fold: loaded eagerly (code review nit 6).
+    expect(img.getAttribute("data-priority")).toBe("true");
     expect(el.querySelectorAll("img")).toHaveLength(1);
     // No second chart on the page: one drawing, one truth.
     expect(el.querySelectorAll("[data-matchup-card-page] svg")).toHaveLength(0);
+  });
+
+  // Chaos F2 (PR 2): next/image paints an image's own text transparent, so when the picture
+  // failed (the route answers 503, or `next dev` on Windows) the visitor saw a blank white box.
+  // The page gives the alt text a colour of its own and the box a quiet ground, so it reads as a message.
+  it("when the picture fails the visitor reads its alt text: a readable colour on the image, a quiet ground behind it", async () => {
+    const el = await html("BUF", "LA");
+    const img = el.querySelector("[data-matchup-card-image] img") as HTMLElement;
+    expect(img.getAttribute("style")!.replace(/\s+/g, "").toLowerCase()).toContain("color:#475569");
+    expect(img.getAttribute("style")).not.toMatch(/transparent/);
+    const cls = (img.getAttribute("class") ?? "").split(/\s+/);
+    expect(cls).toEqual(expect.arrayContaining(["text-[15px]", "leading-relaxed"]));
+    const box = el.querySelector("[data-matchup-card-image]")!;
+    expect((box.getAttribute("class") ?? "").split(/\s+/)).toEqual(expect.arrayContaining(["border", "border-slate-200", "bg-slate-100"]));
+    // No red, and nothing drawn over the picture: the fallback is the image element's own text.
+    expect(box.getAttribute("class")).not.toMatch(/red-\d00/);
+    expect(box.children).toHaveLength(1);
   });
 
   it("Copy Link is this page's own path and Download the image route with download=1", async () => {

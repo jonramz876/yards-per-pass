@@ -77,7 +77,34 @@ describe("the Share block on the matchup page", () => {
     expect(classesOf(button)).toContain("bg-slate-600");
     // The long sentence takes the whole row on a phone (two lines at 320 px, measured), not a quarter of it.
     expect(classesOf(button)).toContain("basis-full");
-    expect(classesOf(button)).toContain("md:basis-auto");
+    // Chaos F6 (PR 2): from md the sentence gets a row of its own with Download beside it, under the
+    // heading and the link, so the heading never wraps and Download never drops (it did at 768 px).
+    expect(classesOf(button)).toEqual(expect.arrayContaining(["md:basis-0", "flex-1"]));
+    expect(classesOf(button)).not.toContain("md:flex-none");
+    const block = button.closest("[data-matchup-share]")!;
+    expect(classesOf(block)).toContain("md:flex-wrap");
+    expect(classesOf(button.parentElement!)).toEqual(expect.arrayContaining(["md:order-last", "md:basis-full"]));
+    expect(classesOf(button.parentElement!)).not.toContain("md:ml-auto");
+    expect(classesOf(block.querySelector("a")!)).toContain("md:ml-auto");
+    const download = screen.getByText("Download Image");
+    expect(classesOf(download)).toContain("md:flex-none");
+  });
+
+  it("at rest and once copied the block is one row from md: the buttons pushed right, each its own width", async () => {
+    const el = show();
+    const block = el.querySelector("[data-matchup-share]")!;
+    const check = () => {
+      expect(classesOf(block)).not.toContain("md:flex-wrap");
+      const group = block.querySelector("button")!.parentElement!;
+      expect(classesOf(group)).toContain("md:ml-auto");
+      expect(classesOf(group)).not.toContain("md:order-last");
+      for (const b of Array.from(block.querySelectorAll("button"))) expect(classesOf(b)).toContain("md:flex-none");
+      expect(classesOf(block.querySelector("a")!)).not.toContain("md:ml-auto");
+    };
+    check();
+    fireEvent.click(screen.getByText("Copy Link"));
+    await screen.findByText("Copied!");
+    check();
     expect(button.getAttribute("class")).not.toMatch(/red/);
   });
 
