@@ -31,10 +31,11 @@ const BARLOW = "font-[family-name:var(--font-barlow)]";
  * ONE string literal, written out in full. Tailwind only generates CSS for
  * complete class names it finds as text in the source, so the number must
  * never be interpolated: edit it here, in BOTH classes. The rule for the
- * number is (tallest measured panel + 80 + 16), rounded up to the next 20;
- * 760 is the spec's estimate (about 640 px of panel) until it is measured.
+ * number is (tallest measured panel + 80 + 16), rounded up to the next 20.
+ * Measured in headless Chrome on 2026-10-10 (week 5's 15 pairs, both tabs):
+ * 642 px at 1280 wide, 586 px at 1024 wide → 738 → 740.
  */
-export const PANEL_STICKY = "lg:[@media(min-height:760px)]:sticky lg:[@media(min-height:760px)]:top-20";
+export const PANEL_STICKY = "lg:[@media(min-height:740px)]:sticky lg:[@media(min-height:740px)]:top-20";
 
 /** The chart's cap, the one the team page uses for the same `sm` radar. */
 export const PANEL_CHART_MAX_WIDTH = 440;
