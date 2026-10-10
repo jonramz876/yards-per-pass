@@ -962,6 +962,18 @@ export function currentSlate<G extends MatchupGame>(
   return { label: round ? (ROUND_NAMES[round] ?? round) : `Week ${week}`, games: slate };
 }
 
+/**
+ * One game's week as the header prints it: "Week 5" for a regular-season
+ * game, the round's name for a playoff game (the names currentSlate uses).
+ * "" when the row has no usable week, never "Week NaN".
+ */
+export function gameWeekLabel(game: MatchupGame): string {
+  if (game === null || typeof game !== "object") return "";
+  const type = normalizeGameType(game.game_type);
+  if (type !== "REG") return ROUND_NAMES[type] ?? type;
+  return isNum(game.week) ? `Week ${game.week}` : "";
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /**
