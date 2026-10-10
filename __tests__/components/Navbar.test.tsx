@@ -87,12 +87,17 @@ describe("Navbar", () => {
     expect(links[0].className).not.toContain("font-semibold");
   });
 
-  it("the desktop row is gap-3, gap-6 from xl (measured 2026-09-28: no label wraps at 1024, one line at 1280)", () => {
+  // Ten labels (Matchups added 2026-10-10). Measured in a browser that day:
+  // the ten links and the search button are 676 px of content; the row has
+  // 769 px at 1024 and 897 px from 1152 up. With the nine-label spacing
+  // (gap-3 / xl:gap-6) "Team Tiers", "Team Stats" and "Run Gaps" wrapped at
+  // both widths. The spec's first fallback at each width fixes it: gap-2
+  // (756 px) below xl, xl:gap-5 (876 px) from xl. No label was shortened.
+  it("the desktop row is gap-2, gap-5 from xl (measured 2026-10-10 for ten labels: one line at 1024 and at 1280)", () => {
     const { row } = desktopLinks();
     const cls = row.className.split(/\s+/);
-    expect(cls).toContain("gap-3");
-    expect(cls).toContain("xl:gap-6");
-    expect(cls).not.toContain("gap-8");
-    expect(cls).not.toContain("gap-6");
+    expect(cls).toContain("gap-2");
+    expect(cls).toContain("xl:gap-5");
+    for (const old of ["gap-3", "xl:gap-6", "gap-6", "gap-8"]) expect(cls).not.toContain(old);
   });
 });
