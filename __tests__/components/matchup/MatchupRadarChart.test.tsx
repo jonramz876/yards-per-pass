@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import MatchupRadarChart from "@/components/matchup/MatchupRadarChart";
 import { EDGE_LEAN_MIN_GAP, type OverlayModel } from "@/lib/stats/matchup";
-import { RADAR_AXES, RADAR_SIZES, plottableScore, radarLabelPosition } from "@/lib/stats/team-radar";
+import { RADAR_AXES, RADAR_SIZES, plottableScore, radarLabelPosition, spokeRankLabel } from "@/lib/stats/team-radar";
 import { ACCENT, awayBall, homeBall, model, rowsWithout, source } from "./helpers";
 
 const draw = (overlay: OverlayModel, color = "#00338D", secondary = "#C60C30") =>
@@ -110,8 +110,17 @@ describe("overlay label fit (§8.1): the 15-character rank line on every spoke o
     expect(p.y1 - g.f).toBeGreaterThanOrEqual(0);
     expect(p.y2).toBeLessThanOrEqual(g.h);
   });
-  it("the longest rank line is 15 characters (two tied two-digit ranks)", () => {
-    expect("T-14th v T-20th").toHaveLength(15);
-    expect("T-32nd v T-32nd").toHaveLength(15);
+  it("15 characters is the longest line the model can write: two tied two-digit ranks, built by spokeRankLabel", () => {
+    const labels = Array.from({ length: 32 }, (_, i) => i + 1).flatMap((rank) => [
+      spokeRankLabel({ rank, tied: false }),
+      spokeRankLabel({ rank, tied: true }),
+    ]);
+    const longest = Math.max(...labels.map((l) => l.length));
+    expect(`${spokeRankLabel({ rank: 32, tied: true })} v ${spokeRankLabel({ rank: 14, tied: true })}`).toBe("T-32nd v T-14th");
+    expect(longest * 2 + " v ".length).toBe(15);
+    // and every line of the real model is within it
+    for (const o of [awayBall().overlay, homeBall().overlay, awayBall("CHI", "PHI").overlay]) {
+      for (const s of o.spokes) expect(s.rankLine.length).toBeLessThanOrEqual(15);
+    }
   });
 });

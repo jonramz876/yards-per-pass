@@ -131,6 +131,26 @@ describe("MatchupPlayers", () => {
     expect(el.querySelector("[data-tile]")).toBeNull();
   });
 
+  // Chaos 4: "−12,345,678" was painted across the value beside it.
+  it("a stat value can always break inside its half of the tile, so it never paints over its neighbour", () => {
+    const huge: LineupPlayer = { ...BUF[0], stats: BUF[0].stats.map((s, i) => ({ label: s.label, value: i === 2 ? "−12,345,678" : "9".repeat(300) })) };
+    const el = show({ lineup: pairLineups([huge], []) });
+    const t = tiles(el, "BUF")[0];
+    expect(classes(t)).toContain("min-w-0");
+    for (const pair of Array.from(t.querySelectorAll("dl > div"))) expect(classes(pair)).toContain("min-w-0");
+    for (const node of Array.from(t.querySelectorAll("dd, dt"))) {
+      expect(classes(node)).toEqual(expect.arrayContaining(["min-w-0", "[overflow-wrap:anywhere]"]));
+    }
+    expect(classes(t.querySelector("[data-tile-name]"))).toContain("[overflow-wrap:anywhere]");
+    expect(t.querySelectorAll("dd")[2].textContent).toBe("−12,345,678");
+  });
+
+  it("name links do not prefetch (a matchup page has up to 14 of them, each a per-request page)", () => {
+    const links = Array.from(show().querySelectorAll("a[data-tile-name]"));
+    expect(links.length).toBeGreaterThan(0);
+    for (const a of links) expect(a.getAttribute("data-prefetch")).toBe("false");
+  });
+
   it("a player with every stat missing prints four dashes", () => {
     const blank: LineupPlayer = { ...BUF[0], stats: BUF[0].stats.map((s) => ({ label: s.label, value: "—" })) };
     const el = show({ lineup: pairLineups([blank], []) });

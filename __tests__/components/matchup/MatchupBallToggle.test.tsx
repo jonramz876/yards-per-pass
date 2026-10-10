@@ -115,6 +115,18 @@ describe("MatchupBallToggle: a tab press", () => {
     expect(replaceState).toHaveBeenLastCalledWith(null, "", "/matchup/BUF/LA?season=2025");
   });
 
+  it("when the browser refuses replaceState the view still flips and nothing is thrown", () => {
+    replaceState.mockImplementation(() => {
+      throw new DOMException("The operation is insecure.", "SecurityError");
+    });
+    const el = show();
+    expect(() => fireEvent.click(tab(el, "home"))).not.toThrow();
+    expect(hidden(el)).toEqual({ away: true, home: false });
+    expect(replaceState).toHaveBeenCalledTimes(1);
+    fireEvent.click(tab(el, "away"));
+    expect(hidden(el)).toEqual({ away: false, home: true });
+  });
+
   it("pressing the selected tab again changes nothing", () => {
     const el = show();
     fireEvent.click(tab(el, "away"));

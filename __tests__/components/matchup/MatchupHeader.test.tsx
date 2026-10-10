@@ -98,13 +98,19 @@ describe("MatchupHeader", () => {
     expect(show({ game: { ...GAME, game_type: "DIV", week: 20 } }).querySelector("[data-week]")?.textContent).toBe("Divisional");
   });
 
-  it("no game between the two (games read fine): VS and the sentence; the records still print", () => {
+  it("no game between the two (games read fine): VS and the sentence; the records still print, without away / home", () => {
     const el = show({ game: null });
     expect(el.querySelector("[data-at]")?.textContent).toBe("VS");
     expect(el.querySelector("[data-no-game]")?.textContent).toBe("No 2026 game between these teams");
     expect(el.querySelector("[data-week]")).toBeNull();
     expect(el.querySelector("[data-kickoff]")).toBeNull();
-    expect(el.querySelectorAll("[data-slab-record]")).toHaveLength(2);
+    // "· away" / "· home" names a venue, and a pair with no game has none.
+    expect(Array.from(el.querySelectorAll("[data-slab-record]")).map((r) => r.textContent)).toEqual(["3-1", "2-2-1"]);
+    expect(el.textContent).not.toMatch(/· (away|home)/);
+  });
+
+  it("the team slabs do not prefetch", () => {
+    for (const side of ["away", "home"] as const) expect(slab(show(), side).getAttribute("data-prefetch")).toBe("false");
   });
 
   it("the games read failed: no week, no date, no records, and NOT the no-game sentence", () => {

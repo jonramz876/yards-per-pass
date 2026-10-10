@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import MatchupLadder, {
-  LADDER_COLUMN_MD, LADDER_COLUMN_SM, LADDER_VALUE_MD, LADDER_VALUE_SM,
+  DEF_RANK_ONE_LINE_MAX, LADDER_COLUMN_MD, LADDER_COLUMN_SM, LADDER_VALUE_MD, LADDER_VALUE_SM,
 } from "@/components/matchup/MatchupLadder";
 import { MATCHUP_LADDER_NOTE, MATCHUP_STATS, type LadderModel, type LadderRow } from "@/lib/stats/matchup";
 import { ACCENT, awayBall, classes, code, homeBall, model, rowsWithout, source } from "./helpers";
@@ -54,10 +54,68 @@ describe("MatchupLadder", () => {
         expect(row.querySelector("[data-off-value]")?.textContent).toBe(r.offValue);
         expect(row.querySelector("[data-off-rank]")?.textContent).toBe(r.offRank);
         expect(row.querySelector("[data-def-value]")?.textContent).toBe(r.defValue);
-        expect(row.querySelector("[data-def-rank]")?.textContent).toBe(r.defRank === "—" ? "—" : `${r.defRank} · ${r.defWord}`);
+        const cell = row.querySelector("[data-def-rank]")!;
+        if (r.defRank === "—") {
+          expect(cell.textContent).toBe("—");
+        } else {
+          expect(cell.querySelector("[data-def-rank-stacked] [data-rank]")?.textContent).toBe(r.defRank);
+          expect(cell.querySelector("[data-def-rank-stacked] [data-word]")?.textContent).toBe(r.defWord);
+        }
         expect(row.querySelector("[data-verdict]")?.textContent).toBe(r.verdict);
       }
     }
+  });
+
+  // Chaos 6 / review nit 6: "4th ·" on one line and "allowed" on the next. The
+  // cell now breaks on purpose. Stacked (rank, then the word, NO dot) below md
+  // always, and from md whenever the one-line text would be longer than the
+  // column holds; one line with the dot only from md and only when it fits.
+  describe("the defense rank cell never leaves a dot dangling", () => {
+    const rowWith = (defRank: string, defWord: string): LadderModel => ({
+      offId: "BUF", defId: "HOU", rows: [{ ...ladder.rows[0], defRank, defWord }],
+    });
+    const cell = (defRank: string, defWord: string) => show(rowWith(defRank, defWord)).querySelector("[data-def-rank]") as HTMLElement;
+
+    it("the stacked form is two block lines and holds no dot", () => {
+      const c = cell("4th", "allowed");
+      const stacked = c.querySelector("[data-def-rank-stacked]")!;
+      expect(stacked.textContent).toBe("4thallowed");
+      expect(stacked.textContent).not.toContain("·");
+      for (const part of ["[data-rank]", "[data-word]"]) expect(classes(stacked.querySelector(part))).toContain("block");
+    });
+
+    it.each([["4th", "allowed"], ["26th", "made"], ["24th", "takeaways"], ["T-4th", "allowed"], ["T-32nd", "made"]])(
+      "%s / %s fits one line from md: stacked below md, \"rank · word\" from md",
+      (rank, word) => {
+        const c = cell(rank, word);
+        expect(`${rank} · ${word}`.length).toBeLessThanOrEqual(DEF_RANK_ONE_LINE_MAX);
+        expect(classes(c.querySelector("[data-def-rank-stacked]"))).toContain("md:hidden");
+        const inline = c.querySelector("[data-def-rank-inline]")!;
+        expect(inline.textContent).toBe(`${rank} · ${word}`);
+        expect(classes(inline)).toEqual(expect.arrayContaining(["hidden", "md:inline"]));
+      },
+    );
+
+    it.each([["T-14th", "takeaways"], ["14th of 29", "allowed"], ["T-3rd of 31", "made"], ["T-30th", "allowed"]])(
+      "%s / %s does not fit: stacked at every width, and no one-line form at all",
+      (rank, word) => {
+        const c = cell(rank, word);
+        expect(`${rank} · ${word}`.length).toBeGreaterThan(DEF_RANK_ONE_LINE_MAX);
+        expect(c.querySelector("[data-def-rank-inline]")).toBeNull();
+        expect(classes(c.querySelector("[data-def-rank-stacked]"))).not.toContain("md:hidden");
+        expect(c.textContent).not.toContain("·");
+      },
+    );
+
+    it("the limit is 16 characters (\"24th · takeaways\", measured on one line in the 104 px column)", () => {
+      expect(DEF_RANK_ONE_LINE_MAX).toBe(16);
+      expect("24th · takeaways").toHaveLength(16);
+    });
+
+    it("no rank: a dash alone, no word and no dot", () => {
+      const c = cell("—", "allowed");
+      expect(c.textContent).toBe("—");
+    });
   });
 
   it("each row prints both labels: the long one from md, the short one below it", () => {

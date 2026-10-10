@@ -56,6 +56,33 @@ describe("MatchupSlate", () => {
     expect(rows.map((r) => r.tagName)).toEqual(["DIV", "DIV", "A"]);
   });
 
+  // Chaos 5: a 300-character away_team made the page about 3,000 px too wide.
+  it("an id that is not two or three letters is printed as a dash, never as the raw text", () => {
+    const long = "X".repeat(300);
+    const junk = [long, "<script>alert(1)</script>", "../x", "__proto__", "ſf", "", "L.A", "BUFF"];
+    const el = show(junk.map((away_team, i) => game({ game_id: `g${i}`, away_team })));
+    const pairs = Array.from(el.querySelectorAll("[data-slate-pair]")).map((p) => p.textContent);
+    expect(pairs).toEqual(junk.map(() => "— at LA"));
+    expect(el.textContent).not.toContain("XXXX");
+    expect(el.querySelectorAll("a[data-slate-row]")).toHaveLength(0);
+    // home side too
+    expect(show([game({ home_team: long })]).querySelector("[data-slate-pair]")?.textContent).toBe("BUF at —");
+  });
+
+  it("letters that are not a team print as they are (upper-cased), unlinked", () => {
+    const el = show([game({ away_team: "LAR" }), game({ game_id: "g2", away_team: "buf" })]);
+    expect(Array.from(el.querySelectorAll("[data-slate-pair]")).map((p) => p.textContent)).toEqual(["LAR at LA", "BUF at LA"]);
+    expect(el.querySelectorAll("a[data-slate-row]")).toHaveLength(0);
+  });
+
+  it("a row's text can always break inside its box", () => {
+    const el = show();
+    for (const node of Array.from(el.querySelectorAll("[data-slate-pair], [data-slate-when]"))) {
+      expect(classes(node)).toEqual(expect.arrayContaining(["min-w-0", "[overflow-wrap:anywhere]"]));
+    }
+    for (const row of Array.from(el.querySelectorAll("[data-slate-row]"))) expect(classes(row)).toContain("min-w-0");
+  });
+
   it("the grid is one, two, then three games per row", () => {
     expect(classes(show().querySelector("[data-slate-grid]"))).toEqual(
       expect.arrayContaining(["grid", "grid-cols-1", "md:grid-cols-2", "xl:grid-cols-3"]),
@@ -111,24 +138,49 @@ describe("MatchupPicker", () => {
     expect(router.push).toHaveBeenCalledWith("/matchup/BUF/LA");
   });
 
-  it("picking the team already on the other side swaps the two", () => {
+  // Chaos 2: the old swap rule fired on every `change`, and a closed select
+  // fires one per arrow key, so walking the Home list with the keyboard past
+  // the Away team rewrote the Away pick. Each select now changes only itself.
+  it("each select changes only itself: picking the other side's team leaves the other side alone", () => {
     const el = show();
-    choose(el, "away", "BUF");
-    choose(el, "home", "LA");
-    choose(el, "away", "LA");
-    expect([sel(el, "away").value, sel(el, "home").value]).toEqual(["LA", "BUF"]);
-    choose(el, "home", "LA");
-    expect([sel(el, "away").value, sel(el, "home").value]).toEqual(["BUF", "LA"]);
+    choose(el, "away", "KC");
+    choose(el, "home", "JAX");
+    choose(el, "home", "KC"); // passing over Kansas City on the way down the list
+    expect([sel(el, "away").value, sel(el, "home").value]).toEqual(["KC", "KC"]);
+    choose(el, "home", "LV");
+    expect([sel(el, "away").value, sel(el, "home").value]).toEqual(["KC", "LV"]);
     fireEvent.click(go(el));
-    expect(router.push).toHaveBeenCalledWith("/matchup/BUF/LA");
+    expect(router.push).toHaveBeenCalledWith("/matchup/KC/LV");
   });
 
-  it("picking the other side's team while this side is empty leaves the other side empty, and the button off", () => {
+  it("walking one list through all 32 teams never changes the other pick", () => {
     const el = show();
-    choose(el, "away", "BUF");
+    choose(el, "away", "KC");
+    for (const t of TEAMS) {
+      choose(el, "home", t.id);
+      expect(sel(el, "away").value).toBe("KC");
+    }
     choose(el, "home", "BUF");
-    expect([sel(el, "away").value, sel(el, "home").value]).toEqual(["", "BUF"]);
+    for (const t of TEAMS) {
+      choose(el, "away", t.id);
+      expect(sel(el, "home").value).toBe("BUF");
+    }
+  });
+
+  it("the same team on both sides is allowed in the selects: COMPARE is off and one plain line says why", () => {
+    const el = show();
+    expect(el.querySelector("[data-pick-same]")).toBeNull();
+    choose(el, "away", "BUF");
+    expect(el.querySelector("[data-pick-same]")).toBeNull();
+    choose(el, "home", "BUF");
+    expect([sel(el, "away").value, sel(el, "home").value]).toEqual(["BUF", "BUF"]);
     expect(go(el).disabled).toBe(true);
+    expect(el.querySelector("[data-pick-same]")?.textContent).toBe("Pick two different teams.");
+    fireEvent.click(go(el));
+    expect(router.push).not.toHaveBeenCalled();
+    choose(el, "home", "LA");
+    expect(el.querySelector("[data-pick-same]")).toBeNull();
+    expect(go(el).disabled).toBe(false);
   });
 
   it("a disabled button pushes nothing; an id that is not a team is never pushed", () => {
