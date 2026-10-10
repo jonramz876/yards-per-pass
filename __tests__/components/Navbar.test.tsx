@@ -100,4 +100,21 @@ describe("Navbar", () => {
     expect(cls).toContain("xl:gap-5");
     for (const old of ["gap-3", "xl:gap-6", "gap-6", "gap-8"]) expect(cls).not.toContain(old);
   });
+
+  // The spec's second fallback, needed for its other rule: between 768 and
+  // 1023 the row must be no worse than main at the same width. With gap-2
+  // alone the ten labels still wrapped from 975 to 1022 px, where main's nine
+  // sit on one line. At 13 px below xl the row is 712 px (main: 718), so it is
+  // one line from 975 px, as on main. From 1280 the links are 14 px as before.
+  it("the desktop links are 13 px below xl and text-sm from xl (measured 2026-10-10: no worse than main from 768 to 1023)", () => {
+    const { links } = desktopLinks("/matchup");
+    for (const a of links) {
+      const cls = a.className.split(/\s+/);
+      expect(cls).toContain("text-[13px]");
+      expect(cls).toContain("xl:text-sm");
+      expect(cls).not.toContain("text-sm");
+    }
+    // the mobile sheet's links are not part of that row and keep their size
+    for (const a of mobileLinks()) expect(a.className).toContain("text-lg");
+  });
 });
