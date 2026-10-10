@@ -42,7 +42,7 @@ interface MatchupShareProps {
 }
 
 const BARLOW = "font-[family-name:var(--font-barlow)]";
-const BUTTON = "min-w-0 flex-1 cursor-pointer border px-4 py-2 text-[13px] font-semibold leading-snug transition-colors md:flex-none";
+const BUTTON = "min-w-0 flex-1 cursor-pointer border px-2 py-2 text-[13px] font-semibold leading-snug transition-colors md:flex-none md:px-4";
 
 export default function MatchupShare({ shareUrl, cardHref, downloadHref }: MatchupShareProps) {
   const [copy, setCopy] = useState<"idle" | "copied" | "failed">("idle");
@@ -82,7 +82,12 @@ export default function MatchupShare({ shareUrl, cardHref, downloadHref }: Match
   }
 
   // Navy at rest (the selected tab's colour), green once copied, slate when the copy did not happen.
-  const tone = copy === "copied" ? "border-green-700 bg-green-700" : copy === "failed" ? "border-slate-600 bg-slate-600" : "border-navy bg-navy";
+  // The failure sentence is long: on a phone its button takes the whole row (two lines at 320 px,
+  // measured; four when it shared the row), and Download drops under it for those four seconds.
+  const tone =
+    copy === "copied" ? "border-green-700 bg-green-700"
+    : copy === "failed" ? "basis-full border-slate-600 bg-slate-600 md:basis-auto"
+    : "border-navy bg-navy";
 
   return (
     <div

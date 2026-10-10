@@ -75,6 +75,9 @@ describe("the Share block on the matchup page", () => {
     const button = await screen.findByText(FAILED);
     expect(screen.queryByText("Copied!")).toBeNull();
     expect(classesOf(button)).toContain("bg-slate-600");
+    // The long sentence takes the whole row on a phone (two lines at 320 px, measured), not a quarter of it.
+    expect(classesOf(button)).toContain("basis-full");
+    expect(classesOf(button)).toContain("md:basis-auto");
     expect(button.getAttribute("class")).not.toMatch(/red/);
   });
 

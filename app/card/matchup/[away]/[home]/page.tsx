@@ -141,7 +141,13 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 // -------------------------------------------------------------------
 const LINK = "text-sm text-slate-500 hover:text-slate-900";
 const NOTE = "m-0 max-w-[80ch] text-[13px] leading-relaxed text-slate-600";
-const CELL = "px-1.5 py-1.5 sm:px-2";
+// The tables must not scroll sideways on a 320 px phone (296 px inside the
+// gutters). Measured in a browser in the site's own font: the worst row
+// ("100.0% · T-32nd" twice, beside a name that wraps at "Explosive") is 316 px
+// at 13 px with 6 px cell padding, so under 360 px the table is 12 px with
+// 4 px padding (282 px). Any change here needs that measurement again.
+const CELL = "px-1 py-1.5 min-[360px]:px-1.5 sm:px-2";
+const TABLE_TEXT = "text-[12px] min-[360px]:text-[13px] sm:text-[14px]";
 
 /**
  * One pane's seven spokes as a plain table: the spoke, the offense's line,
@@ -163,7 +169,7 @@ function PaneLines({ pane, index }: { pane: MatchupCardPane; index: number }) {
   const words = matchupCardLegendWords(pane.offId, pane.defId);
   return (
     <div className="min-w-0">
-      <table data-pane-table={index} className="w-full border-collapse text-left text-[13px] tabular-nums text-slate-900 sm:text-[14px]">
+      <table data-pane-table={index} className={`w-full border-collapse text-left tabular-nums text-slate-900 ${TABLE_TEXT}`}>
         <caption className="pb-1.5 text-left text-[14px] font-semibold text-slate-900">{caption}</caption>
         <thead>
           <tr className="border-y border-slate-300">
@@ -292,8 +298,10 @@ export default async function MatchupCardPage({ params, searchParams }: PageProp
           downloadHref={matchupCardImageHref(away.id, home.id, season, { week: model.throughWeek, download: true })}
         />
 
-        {/* The picture's 14 lines per pane, readable on a phone. Side by side from md. */}
-        <div data-matchup-card-tables className="mt-6 grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+        {/* The picture's 14 lines per pane, readable on a phone. Side by side from md; the
+            gap is 16 px until lg because at 768 px the worst row is 349.5 px and a 32 px
+            gap would leave each table 344.5 (measured). */}
+        <div data-matchup-card-tables className="mt-6 grid grid-cols-1 gap-x-4 gap-y-6 md:grid-cols-2 lg:gap-x-8">
           <PaneLines pane={model.panes[0]} index={0} />
           <PaneLines pane={model.panes[1]} index={1} />
         </div>
