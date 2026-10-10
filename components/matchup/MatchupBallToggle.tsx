@@ -31,7 +31,14 @@ const TAB = `${BARLOW} flex-1 min-w-0 cursor-pointer border px-1 pb-2 pt-[10px] 
 const TAB_ON = "border-navy bg-navy text-white";
 const TAB_OFF = "border-slate-300 border-b-[3px] bg-white text-slate-600";
 
-const addressBall = (): Ball => parseBall(new URLSearchParams(window.location.search).get("ball"));
+/**
+ * The side the address names, by the server's rule: a repeated key is absent
+ * (Next hands the page an array for it), so only a single `ball` counts.
+ */
+const addressBall = (): Ball => {
+  const values = new URLSearchParams(window.location.search).getAll("ball");
+  return parseBall(values.length === 1 ? values[0] : null);
+};
 
 export default function MatchupBallToggle({ awayId, homeId, season, defaultSeason, initialBall, away, home }: MatchupBallToggleProps) {
   const [ball, setBall] = useState<Ball>(initialBall);
