@@ -62,6 +62,7 @@ export default function TeamHubContent({ team, data, boxScoreSeasons, radar, def
           teamStats={data.teamStats}
           upcomingSeason={data.upcomingSeason}
           boxScoreSeasons={boxScoreSeasons}
+          defaultSeason={defaultSeason}
         />
 
         {/* The viewed season's schedule & results, with its record. */}
@@ -72,6 +73,7 @@ export default function TeamHubContent({ team, data, boxScoreSeasons, radar, def
           secondaryColor={team.secondaryColor}
           teamStats={data.teamStats}
           boxScoreSeasons={boxScoreSeasons}
+          defaultSeason={defaultSeason}
         />
 
         {/* Offense and defense radars: under the schedule, above Passing Attack (J8). */}
