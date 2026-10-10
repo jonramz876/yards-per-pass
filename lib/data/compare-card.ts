@@ -189,6 +189,21 @@ export function getCompareTableCached(group: CompareGroup, season: number): Prom
 }
 
 /**
+ * Turn one season table's memoised answer into a failed read (team matchup
+ * chaos F5). For a caller that found the answer unusable although the read
+ * resolved (an empty table for a season the site has, rows that are not rows):
+ * left alone it would be handed out for the full minute; marked, everyone gets
+ * `err` for MEMO_FAILURE_TTL_MS (ten seconds) and then the table is read
+ * again. Same key as the read, so no new key shape.
+ */
+export function failCompareTable(group: CompareGroup, season: number, err: Error): void {
+  const promise = Promise.reject<ComparePlayerRow[]>(err);
+  promise.catch(() => {});
+  const now = Date.now();
+  tableMemo.set(`${group}:${season}`, { at: now, promise, failedAt: now });
+}
+
+/**
  * The card for two slugs that have passed parseCompareSlugs and a season that
  * is plausible or null (none asked for: the newest). The seasons and the slug
  * list do not depend on each other, so both reads are STARTED together (code

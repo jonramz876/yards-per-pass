@@ -39,11 +39,12 @@ export function parseMatchupSeason(raw: string | string[] | null | undefined): n
 }
 
 /**
- * "/matchup/BUF/LA", away first. `?season=` only when the season is a positive
- * whole number other than `defaultSeason` (the playerHref rule: the default
- * season stays the bare URL; an unknown default still carries the season);
- * `ball=home` only for home; season before ball. The ids are the caller's,
- * already canonical (parseMatchupTeamId + a team look-up).
+ * "/matchup/BUF/LA", away first. `?season=` only when the season is one
+ * parseMatchupSeason accepts (a whole number, 1999-2100) other than
+ * `defaultSeason` (the playerHref rule: the default season stays the bare URL;
+ * an unknown default still carries the season); `ball=home` only for home;
+ * season before ball. The ids should be the caller's canonical ones
+ * (parseMatchupTeamId + a team look-up); each is percent-encoded anyway.
  */
 export function matchupHref(
   awayId: string,
@@ -52,11 +53,32 @@ export function matchupHref(
 ): string {
   const query: string[] = [];
   const season = opts.season;
-  if (typeof season === "number" && Number.isInteger(season) && season > 0 && season !== opts.defaultSeason) {
+  // Only a season the route's own rule reads back (chaos F8): any other number
+  // would be a URL the page treats as "no season asked for".
+  if (
+    typeof season === "number" && Number.isSafeInteger(season) && season !== opts.defaultSeason &&
+    parseMatchupSeason(String(season)) === season
+  ) {
     query.push(`season=${season}`);
   }
   if (opts.ball === "home") query.push("ball=home");
-  return `/matchup/${awayId}/${homeId}${query.length > 0 ? `?${query.join("&")}` : ""}`;
+  return `/matchup/${pathSegment(awayId)}/${pathSegment(homeId)}${query.length > 0 ? `?${query.join("&")}` : ""}`;
+}
+
+/**
+ * One path segment, percent-encoded, so an id can never add a "/", a "?" or a
+ * "#" of its own (chaos F8). A real team id is letters only and comes out
+ * unchanged. A value that cannot be encoded (a lone surrogate) is an empty
+ * segment, never a throw. Dots are not encoded by encodeURIComponent, so ".."
+ * is still the caller's to keep out: every caller passes parseMatchupTeamId's
+ * answer.
+ */
+function pathSegment(id: string): string {
+  try {
+    return encodeURIComponent(String(id));
+  } catch {
+    return "";
+  }
 }
 
 /**

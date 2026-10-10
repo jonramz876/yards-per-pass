@@ -27,7 +27,6 @@ import {
   RADAR_TIE_EPSILON,
   buildTeamRadar,
   canDrawRadar,
-  fmtRadarPct,
   rankCellLabel,
   spokeRankLabel,
   type RadarAxisKey,
@@ -109,10 +108,27 @@ export function rankTeamStat(
   return competitionRank(
     (model?.teams ?? []).map((t) => {
       const v = t[side][field];
-      return { id: t.team, value: t.off.gp > 0 && t[side].gp > 0 && isNum(v) ? v : null };
+      return { id: t.team, value: t.off.gp > 0 && t[side].gp > 0 && isPlausibleTeamStat(field, v) ? v : null };
     }),
     higher,
   );
+}
+
+/** The largest EPA per play a team's season can plausibly hold, either way (real values sit within about ±0.5). */
+export const MATCHUP_MAX_EPA_PER_PLAY = 5;
+
+/**
+ * Can this Team Stats number be printed and ranked (chaos F4)? buildTeamStats
+ * does not bound what it adds up, so one bad stored value (a success rate of
+ * 12, an EPA per play of 900) would otherwise rank that team 1st or last on
+ * the line and move every other team's rank and edge. The same treatment the
+ * radar gives its rates: a success rate must be a share of plays (0-1), an EPA
+ * per play within ±MATCHUP_MAX_EPA_PER_PLAY. Anything else is no value: a
+ * dash, the row `na`, out of the pool, and listed in `rejected`.
+ */
+export function isPlausibleTeamStat(field: TeamStatField, v: unknown): v is number {
+  if (!isNum(v)) return false;
+  return field === "sr" ? v >= 0 && v <= 1 : Math.abs(v) <= MATCHUP_MAX_EPA_PER_PLAY;
 }
 
 /* ─── The 13 lines (spec §3.1) ─── */
@@ -316,6 +332,7 @@ export interface MatchupModel {
 
 type Row = Record<string, unknown>;
 const isId = (v: unknown): v is string => typeof v === "string" && v !== "";
+const hasText = (v: unknown): v is string => typeof v === "string" && v.trim() !== "";
 
 /**
  * The rows both builders stand on: objects, of the season asked for, the first
@@ -376,13 +393,27 @@ export function buildMatchup(input: {
   const radar = buildTeamRadar(rows, season);
   const games = (id: string) => stats.teams.find((t) => t.team === id)?.off.gp ?? 0;
 
+  // The radar reports the rates it dropped; the six Team Stats lines are
+  // checked here (chaos F4), named the same way ("BUF off sr").
+  const rejected = [...radar.rejected];
+  for (const stat of MATCHUP_STATS) {
+    if (stat.source !== "team-stats") continue;
+    for (const t of stats.teams) {
+      for (const side of ["off", "def"] as const) {
+        const v = t[side][stat.key as TeamStatField];
+        // null is "no data"; a number that is out of range or not finite (an overflowing sum) is a broken value.
+        if (typeof v === "number" && !isPlausibleTeamStat(stat.key as TeamStatField, v)) rejected.push(`${t.team} ${side} ${stat.key}`);
+      }
+    }
+  }
+
   const base = {
     season,
     teamsPlayed: radar.teamsPlayed,
     throughWeek: radar.throughWeek,
     away: { id: awayId, games: games(awayId) },
     home: { id: homeId, games: games(homeId) },
-    rejected: radar.rejected,
+    rejected,
   };
   // Under RADAR_MIN_TEAMS teams a rank is noise (S4): no ladder, no radar, no rank anywhere.
   if (radar.teamsPlayed < RADAR_MIN_TEAMS) {
@@ -402,7 +433,7 @@ export function buildMatchup(input: {
     const spoke = radarSide(radar, teamId, side)?.spokes.find((s) => s.key === stat.key);
     return spoke ? { value: spoke.value, rank: spoke.rank, tied: spoke.tied, pool: spoke.pool } : NO_CELL;
   };
-  const fmt = (stat: MatchupStat, v: number | null) => (stat.format === "epa" ? fmtFixed(v, 3, true) : fmtRadarPct(v));
+  const fmt = (stat: MatchupStat, v: number | null) => (stat.format === "epa" ? fmtFixed(v, 3, true) : fmtRate(v));
 
   const sideOf = (offId: string, defId: string): MatchupSide => {
     const ladderRows: LadderRow[] = MATCHUP_STATS.map((stat) => {
@@ -474,13 +505,31 @@ export interface LineupPlayer {
 
 /** A whole number with thousands separators and a real minus ("1,039", "−5"); a dash when missing. */
 function whole(v: unknown): string {
-  const n = num(v);
+  const n = sane(v);
   if (n === null) return EM_DASH;
   const r = Math.round(n);
   const body = String(Math.abs(r)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return r < 0 ? `${MINUS}${body}` : body;
 }
-const signed = (v: unknown, decimals: number) => fmtFixed(num(v), decimals, true);
+const signed = (v: unknown, decimals: number) => fmtFixed(sane(v), decimals, true);
+
+/** No stat on the page is this large: beyond it a number is a broken value, printed as a dash (chaos F11). */
+const ABSURD = 1e9;
+/** A number that can be printed: finite and not absurd; a numeric string counts. Else null. */
+function sane(v: unknown): number | null {
+  const n = num(v);
+  return n !== null && Math.abs(n) <= ABSURD ? n : null;
+}
+
+/**
+ * A 0-1 rate as "10.3%". The radar's own formatter (fmtRadarPct) prints the
+ * same digits for every real rate; this one also uses the site's true minus
+ * for a negative value and prints a dash, never "Infinity%", for an absurd one.
+ */
+function fmtRate(v: unknown): string {
+  const n = sane(v);
+  return n === null ? EM_DASH : `${fmtFixed(n * 100, 1)}%`;
+}
 
 /** A team's rows of one season table: its own team_id (strict), a usable player_id, each player once (first kept). */
 function teamRows(rows: unknown, teamId: string): Row[] {
@@ -528,13 +577,14 @@ export function pickMainPlayers(input: {
   const player = (slot: LineupPlayer["slot"], position: string, r: Row, stats: LineupStat[]): LineupPlayer => {
     const playerId = r.player_id as string;
     const known = input.slugByPlayerId?.get?.(playerId);
-    const name = isId(known?.player_name) ? known.player_name : isId(r.player_name) ? r.player_name : EM_DASH;
+    // A name of only spaces is no name (chaos F10); a real one is kept as it is.
+    const name = hasText(known?.player_name) ? known.player_name : hasText(r.player_name) ? r.player_name : EM_DASH;
     return {
       slot,
       pos: position,
       playerId,
       name,
-      href: isId(known?.slug) ? playerHref(known.slug, season, defaultSeason) : null,
+      href: hasText(known?.slug) ? playerHref(known.slug, season, defaultSeason) : null,
       stats,
     };
   };
@@ -544,8 +594,8 @@ export function pickMainPlayers(input: {
     .sort(byVolume("dropbacks", "attempts"))
     .slice(0, 1)
     .map((r) => {
-      const td = num(r.touchdowns);
-      const int = num(r.interceptions);
+      const td = sane(r.touchdowns);
+      const int = sane(r.interceptions);
       return player("QB", "QB", r, [
         { label: "EPA / dropback", value: signed(r.epa_per_db, 2) },
         { label: "CPOE", value: signed(r.cpoe, 1) },
@@ -564,7 +614,7 @@ export function pickMainPlayers(input: {
         { label: "Carries", value: whole(r.carries) },
         { label: "Rush yards", value: whole(r.rushing_yards) },
         { label: "EPA / carry", value: signed(r.epa_per_carry, 2) },
-        { label: "Success", value: fmtRadarPct(num(r.success_rate)) },
+        { label: "Success", value: fmtRate(r.success_rate) },
       ]),
     );
 
@@ -662,19 +712,71 @@ function dateParts(gameday: unknown): { y: number; m: number; d: number } | null
   const y = Number(match[1]);
   const m = Number(match[2]);
   const d = Number(match[3]);
-  return m >= 1 && m <= 12 && d >= 1 && d <= 31 ? { y, m, d } : null;
+  if (m < 1 || m > 12 || d < 1) return null;
+  // A day the month does not have ("2026-02-31") is no date (chaos F11).
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+  return d <= days ? { y, m, d } : null;
 }
-/** A sortable day number, or null when the row has no readable date. */
+/**
+ * A calendar date as a count of days (days since 1970-01-01, by arithmetic:
+ * the "days from civil" formula), so two dates can be compared and
+ * subtracted without a Date object or a time zone.
+ */
+function dayNumber(p: { y: number; m: number; d: number }): number {
+  const y = p.m <= 2 ? p.y - 1 : p.y;
+  const era = Math.floor(y / 400);
+  const yoe = y - era * 400;
+  const doy = Math.floor((153 * (p.m > 2 ? p.m - 3 : p.m + 9) + 2) / 5) + p.d - 1;
+  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
+  return era * 146097 + doe - 719468;
+}
+/** A game's day number, or null when the row has no readable date. */
 function dayKey(g: MatchupGame): number | null {
   const p = dateParts(g.gameday);
-  return p ? p.y * 10000 + p.m * 100 + p.d : null;
+  return p ? dayNumber(p) : null;
 }
+/** `today` ("YYYY-MM-DD") as a day number; null when it was not given or is not a date (the date rule is then off). */
+function todayKey(today: unknown): number | null {
+  const p = dateParts(today);
+  return p ? dayNumber(p) : null;
+}
+
+/** A never-played row this many days past its date is still a game (scores land the morning after; Monday night's on Tuesday). */
+export const STALE_GAME_GRACE_DAYS = 2;
+
+/**
+ * A never-played row whose date is more than STALE_GAME_GRACE_DAYS before
+ * `today`: postponed, cancelled, or the old row of a rescheduled game (a
+ * cross-week reschedule gets a new game_id and the old row is never deleted).
+ * It is not a game to show. Always false with no `today` or no readable date.
+ */
+function isStale(g: MatchupGame, today: number | null): boolean {
+  if (today === null || isPlayed(g)) return false;
+  const day = dayKey(g);
+  return day !== null && today - day > STALE_GAME_GRACE_DAYS;
+}
+
+/**
+ * A kickoff time: nflverse's 24-hour "13:00" (seconds allowed), or a 12-hour
+ * "1:00 PM". Any other shape is no time at all, never a guess (chaos F11: the
+ * suffix of "1:00 PM" used to be ignored and printed as AM).
+ */
 function timeParts(gametime: unknown): { h: number; min: number } | null {
   if (typeof gametime !== "string") return null;
-  const match = /^(\d{1,2}):(\d{2})/.exec(gametime.trim());
-  if (!match) return null;
-  const h = Number(match[1]);
-  const min = Number(match[2]);
+  const text = gametime.trim();
+  const half = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp])\.?[Mm]\.?$/.exec(text);
+  if (half) {
+    const h12 = Number(half[1]);
+    const min = Number(half[2]);
+    if (h12 < 1 || h12 > 12 || min > 59) return null;
+    const pm = half[3].toLowerCase() === "p";
+    return { h: (h12 % 12) + (pm ? 12 : 0), min };
+  }
+  const full = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(text);
+  if (!full) return null;
+  const h = Number(full[1]);
+  const min = Number(full[2]);
   return h <= 23 && min <= 59 ? { h, min } : null;
 }
 const weekOf = (g: MatchupGame): number | null => (isNum(g.week) ? g.week : null);
@@ -704,15 +806,25 @@ const nullLast = (a: number | null, b: number | null) => (a === b ? 0 : a === nu
  * for and at least one in the other order. Division rivals play once in each
  * building, so both orders are real games and neither swaps.
  *
- * Not covered (spec §15): a game moved to an EARLIER week keeps its stale row.
+ * `today` ("YYYY-MM-DD", US Eastern; the loader supplies it) adds a date to
+ * the rule (chaos F1): a never-played row more than STALE_GAME_GRACE_DAYS
+ * past its date is stale and is not a candidate in either order, so it is
+ * never chosen over anything else, and a pair whose only row is stale has no
+ * game. That also covers what rule 1 cannot see (a game moved to an EARLIER
+ * week, once the stale row's own date has passed). With no `today` the date
+ * rule is off. An unplayed row with no gameday cannot go stale by date, so it
+ * is ignored whenever a played row of the same pair and order is in the same
+ * or a later week (chaos F7).
  */
 export function findPairGame<G extends MatchupGame>(
   games: readonly G[],
   awayId: string,
   homeId: string,
+  today?: string | null,
 ): { game: G | null; swap: boolean } {
   if (awayId === homeId) return { game: null, swap: false };
-  const list = gameList(games);
+  const now = todayKey(today);
+  const list = gameList(games).filter((g) => !isStale(g, now));
   const inOrder = list.filter((g) => g.away_team === awayId && g.home_team === homeId);
   if (inOrder.length === 0) {
     return { game: null, swap: list.some((g) => g.away_team === homeId && g.home_team === awayId) };
@@ -725,7 +837,9 @@ export function findPairGame<G extends MatchupGame>(
     if (ud !== null && pd !== null && pd >= ud) return true;
     const uw = weekOf(u);
     const pw = weekOf(p);
-    return uw !== null && pw !== null && pw > uw;
+    if (uw === null || pw === null) return false;
+    // An undated row loses to a played game of its own week too.
+    return ud === null ? pw >= uw : pw > uw;
   };
   const upcoming = inOrder.filter((g) => !isPlayed(g) && !done.some((p) => supersededBy(g, p)));
 
@@ -780,11 +894,34 @@ const ROUND_NAMES: Record<string, string> = {
  * Mid-week, with Thursday played, P is the current week, so it is still
  * chosen; a stale unplayed row in an earlier week is never gone back to.
  * No such week: null.
+ *
+ * Without a date that rule cannot tell a stale row in the highest played week
+ * from Sunday's game that has not kicked off (chaos F1), so `today`
+ * ("YYYY-MM-DD", US Eastern; the loader supplies it) is injected: a
+ * never-played row more than STALE_GAME_GRACE_DAYS past its date is ignored,
+ * for choosing the week and in the list. With no `today` the date rule is
+ * off. An unplayed row with no gameday cannot go stale by date: it is ignored
+ * when its week is below the highest week with a result, or its own week
+ * already has a played game.
  */
-export function currentSlate<G extends MatchupGame>(games: readonly G[]): { label: string; games: G[] } | null {
-  const list = gameList(games).filter((g) => weekOf(g) !== null);
+export function currentSlate<G extends MatchupGame>(
+  games: readonly G[],
+  today?: string | null,
+): { label: string; games: G[] } | null {
+  const now = todayKey(today);
+  const all = gameList(games).filter((g) => weekOf(g) !== null);
   let lastPlayed = 0;
-  for (const g of list) if (isPlayed(g) && g.week > lastPlayed) lastPlayed = g.week;
+  const playedWeeks = new Set<number>();
+  for (const g of all) {
+    if (!isPlayed(g)) continue;
+    playedWeeks.add(g.week);
+    if (g.week > lastPlayed) lastPlayed = g.week;
+  }
+  const list = all.filter((g) => {
+    if (isPlayed(g)) return true;
+    if (isStale(g, now)) return false;
+    return dayKey(g) !== null || !(g.week < lastPlayed || playedWeeks.has(g.week));
+  });
   let week: number | null = null;
   for (const g of list) {
     if (isPlayed(g) || g.week < lastPlayed) continue;
@@ -852,7 +989,8 @@ export const MATCHUP_NO_OVERLAY_NOTE = "Not enough of these rates are available 
  */
 export function overlayCountLine(tally: { off: number; def: number; even: number; ranked: number }): string {
   const all = tally.ranked === RADAR_AXES.length;
-  const lead = all ? `Of the ${tally.ranked} spokes` : `Of the ${tally.ranked} spokes ranked`;
+  const word = tally.ranked === 1 ? "spoke" : "spokes";
+  const lead = all ? `Of the ${tally.ranked} ${word}` : `Of the ${tally.ranked} ${word} ranked`;
   return `${lead}: offense is ${EDGE_LEAN_MIN_GAP}+ places higher on ${tally.off}, defense on ${tally.def}, ${tally.even} within ${EDGE_LEAN_MIN_GAP - 1} places.`;
 }
 
