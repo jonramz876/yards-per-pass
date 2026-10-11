@@ -127,10 +127,11 @@ describe("the page is never wider than the window (§8.2)", () => {
   });
 });
 
-describe("the accent has one job (§8.4): these two ranks are 5 or more apart", () => {
-  it("#D50A0A and the site's red class appear only in the ladder, the chart and the panel's legend swatch", () => {
+describe("the accent has one job (§8.4): a ladder rank gap of 5 or more", () => {
+  // Page colours amendment 2026-10-12: the radar's gap bars and their legend swatch are gone.
+  it("#D50A0A and the site's red class appear only in the ladder (its tug marker and bar): nothing on the radar or its legend", () => {
     const users = FILES.filter((f) => new RegExp(`${ACCENT}|nflred|(^|[\\s"'\`:-])red-\\d00`, "i").test(code(f)));
-    expect(users).toEqual(["MatchupLadder.tsx", "MatchupRadarChart.tsx", "MatchupSidePanel.tsx"]);
+    expect(users).toEqual(["MatchupLadder.tsx"]);
     for (const p of PAGES) expect(pageCode(p), p).not.toMatch(/#D50A0A|nflred|red-\d00/i);
   });
 });
