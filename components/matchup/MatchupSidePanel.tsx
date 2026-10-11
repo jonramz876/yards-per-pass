@@ -36,10 +36,11 @@ const BARLOW = "font-[family-name:var(--font-barlow)]";
  * complete class names it finds as text in the source, so the number must
  * never be interpolated: edit it here, in BOTH classes. The rule for the
  * number is (tallest measured panel + 80 + 16), rounded up to the next 20.
- * Measured in headless Chrome on 2026-10-10 (week 5's 15 pairs, both tabs):
- * 642 px at 1280 wide, 586 px at 1024 wide → 738 → 740.
+ * Re-measured in headless Chrome on 2026-10-10 (week 5's 15 pairs, both tabs)
+ * after the legend lost its rank-gap entry: 617 px at 1280 wide (the legend
+ * is one row there now; it was 642), 586 px at 1024 wide → 713 → 720.
  */
-export const PANEL_STICKY = "lg:[@media(min-height:740px)]:sticky lg:[@media(min-height:740px)]:top-20";
+export const PANEL_STICKY = "lg:[@media(min-height:720px)]:sticky lg:[@media(min-height:720px)]:top-20";
 
 /** The chart's cap, the one the team page uses for the same `sm` radar. */
 export const PANEL_CHART_MAX_WIDTH = 440;
