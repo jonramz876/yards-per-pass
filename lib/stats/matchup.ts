@@ -1028,9 +1028,15 @@ export function overlayCountLine(tally: { off: number; def: number; even: number
   return `${lead}: offense is ${EDGE_LEAN_MIN_GAP}+ places higher on ${tally.off}, defense on ${tally.def}, ${tally.even} within ${EDGE_LEAN_MIN_GAP - 1} places.`;
 }
 
-/** M5 — the side panel's paragraph, under the count line. */
-export const MATCHUP_RADAR_NOTE =
-  "Both shapes are drawn by league rank, so the outer ring is 1st on every spoke and the amber ring is the middle of the league. Where the solid shape reaches past the dashed one, the offense ranks higher. Each label shows offense rank v defense rank.";
+/**
+ * M5 — the side panel's paragraph, under the count line. The middle ring is
+ * amber, or grey beside a team colour close to amber (the share card's rule,
+ * page colours amendment 2026-10-10): the caller passes the ring's word, so
+ * this module imports nothing for it. "amber" is the sentence as first built.
+ */
+export function matchupRadarNote(ring: "amber" | "grey"): string {
+  return `Both shapes are drawn by league rank, so the outer ring is 1st on every spoke and the ${ring} ring is the middle of the league. Where the solid shape reaches past the dashed one, the offense ranks higher. Each label shows offense rank v defense rank.`;
+}
 
 const gamesWord = (n: number) => `${n} ${n === 1 ? "game" : "games"}`;
 

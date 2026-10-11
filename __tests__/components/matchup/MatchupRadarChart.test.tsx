@@ -1,16 +1,24 @@
-// The two-series overlay radar (team matchup spec §8.1): the offense's shape
-// (solid, round dots, team colour) over the other team's defense (dashed
-// slate, squares), with a red bar along a spoke where the two ranks are five
-// or more places apart. Geometry is the team radar's `sm`, unchanged.
+// The two-series overlay radar (team matchup spec §8.1, as amended by the page
+// colours amendment 2026-10-10): the offense's shape (solid, round dots) in
+// its team's colour over the other team's defense (dashed, white squares) in
+// THAT team's colour. The colours come in as props (the share card's rule,
+// worked out once on the server); the chart holds none of its own and draws
+// no rank-gap bar. Geometry is the team radar's `sm`, unchanged.
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import MatchupRadarChart from "@/components/matchup/MatchupRadarChart";
-import { EDGE_LEAN_MIN_GAP, type OverlayModel } from "@/lib/stats/matchup";
+import type { OverlayModel } from "@/lib/stats/matchup";
 import { RADAR_AXES, RADAR_SIZES, plottableScore, radarLabelPosition, spokeRankLabel } from "@/lib/stats/team-radar";
-import { ACCENT, awayBall, homeBall, model, rowsWithout, source } from "./helpers";
+import { awayBall, code, homeBall, model, rowsWithout, source } from "./helpers";
 
-const draw = (overlay: OverlayModel, color = "#00338D", secondary = "#C60C30") =>
-  render(<MatchupRadarChart overlay={overlay} offColor={color} offSecondaryColor={secondary} />).container;
+// The defaults are BUF at LA's card colours (blue, gold, grey ring). None may
+// equal a constant the chart used to hold (#334155 slate, #f59e0b amber): a
+// chart that went back to a hard-coded colour must fail these tests.
+const OFF = "#00338D";
+const DEF = "#CC8200";
+const RING = "#94A3B8";
+const draw = (overlay: OverlayModel, off = OFF, def = DEF, ring = RING) =>
+  render(<MatchupRadarChart overlay={overlay} offColor={off} defColor={def} ringColor={ring} />).container;
 const real = (side: OverlayModel["off"]) => (side?.spokes ?? []).filter((s) => plottableScore(s) !== null).map((s) => s.key);
 
 describe("MatchupRadarChart", () => {
@@ -33,39 +41,93 @@ describe("MatchupRadarChart", () => {
     expect(el.querySelector("circle[data-off-dot]")!.getAttribute("r")).toBe("5");
   });
 
-  it("the defense outline is dashed slate; the offense outline is solid", () => {
+  it("the defense outline is dashed in the defense's colour, 2.6 wide; the offense outline is solid in the offense's, 3 wide", () => {
+    for (const [off, def] of [[OFF, DEF], ["#D50A0A", "#041E42"], ["#203731", "#8C9295"]]) {
+      const el = draw(overlay, off, def);
+      const d = el.querySelector('path[data-series="def"]')!;
+      expect(d.getAttribute("stroke")).toBe(def);
+      expect(d.getAttribute("stroke-dasharray")).toBe("6 4");
+      expect(d.getAttribute("stroke-width")).toBe("2.6");
+      expect(d.getAttribute("fill")).toBe(`${def}14`);
+      const o = el.querySelector('path[data-series="off"]')!;
+      expect(o.getAttribute("stroke")).toBe(off);
+      expect(o.getAttribute("stroke-dasharray")).toBeNull();
+      expect(o.getAttribute("stroke-width")).toBe("3");
+      expect(o.getAttribute("fill")).toBe(`${off}22`);
+    }
+  });
+
+  it("markers: white squares outlined in the defense's colour, dots filled with the offense's and ringed white", () => {
     const el = draw(overlay);
-    const def = el.querySelector('path[data-series="def"]')!;
-    expect(def.getAttribute("stroke")).toBe("#334155");
-    expect(def.getAttribute("stroke-dasharray")).toBe("6 4");
-    const off = el.querySelector('path[data-series="off"]')!;
-    expect(off.getAttribute("stroke-dasharray")).toBeNull();
-    expect(off.getAttribute("stroke")).toBe("#00338D");
+    const squares = Array.from(el.querySelectorAll("rect[data-def-marker]"));
+    const dots = Array.from(el.querySelectorAll("circle[data-off-dot]"));
+    expect(squares.length).toBeGreaterThan(0);
+    expect(dots.length).toBeGreaterThan(0);
+    for (const s of squares) {
+      expect([s.getAttribute("fill"), s.getAttribute("stroke"), s.getAttribute("stroke-width")]).toEqual(["#ffffff", DEF, "2.4"]);
+    }
+    // Chaos finding 4: on a 320 px phone the chart is 274 px wide, and a 2-unit
+    // outline was 1.3 px on screen. 2.4 units is 1.57 px there; the square stays 9 x 9.
+    expect((2.4 * 274) / RADAR_SIZES.sm.w).toBeGreaterThanOrEqual(1.5);
+    for (const c of dots) {
+      expect([c.getAttribute("fill"), c.getAttribute("stroke"), c.getAttribute("stroke-width")]).toEqual([OFF, "#ffffff", "1"]);
+    }
   });
 
-  it("the offense outline falls back to a colour that shows on white (PIT, NO)", () => {
-    const el = draw(overlay, "#FFB612", "#101820");
-    expect(el.querySelector('path[data-series="off"]')!.getAttribute("stroke")).toBe("#101820");
+  it("draw order is the card's: defense outline, offense outline, squares, dots", () => {
+    const el = draw(overlay);
+    const order = Array.from(el.querySelectorAll("[data-series], [data-def-marker], [data-off-dot]")).map((n) =>
+      n.getAttribute("data-series") ?? (n.hasAttribute("data-def-marker") ? "square" : "dot"),
+    );
+    const squares = real(overlay.def).length;
+    const dots = real(overlay.off).length;
+    expect(order).toEqual(["def", "off", ...Array(squares).fill("square"), ...Array(dots).fill("dot")]);
   });
 
-  it("a gap bar exactly on the spokes with gapBar, in the accent, 5 wide", () => {
+  it("no rank-gap bar, on four overlays whose model does have gapBar spokes", () => {
     const overlays = [overlay, homeBall().overlay, awayBall("DET", "NO").overlay, homeBall("CHI", "PHI").overlay];
     for (const o of overlays) {
       const el = draw(o);
-      const bars = Array.from(el.querySelectorAll("line[data-gap-bar]"));
-      expect(bars.map((b) => b.getAttribute("data-gap-bar"))).toEqual(o.spokes.filter((s) => s.gapBar).map((s) => s.key));
-      for (const b of bars) {
-        expect(b.getAttribute("stroke")).toBe(ACCENT);
-        expect(b.getAttribute("stroke-width")).toBe("5");
-      }
+      expect(el.querySelectorAll("[data-gap-bar]")).toHaveLength(0);
+      // the only <line>s are the seven spokes, and nothing is drawn 5 wide
+      expect(el.querySelectorAll("line")).toHaveLength(RADAR_AXES.length);
+      expect(el.querySelector('[stroke-width="5"]')).toBeNull();
+      expect(el.innerHTML).not.toMatch(/#D50A0A/i);
     }
-    expect(overlays.some((o) => o.spokes.some((s) => s.gapBar))).toBe(true);
+    expect(overlays.every((o) => o.spokes.some((s) => s.gapBar))).toBe(true);
   });
 
-  it("the mid ring is dashed amber", () => {
-    const mid = draw(overlay).querySelector('path[data-ring="mid"]')!;
-    expect(mid.getAttribute("stroke")).toBe("#f59e0b");
-    expect(mid.getAttribute("stroke-dasharray")).toBeTruthy();
+  it("the mid ring is dashed, in the ring colour it was given (amber or grey)", () => {
+    for (const ring of ["#F59E0B", "#94A3B8"]) {
+      const mid = draw(overlay, OFF, DEF, ring).querySelector('path[data-ring="mid"]')!;
+      expect(mid.getAttribute("stroke")).toBe(ring);
+      expect(mid.getAttribute("stroke-dasharray")).toBeTruthy();
+    }
+  });
+
+  // Chaos finding 3: at the base 1-unit width the ring was 0.78 px on a 375 px
+  // phone (chart 329 px wide) and the grey one could not be found. The grey
+  // cannot go darker: no darker slate keeps the rule's floor of 30 from every
+  // team colour it sits beside (#94A3B8 is at 30.3). So the ring is heavier.
+  it("the mid ring is at least 1.2 px on screen at 375 px wide, whatever its colour; the outer and inner rings keep the base width", () => {
+    for (const ring of ["#F59E0B", "#94A3B8"]) {
+      const el = draw(overlay, OFF, DEF, ring);
+      const width = Number(el.querySelector('path[data-ring="mid"]')!.getAttribute("stroke-width"));
+      expect(width).toBe(1.7);
+      expect((width * 329) / RADAR_SIZES.sm.w).toBeGreaterThanOrEqual(1.2);
+      // still clearly lighter than either team's outline
+      expect(width).toBeLessThan(2.6);
+      expect(el.querySelector('path[data-ring="outer"]')!.getAttribute("stroke-width")).toBe(String(RADAR_SIZES.sm.sw));
+      expect(el.querySelector('path[data-ring="inner"]')!.getAttribute("stroke-width")).toBe(String(RADAR_SIZES.sm.sw * 0.75));
+    }
+  });
+
+  it("holds no colour of its own for a team, the ring or a gap: no slate, no amber, no accent, no fallback rule", () => {
+    const src = code("MatchupRadarChart.tsx");
+    expect(src).not.toMatch(/#334155|#f59e0b|#D50A0A/i);
+    expect(src).not.toMatch(/gapBar|GAP_BAR|data-gap-bar/);
+    expect(src).not.toMatch(/radarStrokeColor|offSecondaryColor|primaryColor|secondaryColor/);
+    expect(src).not.toMatch(/places\s*>=?\s*\d/);
   });
 
   it("two lines per spoke: the spoke name, then offense rank v defense rank", () => {
@@ -87,11 +149,6 @@ describe("MatchupRadarChart", () => {
     const side = model("BUF", "HOU", rowsWithout("BUF")).awayBall!;
     expect(side.overlay.drawn).toBe(false);
     expect(draw(side.overlay).innerHTML).toBe("");
-  });
-
-  it("the gap rule comes from the model's gapBar (EDGE_LEAN_MIN_GAP), never a number compared in the chart", () => {
-    expect(EDGE_LEAN_MIN_GAP).toBe(5);
-    expect(source("MatchupRadarChart.tsx")).not.toMatch(/places\s*>=?\s*\d/);
   });
 
   it("is a server component: no \"use client\" (it imports the geometry module)", () => {

@@ -43,6 +43,11 @@ import {
   pairLineups, pickMainPlayers,
 } from "@/lib/stats/matchup";
 import { ROWS, model, rowsWithout } from "../components/matchup/helpers";
+import { getTeam } from "@/lib/data/teams";
+import { textColorForBackground } from "@/lib/stats/formatters";
+import { buildMatchupCard } from "@/lib/stats/matchup-card";
+import { matchupCardColours } from "@/lib/stats/matchup-colours";
+import type { Team } from "@/lib/types";
 
 type Search = Record<string, string | string[] | undefined>;
 const args = (away: string, home: string, search: Search = {}) => ({
@@ -581,5 +586,176 @@ describe("generateMetadata (§4.4)", () => {
   it("a failed core read rejects here too (read resilience 1A)", async () => {
     vi.mocked(loadMatchup).mockRejectedValue(new Error("Failed to fetch season weeks"));
     await expect(md("BUF", "LA")).rejects.toThrow("Failed to fetch season weeks");
+  });
+});
+
+// -------------------------------------------------------------------
+// Page colours amendment (2026-10-10): the page wears the share card's
+// colours for the pair, and the radar has no rank-gap bars.
+// -------------------------------------------------------------------
+const AMBER = "#F59E0B";
+const GREY = "#94A3B8";
+/** away, home, the away team's colour, the home team's, the middle ring: the amendment's golden table. */
+const PAIRS: [string, string, string, string, string][] = [
+  ["BUF", "LA", "#00338D", "#CC8200", GREY],
+  ["LA", "BUF", "#003594", "#C60C30", AMBER],
+  ["KC", "TB", "#BF8A15", "#D50A0A", GREY],
+  ["TB", "KC", "#D50A0A", "#BF8A15", GREY],
+  ["TB", "DAL", "#D50A0A", "#041E42", AMBER],
+  ["DAL", "TB", "#041E42", "#D50A0A", AMBER],
+  ["NE", "BUF", "#002244", "#C60C30", AMBER],
+  ["BUF", "NE", "#00338D", "#C60C30", AMBER],
+  ["LAC", "KC", "#0080C6", "#E31837", AMBER],
+  ["PIT", "NO", "#BF890E", "#101820", GREY],
+  ["GB", "PHI", "#203731", "#8C9295", AMBER],
+  ["TB", "ATL", "#D50A0A", "#000000", AMBER],
+];
+const teamOf = (id: string) => getTeam(id) as Team;
+/** One declaration of an element's inline style, as the server wrote it (renderToStaticMarkup keeps the hex). */
+const css = (node: Element | null | undefined, prop: string): string | null => {
+  const m = new RegExp(`(?:^|;)\\s*${prop}:\\s*([^;]+)`).exec(node?.getAttribute("style") ?? "");
+  return m ? m[1].trim() : null;
+};
+const panelOf = (el: HTMLElement, ball: "away" | "home") => el.querySelector(`[data-ball-slot="${ball}"] [data-matchup-panel]`) as HTMLElement;
+const SITE_RED = /#D50A0A|213,\s*10,\s*10/i;
+
+describe("the radar and its legend wear the share card's colours, in both tabs", () => {
+  it("the golden table is the rule's own answer, and the card model's", () => {
+    for (const [a, h, awayColour, homeColour, ring] of PAIRS) {
+      const rule = matchupCardColours(teamOf(a), teamOf(h));
+      expect([rule.away, rule.home, rule.ring], `${a}/${h}`).toEqual([awayColour, homeColour, ring]);
+      expect(buildMatchupCard({ away: teamOf(a), home: teamOf(h), load: ready(a, h) }).colours, `${a}/${h}`).toEqual(rule);
+    }
+  });
+
+  it.each(PAIRS)("%s at %s: offense in its team's colour, defense in the OTHER team's, the ring by the rule", async (a, h, awayColour, homeColour, ring) => {
+    const el = await html(a, h);
+    for (const [ball, off, def] of [["away", awayColour, homeColour], ["home", homeColour, awayColour]] as const) {
+      const panel = panelOf(el, ball);
+      const offShape = panel.querySelector('path[data-series="off"]')!;
+      const defShape = panel.querySelector('path[data-series="def"]')!;
+      expect([offShape.getAttribute("stroke"), offShape.getAttribute("fill")], ball).toEqual([off, `${off}22`]);
+      expect([defShape.getAttribute("stroke"), defShape.getAttribute("fill")], ball).toEqual([def, `${def}14`]);
+      const dots = Array.from(panel.querySelectorAll("[data-off-dot]"));
+      const squares = Array.from(panel.querySelectorAll("[data-def-marker]"));
+      expect(dots.length).toBeGreaterThanOrEqual(4);
+      expect(squares.length).toBeGreaterThanOrEqual(4);
+      for (const d of dots) expect(d.getAttribute("fill"), ball).toBe(off);
+      for (const s of squares) expect([s.getAttribute("stroke"), s.getAttribute("fill")], ball).toEqual([def, "#ffffff"]);
+      expect(panel.querySelector('path[data-ring="mid"]')!.getAttribute("stroke"), ball).toBe(ring);
+      // the legend's three swatches are the chart's three colours
+      expect(css(panel.querySelector('i[data-legend="off"]'), "border-color"), ball).toBe(off);
+      expect(css(panel.querySelector('i[data-legend="def"]'), "border-color"), ball).toBe(def);
+      expect(css(panel.querySelector('i[data-legend="def"]'), "background"), ball).toBe(`${def}14`);
+      expect(css(panel.querySelector('i[data-legend="ring"]'), "border-color"), ball).toBe(ring);
+      expect(panel.querySelectorAll("[data-legend]")).toHaveLength(3);
+      // the paragraph names the ring by its own colour
+      expect(panel.querySelector("[data-panel-note]")!.textContent, ball).toContain(`the ${ring === GREY ? "grey" : "amber"} ring is the middle of the league`);
+    }
+  });
+
+  it.each(PAIRS)("%s at %s: no rank-gap bar and no legend entry for one, anywhere on the page", async (a, h) => {
+    const el = await html(a, h);
+    expect(el.querySelectorAll("[data-gap-bar]")).toHaveLength(0);
+    expect(el.querySelectorAll('[data-swatch="gap"]')).toHaveLength(0);
+    for (const ball of ["away", "home"] as const) {
+      expect(panelOf(el, ball).textContent).not.toContain("apart");
+      expect(panelOf(el, ball).querySelector('[stroke-width="5"]')).toBeNull();
+    }
+  });
+
+  it("the model the page draws from does have rank gaps of 5+ on its spokes (the bars are gone, not the gaps)", () => {
+    const m = model("BUF", "LA");
+    expect([...m.awayBall!.overlay.spokes, ...m.homeBall!.overlay.spokes].some((s) => s.gapBar)).toBe(true);
+  });
+
+  it.each([["BUF", "LA"], ["PIT", "NO"], ["GB", "PHI"]])("%s at %s (neither card colour is the site red): no red in either tab's radar or legend", async (a, h) => {
+    const el = await html(a, h);
+    expect(el.querySelectorAll("[data-matchup-panel]")).toHaveLength(2);
+    for (const ball of ["away", "home"] as const) expect(panelOf(el, ball).outerHTML).not.toMatch(SITE_RED);
+  });
+
+  it.each([["TB", "DAL"], ["KC", "TB"]])("%s at %s: the only red in a panel is Tampa Bay's own unit, never the ring", async (a, h) => {
+    const el = await html(a, h);
+    for (const ball of ["away", "home"] as const) {
+      const panel = panelOf(el, ball);
+      const offenseId = ball === "away" ? a : h;
+      const tampaUnit = offenseId === "TB" ? "off" : "def";
+      const carriers = [panel, ...Array.from(panel.querySelectorAll("*"))].filter((n) => Array.from(n.attributes).some((at) => SITE_RED.test(at.value)));
+      expect(carriers.length, ball).toBeGreaterThanOrEqual(6);
+      for (const n of carriers) {
+        const unit =
+          n.getAttribute("data-series") ?? (n.hasAttribute("data-off-dot") ? "off" : n.hasAttribute("data-def-marker") ? "def" : n.getAttribute("data-legend"));
+        expect(unit, `${ball}: ${n.outerHTML.slice(0, 120)}`).toBe(tampaUnit);
+      }
+      expect(panel.querySelector('path[data-ring="mid"]')!.getAttribute("stroke")).not.toMatch(SITE_RED);
+    }
+  });
+
+  it.each(PAIRS)("%s at %s: slabs, stripes, heading squares and every tile band wear the same two colours as the radar", async (a, h, awayColour, homeColour) => {
+    const el = await html(a, h);
+    const rule = matchupCardColours(teamOf(a), teamOf(h));
+    for (const [side, id, colour, stripe] of [["away", a, awayColour, rule.awayRule], ["home", h, homeColour, rule.homeRule]] as const) {
+      const slab = el.querySelector(`[data-slab="${side}"]`);
+      expect([css(slab, "background-color"), css(slab, "border-bottom-color")], side).toEqual([colour, stripe]);
+      const group = el.querySelector(`[data-team-group="${id}"]`)!;
+      expect(css(group.querySelector("[data-team-square]"), "background-color"), side).toBe(colour);
+      const bands = Array.from(group.querySelectorAll("[data-tile-band]"));
+      expect(bands.length, side).toBeGreaterThanOrEqual(3);
+      expect(bands.length, side).toBe(group.querySelectorAll("[data-tile]").length);
+      for (const band of bands) expect([css(band, "background-color"), css(band, "border-bottom-color")], side).toEqual([colour, stripe]);
+      // One colour per team on the whole page: its slab = its offense (its own tab) = its defense (the other tab).
+      const own = panelOf(el, side);
+      const other = panelOf(el, side === "away" ? "home" : "away");
+      expect(own.querySelector('path[data-series="off"]')!.getAttribute("stroke"), side).toBe(css(slab, "background-color"));
+      expect(other.querySelector('path[data-series="def"]')!.getAttribute("stroke"), side).toBe(css(slab, "background-color"));
+    }
+    // never two alike: the two slabs are different colours
+    expect(css(el.querySelector('[data-slab="away"]'), "background-color")).not.toBe(css(el.querySelector('[data-slab="home"]'), "background-color"));
+  });
+
+  it.each(PAIRS)("%s at %s: every slab's and band's text is the colour that reads on its own background", async (a, h) => {
+    const el = await html(a, h);
+    const painted = Array.from(el.querySelectorAll("[data-slab], [data-tile-band]"));
+    expect(painted).toHaveLength(2 + el.querySelectorAll("[data-tile]").length);
+    expect(painted.length).toBeGreaterThanOrEqual(8);
+    for (const node of painted) {
+      const background = css(node, "background-color")!;
+      expect(css(node, "color"), background).toBe(textColorForBackground(background));
+      if (["#CC8200", "#BF890E", "#BF8A15", "#8C9295"].includes(background)) expect(css(node, "color"), background).toBe("#0f172a");
+    }
+  });
+
+  it("ink text on the darkened golds and the grey, white on the Chargers' blue (just under the line) and on Packers green", () => {
+    for (const light of ["#CC8200", "#BF890E", "#BF8A15", "#8C9295"]) expect(textColorForBackground(light), light).toBe("#0f172a");
+    for (const dark of ["#0080C6", "#203731", "#00338D", "#D50A0A"]) expect(textColorForBackground(dark), dark).toBe("#ffffff");
+  });
+
+  it("uncovered and small-pool pages carry the card colours on their slabs too (no read is needed for them)", async () => {
+    vi.mocked(loadMatchup).mockResolvedValue(uncovered());
+    const bare = await html("BUF", "LA", { season: "2025" });
+    expect(css(bare.querySelector('[data-slab="away"]'), "background-color")).toBe("#00338D");
+    expect(css(bare.querySelector('[data-slab="home"]'), "background-color")).toBe("#CC8200");
+    expect(css(bare.querySelector('[data-slab="home"]'), "color")).toBe("#0f172a");
+    expect(css(bare.querySelector('[data-slab="home"]'), "border-bottom-color")).toBe("#003594");
+
+    vi.mocked(loadMatchup).mockResolvedValue(smallPool());
+    const small = await html("BUF", "LA");
+    expect(css(small.querySelector('[data-slab="away"]'), "background-color")).toBe("#00338D");
+    expect(css(small.querySelector('[data-slab="home"]'), "background-color")).toBe("#CC8200");
+    // small-pool prints the tiles: they wear the same colours
+    const rams = Array.from(small.querySelectorAll('[data-team-group="LA"] [data-tile-band]'));
+    expect(rams.length).toBeGreaterThan(0);
+    for (const band of rams) expect([css(band, "background-color"), css(band, "color"), css(band, "border-bottom-color")]).toEqual(["#CC8200", "#0f172a", "#003594"]);
+    expect(small.querySelector("svg")).toBeNull();
+  });
+
+  // The ladder keeps its red tug marker and bar (the amendment's §7): the one job red still has.
+  it("the ladder is untouched: it still carries the site red, and none of the pair's card colours", async () => {
+    const el = await html("BUF", "LA");
+    for (const ladder of Array.from(el.querySelectorAll("[data-ladder]"))) {
+      expect(ladder.outerHTML).toMatch(SITE_RED);
+      expect(ladder.outerHTML).not.toMatch(/#00338D|#CC8200|#003594|#94A3B8/i);
+    }
   });
 });

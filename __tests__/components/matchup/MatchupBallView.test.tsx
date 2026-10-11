@@ -5,14 +5,18 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 import MatchupBallView, { BALL_GRID_GAP, BALL_GRID_SPLIT } from "@/components/matchup/MatchupBallView";
-import { PANEL_CHART_MAX_WIDTH, PANEL_PADDING } from "@/components/matchup/MatchupSidePanel";
+import { PANEL_CHART_MAX_WIDTH, PANEL_PADDING, type MatchupSidePaint } from "@/components/matchup/MatchupSidePanel";
 import { awayBall, classes, homeBall, source } from "./helpers";
+
+// One side's colours, handed down by the page (page colours amendment
+// 2026-10-10). Not slate and not amber: a view that dropped the paint fails.
+const PAINT: MatchupSidePaint = { offColor: "#00338D", defColor: "#CC8200", ringColor: "#94A3B8", ringWord: "grey" };
 
 describe("MatchupBallView", () => {
   it.each([["away", awayBall(), "BUF", "HOU"], ["home", homeBall(), "HOU", "BUF"]] as const)(
     "%s ball: one ladder and one panel, naming the same offense and defense",
     (_name, side, off, def) => {
-      const el = render(<MatchupBallView side={side} />).container;
+      const el = render(<MatchupBallView side={side} paint={PAINT} />).container;
       expect(el.querySelectorAll("[data-ladder]")).toHaveLength(1);
       expect(el.querySelectorAll("[data-matchup-panel]")).toHaveLength(1);
       expect(el.querySelector('[data-unit="off"] [data-unit-title]')?.textContent).toBe(`${off} OFFENSE`);
@@ -21,8 +25,18 @@ describe("MatchupBallView", () => {
     },
   );
 
+  it("hands its paint to the panel untouched: the radar wears it, the ladder does not", () => {
+    const el = render(<MatchupBallView side={awayBall()} paint={PAINT} />).container;
+    const panel = el.querySelector("[data-matchup-panel]")!;
+    expect(panel.querySelector('path[data-series="off"]')!.getAttribute("stroke")).toBe(PAINT.offColor);
+    expect(panel.querySelector('path[data-series="def"]')!.getAttribute("stroke")).toBe(PAINT.defColor);
+    expect(panel.querySelector('path[data-ring="mid"]')!.getAttribute("stroke")).toBe(PAINT.ringColor);
+    expect(panel.querySelector("[data-panel-note]")!.textContent).toContain("grey ring");
+    expect(el.querySelector("[data-ladder]")!.outerHTML).not.toMatch(/#00338D|#CC8200|#94A3B8|0, 51, 141|204, 130, 0/i);
+  });
+
   it("one column by default; the two-column grid only behind lg:", () => {
-    const el = render(<MatchupBallView side={awayBall()} />).container;
+    const el = render(<MatchupBallView side={awayBall()} paint={PAINT} />).container;
     const view = el.querySelector("[data-ball-view]")!;
     const cls = classes(view);
     expect(cls).toContain("grid");

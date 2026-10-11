@@ -15,6 +15,8 @@ vi.mock("next/link", () => ({
 import playerRowsJson from "../../stats/fixtures/compare-2026-w4-rows.json";
 import MatchupPlayers from "@/components/matchup/MatchupPlayers";
 import { getTeam } from "@/lib/data/teams";
+import { textColorForBackground } from "@/lib/stats/formatters";
+import { matchupCardColours } from "@/lib/stats/matchup-colours";
 import {
   MATCHUP_PLAYERS_UNAVAILABLE, matchupNoPlayersNote, pairLineups, pickMainPlayers, type LineupPlayer,
 } from "@/lib/stats/matchup";
@@ -36,10 +38,26 @@ const BUF = pick("BUF");
 const DET = pick("DET");
 
 type Props = Partial<Parameters<typeof MatchupPlayers>[0]>;
-const show = (over: Props = {}) =>
-  render(
-    <MatchupPlayers away={team("BUF")} home={team("DET")} season={2026} lineup={pairLineups(BUF, DET)} playersAvailable {...over} />,
+// The colours are the share card's for the two teams actually rendered: worked
+// out AFTER the overrides, as the page works them out from its own two teams.
+const show = (over: Props = {}) => {
+  const away = over.away ?? team("BUF");
+  const home = over.home ?? team("DET");
+  return render(
+    <MatchupPlayers
+      away={away} home={home} season={2026} lineup={pairLineups(BUF, DET)} playersAvailable
+      colours={matchupCardColours(away, home)} {...over}
+    />,
   ).container;
+};
+const rgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+const INK = "#0f172a";
+const WHITE = "#ffffff";
+const bandPaint = (t: HTMLElement) => {
+  const band = t.querySelector("[data-tile-band]") as HTMLElement;
+  return [band.style.backgroundColor, band.style.color, band.style.borderBottomColor];
+};
+const square = (el: HTMLElement, id: string) => group(el, id).querySelector("[data-team-square]") as HTMLElement;
 const group = (el: HTMLElement, id: string) => el.querySelector(`[data-team-group="${id}"]`) as HTMLElement;
 const tiles = (el: HTMLElement, id: string) => Array.from(group(el, id).querySelectorAll("[data-tile]")) as HTMLElement[];
 
@@ -63,21 +81,45 @@ describe("MatchupPlayers", () => {
     }
   });
 
-  it("each band prints the position and the team id, in the team's colours", () => {
+  // Page colours amendment 2026-10-10: bands and heading squares are the share
+  // card's colours for the pair. BUF at DET were two blues; the Lions are silver.
+  it("each band prints the position and the team id, in the pair's card colours: BUF blue, DET silver with ink text and a blue stripe", () => {
     const el = show();
+    expect(tiles(el, "BUF")).toHaveLength(7);
     for (const t of tiles(el, "BUF")) {
-      const band = t.querySelector("[data-tile-band]") as HTMLElement;
-      expect(band.querySelector("[data-tile-team]")?.textContent).toBe("BUF");
-      expect(band.style.backgroundColor).toBe("rgb(0, 51, 141)");
-      expect(band.style.borderBottomColor).toBeTruthy();
+      expect(t.querySelector("[data-tile-team]")?.textContent).toBe("BUF");
+      expect(bandPaint(t)).toEqual([rgb("#00338D"), rgb(WHITE), rgb("#C60C30")]);
     }
-    expect(tiles(el, "DET")[0].querySelector("[data-tile-team]")?.textContent).toBe("DET");
+    expect(tiles(el, "DET")).toHaveLength(7);
+    for (const t of tiles(el, "DET")) {
+      expect(t.querySelector("[data-tile-team]")?.textContent).toBe("DET");
+      expect(bandPaint(t)).toEqual([rgb("#8D9296"), rgb(INK), rgb("#0076B6")]);
+    }
   });
 
-  it("a light primary gets dark band text (PIT)", () => {
+  it("the square beside each team heading is that team's card colour, with its ink border", () => {
+    const el = show();
+    expect(square(el, "BUF").style.backgroundColor).toBe(rgb("#00338D"));
+    expect(square(el, "DET").style.backgroundColor).toBe(rgb("#8D9296"));
+    for (const id of ["BUF", "DET"]) expect(square(el, id).style.borderColor).toBe(rgb(INK));
+    expect(el.querySelectorAll("[data-team-square]")).toHaveLength(2);
+  });
+
+  it("PIT at DET: the Steelers band is the card's darkened gold (not their primary) with ink text", () => {
     const el = show({ away: team("PIT"), lineup: pairLineups(pick("PIT"), DET) });
-    const band = tiles(el, "PIT")[0].querySelector("[data-tile-band]") as HTMLElement;
-    expect(band.style.color).not.toMatch(/255, 255, 255/);
+    const [bg, text] = bandPaint(tiles(el, "PIT")[0]);
+    expect([bg, text]).toEqual([rgb("#BF890E"), rgb(INK)]);
+    expect(bg).not.toBe(rgb(team("PIT").primaryColor));
+    expect(square(el, "PIT").style.backgroundColor).toBe(rgb("#BF890E"));
+  });
+
+  it("bands wear the `colours` they are handed and nothing of the team's own; the stripe is the rule colour, never the band's", () => {
+    const colours = { away: "#CC8200", home: "#203731", awayRule: "#003594", homeRule: "#FFB612" };
+    const el = show({ colours });
+    expect(bandPaint(tiles(el, "BUF")[0])).toEqual([rgb("#CC8200"), rgb(textColorForBackground("#CC8200")), rgb("#003594")]);
+    expect(bandPaint(tiles(el, "DET")[0])).toEqual([rgb("#203731"), rgb(textColorForBackground("#203731")), rgb("#FFB612")]);
+    expect([textColorForBackground("#CC8200"), textColorForBackground("#203731")]).toEqual([INK, WHITE]);
+    expect(code("MatchupPlayers.tsx")).not.toMatch(/primaryColor|secondaryColor/);
   });
 
   it("a linked name is an anchor to the player page; an unlinked one is plain text", () => {

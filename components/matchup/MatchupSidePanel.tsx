@@ -9,15 +9,19 @@
 // cannot cover anything: sticky positioning never moves an element out of its
 // own grid track. No ancestor up to the page may set `overflow` (that turns
 // sticky off without a word).
-import { getTeam } from "@/lib/data/teams";
+//
+// Colour (page colours amendment 2026-10-10): the panel looks no team up and
+// holds no colour. Its `paint` is the share card's colours for this pair and
+// this side of the ball, built once by the server page: the offense's colour,
+// the OTHER team's colour for the defense, and the middle ring's colour with
+// its word for the paragraph. The legend has three entries; the radar has no
+// rank-gap bars, so there is no entry for one and no red here.
 import {
-  EDGE_LEAN_MIN_GAP,
   MATCHUP_NO_OVERLAY_NOTE,
-  MATCHUP_RADAR_NOTE,
+  matchupRadarNote,
   overlayCountLine,
   type OverlayModel,
 } from "@/lib/stats/matchup";
-import { radarStrokeColor } from "@/lib/stats/formatters";
 import MatchupRadarChart from "./MatchupRadarChart";
 
 const BARLOW = "font-[family-name:var(--font-barlow)]";
@@ -32,26 +36,33 @@ const BARLOW = "font-[family-name:var(--font-barlow)]";
  * complete class names it finds as text in the source, so the number must
  * never be interpolated: edit it here, in BOTH classes. The rule for the
  * number is (tallest measured panel + 80 + 16), rounded up to the next 20.
- * Measured in headless Chrome on 2026-10-10 (week 5's 15 pairs, both tabs):
- * 642 px at 1280 wide, 586 px at 1024 wide → 738 → 740.
+ * Re-measured in headless Chrome on 2026-10-10 (week 5's 15 pairs, both tabs)
+ * after the legend lost its rank-gap entry: 617 px at 1280 wide (the legend
+ * is one row there now; it was 642), 586 px at 1024 wide → 713 → 720.
  */
-export const PANEL_STICKY = "lg:[@media(min-height:740px)]:sticky lg:[@media(min-height:740px)]:top-20";
+export const PANEL_STICKY = "lg:[@media(min-height:720px)]:sticky lg:[@media(min-height:720px)]:top-20";
 
 /** The chart's cap, the one the team page uses for the same `sm` radar. */
 export const PANEL_CHART_MAX_WIDTH = 440;
 /** Side padding in px (the class string below carries the same numbers): 10 below md, 16 from md. */
 export const PANEL_PADDING = { sm: 10, md: 16 } as const;
 
-const DEFENSE = "#334155";
-/** The site accent: here only the legend's "ranks 5+ apart" swatch. */
-const GAP_BAR = "#D50A0A";
+/**
+ * One side of the ball's colours, as plain strings from the server page (the
+ * share card's rule, lib/stats/matchup-colours.ts; never worked out here).
+ */
+export interface MatchupSidePaint {
+  /** the team with the ball */
+  offColor: string;
+  /** the other team: its defense is drawn in ITS colour */
+  defColor: string;
+  /** the middle-of-the-league ring */
+  ringColor: string;
+  /** that ring's colour as the paragraph's word */
+  ringWord: "amber" | "grey";
+}
 
-export default function MatchupSidePanel({ overlay }: { overlay: OverlayModel }) {
-  const team = getTeam(overlay.offId);
-  const primary = team?.primaryColor ?? "#0f172a";
-  const secondary = team?.secondaryColor ?? "#0f172a";
-  const offStroke = radarStrokeColor(primary, secondary);
-
+export default function MatchupSidePanel({ overlay, paint }: { overlay: OverlayModel; paint: MatchupSidePaint }) {
   return (
     <section
       data-matchup-panel
@@ -65,24 +76,20 @@ export default function MatchupSidePanel({ overlay }: { overlay: OverlayModel })
       {overlay.drawn && overlay.tally ? (
         <>
           <div data-panel-chart className="mx-auto mt-2 w-full" style={{ maxWidth: PANEL_CHART_MAX_WIDTH }}>
-            <MatchupRadarChart overlay={overlay} offColor={primary} offSecondaryColor={secondary} />
+            <MatchupRadarChart overlay={overlay} offColor={paint.offColor} defColor={paint.defColor} ringColor={paint.ringColor} />
           </div>
 
           <ul data-panel-legend className="m-0 mt-1 flex list-none flex-wrap items-center gap-x-4 gap-y-1.5 p-0 text-[12.5px] text-slate-600">
             <li className="flex items-center gap-1.5">
-              <i className="inline-block h-[10px] w-[18px] rounded-[2px] border-[2.5px] border-solid" style={{ borderColor: offStroke }} />
+              <i data-legend="off" className="inline-block h-[10px] w-[18px] rounded-[2px] border-[2.5px] border-solid" style={{ borderColor: paint.offColor }} />
               {`${overlay.offId} offense`}
             </li>
             <li className="flex items-center gap-1.5">
-              <i className="inline-block h-[10px] w-[18px] border-2 border-dashed" style={{ borderColor: DEFENSE, background: `${DEFENSE}14` }} />
+              <i data-legend="def" className="inline-block h-[10px] w-[18px] border-2 border-dashed" style={{ borderColor: paint.defColor, background: `${paint.defColor}14` }} />
               {`${overlay.defId} defense`}
             </li>
             <li className="flex items-center gap-1.5">
-              <i data-swatch="gap" className="inline-block h-[5px] w-[18px]" style={{ background: GAP_BAR }} />
-              {`ranks ${EDGE_LEAN_MIN_GAP}+ apart`}
-            </li>
-            <li className="flex items-center gap-1.5">
-              <i className="inline-block h-0 w-[18px] border-t-2 border-dashed border-amber-500" />
+              <i data-legend="ring" className="inline-block h-0 w-[18px] border-t-2 border-dashed" style={{ borderColor: paint.ringColor }} />
               middle of the league
             </li>
           </ul>
@@ -94,7 +101,7 @@ export default function MatchupSidePanel({ overlay }: { overlay: OverlayModel })
             {overlayCountLine(overlay.tally)}
           </p>
           <p data-panel-note className="m-0 mt-1.5 text-[12.5px] leading-normal text-slate-600">
-            {MATCHUP_RADAR_NOTE}
+            {matchupRadarNote(paint.ringWord)}
           </p>
         </>
       ) : (

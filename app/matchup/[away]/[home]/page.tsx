@@ -19,7 +19,8 @@ import { getTeam } from "@/lib/data/teams";
 import { loadMatchup, type MatchupLoad } from "@/lib/data/matchup";
 import { listedMatchupSeason } from "@/lib/data/matchup-season";
 import { MATCHUP_SMALL_POOL_NOTE, matchupNoGamesNote, matchupUncoveredHeading } from "@/lib/stats/matchup";
-import { buildMatchupCard, matchupCardAlt, matchupCardImageHref } from "@/lib/stats/matchup-card";
+import { buildMatchupCard, matchupCardAlt, matchupCardImageHref, matchupRingWord } from "@/lib/stats/matchup-card";
+import { matchupCardColours } from "@/lib/stats/matchup-colours";
 import { flipBall, matchupCardHref, matchupHref, parseBall, parseMatchupSeason, parseMatchupTeamId, type Ball } from "@/lib/stats/matchup-links";
 import type { Team } from "@/lib/types";
 import MatchupShare from "./MatchupShare";
@@ -156,6 +157,11 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
   }
 
   const { season, defaultSeason } = load;
+  // The page wears the share card's colours for this pair (page colours
+  // amendment 2026-10-10): one call, here, from the two teams alone (no read,
+  // so every state below has them), in the order the card passes them. The
+  // components take the strings; none of them works a colour out.
+  const colours = matchupCardColours(away, home);
   const heading = `${away.name} ${hasGame(load) ? "at" : "vs"} ${home.name}`;
   const header = (
     <>
@@ -168,6 +174,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
         game={load.game}
         records={load.records}
         gamesAvailable={load.gamesAvailable}
+        colours={colours}
       />
     </>
   );
@@ -194,7 +201,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
     console.error(`Matchup ${away.id} at ${home.id} (${season}): values left out as impossible: ${model.rejected.join(", ")}`);
   }
 
-  const players = <MatchupPlayers away={away} home={home} season={season} lineup={load.lineup} playersAvailable={load.playersAvailable} />;
+  const players = <MatchupPlayers away={away} home={home} season={season} lineup={load.lineup} playersAvailable={load.playersAvailable} colours={colours} />;
   const notes = <MatchupNotes model={model} isLatestSeason={load.isLatestSeason} />;
 
   if (model.state === "small-pool" || !model.awayBall || !model.homeBall) {
@@ -220,6 +227,12 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
   // says at least one of the two radars can be drawn.
   const shareCard = load.gamesAvailable && buildMatchupCard({ away, home, load }).kind === "card";
   const cardHref = matchupCardHref(away.id, home.id, { season, defaultSeason });
+
+  // Each side of the ball's radar colours, as the card's two panes: the team
+  // with the ball in its colour, the defense in the OTHER team's, one ring.
+  const ring = { ringColor: colours.ring, ringWord: matchupRingWord(colours.ring) };
+  const awayPaint = { offColor: colours.away, defColor: colours.home, ...ring };
+  const homePaint = { offColor: colours.home, defColor: colours.away, ...ring };
 
   return (
     <div className={CONTAINER}>
@@ -247,8 +260,8 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
           season={season}
           defaultSeason={defaultSeason}
           initialBall={ball}
-          away={<MatchupBallView side={model.awayBall} />}
-          home={<MatchupBallView side={model.homeBall} />}
+          away={<MatchupBallView side={model.awayBall} paint={awayPaint} />}
+          home={<MatchupBallView side={model.homeBall} paint={homePaint} />}
         />
       </div>
       <div className="mt-[30px]">{players}</div>

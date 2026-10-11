@@ -923,7 +923,8 @@ describe("buildMatchup: the overlay radars", () => {
     });
   });
 
-  it("gapBar is true at 5 places and false at 4, over every ordered pair of the fixture", () => {
+  // 992 model builds: 2.5 s alone, but over the default 5 s when every worker of a full run is busy (it timed out at random).
+  it("gapBar is true at 5 places and false at 4, over every ordered pair of the fixture", { timeout: 15000 }, () => {
     const seen = new Map<number, number>();
     for (const off of IDS) {
       for (const def of IDS) {
@@ -1026,7 +1027,15 @@ describe("visitor-facing copy (§8.5)", () => {
   });
 
   it("M5: under the radars", () => {
-    expect(M.MATCHUP_RADAR_NOTE).toBe(
+    // The page's ring is the share card's: amber, or grey beside a team colour close to amber
+    // (page colours amendment 2026-10-10). The sentence names the ring's own word, nothing else moves.
+    expect(M.matchupRadarNote("grey")).toBe(
+      "Both shapes are drawn by league rank, so the outer ring is 1st on every spoke and the grey ring is the middle of the league. Where the solid shape reaches past the dashed one, the offense ranks higher. Each label shows offense rank v defense rank.",
+    );
+    expect(M.matchupRadarNote("grey")).toBe(M.matchupRadarNote("amber").replace("amber ring", "grey ring"));
+    expect("MATCHUP_RADAR_NOTE" in M).toBe(false);
+    // "amber" is the sentence as it was before the amendment, to the letter.
+    expect(M.matchupRadarNote("amber")).toBe(
       "Both shapes are drawn by league rank, so the outer ring is 1st on every spoke and the amber ring is the middle of the league. Where the solid shape reaches past the dashed one, the offense ranks higher. Each label shows offense rank v defense rank.",
     );
   });
@@ -1101,7 +1110,7 @@ describe("visitor-facing copy (§8.5)", () => {
 
   it("no sentence carries a bare ASCII apostrophe (lint rejects one in JSX text; the house style is the curly one)", () => {
     const all = [
-      M.MATCHUP_SMALL_POOL_NOTE, M.matchupNoGamesNote("Buffalo Bills", 2026), M.MATCHUP_NO_OVERLAY_NOTE, M.MATCHUP_RADAR_NOTE,
+      M.MATCHUP_SMALL_POOL_NOTE, M.matchupNoGamesNote("Buffalo Bills", 2026), M.MATCHUP_NO_OVERLAY_NOTE, M.matchupRadarNote("amber"), M.matchupRadarNote("grey"),
       M.matchupEdgeNote(), M.MATCHUP_FAMILY_NOTE, M.MATCHUP_PLAYERS_NOTE, M.MATCHUP_PLAYERS_UNAVAILABLE, M.MATCHUP_LADDER_NOTE,
       M.MATCHUP_GAMES_UNAVAILABLE, M.matchupUncoveredHeading(2025, null), M.matchupNoUpcomingNote(2026),
     ];

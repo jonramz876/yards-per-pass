@@ -3,12 +3,19 @@
 // count line and one paragraph. The only sticky element on the matchup pages.
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
-import MatchupSidePanel, { PANEL_CHART_MAX_WIDTH, PANEL_STICKY } from "@/components/matchup/MatchupSidePanel";
-import { EDGE_LEAN_MIN_GAP, MATCHUP_NO_OVERLAY_NOTE, MATCHUP_RADAR_NOTE, overlayCountLine } from "@/lib/stats/matchup";
+import MatchupSidePanel, { PANEL_CHART_MAX_WIDTH, PANEL_STICKY, type MatchupSidePaint } from "@/components/matchup/MatchupSidePanel";
+import { MATCHUP_NO_OVERLAY_NOTE, matchupRadarNote, overlayCountLine } from "@/lib/stats/matchup";
 import { ACCENT, awayBall, classes, code, homeBall, model, rowsWithout, source } from "./helpers";
 
-const show = (overlay = awayBall().overlay) => render(<MatchupSidePanel overlay={overlay} />).container;
-const RED = /213,\s*10,\s*10|#D50A0A/i;
+// The default paint is BUF at LA's (blue offense, gold defense, grey ring: the
+// card's colours for that pair). No default may equal a colour the panel used
+// to hold itself (#334155 slate, amber): a panel that went back to one fails.
+const PAINT: MatchupSidePaint = { offColor: "#00338D", defColor: "#CC8200", ringColor: "#94A3B8", ringWord: "grey" };
+const AMBER: MatchupSidePaint = { offColor: "#D50A0A", defColor: "#041E42", ringColor: "#F59E0B", ringWord: "amber" };
+const show = (overlay = awayBall().overlay, paint: MatchupSidePaint = PAINT) =>
+  render(<MatchupSidePanel overlay={overlay} paint={paint} />).container;
+const rgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+const swatch = (el: HTMLElement, which: "off" | "def" | "ring") => el.querySelector(`[data-panel-legend] i[data-legend="${which}"]`) as HTMLElement;
 
 describe("MatchupSidePanel: a drawn overlay", () => {
   it("heading, then a sub-heading that names the pairing it was given", () => {
@@ -34,23 +41,46 @@ describe("MatchupSidePanel: a drawn overlay", () => {
     expect((el.querySelector("[data-panel-chart]") as HTMLElement).style.maxWidth).toBe("440px");
   });
 
-  it("the legend: offense, defense, the gap bar with its number from the constant, the mid ring", () => {
+  it("the legend: three items (offense, defense, the mid ring) and no rank-gap entry", () => {
     const el = show();
     const legend = el.querySelector("[data-panel-legend]")!;
-    expect(legend.textContent).toContain("BUF offense");
-    expect(legend.textContent).toContain("HOU defense");
-    expect(legend.textContent).toContain(`ranks ${EDGE_LEAN_MIN_GAP}+ apart`);
-    expect(legend.textContent).toContain("middle of the league");
-    expect((legend.querySelector("[data-swatch='gap']") as HTMLElement).getAttribute("style")).toMatch(RED);
+    expect(Array.from(legend.querySelectorAll("li")).map((li) => li.textContent)).toEqual(["BUF offense", "HOU defense", "middle of the league"]);
+    expect(Array.from(legend.querySelectorAll("i")).map((i) => i.getAttribute("data-legend"))).toEqual(["off", "def", "ring"]);
+    expect(legend.querySelector("[data-swatch='gap']")).toBeNull();
+    expect(el.querySelector("[data-swatch]")).toBeNull();
+    expect(el.textContent).not.toContain("apart");
   });
 
-  it("the count line M4 and the paragraph M5, once each", () => {
+  it.each([["BUF at LA's", PAINT], ["an amber-ring pair's", AMBER]] as const)(
+    "the three swatches wear the paint they were given (%s), and so does the chart",
+    (_name, paint) => {
+      const el = show(awayBall().overlay, paint);
+      expect(swatch(el, "off").style.borderColor).toBe(rgb(paint.offColor));
+      expect(swatch(el, "off").className).toContain("border-solid");
+      expect(swatch(el, "def").style.borderColor).toBe(rgb(paint.defColor));
+      expect(swatch(el, "def").className).toContain("border-dashed");
+      expect(swatch(el, "ring").style.borderColor).toBe(rgb(paint.ringColor));
+      expect(swatch(el, "ring").className).toContain("border-dashed");
+      // the ring's colour is the paint's, never a class of its own
+      expect(swatch(el, "ring").className).not.toMatch(/amber|slate-\d/);
+      expect(el.querySelector('path[data-series="off"]')!.getAttribute("stroke")).toBe(paint.offColor);
+      expect(el.querySelector('path[data-series="def"]')!.getAttribute("stroke")).toBe(paint.defColor);
+      expect(el.querySelector('path[data-ring="mid"]')!.getAttribute("stroke")).toBe(paint.ringColor);
+    },
+  );
+
+  it("the count line M4 and the paragraph M5, once each; M5 names the ring by the paint's word", () => {
     const overlay = awayBall().overlay;
     const el = show(overlay);
     expect(el.querySelector("[data-panel-count]")?.textContent).toBe(overlayCountLine(overlay.tally!));
     expect(el.querySelectorAll("[data-panel-note]")).toHaveLength(1);
-    expect(el.querySelector("[data-panel-note]")?.textContent).toBe(MATCHUP_RADAR_NOTE);
-    expect(el.textContent!.split(MATCHUP_RADAR_NOTE)).toHaveLength(2);
+    expect(el.querySelector("[data-panel-note]")?.textContent).toBe(matchupRadarNote("grey"));
+    expect(el.textContent!.split(matchupRadarNote("grey"))).toHaveLength(2);
+    expect(el.textContent).toContain("the grey ring is the middle of the league");
+    expect(el.textContent).not.toContain("amber");
+    const amber = show(overlay, AMBER);
+    expect(amber.querySelector("[data-panel-note]")?.textContent).toBe(matchupRadarNote("amber"));
+    expect(amber.textContent).toContain("the amber ring is the middle of the league");
     expect(el.textContent).not.toMatch(/win probability|projected|favou?red/i);
   });
 });
@@ -89,14 +119,15 @@ describe("the sticky rule (§8.3): the one sticky element, behind both variants"
     expect(height % 20).toBe(0);
   });
 
-  // Measured in headless Chrome on 2026-10-10 over the 15 pairs of week 5,
-  // both tabs: the panel is 642 px tall at 1280 px wide and 586 px at 1024 px
-  // (the same for every pair). The rule: tallest + 80 (the sticky offset) + 16,
-  // rounded up to the next 20.
-  it("the min-height is the measured one: (642 + 80 + 16) rounded up to the next 20 = 740", () => {
-    const TALLEST_MEASURED = 642;
+  // Re-measured in headless Chrome on 2026-10-10 over the 15 pairs of week 5,
+  // both tabs, after the legend lost its rank-gap entry (page colours
+  // amendment): the panel is 617 px tall at 1280 px wide (the legend is one
+  // row there now; it was 642) and 586 px at 1024 px, the same for every pair.
+  // The rule: tallest + 80 (the sticky offset) + 16, rounded up to the next 20.
+  it("the min-height is the measured one: (617 + 80 + 16) rounded up to the next 20 = 720", () => {
+    const TALLEST_MEASURED = 617;
     const expected = Math.ceil((TALLEST_MEASURED + 80 + 16) / 20) * 20;
-    expect(expected).toBe(740);
+    expect(expected).toBe(720);
     expect(PANEL_STICKY).toBe(`lg:[@media(min-height:${expected}px)]:sticky lg:[@media(min-height:${expected}px)]:top-20`);
   });
 
@@ -110,8 +141,11 @@ describe("the sticky rule (§8.3): the one sticky element, behind both variants"
     expect(cls.some((c) => /overflow/.test(c))).toBe(false);
   });
 
-  it("the accent appears in the panel once: the legend's gap swatch", () => {
-    expect(code("MatchupSidePanel.tsx").split(ACCENT).length - 1).toBe(1);
-    expect(code("MatchupSidePanel.tsx")).not.toMatch(/nflred|red-\d00/);
+  it("the accent appears in the panel 0 times, and the panel looks no team up and holds no colour rule", () => {
+    const src = code("MatchupSidePanel.tsx");
+    expect(src.split(ACCENT).length - 1).toBe(0);
+    expect(src).not.toMatch(/nflred|red-\d00/);
+    expect(src).not.toMatch(/#334155|#f59e0b|amber-500|GAP_BAR|EDGE_LEAN_MIN_GAP/i);
+    expect(src).not.toMatch(/getTeam|lib\/data\/teams|radarStrokeColor|primaryColor|secondaryColor/);
   });
 });
