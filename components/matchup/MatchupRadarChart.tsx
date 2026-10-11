@@ -1,8 +1,15 @@
 // components/matchup/MatchupRadarChart.tsx — the two-series overlay radar
-// (team matchup spec 2026-10-10 §8.1): one team's offense (solid outline,
-// round dots, its own colour) over the other team's defense (dashed slate,
-// white squares), with a red bar along a spoke where the two league ranks are
-// EDGE_LEAN_MIN_GAP or more places apart (the model's `gapBar`).
+// (team matchup spec 2026-10-10 §8.1, as amended by the page colours
+// amendment of 2026-10-12): one team's offense (solid outline, round dots)
+// over the other team's defense (dashed outline, white squares), each in its
+// own team's colour for this pair.
+//
+// The chart holds no team colour, no ring colour and no colour rule: the three
+// colours are the share card's (lib/stats/matchup-colours.ts), worked out once
+// by the server page and passed down as plain strings. That rule only returns
+// #RRGGBB colours that show on white, so the chart draws what it is given. It
+// draws no rank-gap bar: the model's `gapBar` is still there, undrawn (the
+// ladder is where a gap of 5 or more is marked).
 //
 // A SERVER component on purpose (no "use client"): it imports the chart
 // geometry from lib/stats/team-radar, which must stay out of the matchup
@@ -10,8 +17,9 @@
 // TeamRadarChart: that one draws one series and the share image is tied to
 // its output. The geometry is reused, not copied (RADAR_SIZES.sm, unchanged).
 //
-// The encoding never rests on telling two team colours apart (BUF and LA are
-// near-identical blues): solid + dots against dashed + squares.
+// The two shapes are told apart by form first (solid + dots against dashed +
+// squares), then by colour. Line weights and fill alphas are the card's,
+// scaled from its r 116 radar to this one's r 104.
 import type { OverlayModel } from "@/lib/stats/matchup";
 import {
   RADAR_AXES,
@@ -22,23 +30,21 @@ import {
   radarPathD,
   radarPoint,
   radarRadius,
-  radarStrokeColor,
   type RadarSideModel,
 } from "@/lib/stats/team-radar";
 
 interface MatchupRadarChartProps {
   overlay: OverlayModel;
-  /** The offense's team primary (#rrggbb): the fill tint, and the outline when it shows on white. */
+  /** The colour of the team with the ball (#RRGGBB): its outline, fill tint and dots. */
   offColor: string;
-  /** Its secondary: the outline and dots when the primary is too light on white (PIT, NO). */
-  offSecondaryColor: string;
+  /** The OTHER team's colour: the defense's dashed outline, fill tint and square outlines. */
+  defColor: string;
+  /** The middle-of-the-league ring: amber, or grey beside a team colour close to amber. */
+  ringColor: string;
 }
 
 const G = RADAR_SIZES.sm;
 const N = RADAR_AXES.length;
-const DEFENSE = "#334155";
-/** The site accent. Its one job on this chart: these two ranks are 5+ apart. */
-const GAP_BAR = "#D50A0A";
 const n1 = (v: number) => v.toFixed(1);
 const at = (score: number) => G.r * radarRadius(score);
 const ring = (score: number) => radarPathD(Array.from({ length: N }, (_, i) => radarPoint(G, at(score), i)));
@@ -56,15 +62,11 @@ function vertices(side: RadarSideModel): Vertex[] {
   return out;
 }
 
-export default function MatchupRadarChart({ overlay, offColor, offSecondaryColor }: MatchupRadarChartProps) {
+export default function MatchupRadarChart({ overlay, offColor, defColor, ringColor }: MatchupRadarChartProps) {
   if (!overlay.drawn || !overlay.off || !overlay.def) return null;
 
-  const stroke = radarStrokeColor(offColor, offSecondaryColor);
-  const tint = /^#[0-9a-fA-F]{6}$/.test(offColor) ? offColor : stroke;
   const off = vertices(overlay.off);
   const def = vertices(overlay.def);
-  const offAt = new Map(off.map((v) => [v.i, v]));
-  const defAt = new Map(def.map((v) => [v.i, v]));
 
   return (
     <svg
@@ -74,7 +76,7 @@ export default function MatchupRadarChart({ overlay, offColor, offSecondaryColor
       className="block h-auto w-full"
     >
       <path data-ring="outer" d={ring(1)} fill="none" stroke="#e2e8f0" strokeWidth={G.sw} />
-      <path data-ring="mid" d={ring(RADAR_MID_SCORE)} fill="none" stroke="#f59e0b" strokeWidth={G.sw} strokeDasharray="5 3" />
+      <path data-ring="mid" d={ring(RADAR_MID_SCORE)} fill="none" stroke={ringColor} strokeWidth={G.sw} strokeDasharray="5 3" />
       <path data-ring="inner" d={ring(0)} fill="#ffffff" stroke="#e2e8f0" strokeWidth={G.sw * 0.75} />
 
       {RADAR_AXES.map((axis, i) => {
@@ -87,9 +89,9 @@ export default function MatchupRadarChart({ overlay, offColor, offSecondaryColor
         <path
           data-series="def"
           d={radarPathD(def.map((v) => [v.x, v.y] as const))}
-          fill={`${DEFENSE}17`}
-          stroke={DEFENSE}
-          strokeWidth={2}
+          fill={`${defColor}14`}
+          stroke={defColor}
+          strokeWidth={2.6}
           strokeDasharray="6 4"
           strokeLinejoin="round"
         />
@@ -98,30 +100,12 @@ export default function MatchupRadarChart({ overlay, offColor, offSecondaryColor
         <path
           data-series="off"
           d={radarPathD(off.map((v) => [v.x, v.y] as const))}
-          fill={`${tint}26`}
-          stroke={stroke}
-          strokeWidth={2.6}
+          fill={`${offColor}22`}
+          stroke={offColor}
+          strokeWidth={3}
           strokeLinejoin="round"
         />
       )}
-
-      {overlay.spokes.map((spoke, i) => {
-        const a = offAt.get(i);
-        const b = defAt.get(i);
-        if (!spoke.gapBar || !a || !b) return null;
-        return (
-          <line
-            key={spoke.key}
-            data-gap-bar={spoke.key}
-            x1={n1(a.x)}
-            y1={n1(a.y)}
-            x2={n1(b.x)}
-            y2={n1(b.y)}
-            stroke={GAP_BAR}
-            strokeWidth={5}
-          />
-        );
-      })}
 
       {def.map((v) => (
         <rect
@@ -132,12 +116,12 @@ export default function MatchupRadarChart({ overlay, offColor, offSecondaryColor
           width={9}
           height={9}
           fill="#ffffff"
-          stroke={DEFENSE}
+          stroke={defColor}
           strokeWidth={2}
         />
       ))}
       {off.map((v) => (
-        <circle key={RADAR_AXES[v.i].key} data-off-dot={RADAR_AXES[v.i].key} cx={n1(v.x)} cy={n1(v.y)} r={5} fill={stroke} stroke="#ffffff" strokeWidth={1} />
+        <circle key={RADAR_AXES[v.i].key} data-off-dot={RADAR_AXES[v.i].key} cx={n1(v.x)} cy={n1(v.y)} r={5} fill={offColor} stroke="#ffffff" strokeWidth={1} />
       ))}
 
       {overlay.spokes.map((spoke, i) => {

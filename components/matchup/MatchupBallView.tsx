@@ -3,7 +3,9 @@
 // SAME MatchupSide, in one grid. The page renders two of these on the server
 // (away ball, home ball) and hands them to the client toggle as finished
 // markup, so a ladder and a radar from different sides can never be on screen
-// together, and none of this reaches the browser bundle.
+// together, and none of this reaches the browser bundle. `paint` is that
+// side's colours for the radar (page colours amendment 2026-10-12): built by
+// the page, passed through to the panel untouched; the ladder takes none.
 //
 // One column up to 1023 px (the panel under the ladder). Two columns from
 // 1024 px: at 768 px the side column would be 279 px wide and the radar's
@@ -12,13 +14,13 @@
 // panel's sticky off.
 import type { MatchupSide } from "@/lib/stats/matchup";
 import MatchupLadder from "./MatchupLadder";
-import MatchupSidePanel from "./MatchupSidePanel";
+import MatchupSidePanel, { type MatchupSidePaint } from "./MatchupSidePanel";
 
 /** The two-column split and gap, from 1024 px. The class string below carries the same numbers. */
 export const BALL_GRID_SPLIT = [1.5, 1] as const;
 export const BALL_GRID_GAP = 22;
 
-export default function MatchupBallView({ side }: { side: MatchupSide }) {
+export default function MatchupBallView({ side, paint }: { side: MatchupSide; paint: MatchupSidePaint }) {
   return (
     <div data-ball-view className="grid grid-cols-1 gap-[14px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:items-start lg:gap-[22px]">
       <div className="min-w-0">
@@ -26,7 +28,7 @@ export default function MatchupBallView({ side }: { side: MatchupSide }) {
       </div>
       {/* The panel is itself the grid item: sticky moves an element inside its
           containing block, so a wrapper only as tall as the panel would pin it. */}
-      <MatchupSidePanel overlay={side.overlay} />
+      <MatchupSidePanel overlay={side.overlay} paint={paint} />
     </div>
   );
 }
