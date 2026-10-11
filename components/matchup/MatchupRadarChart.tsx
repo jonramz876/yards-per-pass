@@ -48,6 +48,16 @@ const N = RADAR_AXES.length;
 const n1 = (v: number) => v.toFixed(1);
 const at = (score: number) => G.r * radarRadius(score);
 const ring = (score: number) => radarPathD(Array.from({ length: N }, (_, i) => radarPoint(G, at(score), i)));
+/**
+ * Widths in viewBox units, chosen for a phone (the chart is 329 px wide in a
+ * 375 px window, 274 px in a 320 px one; the viewBox is 420). The middle ring
+ * at the base width was 0.78 px there and the grey one could not be found
+ * (its grey cannot be darker: #94A3B8 already sits on the rule's floor of 30
+ * from a team colour), so it is 1.7: 1.33 px at 375. The squares' outline is
+ * 2.4: 1.57 px at 320 (2 was 1.3 px).
+ */
+const MID_RING_WIDTH = 1.7;
+const SQUARE_OUTLINE = 2.4;
 
 type Vertex = { i: number; x: number; y: number };
 /** One series' plottable points; a missing spoke has no vertex (the outline bridges it). */
@@ -76,7 +86,7 @@ export default function MatchupRadarChart({ overlay, offColor, defColor, ringCol
       className="block h-auto w-full"
     >
       <path data-ring="outer" d={ring(1)} fill="none" stroke="#e2e8f0" strokeWidth={G.sw} />
-      <path data-ring="mid" d={ring(RADAR_MID_SCORE)} fill="none" stroke={ringColor} strokeWidth={G.sw} strokeDasharray="5 3" />
+      <path data-ring="mid" d={ring(RADAR_MID_SCORE)} fill="none" stroke={ringColor} strokeWidth={MID_RING_WIDTH} strokeDasharray="5 3" />
       <path data-ring="inner" d={ring(0)} fill="#ffffff" stroke="#e2e8f0" strokeWidth={G.sw * 0.75} />
 
       {RADAR_AXES.map((axis, i) => {
@@ -117,7 +127,7 @@ export default function MatchupRadarChart({ overlay, offColor, defColor, ringCol
           height={9}
           fill="#ffffff"
           stroke={defColor}
-          strokeWidth={2}
+          strokeWidth={SQUARE_OUTLINE}
         />
       ))}
       {off.map((v) => (
