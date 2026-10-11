@@ -145,7 +145,7 @@ describe.each(Object.entries(CASES))("what Satori is given: %s", (_name, build) 
       const name = one(els, "data-band-name", side);
       expect(text(name)).toBe(b.name);
       expect(text(name)).toBe(text(name).toUpperCase());
-      expect(style(name)).toMatchObject({ fontFamily: PIXEL, fontSize: b.nameSize, width: 520, height: 32, whiteSpace: "nowrap", overflow: "hidden" });
+      expect(style(name)).toMatchObject({ fontFamily: PIXEL, fontSize: b.nameSize, width: 520, height: 40, alignItems: "center", whiteSpace: "nowrap", overflow: "hidden" });
       // Right-aligned on the home half only while the name fits its box; else its start is kept.
       const fits = b.name.length * b.nameSize <= 520;
       expect(style(name).justifyContent).toBe(side === "home" && fits ? "flex-end" : "flex-start");
