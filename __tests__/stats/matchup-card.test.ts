@@ -318,7 +318,7 @@ describe("MATCHUP_CARD_LAYOUT (§6.3)", () => {
   });
 
   it("the band, the seam box and the sub-band", () => {
-    expect([L.half, L.padX, L.nameBox.width, L.nameBox.height]).toEqual([600, 40, 520, 32]);
+    expect([L.half, L.padX, L.nameBox.width, L.nameBox.height]).toEqual([600, 40, 520, 40]);
     expect(L.half * 2).toBe(L.width);
     expect(L.seam).toEqual({ left: 568, top: 11, width: 64, height: 54 });
     expect(L.seam.left + L.seam.width / 2).toBe(L.width / 2);

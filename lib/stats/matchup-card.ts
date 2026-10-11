@@ -124,7 +124,9 @@ export const MATCHUP_CARD_LAYOUT = {
   /** left and right padding of the band, the sub-band and the footer */
   padX: 40,
   /** the team name's box in a band half (Press Start 2P, nowrap, cut at its end) */
-  nameBox: { width: 520, height: 32 },
+  // 40 tall, as the compare card's: the pixel font's glyphs sit high in their
+  // line on the live renderer, and a 32 px box cut their tops off (seen live).
+  nameBox: { width: 520, height: 40 },
   /** the AT / VS box over the seam */
   seam: { left: 568, top: 11, width: 64, height: 54 },
   /**
