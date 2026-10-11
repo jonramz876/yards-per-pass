@@ -923,7 +923,8 @@ describe("buildMatchup: the overlay radars", () => {
     });
   });
 
-  it("gapBar is true at 5 places and false at 4, over every ordered pair of the fixture", () => {
+  // 992 model builds: 2.5 s alone, but over the default 5 s when every worker of a full run is busy (it timed out at random).
+  it("gapBar is true at 5 places and false at 4, over every ordered pair of the fixture", { timeout: 15000 }, () => {
     const seen = new Map<number, number>();
     for (const off of IDS) {
       for (const def of IDS) {
