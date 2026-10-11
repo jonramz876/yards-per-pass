@@ -136,6 +136,53 @@ describe("the accent has one job (§8.4): a ladder rank gap of 5 or more", () =>
   });
 });
 
+// Page colours amendment 2026-10-12: the pair page wears the share card's
+// colours. They are worked out in ONE place, the server page, and handed down
+// as strings, so the header, the radar, its legend and the tiles cannot
+// disagree, and the colour rule cannot reach a component (or a browser).
+describe("the pair's colours are set once, on the server page", () => {
+  const PAGE = "app/matchup/[away]/[home]/page.tsx";
+  const PAINTED = ["MatchupHeader.tsx", "MatchupPlayers.tsx", "MatchupSidePanel.tsx", "MatchupRadarChart.tsx"];
+  /** Import statements that are not `import type …;` (the only form the bundle walk strips). */
+  const valueImports = (text: string): string[] =>
+    Array.from(text.replace(/import\s+type\s[^;]*;/g, "").matchAll(/import\s[^;]*?from\s+["']([^"']+)["']/g)).map((m) => m[1]);
+
+  it("the page calls matchupCardColours( exactly once, and never takes the colours from the card model", () => {
+    const text = pageCode(PAGE);
+    expect(text.split("matchupCardColours(").length - 1).toBe(1);
+    expect(text).toMatch(/const colours = matchupCardColours\(away, home\);/);
+    expect(text).not.toMatch(/\)\.colours\b/);
+    // before the header is built, so the uncovered and small-pool pages have them too
+    expect(text.indexOf("matchupCardColours(")).toBeLessThan(text.indexOf("<MatchupHeader"));
+    // and after the page's own order redirect (the last `load.swap` in the file)
+    expect(text.lastIndexOf("load.swap")).toBeLessThan(text.indexOf("matchupCardColours("));
+  });
+
+  it("no matchup component has a non-type import of matchup-colours or matchup-card", () => {
+    for (const f of FILES) {
+      for (const spec of valueImports(source(f))) expect(spec, f).not.toMatch(/matchup-colours|matchup-card/);
+      // and a type import, where there is one, is the statement form the bundle walk understands
+      expect(source(f), f).not.toMatch(/import\s*\{[^}]*\btype\s+\w+[^}]*\}\s*from\s*["'][^"']*matchup-(colours|card)["']/);
+    }
+  });
+
+  it("no component calls the colour rule or the ring rule", () => {
+    for (const f of FILES) expect(code(f), f).not.toMatch(/matchupCardColours\s*\(|matchupRingColour\s*\(|matchupRingWord\s*\(|buildMatchupCard\s*\(/);
+  });
+
+  it("the panel and the chart look no team up and hold no outline rule (the slate on the index keeps its own)", () => {
+    for (const f of ["MatchupSidePanel.tsx", "MatchupRadarChart.tsx"]) {
+      expect(valueImports(source(f)).filter((s) => /lib\/data\/teams/.test(s)), f).toEqual([]);
+      expect(code(f), f).not.toMatch(/radarStrokeColor|getTeam\s*\(/);
+    }
+    expect(code("MatchupSlate.tsx")).toMatch(/getTeam/);
+  });
+
+  it("the four painted components hold none of the old colours: no team primary / secondary, no slate defense, no amber ring", () => {
+    for (const f of PAINTED) expect(code(f), f).not.toMatch(/primaryColor|secondaryColor|#334155|#f59e0b|amber-500/i);
+  });
+});
+
 describe("type (§8.4): three faces with fixed jobs", () => {
   it("Barlow Condensed is reached through the one class constant, at weights 600 and 700 only", () => {
     const users = FILES.filter((f) => code(f).includes("--font-barlow"));

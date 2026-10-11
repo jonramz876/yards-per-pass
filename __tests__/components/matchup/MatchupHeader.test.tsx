@@ -14,7 +14,9 @@ vi.mock("next/link", () => ({
 
 import MatchupHeader, { HEADER_ID_MD, HEADER_ID_SM } from "@/components/matchup/MatchupHeader";
 import { getTeam } from "@/lib/data/teams";
+import { textColorForBackground } from "@/lib/stats/formatters";
 import { formatKickoff, type MatchupGame } from "@/lib/stats/matchup";
+import { matchupCardColours } from "@/lib/stats/matchup-colours";
 import type { Team } from "@/lib/types";
 import { classes, code } from "./helpers";
 
@@ -26,19 +28,29 @@ const GAME: MatchupGame = {
 const RECORDS = { away: { wins: 3, losses: 1, ties: 0 }, home: { wins: 2, losses: 2, ties: 1 } };
 
 type Props = Partial<Parameters<typeof MatchupHeader>[0]>;
-const show = (over: Props = {}) =>
-  render(
+// The colours are the share card's for the two teams actually rendered: worked
+// out AFTER the overrides, as the page works them out from its own two teams.
+const show = (over: Props = {}) => {
+  const away = over.away ?? team("BUF");
+  const home = over.home ?? team("LA");
+  return render(
     <MatchupHeader
-      away={team("BUF")}
-      home={team("LA")}
+      away={away}
+      home={home}
       season={2026}
       defaultSeason={2026}
       game={GAME}
       records={RECORDS}
       gamesAvailable
+      colours={matchupCardColours(away, home)}
       {...over}
     />,
   ).container;
+};
+const rgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+const INK = "#0f172a";
+const WHITE = "#ffffff";
+const paintOf = (s: HTMLElement) => [s.style.backgroundColor, s.style.color, s.style.borderBottomColor];
 const slab = (el: HTMLElement, side: "away" | "home") => el.querySelector(`[data-slab="${side}"]`) as HTMLAnchorElement;
 
 describe("MatchupHeader", () => {
@@ -63,16 +75,41 @@ describe("MatchupHeader", () => {
     expect(nick("NYJ")).toBe("Jets");
   });
 
-  it("a slab wears its team's colours: primary background, readable text, secondary bottom border", () => {
-    const el = show({ away: team("PIT") });
-    const s = slab(el, "away");
-    const pit = team("PIT");
-    const rgb = (hex: string) => `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
-    expect(s.style.backgroundColor).toBe(rgb(pit.primaryColor));
-    expect(s.style.borderBottomColor).toBe(rgb(pit.secondaryColor));
-    // PIT's gold needs dark text
-    expect(s.style.color).not.toBe("rgb(255, 255, 255)");
-    expect(slab(show(), "away").style.color).toMatch(/255|fff/i);
+  // Page colours amendment 2026-10-12: the slabs are the share card's two
+  // colours for the pair, never two alike. BUF at LA was two blues.
+  it("BUF at LA: a blue Bills slab with a red stripe, a GOLD Rams slab with ink text and a blue stripe", () => {
+    const el = show();
+    expect(paintOf(slab(el, "away"))).toEqual([rgb("#00338D"), rgb(WHITE), rgb("#C60C30")]);
+    expect(paintOf(slab(el, "home"))).toEqual([rgb("#CC8200"), rgb(INK), rgb("#003594")]);
+    // not the Rams' primary, which is a blue beside the Bills' blue
+    expect(slab(el, "home").style.backgroundColor).not.toBe(rgb(team("LA").primaryColor));
+  });
+
+  it("the other order gives the other colours: LA at BUF is Rams blue and Bills red", () => {
+    const el = show({ away: team("LA"), home: team("BUF") });
+    expect(slab(el, "away").style.backgroundColor).toBe(rgb("#003594"));
+    expect(slab(el, "home").style.backgroundColor).toBe(rgb("#C60C30"));
+  });
+
+  it("PIT at LA: the Steelers slab is the card's darkened gold (not their primary), ink text, a black stripe", () => {
+    const s = slab(show({ away: team("PIT") }), "away");
+    expect(paintOf(s)).toEqual([rgb("#BF890E"), rgb(INK), rgb("#101820")]);
+    expect(s.style.backgroundColor).not.toBe(rgb(team("PIT").primaryColor));
+  });
+
+  it("a slab wears the `colours` it is handed and nothing of the team's own: background, stripe, and the text colour that reads on it", () => {
+    const colours = { away: "#8C9295", home: "#203731", awayRule: "#111111", homeRule: "#EEEEEE" };
+    const el = show({ colours });
+    expect(paintOf(slab(el, "away"))).toEqual([rgb("#8C9295"), rgb(textColorForBackground("#8C9295")), rgb("#111111")]);
+    expect(paintOf(slab(el, "home"))).toEqual([rgb("#203731"), rgb(textColorForBackground("#203731")), rgb("#EEEEEE")]);
+    expect([textColorForBackground("#8C9295"), textColorForBackground("#203731")]).toEqual([INK, WHITE]);
+    // the id, the nickname and the record set no colour of their own: they inherit the slab's text colour
+    for (const part of Array.from(el.querySelectorAll("[data-slab] *"))) {
+      expect((part as HTMLElement).style.color).toBe("");
+      expect(classes(part).some((c) => /^text-(white|black|navy|slate|gray)/.test(c))).toBe(false);
+    }
+    const src = code("MatchupHeader.tsx");
+    expect(src).not.toMatch(/primaryColor|secondaryColor/);
   });
 
   it("each slab links to its team page, carrying a past season", () => {
@@ -143,7 +180,8 @@ describe("MatchupHeader", () => {
     expect(src).not.toMatch(/#D50A0A/i);
     expect(src).not.toMatch(/nflred|red-\d00/);
     expect(classes(show().querySelector("[data-at]"))).toContain("text-navy");
-    // Tampa Bay's primary IS the accent red: its slab is red because it is Tampa Bay.
+    // Tampa Bay's primary IS the accent red: on TB at LA its card colour is that
+    // primary, so its slab is red because it is Tampa Bay.
     const tb = show({ away: team("TB") });
     expect(slab(tb, "away").style.backgroundColor).toBe("rgb(213, 10, 10)");
     expect(classes(tb.querySelector("[data-at]"))).toContain("text-navy");

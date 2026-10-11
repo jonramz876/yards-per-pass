@@ -44,6 +44,7 @@ import {
 } from "@/lib/stats/matchup";
 import { ROWS, model, rowsWithout } from "../components/matchup/helpers";
 import { getTeam } from "@/lib/data/teams";
+import { textColorForBackground } from "@/lib/stats/formatters";
 import { buildMatchupCard } from "@/lib/stats/matchup-card";
 import { matchupCardColours } from "@/lib/stats/matchup-colours";
 import type { Team } from "@/lib/types";
@@ -689,6 +690,64 @@ describe("the radar and its legend wear the share card's colours, in both tabs",
       }
       expect(panel.querySelector('path[data-ring="mid"]')!.getAttribute("stroke")).not.toMatch(SITE_RED);
     }
+  });
+
+  it.each(PAIRS)("%s at %s: slabs, stripes, heading squares and every tile band wear the same two colours as the radar", async (a, h, awayColour, homeColour) => {
+    const el = await html(a, h);
+    const rule = matchupCardColours(teamOf(a), teamOf(h));
+    for (const [side, id, colour, stripe] of [["away", a, awayColour, rule.awayRule], ["home", h, homeColour, rule.homeRule]] as const) {
+      const slab = el.querySelector(`[data-slab="${side}"]`);
+      expect([css(slab, "background-color"), css(slab, "border-bottom-color")], side).toEqual([colour, stripe]);
+      const group = el.querySelector(`[data-team-group="${id}"]`)!;
+      expect(css(group.querySelector("[data-team-square]"), "background-color"), side).toBe(colour);
+      const bands = Array.from(group.querySelectorAll("[data-tile-band]"));
+      expect(bands.length, side).toBeGreaterThanOrEqual(3);
+      expect(bands.length, side).toBe(group.querySelectorAll("[data-tile]").length);
+      for (const band of bands) expect([css(band, "background-color"), css(band, "border-bottom-color")], side).toEqual([colour, stripe]);
+      // One colour per team on the whole page: its slab = its offense (its own tab) = its defense (the other tab).
+      const own = panelOf(el, side);
+      const other = panelOf(el, side === "away" ? "home" : "away");
+      expect(own.querySelector('path[data-series="off"]')!.getAttribute("stroke"), side).toBe(css(slab, "background-color"));
+      expect(other.querySelector('path[data-series="def"]')!.getAttribute("stroke"), side).toBe(css(slab, "background-color"));
+    }
+    // never two alike: the two slabs are different colours
+    expect(css(el.querySelector('[data-slab="away"]'), "background-color")).not.toBe(css(el.querySelector('[data-slab="home"]'), "background-color"));
+  });
+
+  it.each(PAIRS)("%s at %s: every slab's and band's text is the colour that reads on its own background", async (a, h) => {
+    const el = await html(a, h);
+    const painted = Array.from(el.querySelectorAll("[data-slab], [data-tile-band]"));
+    expect(painted).toHaveLength(2 + el.querySelectorAll("[data-tile]").length);
+    expect(painted.length).toBeGreaterThanOrEqual(8);
+    for (const node of painted) {
+      const background = css(node, "background-color")!;
+      expect(css(node, "color"), background).toBe(textColorForBackground(background));
+      if (["#CC8200", "#BF890E", "#BF8A15", "#8C9295"].includes(background)) expect(css(node, "color"), background).toBe("#0f172a");
+    }
+  });
+
+  it("ink text on the darkened golds and the grey, white on the Chargers' blue (just under the line) and on Packers green", () => {
+    for (const light of ["#CC8200", "#BF890E", "#BF8A15", "#8C9295"]) expect(textColorForBackground(light), light).toBe("#0f172a");
+    for (const dark of ["#0080C6", "#203731", "#00338D", "#D50A0A"]) expect(textColorForBackground(dark), dark).toBe("#ffffff");
+  });
+
+  it("uncovered and small-pool pages carry the card colours on their slabs too (no read is needed for them)", async () => {
+    vi.mocked(loadMatchup).mockResolvedValue(uncovered());
+    const bare = await html("BUF", "LA", { season: "2025" });
+    expect(css(bare.querySelector('[data-slab="away"]'), "background-color")).toBe("#00338D");
+    expect(css(bare.querySelector('[data-slab="home"]'), "background-color")).toBe("#CC8200");
+    expect(css(bare.querySelector('[data-slab="home"]'), "color")).toBe("#0f172a");
+    expect(css(bare.querySelector('[data-slab="home"]'), "border-bottom-color")).toBe("#003594");
+
+    vi.mocked(loadMatchup).mockResolvedValue(smallPool());
+    const small = await html("BUF", "LA");
+    expect(css(small.querySelector('[data-slab="away"]'), "background-color")).toBe("#00338D");
+    expect(css(small.querySelector('[data-slab="home"]'), "background-color")).toBe("#CC8200");
+    // small-pool prints the tiles: they wear the same colours
+    const rams = Array.from(small.querySelectorAll('[data-team-group="LA"] [data-tile-band]'));
+    expect(rams.length).toBeGreaterThan(0);
+    for (const band of rams) expect([css(band, "background-color"), css(band, "color"), css(band, "border-bottom-color")]).toEqual(["#CC8200", "#0f172a", "#003594"]);
+    expect(small.querySelector("svg")).toBeNull();
   });
 
   // The ladder keeps its red tug marker and bar (the amendment's §7): the one job red still has.
