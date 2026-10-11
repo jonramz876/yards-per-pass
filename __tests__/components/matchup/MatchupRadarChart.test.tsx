@@ -64,8 +64,11 @@ describe("MatchupRadarChart", () => {
     expect(squares.length).toBeGreaterThan(0);
     expect(dots.length).toBeGreaterThan(0);
     for (const s of squares) {
-      expect([s.getAttribute("fill"), s.getAttribute("stroke"), s.getAttribute("stroke-width")]).toEqual(["#ffffff", DEF, "2"]);
+      expect([s.getAttribute("fill"), s.getAttribute("stroke"), s.getAttribute("stroke-width")]).toEqual(["#ffffff", DEF, "2.4"]);
     }
+    // Chaos finding 4: on a 320 px phone the chart is 274 px wide, and a 2-unit
+    // outline was 1.3 px on screen. 2.4 units is 1.57 px there; the square stays 9 x 9.
+    expect((2.4 * 274) / RADAR_SIZES.sm.w).toBeGreaterThanOrEqual(1.5);
     for (const c of dots) {
       expect([c.getAttribute("fill"), c.getAttribute("stroke"), c.getAttribute("stroke-width")]).toEqual([OFF, "#ffffff", "1"]);
     }
@@ -99,6 +102,23 @@ describe("MatchupRadarChart", () => {
       const mid = draw(overlay, OFF, DEF, ring).querySelector('path[data-ring="mid"]')!;
       expect(mid.getAttribute("stroke")).toBe(ring);
       expect(mid.getAttribute("stroke-dasharray")).toBeTruthy();
+    }
+  });
+
+  // Chaos finding 3: at the base 1-unit width the ring was 0.78 px on a 375 px
+  // phone (chart 329 px wide) and the grey one could not be found. The grey
+  // cannot go darker: no darker slate keeps the rule's floor of 30 from every
+  // team colour it sits beside (#94A3B8 is at 30.3). So the ring is heavier.
+  it("the mid ring is at least 1.2 px on screen at 375 px wide, whatever its colour; the outer and inner rings keep the base width", () => {
+    for (const ring of ["#F59E0B", "#94A3B8"]) {
+      const el = draw(overlay, OFF, DEF, ring);
+      const width = Number(el.querySelector('path[data-ring="mid"]')!.getAttribute("stroke-width"));
+      expect(width).toBe(1.7);
+      expect((width * 329) / RADAR_SIZES.sm.w).toBeGreaterThanOrEqual(1.2);
+      // still clearly lighter than either team's outline
+      expect(width).toBeLessThan(2.6);
+      expect(el.querySelector('path[data-ring="outer"]')!.getAttribute("stroke-width")).toBe(String(RADAR_SIZES.sm.sw));
+      expect(el.querySelector('path[data-ring="inner"]')!.getAttribute("stroke-width")).toBe(String(RADAR_SIZES.sm.sw * 0.75));
     }
   });
 
