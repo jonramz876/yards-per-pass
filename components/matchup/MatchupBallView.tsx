@@ -4,7 +4,7 @@
 // (away ball, home ball) and hands them to the client toggle as finished
 // markup, so a ladder and a radar from different sides can never be on screen
 // together, and none of this reaches the browser bundle. `paint` is that
-// side's colours for the radar (page colours amendment 2026-10-12): built by
+// side's colours for the radar (page colours amendment 2026-10-10): built by
 // the page, passed through to the panel untouched; the ladder takes none.
 //
 // One column up to 1023 px (the panel under the ladder). Two columns from

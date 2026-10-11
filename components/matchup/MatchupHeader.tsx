@@ -3,7 +3,7 @@
 // record), and between them "AT" with the week and the kickoff, or "VS" when
 // the two teams have no game in the season. No logo. Server component.
 //
-// Colour (page colours amendment 2026-10-12): a slab is the colour the share
+// Colour (page colours amendment 2026-10-10): a slab is the colour the share
 // card gives its team for THIS pair, so the two slabs are never alike (BUF at
 // LA is blue and gold, not two blues), with the team's colour not in use as
 // the stripe under it. The colours come in as data from the server page; the

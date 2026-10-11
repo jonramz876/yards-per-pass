@@ -9,7 +9,7 @@ import { PANEL_CHART_MAX_WIDTH, PANEL_PADDING, type MatchupSidePaint } from "@/c
 import { awayBall, classes, homeBall, source } from "./helpers";
 
 // One side's colours, handed down by the page (page colours amendment
-// 2026-10-12). Not slate and not amber: a view that dropped the paint fails.
+// 2026-10-10). Not slate and not amber: a view that dropped the paint fails.
 const PAINT: MatchupSidePaint = { offColor: "#00338D", defColor: "#CC8200", ringColor: "#94A3B8", ringWord: "grey" };
 
 describe("MatchupBallView", () => {

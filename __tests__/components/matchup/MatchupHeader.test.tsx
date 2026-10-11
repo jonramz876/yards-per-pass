@@ -75,7 +75,7 @@ describe("MatchupHeader", () => {
     expect(nick("NYJ")).toBe("Jets");
   });
 
-  // Page colours amendment 2026-10-12: the slabs are the share card's two
+  // Page colours amendment 2026-10-10: the slabs are the share card's two
   // colours for the pair, never two alike. BUF at LA was two blues.
   it("BUF at LA: a blue Bills slab with a red stripe, a GOLD Rams slab with ink text and a blue stripe", () => {
     const el = show();

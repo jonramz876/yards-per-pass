@@ -158,7 +158,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
 
   const { season, defaultSeason } = load;
   // The page wears the share card's colours for this pair (page colours
-  // amendment 2026-10-12): one call, here, from the two teams alone (no read,
+  // amendment 2026-10-10): one call, here, from the two teams alone (no read,
   // so every state below has them), in the order the card passes them. The
   // components take the strings; none of them works a colour out.
   const colours = matchupCardColours(away, home);

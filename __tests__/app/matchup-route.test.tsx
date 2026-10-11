@@ -590,7 +590,7 @@ describe("generateMetadata (§4.4)", () => {
 });
 
 // -------------------------------------------------------------------
-// Page colours amendment (2026-10-12): the page wears the share card's
+// Page colours amendment (2026-10-10): the page wears the share card's
 // colours for the pair, and the radar has no rank-gap bars.
 // -------------------------------------------------------------------
 const AMBER = "#F59E0B";

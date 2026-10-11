@@ -128,7 +128,7 @@ describe("the page is never wider than the window (§8.2)", () => {
 });
 
 describe("the accent has one job (§8.4): a ladder rank gap of 5 or more", () => {
-  // Page colours amendment 2026-10-12: the radar's gap bars and their legend swatch are gone.
+  // Page colours amendment 2026-10-10: the radar's gap bars and their legend swatch are gone.
   it("#D50A0A and the site's red class appear only in the ladder (its tug marker and bar): nothing on the radar or its legend", () => {
     const users = FILES.filter((f) => new RegExp(`${ACCENT}|nflred|(^|[\\s"'\`:-])red-\\d00`, "i").test(code(f)));
     expect(users).toEqual(["MatchupLadder.tsx"]);
@@ -136,7 +136,7 @@ describe("the accent has one job (§8.4): a ladder rank gap of 5 or more", () =>
   });
 });
 
-// Page colours amendment 2026-10-12: the pair page wears the share card's
+// Page colours amendment 2026-10-10: the pair page wears the share card's
 // colours. They are worked out in ONE place, the server page, and handed down
 // as strings, so the header, the radar, its legend and the tiles cannot
 // disagree, and the colour rule cannot reach a component (or a browser).

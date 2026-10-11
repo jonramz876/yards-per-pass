@@ -1,6 +1,6 @@
 // components/matchup/MatchupRadarChart.tsx — the two-series overlay radar
 // (team matchup spec 2026-10-10 §8.1, as amended by the page colours
-// amendment of 2026-10-12): one team's offense (solid outline, round dots)
+// amendment of 2026-10-10): one team's offense (solid outline, round dots)
 // over the other team's defense (dashed outline, white squares), each in its
 // own team's colour for this pair.
 //

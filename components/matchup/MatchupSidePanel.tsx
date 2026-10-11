@@ -10,7 +10,7 @@
 // own grid track. No ancestor up to the page may set `overflow` (that turns
 // sticky off without a word).
 //
-// Colour (page colours amendment 2026-10-12): the panel looks no team up and
+// Colour (page colours amendment 2026-10-10): the panel looks no team up and
 // holds no colour. Its `paint` is the share card's colours for this pair and
 // this side of the ball, built once by the server page: the offense's colour,
 // the OTHER team's colour for the defense, and the middle ring's colour with

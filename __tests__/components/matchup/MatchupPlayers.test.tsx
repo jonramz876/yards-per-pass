@@ -81,7 +81,7 @@ describe("MatchupPlayers", () => {
     }
   });
 
-  // Page colours amendment 2026-10-12: bands and heading squares are the share
+  // Page colours amendment 2026-10-10: bands and heading squares are the share
   // card's colours for the pair. BUF at DET were two blues; the Lions are silver.
   it("each band prints the position and the team id, in the pair's card colours: BUF blue, DET silver with ink text and a blue stripe", () => {
     const el = show();

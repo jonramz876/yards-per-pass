@@ -8,7 +8,7 @@
 // wraps inside its tile. The tile grid uses counted columns (2 / 4 / 7), not
 // auto-fill, so a tile can never push the page wider than the window.
 //
-// Colour (page colours amendment 2026-10-12): a team's tile bands and the
+// Colour (page colours amendment 2026-10-10): a team's tile bands and the
 // square beside its heading are the colour the share card gives that team for
 // this pair (the header slab's colour), handed in by the server page. The
 // stripe under a band is the card's rule colour, the team's colour NOT in

@@ -1,5 +1,5 @@
 // The two-series overlay radar (team matchup spec §8.1, as amended by the page
-// colours amendment 2026-10-12): the offense's shape (solid, round dots) in
+// colours amendment 2026-10-10): the offense's shape (solid, round dots) in
 // its team's colour over the other team's defense (dashed, white squares) in
 // THAT team's colour. The colours come in as props (the share card's rule,
 // worked out once on the server); the chart holds none of its own and draws

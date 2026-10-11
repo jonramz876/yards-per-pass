@@ -1027,7 +1027,7 @@ describe("visitor-facing copy (§8.5)", () => {
 
   it("M5: under the radars", () => {
     // The page's ring is the share card's: amber, or grey beside a team colour close to amber
-    // (page colours amendment 2026-10-12). The sentence names the ring's own word, nothing else moves.
+    // (page colours amendment 2026-10-10). The sentence names the ring's own word, nothing else moves.
     expect(M.matchupRadarNote("grey")).toBe(
       "Both shapes are drawn by league rank, so the outer ring is 1st on every spoke and the grey ring is the middle of the league. Where the solid shape reaches past the dashed one, the offense ranks higher. Each label shows offense rank v defense rank.",
     );

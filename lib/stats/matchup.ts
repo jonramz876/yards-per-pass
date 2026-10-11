@@ -1031,7 +1031,7 @@ export function overlayCountLine(tally: { off: number; def: number; even: number
 /**
  * M5 — the side panel's paragraph, under the count line. The middle ring is
  * amber, or grey beside a team colour close to amber (the share card's rule,
- * page colours amendment 2026-10-12): the caller passes the ring's word, so
+ * page colours amendment 2026-10-10): the caller passes the ring's word, so
  * this module imports nothing for it. "amber" is the sentence as first built.
  */
 export function matchupRadarNote(ring: "amber" | "grey"): string {
