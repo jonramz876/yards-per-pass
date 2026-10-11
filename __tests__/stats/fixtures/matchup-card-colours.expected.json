@@ -54,10 +54,10 @@
 "awayFrom": "primary",
 "awayRule": "#000000",
 "awaySwitched": false,
-"home": "#FB4F14",
-"homeFrom": "primary",
-"homeRule": "#000000",
-"ring": "#94A3B8"
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
 },
 "ARI-CLE": {
 "away": "#97233F",
@@ -84,10 +84,10 @@
 "awayFrom": "primary",
 "awayRule": "#000000",
 "awaySwitched": false,
-"home": "#FB4F14",
-"homeFrom": "primary",
-"homeRule": "#002244",
-"ring": "#94A3B8"
+"home": "#002244",
+"homeFrom": "secondary",
+"homeRule": "#FB4F14",
+"ring": "#F59E0B"
 },
 "ARI-DET": {
 "away": "#97233F",
@@ -280,14 +280,14 @@
 "ring": "#94A3B8"
 },
 "ARI-TB": {
-"away": "#97233F",
-"awayFrom": "primary",
-"awayRule": "#000000",
-"awaySwitched": false,
-"home": "#E66D00",
-"homeFrom": "secondary-darkened",
-"homeRule": "#D50A0A",
-"ring": "#94A3B8"
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#97233F",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
 },
 "ARI-TEN": {
 "away": "#97233F",
@@ -590,14 +590,14 @@
 "ring": "#94A3B8"
 },
 "ATL-TB": {
-"away": "#A71930",
-"awayFrom": "primary",
-"awayRule": "#000000",
-"awaySwitched": false,
-"home": "#E66D00",
-"homeFrom": "secondary-darkened",
-"homeRule": "#D50A0A",
-"ring": "#94A3B8"
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#A71930",
+"awaySwitched": true,
+"home": "#D50A0A",
+"homeFrom": "primary",
+"homeRule": "#FF7900",
+"ring": "#F59E0B"
 },
 "ATL-TEN": {
 "away": "#A71930",
@@ -650,10 +650,10 @@
 "ring": "#F59E0B"
 },
 "BAL-CAR": {
-"away": "#241773",
-"awayFrom": "primary",
-"awayRule": "#000000",
-"awaySwitched": false,
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#241773",
+"awaySwitched": true,
 "home": "#0085CA",
 "homeFrom": "primary",
 "homeRule": "#101820",
@@ -714,9 +714,9 @@
 "awayFrom": "primary",
 "awayRule": "#000000",
 "awaySwitched": false,
-"home": "#0076B6",
-"homeFrom": "primary",
-"homeRule": "#B0B7BC",
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
 "ring": "#F59E0B"
 },
 "BAL-GB": {
@@ -784,10 +784,10 @@
 "awayFrom": "primary",
 "awayRule": "#000000",
 "awaySwitched": false,
-"home": "#0080C6",
-"homeFrom": "primary",
-"homeRule": "#FFC20E",
-"ring": "#F59E0B"
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
 },
 "BAL-LV": {
 "away": "#241773",
@@ -910,10 +910,10 @@
 "ring": "#F59E0B"
 },
 "BAL-TEN": {
-"away": "#241773",
-"awayFrom": "primary",
-"awayRule": "#000000",
-"awaySwitched": false,
+"away": "#000000",
+"awayFrom": "secondary",
+"awayRule": "#241773",
+"awaySwitched": true,
 "home": "#4B92DB",
 "homeFrom": "secondary",
 "homeRule": "#0C2340",
@@ -960,10 +960,10 @@
 "ring": "#F59E0B"
 },
 "BUF-CAR": {
-"away": "#00338D",
-"awayFrom": "primary",
-"awayRule": "#C60C30",
-"awaySwitched": false,
+"away": "#C60C30",
+"awayFrom": "secondary",
+"awayRule": "#00338D",
+"awaySwitched": true,
 "home": "#0085CA",
 "homeFrom": "primary",
 "homeRule": "#101820",
@@ -1264,9 +1264,9 @@
 "awayFrom": "primary",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#241773",
-"homeFrom": "primary",
-"homeRule": "#000000",
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#241773",
 "ring": "#F59E0B"
 },
 "CAR-BUF": {
@@ -1274,9 +1274,9 @@
 "awayFrom": "primary",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#00338D",
-"homeFrom": "primary",
-"homeRule": "#C60C30",
+"home": "#C60C30",
+"homeFrom": "secondary",
+"homeRule": "#00338D",
 "ring": "#F59E0B"
 },
 "CAR-CHI": {
@@ -1284,10 +1284,10 @@
 "awayFrom": "primary",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#0B162A",
-"homeFrom": "primary",
-"homeRule": "#C83803",
-"ring": "#F59E0B"
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
 },
 "CAR-CIN": {
 "away": "#0085CA",
@@ -1354,9 +1354,9 @@
 "awayFrom": "primary",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#03202F",
-"homeFrom": "primary",
-"homeRule": "#A71930",
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
 "ring": "#F59E0B"
 },
 "CAR-IND": {
@@ -1394,10 +1394,10 @@
 "awayFrom": "primary",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#003594",
-"homeFrom": "primary",
-"homeRule": "#FFA300",
-"ring": "#F59E0B"
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
 },
 "CAR-LAC": {
 "away": "#0085CA",
@@ -1464,9 +1464,9 @@
 "awayFrom": "primary",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#0B2265",
-"homeFrom": "primary",
-"homeRule": "#A71930",
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#0B2265",
 "ring": "#F59E0B"
 },
 "CAR-NYJ": {
@@ -1590,14 +1590,14 @@
 "ring": "#F59E0B"
 },
 "CHI-CAR": {
-"away": "#0B162A",
-"awayFrom": "primary",
-"awayRule": "#C83803",
-"awaySwitched": false,
+"away": "#C83803",
+"awayFrom": "secondary",
+"awayRule": "#0B162A",
+"awaySwitched": true,
 "home": "#0085CA",
 "homeFrom": "primary",
 "homeRule": "#101820",
-"ring": "#F59E0B"
+"ring": "#94A3B8"
 },
 "CHI-CIN": {
 "away": "#0B162A",
@@ -1644,9 +1644,9 @@
 "awayFrom": "primary",
 "awayRule": "#C83803",
 "awaySwitched": false,
-"home": "#0076B6",
-"homeFrom": "primary",
-"homeRule": "#B0B7BC",
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
 "ring": "#F59E0B"
 },
 "CHI-GB": {
@@ -1704,20 +1704,20 @@
 "awayFrom": "primary",
 "awayRule": "#C83803",
 "awaySwitched": false,
-"home": "#003594",
-"homeFrom": "primary",
-"homeRule": "#FFA300",
-"ring": "#F59E0B"
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
 },
 "CHI-LAC": {
 "away": "#0B162A",
 "awayFrom": "primary",
 "awayRule": "#C83803",
 "awaySwitched": false,
-"home": "#0080C6",
-"homeFrom": "primary",
-"homeRule": "#FFC20E",
-"ring": "#F59E0B"
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
 },
 "CHI-LV": {
 "away": "#0B162A",
@@ -1840,14 +1840,14 @@
 "ring": "#F59E0B"
 },
 "CHI-TEN": {
-"away": "#0B162A",
-"awayFrom": "primary",
-"awayRule": "#C83803",
-"awaySwitched": false,
-"home": "#4B92DB",
-"homeFrom": "secondary",
-"homeRule": "#0C2340",
-"ring": "#F59E0B"
+"away": "#C83803",
+"awayFrom": "secondary",
+"awayRule": "#0B162A",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
+"ring": "#94A3B8"
 },
 "CHI-WAS": {
 "away": "#0B162A",
@@ -1864,9 +1864,9 @@
 "awayFrom": "primary",
 "awayRule": "#000000",
 "awaySwitched": false,
-"home": "#97233F",
-"homeFrom": "primary",
-"homeRule": "#000000",
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#97233F",
 "ring": "#94A3B8"
 },
 "CIN-ATL": {
@@ -1920,13 +1920,13 @@
 "ring": "#94A3B8"
 },
 "CIN-CLE": {
-"away": "#000000",
-"awayFrom": "secondary",
-"awayRule": "#FB4F14",
-"awaySwitched": true,
-"home": "#FF3C00",
-"homeFrom": "secondary",
-"homeRule": "#311D00",
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#000000",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
 "ring": "#94A3B8"
 },
 "CIN-DAL": {
@@ -2220,23 +2220,23 @@
 "ring": "#F59E0B"
 },
 "CLE-CHI": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
-"home": "#0B162A",
-"homeFrom": "primary",
-"homeRule": "#C83803",
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
 "ring": "#94A3B8"
 },
 "CLE-CIN": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
-"home": "#000000",
-"homeFrom": "secondary",
-"homeRule": "#FB4F14",
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#000000",
 "ring": "#94A3B8"
 },
 "CLE-DAL": {
@@ -2250,13 +2250,13 @@
 "ring": "#F59E0B"
 },
 "CLE-DEN": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
-"home": "#002244",
-"homeFrom": "secondary",
-"homeRule": "#FB4F14",
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#FB4F14",
+"homeFrom": "primary",
+"homeRule": "#002244",
 "ring": "#94A3B8"
 },
 "CLE-DET": {
@@ -2270,13 +2270,13 @@
 "ring": "#F59E0B"
 },
 "CLE-GB": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
-"home": "#203731",
-"homeFrom": "primary",
-"homeRule": "#FFB612",
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "secondary-darkened",
+"homeRule": "#203731",
 "ring": "#94A3B8"
 },
 "CLE-HOU": {
@@ -2380,13 +2380,13 @@
 "ring": "#F59E0B"
 },
 "CLE-NO": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
-"home": "#101820",
-"homeFrom": "secondary",
-"homeRule": "#D3BC8D",
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#9E8D6A",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
 "ring": "#94A3B8"
 },
 "CLE-NYG": {
@@ -2420,13 +2420,13 @@
 "ring": "#F59E0B"
 },
 "CLE-PIT": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
-"home": "#101820",
-"homeFrom": "secondary",
-"homeRule": "#FFB612",
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
+"home": "#BF890E",
+"homeFrom": "primary-darkened",
+"homeRule": "#101820",
 "ring": "#94A3B8"
 },
 "CLE-SEA": {
@@ -2470,10 +2470,10 @@
 "ring": "#F59E0B"
 },
 "CLE-WAS": {
-"away": "#FF3C00",
-"awayFrom": "secondary",
-"awayRule": "#311D00",
-"awaySwitched": true,
+"away": "#311D00",
+"awayFrom": "primary",
+"awayRule": "#FF3C00",
+"awaySwitched": false,
 "home": "#BF890E",
 "homeFrom": "secondary-darkened",
 "homeRule": "#5A1414",
@@ -2674,10 +2674,10 @@
 "awayFrom": "primary",
 "awayRule": "#869397",
 "awaySwitched": false,
-"home": "#B38B21",
-"homeFrom": "secondary-darkened",
-"homeRule": "#4F2683",
-"ring": "#94A3B8"
+"home": "#4F2683",
+"homeFrom": "primary",
+"homeRule": "#FFC62F",
+"ring": "#F59E0B"
 },
 "DAL-NE": {
 "away": "#041E42",
@@ -2794,9 +2794,9 @@
 "awayFrom": "primary",
 "awayRule": "#002244",
 "awaySwitched": false,
-"home": "#97233F",
-"homeFrom": "primary",
-"homeRule": "#000000",
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#97233F",
 "ring": "#94A3B8"
 },
 "DEN-ATL": {
@@ -2860,13 +2860,13 @@
 "ring": "#94A3B8"
 },
 "DEN-CLE": {
-"away": "#002244",
-"awayFrom": "secondary",
-"awayRule": "#FB4F14",
-"awaySwitched": true,
-"home": "#FF3C00",
-"homeFrom": "secondary",
-"homeRule": "#311D00",
+"away": "#FB4F14",
+"awayFrom": "primary",
+"awayRule": "#002244",
+"awaySwitched": false,
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
 "ring": "#94A3B8"
 },
 "DEN-DAL": {
@@ -3124,9 +3124,9 @@
 "awayFrom": "primary",
 "awayRule": "#B0B7BC",
 "awaySwitched": false,
-"home": "#241773",
-"homeFrom": "primary",
-"homeRule": "#000000",
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#241773",
 "ring": "#F59E0B"
 },
 "DET-BUF": {
@@ -3154,10 +3154,10 @@
 "awayFrom": "primary",
 "awayRule": "#B0B7BC",
 "awaySwitched": false,
-"home": "#0B162A",
-"homeFrom": "primary",
-"homeRule": "#C83803",
-"ring": "#F59E0B"
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
 },
 "DET-CIN": {
 "away": "#0076B6",
@@ -3214,9 +3214,9 @@
 "awayFrom": "primary",
 "awayRule": "#B0B7BC",
 "awaySwitched": false,
-"home": "#03202F",
-"homeFrom": "primary",
-"homeRule": "#A71930",
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
 "ring": "#F59E0B"
 },
 "DET-IND": {
@@ -3670,14 +3670,14 @@
 "ring": "#94A3B8"
 },
 "GB-SEA": {
-"away": "#203731",
-"awayFrom": "primary",
-"awayRule": "#FFB612",
-"awaySwitched": false,
-"home": "#59A222",
-"homeFrom": "secondary-darkened",
-"homeRule": "#002244",
-"ring": "#F59E0B"
+"away": "#BF890E",
+"awayFrom": "secondary-darkened",
+"awayRule": "#203731",
+"awaySwitched": true,
+"home": "#002244",
+"homeFrom": "primary",
+"homeRule": "#69BE28",
+"ring": "#94A3B8"
 },
 "GB-SF": {
 "away": "#203731",
@@ -3760,10 +3760,10 @@
 "ring": "#F59E0B"
 },
 "HOU-CAR": {
-"away": "#03202F",
-"awayFrom": "primary",
-"awayRule": "#A71930",
-"awaySwitched": false,
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#03202F",
+"awaySwitched": true,
 "home": "#0085CA",
 "homeFrom": "primary",
 "homeRule": "#101820",
@@ -3824,9 +3824,9 @@
 "awayFrom": "primary",
 "awayRule": "#A71930",
 "awaySwitched": false,
-"home": "#0076B6",
-"homeFrom": "primary",
-"homeRule": "#B0B7BC",
+"home": "#8D9296",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0076B6",
 "ring": "#F59E0B"
 },
 "HOU-GB": {
@@ -3874,20 +3874,20 @@
 "awayFrom": "primary",
 "awayRule": "#A71930",
 "awaySwitched": false,
-"home": "#003594",
-"homeFrom": "primary",
-"homeRule": "#FFA300",
-"ring": "#F59E0B"
+"home": "#CC8200",
+"homeFrom": "secondary-darkened",
+"homeRule": "#003594",
+"ring": "#94A3B8"
 },
 "HOU-LAC": {
 "away": "#03202F",
 "awayFrom": "primary",
 "awayRule": "#A71930",
 "awaySwitched": false,
-"home": "#0080C6",
-"homeFrom": "primary",
-"homeRule": "#FFC20E",
-"ring": "#F59E0B"
+"home": "#B3880A",
+"homeFrom": "secondary-darkened",
+"homeRule": "#0080C6",
+"ring": "#94A3B8"
 },
 "HOU-LV": {
 "away": "#03202F",
@@ -4010,13 +4010,13 @@
 "ring": "#F59E0B"
 },
 "HOU-TEN": {
-"away": "#03202F",
-"awayFrom": "primary",
-"awayRule": "#A71930",
-"awaySwitched": false,
-"home": "#4B92DB",
-"homeFrom": "secondary",
-"homeRule": "#0C2340",
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#03202F",
+"awaySwitched": true,
+"home": "#0C2340",
+"homeFrom": "primary",
+"homeRule": "#4B92DB",
 "ring": "#F59E0B"
 },
 "HOU-WAS": {
@@ -5004,9 +5004,9 @@
 "awayFrom": "primary",
 "awayRule": "#FFA300",
 "awaySwitched": false,
-"home": "#0085CA",
-"homeFrom": "primary",
-"homeRule": "#101820",
+"home": "#101820",
+"homeFrom": "secondary",
+"homeRule": "#0085CA",
 "ring": "#F59E0B"
 },
 "LA-CHI": {
@@ -5014,10 +5014,10 @@
 "awayFrom": "primary",
 "awayRule": "#FFA300",
 "awaySwitched": false,
-"home": "#0B162A",
-"homeFrom": "primary",
-"homeRule": "#C83803",
-"ring": "#F59E0B"
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
 },
 "LA-CIN": {
 "away": "#003594",
@@ -5084,9 +5084,9 @@
 "awayFrom": "primary",
 "awayRule": "#FFA300",
 "awaySwitched": false,
-"home": "#03202F",
-"homeFrom": "primary",
-"homeRule": "#A71930",
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
 "ring": "#F59E0B"
 },
 "LA-IND": {
@@ -5294,9 +5294,9 @@
 "awayFrom": "primary",
 "awayRule": "#FFC20E",
 "awaySwitched": false,
-"home": "#241773",
-"homeFrom": "primary",
-"homeRule": "#000000",
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#241773",
 "ring": "#F59E0B"
 },
 "LAC-BUF": {
@@ -5324,10 +5324,10 @@
 "awayFrom": "primary",
 "awayRule": "#FFC20E",
 "awaySwitched": false,
-"home": "#0B162A",
-"homeFrom": "primary",
-"homeRule": "#C83803",
-"ring": "#F59E0B"
+"home": "#C83803",
+"homeFrom": "secondary",
+"homeRule": "#0B162A",
+"ring": "#94A3B8"
 },
 "LAC-CIN": {
 "away": "#0080C6",
@@ -5394,9 +5394,9 @@
 "awayFrom": "primary",
 "awayRule": "#FFC20E",
 "awaySwitched": false,
-"home": "#03202F",
-"homeFrom": "primary",
-"homeRule": "#A71930",
+"home": "#A71930",
+"homeFrom": "secondary",
+"homeRule": "#03202F",
 "ring": "#F59E0B"
 },
 "LAC-IND": {
@@ -6284,9 +6284,9 @@
 "awayFrom": "primary",
 "awayRule": "#FFC62F",
 "awaySwitched": false,
-"home": "#869397",
-"homeFrom": "secondary",
-"homeRule": "#041E42",
+"home": "#041E42",
+"homeFrom": "primary",
+"homeRule": "#869397",
 "ring": "#F59E0B"
 },
 "MIN-DEN": {
@@ -6894,9 +6894,9 @@
 "awayFrom": "primary-darkened",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#FF3C00",
-"homeFrom": "secondary",
-"homeRule": "#311D00",
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
 "ring": "#94A3B8"
 },
 "NO-DAL": {
@@ -7170,10 +7170,10 @@
 "ring": "#F59E0B"
 },
 "NYG-CAR": {
-"away": "#0B2265",
-"awayFrom": "primary",
-"awayRule": "#A71930",
-"awaySwitched": false,
+"away": "#A71930",
+"awayFrom": "secondary",
+"awayRule": "#0B2265",
+"awaySwitched": true,
 "home": "#0085CA",
 "homeFrom": "primary",
 "homeRule": "#101820",
@@ -8134,9 +8134,9 @@
 "awayFrom": "primary-darkened",
 "awayRule": "#101820",
 "awaySwitched": false,
-"home": "#FF3C00",
-"homeFrom": "secondary",
-"homeRule": "#311D00",
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
 "ring": "#94A3B8"
 },
 "PIT-DAL": {
@@ -9324,9 +9324,9 @@
 "awayFrom": "secondary",
 "awayRule": "#0C2340",
 "awaySwitched": true,
-"home": "#241773",
-"homeFrom": "primary",
-"homeRule": "#000000",
+"home": "#000000",
+"homeFrom": "secondary",
+"homeRule": "#241773",
 "ring": "#F59E0B"
 },
 "TEN-BUF": {
@@ -9684,9 +9684,9 @@
 "awayFrom": "secondary-darkened",
 "awayRule": "#5A1414",
 "awaySwitched": true,
-"home": "#FF3C00",
-"homeFrom": "secondary",
-"homeRule": "#311D00",
+"home": "#311D00",
+"homeFrom": "primary",
+"homeRule": "#FF3C00",
 "ring": "#94A3B8"
 },
 "WAS-DAL": {

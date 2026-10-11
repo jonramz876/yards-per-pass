@@ -1,9 +1,11 @@
 // lib/stats/matchup-colours.ts — the matchup share card's colour rule (matchup
-// card spec 2026-10-11 §5).
+// card spec 2026-10-11 §5, as amended by the colour families spec
+// 2026-10-11-matchup-colour-families.md).
 //
 // The card shows both teams at once, each in ONE colour of its own across the
 // whole picture, and the two must never read alike ("both teams shouldn't be
-// in blue"). This module picks those two colours from the teams' primary and
+// in blue etc"): never close, never both very dark, never two of one colour
+// family. This module picks those two colours from the teams' primary and
 // secondary colours, deterministically.
 //
 // Pure: it imports only the site's contrast rule. No lib/data, no React, no
@@ -21,10 +23,20 @@ import { RADAR_MIN_STROKE_CONTRAST, contrastOnWhite } from "@/lib/stats/formatte
 export const COLOUR_ALIKE_DISTANCE = 40;
 /** Two colours both darker than this lightness are alike: navy, black, dark green and brown all read as "dark". */
 export const COLOUR_DARK_MAX_L = 25;
-/** A colour with less chroma than this has no hue to compare. */
-export const COLOUR_FAMILY_MIN_CHROMA = 20;
-/** Two colours with hue, under this many degrees apart, are the same family. */
-export const COLOUR_FAMILY_MAX_HUE = 30;
+/** A colour with less chroma (CIELAB) than this has no hue: it is black, grey or white by lightness. */
+export const COLOUR_NEUTRAL_MAX_CHROMA = 8.8;
+/** A neutral darker than this lightness is black. */
+export const COLOUR_BLACK_MAX_L = 35;
+/** A neutral at or above this lightness is white. */
+export const COLOUR_WHITE_MIN_L = 90;
+/** A warm colour (orange or gold by hue) darker than this lightness is brown. */
+export const COLOUR_BROWN_MAX_L = 30;
+/**
+ * Where each family begins on the colour wheel, in degrees (half-open: a hue
+ * exactly on a cut belongs to the family the cut is named for). Red wraps: it
+ * runs from `red` round through 0 to `orange`.
+ */
+export const COLOUR_HUE_CUTS = { orange: 7, gold: 33.5, green: 70, teal: 172, blue: 195, purple: 257, red: 306 } as const;
 /** The middle ring is at least this far from both card colours (its own, lower floor: §5.4). */
 export const MATCHUP_RING_MIN_DISTANCE = 30;
 
@@ -104,35 +116,109 @@ export function darkenToReadable(value: string): string | null {
   return out;
 }
 
-/* ─── "Alike" (§5.2) ─── */
+/* ─── Colour families (colour families spec §2) ─── */
+
+/**
+ * The colour-wheel hue (the HSV / HSL hue) of a #RRGGBB colour, 0 up to 360,
+ * from the integer channels; 0 for a pure grey. The wheel, not the CIELAB hue
+ * angle: in CIELAB a pure red and Cleveland's orange are 4 degrees apart, on
+ * the wheel 14. Call it with a usable colour only.
+ */
+export function wheelHue(hex: string): number {
+  const [r, g, b] = channels(hex);
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return 0;
+  // JavaScript's % keeps the sign: a red with more blue than green must come out just under 360
+  if (max === r) return (((60 * (g - b)) / d) % 360 + 360) % 360;
+  if (max === g) return (60 * (b - r)) / d + 120;
+  return (60 * (r - g)) / d + 240;
+}
+
+export type ColourFamily =
+  | "black" | "white" | "grey" | "brown" | "red" | "orange" | "gold" | "green" | "teal" | "blue" | "purple";
+
+/**
+ * The colour family of a #RRGGBB colour, tested in this order: a colour with
+ * no hue is black, white or grey by lightness; a dark warm colour is brown;
+ * the rest go by the wheel hue. Navy is blue, burgundy is red, gold and yellow
+ * are one family. Call it with a usable colour only.
+ */
+export function colourFamily(hex: string): ColourFamily {
+  const { L, a, b } = labOf(hex);
+  if (Math.hypot(a, b) < COLOUR_NEUTRAL_MAX_CHROMA) {
+    if (L < COLOUR_BLACK_MAX_L) return "black";
+    return L >= COLOUR_WHITE_MIN_L ? "white" : "grey";
+  }
+  const hue = wheelHue(hex);
+  if (hue >= COLOUR_HUE_CUTS.orange && hue < COLOUR_HUE_CUTS.green && L < COLOUR_BROWN_MAX_L) return "brown";
+  if (hue < COLOUR_HUE_CUTS.orange || hue >= COLOUR_HUE_CUTS.red) return "red";
+  if (hue < COLOUR_HUE_CUTS.gold) return "orange";
+  if (hue < COLOUR_HUE_CUTS.green) return "gold";
+  if (hue < COLOUR_HUE_CUTS.teal) return "green";
+  if (hue < COLOUR_HUE_CUTS.blue) return "teal";
+  if (hue < COLOUR_HUE_CUTS.purple) return "blue";
+  return "purple";
+}
+
+/* ─── "Alike" (§5.2, colour families spec §3) ─── */
+
+/** The two tests that need no family: under COLOUR_ALIKE_DISTANCE apart, or both very dark. */
+function alikeWithoutFamily(a: string, b: string): boolean {
+  const p = labOf(a);
+  const q = labOf(b);
+  if (Math.hypot(p.L - q.L, p.a - q.a, p.b - q.b) < COLOUR_ALIKE_DISTANCE) return true;
+  return p.L < COLOUR_DARK_MAX_L && q.L < COLOUR_DARK_MAX_L;
+}
 
 /**
  * Whether two colours would read as the same on the card. True when any one
  * holds, tested in this order: they are under COLOUR_ALIKE_DISTANCE apart;
- * both are very dark; both have a hue and the two hues are under
- * COLOUR_FAMILY_MAX_HUE degrees apart (the short way round).
+ * both are very dark; they are the same colour family; one is a red and the
+ * other an orange.
+ *
+ * This is the rule for TEAM colours. The chain's own neutrals (slate #64748B,
+ * ink #0F172A) both measure as blue here, so this function calls them alike
+ * any blue. That is deliberate and NOT what the chain does: the chain compares
+ * a neutral by distance and darkness only (`alikeInChain`), because a neutral
+ * is nobody's colour. Do not "fix" either side to match the other.
  */
 export function coloursAlike(a: string, b: string): boolean {
-  const p = labOf(a);
-  const q = labOf(b);
-  if (Math.hypot(p.L - q.L, p.a - q.a, p.b - q.b) < COLOUR_ALIKE_DISTANCE) return true;
-  if (p.L < COLOUR_DARK_MAX_L && q.L < COLOUR_DARK_MAX_L) return true;
-  if (Math.hypot(p.a, p.b) < COLOUR_FAMILY_MIN_CHROMA || Math.hypot(q.a, q.b) < COLOUR_FAMILY_MIN_CHROMA) return false;
-  const degrees = (lab: Lab) => (Math.atan2(lab.b, lab.a) * 180) / Math.PI;
-  const apart = Math.abs(degrees(p) - degrees(q)) % 360;
-  return Math.min(apart, 360 - apart) < COLOUR_FAMILY_MAX_HUE;
+  if (alikeWithoutFamily(a, b)) return true;
+  const fa = colourFamily(a);
+  const fb = colourFamily(b);
+  return fa === fb || (fa === "red" && fb === "orange") || (fa === "orange" && fb === "red");
 }
 
-/* ─── The ring (§5.4) ─── */
+/** The chain's own neutrals: they are not team colours and have no family. */
+const isNeutral = (c: string) => c === MATCHUP_CARD_INK || c === MATCHUP_CARD_SLATE;
+
+/**
+ * "Alike" as the chain asks it: `coloursAlike`, except that when either colour
+ * is one of the chain's neutrals (ink as the away first choice, slate or ink
+ * as the home fallback) the family tests are left out. Only unusable input
+ * reaches a neutral. This keeps a NEUTRAL's comparisons exactly what they
+ * were before the families (the old hue test never applied to ink or slate
+ * either: their chroma is under its floor). It does not freeze every
+ * junk-input answer: where the real colours left in such a call are now
+ * alike, or no longer alike, by family, the answer moves with them (the
+ * tests pin 90 mask cases, all unchanged).
+ */
+function alikeInChain(a: string, b: string): boolean {
+  return isNeutral(a) || isNeutral(b) ? alikeWithoutFamily(a, b) : coloursAlike(a, b);
+}
+
+/* ─── The ring (§5.4, colour families spec §4) ─── */
 
 /**
  * The middle-of-the-league ring's colour beside the two CARD colours (not the
  * teams' primaries): amber, unless one of them is close to amber, then slate
- * grey. "Close to amber" is alike amber and not very dark: Cleveland's brown
- * is in amber's hue family but nobody mistakes one for the other.
+ * grey. Amber is a gold. "Close to amber" is alike amber (a gold, or anything
+ * within COLOUR_ALIKE_DISTANCE of it) or an orange. Cleveland's brown is its
+ * own family and far from amber, so it keeps the amber ring.
  */
 export function matchupRingColour(awayCardColour: string, homeCardColour: string): string {
-  const nearAmber = (c: string) => labOf(c).L >= COLOUR_DARK_MAX_L && coloursAlike(MATCHUP_RING_AMBER, c);
+  const nearAmber = (c: string) => coloursAlike(MATCHUP_RING_AMBER, c) || colourFamily(c) === "orange";
   return nearAmber(awayCardColour) || nearAmber(homeCardColour) ? MATCHUP_RING_GREY : MATCHUP_RING_AMBER;
 }
 
@@ -186,6 +272,10 @@ function ownCandidates(primary: string | null, secondary: string | null): Candid
  * 4. Else home is slate, then ink, the first not alike the away first choice.
  * 5. Else the farthest readable candidate (`closest: true`); it may be alike.
  *
+ * "Alike" is `coloursAlike` throughout, except where one of the two colours is
+ * a neutral (ink in step 1, slate or ink in step 4): a neutral has no colour
+ * family and is compared by distance and darkness only (`alikeInChain`).
+ *
  * Steps 4 and 5 are reached only with unusable colours: none of the 992 real
  * pairs gets past step 3. An unusable colour (anything but a #RRGGBB string)
  * is skipped as a candidate. Never throws; the same answer on every call.
@@ -205,7 +295,7 @@ export function matchupCardColours(away: MatchupTeamColours, home: MatchupTeamCo
   else first = { from: "ink", colour: MATCHUP_CARD_INK };
 
   const homeOwn = ownCandidates(hp, hs);
-  const homeFor = (awayColour: string) => homeOwn.find((c) => !coloursAlike(awayColour, c.colour)) ?? null;
+  const homeFor = (awayColour: string) => homeOwn.find((c) => !alikeInChain(awayColour, c.colour)) ?? null;
 
   let awayPick = first;
   let awaySwitched = false;
@@ -234,7 +324,7 @@ export function matchupCardColours(away: MatchupTeamColours, home: MatchupTeamCo
     { from: "grey", colour: MATCHUP_CARD_SLATE },
     { from: "ink", colour: MATCHUP_CARD_INK },
   ];
-  if (homePick === null) homePick = neutrals.find((c) => !coloursAlike(first.colour, c.colour)) ?? null;
+  if (homePick === null) homePick = neutrals.find((c) => !alikeInChain(first.colour, c.colour)) ?? null;
   // Step 5
   if (homePick === null) {
     closest = true;

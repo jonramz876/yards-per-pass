@@ -27,7 +27,8 @@ const CASES: Record<string, () => CardModel> = {
   "BUF at LA (twin blues, grey ring)": () => card("BUF", "LA"),
   "TB at DAL (played: final score)": () => card("TB", "DAL", { game: cardGame("TB", "DAL", { week: 5, gameday: "2026-10-08", weekday: "Thursday", away_score: 24, home_score: 16 }) }),
   "KC vs TB (no game, away gave way)": () => card("KC", "TB", { game: null }),
-  "ARI at TB (TB in orange, its rule its own red)": () => card("ARI", "TB"),
+  "ARI at TB (ARI gave way to black, TB in its red)": () => card("ARI", "TB"),
+  "NE at DAL (NE in navy, its rule its own red)": () => card("NE", "DAL"),
   "LAC at KC": () => card("LAC", "KC"),
   "WAS at JAX (the longest names)": () => card("WAS", "JAX"),
   "a missing spoke": () => card("BUF", "LA", { rows: rowsMissingSpokes("BUF") }),
@@ -288,14 +289,34 @@ describe("the named pairs' colours on the picture (spec §5.5)", () => {
     expect(els.flatMap(coloursOf)).not.toContain("#D50A0A");
   });
 
-  it("ARI at TB: Tampa Bay in orange with its own red as its 5 px rule, and that is the only red on the card", () => {
+  it("ARI at TB: a red beside an orange is alike, so Arizona gives way to its black and Tampa Bay wears its own red (colour families spec §3.1)", () => {
     const m = card("ARI", "TB");
     const els = flatten(matchupCardImage(m));
-    expect(m.colours.homeRule).toBe("#D50A0A");
-    expect([m.colours.away, m.colours.home]).not.toContain("#D50A0A");
-    const red = els.filter((e) => coloursOf(e).includes("#D50A0A"));
+    expect([m.colours.away, m.colours.home, m.colours.ring]).toEqual(["#000000", "#D50A0A", "#F59E0B"]);
+    expect(m.colours.awaySwitched).toBe(true);
+    expect([m.colours.awayRule, m.colours.homeRule]).toEqual(["#97233F", "#FF7900"]);
+    expect(style(one(els, "data-band-half", "away")).backgroundColor).toBe("#000000");
+    expect(style(one(els, "data-band-half", "home")).backgroundColor).toBe("#D50A0A");
+    expect(style(one(els, "data-rule", "away")).backgroundColor).toBe("#97233F");
+    expect(style(one(els, "data-rule", "home")).backgroundColor).toBe("#FF7900");
+    // each team's unused colour is on its 5 px rule and nowhere else: the cardinal red and the orange once each
+    for (const [unused, side] of [["#97233F", "away"], ["#FF7900", "home"]]) {
+      const hits = els.filter((e) => coloursOf(e).includes(unused));
+      expect(hits, unused).toHaveLength(1);
+      expect(hits[0].props["data-rule"]).toBe(side);
+    }
+  });
+
+  it("NE at DAL: New England in navy with its own red as its 5 px rule, and that is the only red on the card", () => {
+    const m = card("NE", "DAL");
+    const els = flatten(matchupCardImage(m));
+    expect([m.colours.away, m.colours.home]).toEqual(["#002244", "#869397"]);
+    expect(m.colours.awayRule).toBe("#C60C30");
+    expect([m.colours.away, m.colours.home]).not.toContain("#C60C30");
+    const red = els.filter((e) => coloursOf(e).includes("#C60C30"));
     expect(red).toHaveLength(1);
-    expect(red[0].props["data-rule"]).toBe("home");
+    expect(red[0].props["data-rule"]).toBe("away");
+    expect(els.flatMap(coloursOf)).not.toContain("#D50A0A");
   });
 
   it("TB at DAL: red is Tampa Bay's own colour, so it is on the card as that team's line", () => {
