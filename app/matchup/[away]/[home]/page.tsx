@@ -174,6 +174,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
         game={load.game}
         records={load.records}
         gamesAvailable={load.gamesAvailable}
+        colours={colours}
       />
     </>
   );
@@ -200,7 +201,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
     console.error(`Matchup ${away.id} at ${home.id} (${season}): values left out as impossible: ${model.rejected.join(", ")}`);
   }
 
-  const players = <MatchupPlayers away={away} home={home} season={season} lineup={load.lineup} playersAvailable={load.playersAvailable} />;
+  const players = <MatchupPlayers away={away} home={home} season={season} lineup={load.lineup} playersAvailable={load.playersAvailable} colours={colours} />;
   const notes = <MatchupNotes model={model} isLatestSeason={load.isLatestSeason} />;
 
   if (model.state === "small-pool" || !model.awayBall || !model.homeBall) {
