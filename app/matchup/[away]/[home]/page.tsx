@@ -162,7 +162,7 @@ export default async function MatchupPage({ params, searchParams }: PageProps) {
   // so every state below has them), in the order the card passes them. The
   // components take the strings; none of them works a colour out.
   const colours = matchupCardColours(away, home);
-  const heading =`${away.name} ${hasGame(load) ? "at" : "vs"} ${home.name}`;
+  const heading = `${away.name} ${hasGame(load) ? "at" : "vs"} ${home.name}`;
   const header = (
     <>
       <h1 className="sr-only">{heading}</h1>
