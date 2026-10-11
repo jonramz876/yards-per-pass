@@ -378,6 +378,26 @@ describe("colourFamily (colour families spec §2)", () => {
     expect(colourFamily("#f59e0b")).toBe("gold"); // amber, lower case
   });
 
+  it("a hue exactly ON a cut belongs to the family the cut is named for (half-open bands: `<` below, `>=` at)", () => {
+    // each colour's wheel hue is exactly the cut by the integer formula; L 40 to 45, chroma 25 to 50 (so never neutral or brown)
+    const ON_CUT: [string, number, ColourFamily][] = [
+      ["#86514A", 7, "orange"],
+      ["#885310", 33.5, "gold"],
+      ["#556600", 70, "green"],
+      ["#007868", 172, "teal"],
+      ["#006688", 195, "blue"],
+      ["#665591", 257, "purple"],
+      ["#85497F", 306, "red"],
+    ];
+    expect(ON_CUT.map(([, cut]) => cut).sort((a, b) => a - b)).toEqual(Object.values(COLOUR_HUE_CUTS).slice().sort((a, b) => a - b));
+    for (const [hex, cut, family] of ON_CUT) {
+      expect(wheelHue(hex), hex).toBe(cut);
+      expect(chromaOf(hex), hex).toBeGreaterThanOrEqual(COLOUR_NEUTRAL_MAX_CHROMA);
+      expect(labOf(hex).L, hex).toBeGreaterThanOrEqual(COLOUR_BROWN_MAX_L);
+      expect(colourFamily(hex), `${hex} at ${cut}`).toBe(family);
+    }
+  });
+
   describe("margins: a team colour edited onto a cut must fail here (§2.1)", () => {
     const hueDecided = () => TEAM_COLOURS.filter((c) => chromaOf(c) >= COLOUR_NEUTRAL_MAX_CHROMA && colourFamily(c) !== "brown");
     const apart = (a: number, b: number) => Math.min(Math.abs(a - b) % 360, 360 - (Math.abs(a - b) % 360));

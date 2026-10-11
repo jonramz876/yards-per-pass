@@ -197,8 +197,12 @@ const isNeutral = (c: string) => c === MATCHUP_CARD_INK || c === MATCHUP_CARD_SL
  * "Alike" as the chain asks it: `coloursAlike`, except that when either colour
  * is one of the chain's neutrals (ink as the away first choice, slate or ink
  * as the home fallback) the family tests are left out. Only unusable input
- * reaches a neutral, and this keeps every such answer what it was before the
- * families.
+ * reaches a neutral. This keeps a NEUTRAL's comparisons exactly what they
+ * were before the families (the old hue test never applied to ink or slate
+ * either: their chroma is under its floor). It does not freeze every
+ * junk-input answer: where the real colours left in such a call are now
+ * alike, or no longer alike, by family, the answer moves with them (the
+ * tests pin 90 mask cases, all unchanged).
  */
 function alikeInChain(a: string, b: string): boolean {
   return isNeutral(a) || isNeutral(b) ? alikeWithoutFamily(a, b) : coloursAlike(a, b);
